@@ -1,6 +1,9 @@
-static char help[] = "Solves for 2D variable viscosity Stokes equations - based on dmstag/ex4.c.\n";
+static char help[] = "Solves for 2D variable viscosity Stokes equations\n";
 
-/* Goal: create a single-phase MOR model */
+/* 
+Goal: create a single-phase MOR model 
+This example is based on dmstag/ex4.c and solves for SolCx setup.
+*/
 
 #include <petscdm.h>
 #include <petscksp.h>
@@ -173,14 +176,17 @@ int main(int argc,char **argv)
 static PetscErrorCode CreateSystem(const Ctx ctx, Mat *pA, Vec *pRhs)
 {
   PetscErrorCode ierr;
+  PetscInt       m, n, M, N, bs;
   PetscInt       Nx, Ny;                         // global variables
   PetscInt       ex, ey, startx, starty, nx, ny; // local variables
-  Mat            A;
+  Mat            A, preallocator;
   Vec            rhs, coeffLocal;
   PetscScalar    hx, hy;
   PetscBool      pinPressure = PETSC_TRUE;
 
   PetscFunctionBeginUser;
+  
+  //ierr = DMSetMatrixPreallocateOnly(ctx->dmStokes, PETSC_TRUE); CHKERRQ(ierr);
   
   /* Create stiffness matrix A and rhs vector */
   ierr = DMCreateMatrix      (ctx->dmStokes, pA  ); CHKERRQ(ierr);
@@ -195,12 +201,226 @@ static PetscErrorCode CreateSystem(const Ctx ctx, Mat *pA, Vec *pRhs)
   hx = ctx->hxCharacteristic;
   hy = ctx->hyCharacteristic;
   
+  /* Create preallocator - use DM functionality */
+  //ierr = DMCreateMatrix(ctx->dmStokes, &preallocator);   CHKERRQ(ierr);
+  //ierr = DMSetMatType  (ctx->dmStokes, MATPREALLOCATOR); CHKERRQ(ierr);
+  
+  ierr = MatGetSize(A,&M,&N);      CHKERRQ(ierr);
+  ierr = MatGetLocalSize(A,&m,&n); CHKERRQ(ierr);
+  ierr = MatGetBlockSize(A,&bs);   CHKERRQ(ierr);
+  
+  ISLocalToGlobalMapping ltog;
+  
+  ierr = DMGetLocalToGlobalMapping(ctx->dmStokes,&ltog); CHKERRQ(ierr);
+  
+  /* Create preallocator */
+  ierr = MatCreate      (PetscObjectComm((PetscObject)A), &preallocator); CHKERRQ(ierr);
+  ierr = MatSetType     (preallocator, MATPREALLOCATOR);                  CHKERRQ(ierr);
+  ierr = MatSetSizes    (preallocator, m, n, M, N);                       CHKERRQ(ierr);
+  ierr = MatSetBlockSize(preallocator, bs);                               CHKERRQ(ierr);
+  ierr = MatSetUp       (preallocator);                                   CHKERRQ(ierr);
+  
+  ierr = MatSetLocalToGlobalMapping(preallocator,ltog,ltog); CHKERRQ(ierr);
+  
   /* Get local domain */
   ierr = DMStagGetCorners(ctx->dmStokes, &startx, &starty, NULL, &nx, &ny, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   ierr = DMGetLocalVector(ctx->dmCoeff, &coeffLocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (ctx->dmCoeff, ctx->coeff, INSERT_VALUES, coeffLocal); CHKERRQ(ierr);
 
-  /* Loop over all local elements. Note: it may be more efficient in real applications to loop over each boundary separately */
+  /* Get non-zero pattern - Loop over all local elements 
+     This should be put into a routine that is called twice: first for non-zero structure, second for setting values*/
+  PetscInt      nEntries;
+  PetscScalar   vv[11] = {0.0};
+  DMStagStencil row,col[11];
+  
+  for (ey = starty; ey<starty+ny; ++ey) {
+    for (ex = startx; ex<startx+nx; ++ex) {
+    
+      /* Top boundary velocity Dirichlet */
+      if (ey == Ny-1) {
+        nEntries = 1;
+        row.i    = ex; row.j = ey; row.loc = UP; row.c = 0;
+        col[0]   = row;
+        
+        ierr = DMStagMatSetValuesStencil(ctx->dmStokes,preallocator,1,&row,nEntries,col,vv,INSERT_VALUES); CHKERRQ(ierr);
+      }
+      
+      /* Bottom boundary velocity Dirichlet */
+      if (ey == 0) {
+        nEntries = 1;
+        row.i    = ex; row.j = ey; row.loc = DOWN; row.c = 0;
+        col[0]   = row;
+        
+        ierr = DMStagMatSetValuesStencil(ctx->dmStokes,preallocator,1,&row,nEntries,col,vv,INSERT_VALUES); CHKERRQ(ierr);
+      } 
+      
+      /* Y-momentum equation : (u_xx + u_yy) - p_y = f^y : includes non-zero forcing */
+      else {
+        /* Left boundary y velocity stencil */
+        if (ex == 0) {
+          nEntries = 10;
+          row.i    = ex  ; row.j     = ey  ; row.loc     = DOWN;     row.c     = 0;
+          col[0].i = ex  ; col[0].j  = ey  ; col[0].loc  = DOWN;     col[0].c  = 0; 
+          col[1].i = ex  ; col[1].j  = ey-1; col[1].loc  = DOWN;     col[1].c  = 0;
+          col[2].i = ex  ; col[2].j  = ey+1; col[2].loc  = DOWN;     col[2].c  = 0;
+          /* No left entry */
+          col[3].i = ex+1; col[3].j  = ey  ; col[3].loc  = DOWN;     col[3].c  = 0;
+          col[4].i = ex  ; col[4].j  = ey-1; col[4].loc  = LEFT;     col[4].c  = 0;
+          col[5].i = ex  ; col[5].j  = ey-1; col[5].loc  = RIGHT;    col[5].c  = 0;
+          col[6].i = ex  ; col[6].j  = ey  ; col[6].loc  = LEFT;     col[6].c  = 0;
+          col[7].i = ex  ; col[7].j  = ey  ; col[7].loc  = RIGHT;    col[7].c  = 0;
+          col[8].i = ex  ; col[8].j  = ey-1; col[8].loc  = ELEMENT;  col[8].c  = 0;
+          col[9].i = ex  ; col[9].j  = ey  ; col[9].loc = ELEMENT;   col[9].c  = 0;
+        } 
+        
+        /* Right boundary y velocity stencil */
+        else if (ex == Nx-1) {
+          nEntries = 10;
+          row.i    = ex  ; row.j     = ey  ; row.loc     = DOWN;     row.c     = 0;
+          col[0].i = ex  ; col[0].j  = ey  ; col[0].loc  = DOWN;     col[0].c  = 0;
+          col[1].i = ex  ; col[1].j  = ey-1; col[1].loc  = DOWN;     col[1].c  = 0;
+          col[2].i = ex  ; col[2].j  = ey+1; col[2].loc  = DOWN;     col[2].c  = 0;
+          col[3].i = ex-1; col[3].j  = ey  ; col[3].loc  = DOWN;     col[3].c  = 0;
+          /* No right element */
+          col[4].i = ex  ; col[4].j  = ey-1; col[4].loc  = LEFT;     col[4].c  = 0;
+          col[5].i = ex  ; col[5].j  = ey-1; col[5].loc  = RIGHT;    col[5].c  = 0;
+          col[6].i = ex  ; col[6].j  = ey  ; col[6].loc  = LEFT;     col[6].c  = 0;
+          col[7].i = ex  ; col[7].j  = ey  ; col[7].loc  = RIGHT;    col[7].c  = 0;
+          col[8].i = ex  ; col[8].j  = ey-1; col[8].loc  = ELEMENT;  col[8].c  = 0; 
+          col[9].i = ex  ; col[9].j = ey   ; col[9].loc = ELEMENT;   col[9].c  = 0;
+        } 
+        
+        /* U_y interior equation */
+        else {
+          nEntries = 11;
+          row.i    = ex  ; row.j     = ey  ; row.loc     = DOWN;     row.c     = 0;
+          col[0].i = ex  ; col[0].j  = ey  ; col[0].loc  = DOWN;     col[0].c  = 0;
+          col[1].i = ex  ; col[1].j  = ey-1; col[1].loc  = DOWN;     col[1].c  = 0;
+          col[2].i = ex  ; col[2].j  = ey+1; col[2].loc  = DOWN;     col[2].c  = 0;
+          col[3].i = ex-1; col[3].j  = ey  ; col[3].loc  = DOWN;     col[3].c  = 0;
+          col[4].i = ex+1; col[4].j  = ey  ; col[4].loc  = DOWN;     col[4].c  = 0;
+          col[5].i = ex  ; col[5].j  = ey-1; col[5].loc  = LEFT;     col[5].c  = 0;
+          col[6].i = ex  ; col[6].j  = ey-1; col[6].loc  = RIGHT;    col[6].c  = 0;
+          col[7].i = ex  ; col[7].j  = ey  ; col[7].loc  = LEFT;     col[7].c  = 0;
+          col[8].i = ex  ; col[8].j  = ey  ; col[8].loc  = RIGHT;    col[8].c  = 0;
+          col[9].i = ex  ; col[9].j  = ey-1; col[9].loc  = ELEMENT;  col[9].c  = 0;
+          col[10].i = ex ; col[10].j = ey  ; col[10].loc = ELEMENT; col[10].c  = 0;
+        }
+
+        /* Insert Y-momentum entries */
+        ierr = DMStagMatSetValuesStencil(ctx->dmStokes,preallocator,1,&row,nEntries,col,vv,INSERT_VALUES);CHKERRQ(ierr);
+      }
+      
+      /* Right Boundary velocity Dirichlet */
+      if (ex == Nx-1) {
+        nEntries = 1;
+        row.i    = ex; row.j = ey; row.loc = RIGHT; row.c = 0;
+        col[0]   = row;
+        ierr = DMStagMatSetValuesStencil(ctx->dmStokes,preallocator,1,&row,nEntries,col,vv,INSERT_VALUES);CHKERRQ(ierr);
+      }
+      
+      /* Left velocity Dirichlet */
+      if (ex == 0) {
+        nEntries = 1;
+        row.i = ex; row.j = ey; row.loc = LEFT; row.c = 0;
+        col[0]   = row;
+        ierr = DMStagMatSetValuesStencil(ctx->dmStokes,preallocator,1,&row,nEntries,col,vv,INSERT_VALUES);CHKERRQ(ierr);
+      } 
+      
+      /* X-momentum equation : (u_xx + u_yy) - p_x = f^x */
+      else {
+      
+        /* Bottom boundary x velocity stencil (with zero vel deriv) */
+        if (ey == 0) {
+          nEntries = 10;
+          row.i     = ex  ; row.j     = ey  ; row.loc     = LEFT;    row.c      = 0;
+          col[0].i  = ex  ; col[0].j  = ey  ; col[0].loc  = LEFT;    col[0].c   = 0;
+          /* Missing element below */
+          col[1].i  = ex  ; col[1].j  = ey+1; col[1].loc  = LEFT;    col[1].c   = 0;
+          col[2].i  = ex-1; col[2].j  = ey  ; col[2].loc  = LEFT;    col[2].c   = 0;
+          col[3].i  = ex+1; col[3].j  = ey  ; col[3].loc  = LEFT;    col[3].c   = 0;
+          col[4].i  = ex-1; col[4].j  = ey  ; col[4].loc  = DOWN;    col[4].c   = 0;
+          col[5].i  = ex  ; col[5].j  = ey  ; col[5].loc  = DOWN;    col[5].c   = 0;
+          col[6].i  = ex-1; col[6].j  = ey  ; col[6].loc  = UP;      col[6].c   = 0;
+          col[7].i  = ex  ; col[7].j  = ey  ; col[7].loc  = UP;      col[7].c   = 0;
+          col[8].i  = ex-1; col[8].j  = ey  ; col[8].loc  = ELEMENT; col[8].c   = 0;
+          col[9].i = ex   ; col[9].j  = ey  ; col[9].loc  = ELEMENT; col[9].c   = 0;
+        } 
+        
+        /* Top boundary x velocity stencil */
+        else if (ey == Ny-1) {
+          nEntries = 10;
+          row.i     = ex  ; row.j     = ey  ; row.loc     = LEFT;    row.c      = 0;
+          col[0].i  = ex  ; col[0].j  = ey  ; col[0].loc  = LEFT;    col[0].c   = 0;
+          col[1].i  = ex  ; col[1].j  = ey-1; col[1].loc  = LEFT;    col[1].c   = 0;
+          /* Missing element above */
+          col[2].i  = ex-1; col[2].j  = ey  ; col[2].loc  = LEFT;    col[2].c   = 0;
+          col[3].i  = ex+1; col[3].j  = ey  ; col[3].loc  = LEFT;    col[3].c   = 0;
+          col[4].i  = ex-1; col[4].j  = ey  ; col[4].loc  = DOWN;    col[4].c   = 0;
+          col[5].i  = ex  ; col[5].j  = ey  ; col[5].loc  = DOWN;    col[5].c   = 0;
+          col[6].i  = ex-1; col[6].j  = ey  ; col[6].loc  = UP;      col[6].c   = 0;
+          col[7].i  = ex  ; col[7].j  = ey  ; col[7].loc  = UP;      col[7].c   = 0;
+          col[8].i  = ex-1; col[8].j  = ey  ; col[8].loc  = ELEMENT; col[8].c   = 0;
+          col[9].i = ex   ; col[9].j  = ey   ; col[9].loc = ELEMENT;  col[9].c  = 0;
+        } 
+        
+        /* U_x interior equation */
+        else {
+          nEntries = 11;
+          row.i     = ex  ; row.j     = ey  ; row.loc     = LEFT;    row.c      = 0;
+          col[0].i  = ex  ; col[0].j  = ey  ; col[0].loc  = LEFT;    col[0].c   = 0;
+          col[1].i  = ex  ; col[1].j  = ey-1; col[1].loc  = LEFT;    col[1].c   = 0;
+          col[2].i  = ex  ; col[2].j  = ey+1; col[2].loc  = LEFT;    col[2].c   = 0;
+          col[3].i  = ex-1; col[3].j  = ey  ; col[3].loc  = LEFT;    col[3].c   = 0;
+          col[4].i  = ex+1; col[4].j  = ey  ; col[4].loc  = LEFT;    col[4].c   = 0;
+          col[5].i  = ex-1; col[5].j  = ey  ; col[5].loc  = DOWN;    col[5].c   = 0;
+          col[6].i  = ex  ; col[6].j  = ey  ; col[6].loc  = DOWN;    col[6].c   = 0;
+          col[7].i  = ex-1; col[7].j  = ey  ; col[7].loc  = UP;      col[7].c   = 0;
+          col[8].i  = ex  ; col[8].j  = ey  ; col[8].loc  = UP;      col[8].c   = 0;
+          col[9].i  = ex-1; col[9].j  = ey  ; col[9].loc  = ELEMENT; col[9].c   = 0;
+          col[10].i = ex  ; col[10].j = ey  ; col[10].loc = ELEMENT; col[10].c  = 0;
+        }
+        
+        /* Insert X-momentum entries */
+        ierr = DMStagMatSetValuesStencil(ctx->dmStokes,preallocator,1,&row,nEntries,col,vv,INSERT_VALUES);CHKERRQ(ierr);
+      }
+      
+      /* P equation : u_x + v_y = 0 */
+      if (pinPressure && ex == 0 && ey == 0) { 
+        nEntries = 1;
+        row.i = ex; row.j = ey; row.loc = ELEMENT; row.c = 0;
+        col[0]   = row;
+        ierr = DMStagMatSetValuesStencil(ctx->dmStokes,preallocator,1,&row,nEntries,col,vv,INSERT_VALUES);CHKERRQ(ierr);
+      } 
+      else {
+        nEntries = 5;
+        row.i = ex; row.j = ey; row.loc = ELEMENT; row.c = 0;
+        col[0].i = ex; col[0].j = ey; col[0].loc = LEFT;    col[0].c = 0;
+        col[1].i = ex; col[1].j = ey; col[1].loc = RIGHT;   col[1].c = 0;
+        col[2].i = ex; col[2].j = ey; col[2].loc = DOWN;    col[2].c = 0;
+        col[3].i = ex; col[3].j = ey; col[3].loc = UP;      col[3].c = 0;
+        col[4] = row;
+        ierr = DMStagMatSetValuesStencil(ctx->dmStokes,preallocator,1,&row,nEntries,col,vv,INSERT_VALUES);CHKERRQ(ierr);
+      }
+
+      
+    }
+  }
+  
+  /* Assemble Preallocator */
+  ierr = MatAssemblyBegin(preallocator, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+  ierr = MatAssemblyEnd  (preallocator, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+
+  /* Push the non-zero pattern defined within preallocator into A */
+  ierr = MatPreallocatorPreallocate(preallocator,PETSC_TRUE,A); CHKERRQ(ierr);
+
+  /* Destroy Preallocator */
+  ierr = MatDestroy(&preallocator); CHKERRQ(ierr);
+  
+  /* View preallocated struct of A */
+  //ierr = MatView(A,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+
+  /* Insert non-zero values in A and assemble rhs - Loop over all local elements */
   for (ey = starty; ey<starty+ny; ++ey) {
     for (ex = startx; ex<startx+nx; ++ex) {
     
@@ -450,6 +670,9 @@ static PetscErrorCode CreateSystem(const Ctx ctx, Mat *pA, Vec *pRhs)
   ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
   ierr = MatAssemblyEnd  (A,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
   
+  /* View struct of A */
+  //ierr = MatView(A,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+  
   ierr = VecAssemblyBegin(rhs); CHKERRQ(ierr);
   ierr = VecAssemblyEnd  (rhs); CHKERRQ(ierr);
   
@@ -464,7 +687,6 @@ static PetscErrorCode PopulateCoefficientData(Ctx ctx)
   PetscErrorCode ierr;
   PetscInt       startx, starty, nExtrax, nExtray;
   PetscInt       ex, ey, nx, ny, Nx, Ny;
-  //Vec            coeffLocal; 
   Vec            coordLocal;
   DM             dmCoord;
 
@@ -472,7 +694,6 @@ static PetscErrorCode PopulateCoefficientData(Ctx ctx)
   
   /* Access vector with coefficient (rho, eta) */
   ierr = DMCreateGlobalVector(ctx->dmCoeff, &ctx->coeff); CHKERRQ(ierr);
-  //ierr = DMGetLocalVector    (ctx->dmCoeff, &coeffLocal); CHKERRQ(ierr);
   
   /* Get domain corners */
   ierr = DMStagGetCorners(ctx->dmCoeff, &startx, &starty, NULL, &nx, &ny, NULL, &nExtrax, &nExtray, NULL); CHKERRQ(ierr);
@@ -583,9 +804,6 @@ static PetscErrorCode PopulateCoefficientData(Ctx ctx)
   /* Vector Assembly and Restore local vector */
   ierr = VecAssemblyBegin(ctx->coeff); CHKERRQ(ierr);
   ierr = VecAssemblyEnd  (ctx->coeff); CHKERRQ(ierr);
-  
-  /* Restore local vector */
-  //ierr = DMRestoreLocalVector(ctx->dmCoeff, &coeffLocal); CHKERRQ(ierr);
   
   /* Return function */
   PetscFunctionReturn(0);
@@ -713,4 +931,4 @@ static PetscErrorCode DumpSolution(Ctx ctx, Vec x)
 }
 
 // Run it:
-// mpiexec -n 2 solCx -nx 51 -ny 51
+// mpiexec -n 2 stagridge -nx 21 -ny 21
