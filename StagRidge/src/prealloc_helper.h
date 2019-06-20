@@ -7,7 +7,7 @@
 #include <petscdm.h>
 
 PetscErrorCode MatGetPreallocator(Mat A,Mat *preallocator);
-PetscErrorCode MatPreallocatorBegin(Mat A,Mat *preallocator);
-PetscErrorCode MatPreallocatorEnd(Mat A);
+PetscErrorCode MatPreallocatePhaseBegin(Mat A,Mat *preallocator);
+PetscErrorCode MatPreallocatePhaseEnd(Mat A);
 
 #endif

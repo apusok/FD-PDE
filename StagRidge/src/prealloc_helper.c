@@ -59,7 +59,7 @@ PetscErrorCode MatGetPreallocator(Mat A,Mat *preallocator)
  Returns preallocator, a matrix of type "preallocator".
  The user should not call MatDestroy() on preallocator;
 */
-PetscErrorCode MatPreallocatorBegin(Mat A,Mat *preallocator)
+PetscErrorCode MatPreallocatePhaseBegin(Mat A,Mat *preallocator)
 {
   PetscErrorCode ierr;
   Mat            p = NULL;
@@ -88,7 +88,7 @@ PetscErrorCode MatPreallocatorBegin(Mat A,Mat *preallocator)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MatPreallocatorEnd(Mat A)
+PetscErrorCode MatPreallocatePhaseEnd(Mat A)
 {
   PetscErrorCode ierr;
   Mat            p = NULL;

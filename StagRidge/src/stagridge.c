@@ -201,7 +201,7 @@ static PetscErrorCode CreateSystem(const Ctx ctx, Mat *pA, Vec *pRhs)
   hx = ctx->hxCharacteristic;
   hy = ctx->hyCharacteristic;
 
-  ierr = MatPreallocatorBegin(*pA,&preallocator);CHKERRQ(ierr);
+  ierr = MatPreallocatePhaseBegin(*pA,&preallocator);CHKERRQ(ierr);
   
   /* Get local domain */
   ierr = DMStagGetCorners(ctx->dmStokes, &startx, &starty, NULL, &nx, &ny, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -389,7 +389,7 @@ static PetscErrorCode CreateSystem(const Ctx ctx, Mat *pA, Vec *pRhs)
   }
   
   /* Push the non-zero pattern defined within preallocator into A */
-  ierr = MatPreallocatorEnd(*pA);CHKERRQ(ierr);
+  ierr = MatPreallocatePhaseEnd(*pA);CHKERRQ(ierr);
   
   /* View preallocated struct of A */
   //ierr = MatView(A,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
