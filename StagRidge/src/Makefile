@@ -3,7 +3,7 @@ FFLAGS	 =
 CPPFLAGS =
 FPPFLAGS =
 PROG     = stagridge
-OBJECTS  = ${PROG}.o
+OBJECTS  = ${PROG}.o prealloc_helper.o
 
 all: ${PROG}
 	${RM} ${OBJECTS}

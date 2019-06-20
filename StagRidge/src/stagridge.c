@@ -9,6 +9,7 @@ This example is based on dmstag/ex4.c and solves for SolCx setup.
 #include <petscksp.h>
 #include <petscdmstag.h>
 #include <petscdmda.h>
+#include "prealloc_helper.h"
 
 /* Define convenient names for DMStagStencilLocation entries */
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
@@ -176,10 +177,9 @@ int main(int argc,char **argv)
 static PetscErrorCode CreateSystem(const Ctx ctx, Mat *pA, Vec *pRhs)
 {
   PetscErrorCode ierr;
-  PetscInt       m, n, M, N, bs;
   PetscInt       Nx, Ny;                         // global variables
   PetscInt       ex, ey, startx, starty, nx, ny; // local variables
-  Mat            A, preallocator;
+  Mat            A, preallocator = NULL;
   Vec            rhs, coeffLocal;
   PetscScalar    hx, hy;
   PetscBool      pinPressure = PETSC_TRUE;
@@ -200,27 +200,8 @@ static PetscErrorCode CreateSystem(const Ctx ctx, Mat *pA, Vec *pRhs)
   Ny = ctx->ny;
   hx = ctx->hxCharacteristic;
   hy = ctx->hyCharacteristic;
-  
-  /* Create preallocator - use DM functionality */
-  //ierr = DMCreateMatrix(ctx->dmStokes, &preallocator);   CHKERRQ(ierr);
-  //ierr = DMSetMatType  (ctx->dmStokes, MATPREALLOCATOR); CHKERRQ(ierr);
-  
-  ierr = MatGetSize(A,&M,&N);      CHKERRQ(ierr);
-  ierr = MatGetLocalSize(A,&m,&n); CHKERRQ(ierr);
-  ierr = MatGetBlockSize(A,&bs);   CHKERRQ(ierr);
-  
-  ISLocalToGlobalMapping ltog;
-  
-  ierr = DMGetLocalToGlobalMapping(ctx->dmStokes,&ltog); CHKERRQ(ierr);
-  
-  /* Create preallocator */
-  ierr = MatCreate      (PetscObjectComm((PetscObject)A), &preallocator); CHKERRQ(ierr);
-  ierr = MatSetType     (preallocator, MATPREALLOCATOR);                  CHKERRQ(ierr);
-  ierr = MatSetSizes    (preallocator, m, n, M, N);                       CHKERRQ(ierr);
-  ierr = MatSetBlockSize(preallocator, bs);                               CHKERRQ(ierr);
-  ierr = MatSetUp       (preallocator);                                   CHKERRQ(ierr);
-  
-  ierr = MatSetLocalToGlobalMapping(preallocator,ltog,ltog); CHKERRQ(ierr);
+
+  ierr = MatPreallocatorBegin(*pA,&preallocator);CHKERRQ(ierr);
   
   /* Get local domain */
   ierr = DMStagGetCorners(ctx->dmStokes, &startx, &starty, NULL, &nx, &ny, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -407,15 +388,8 @@ static PetscErrorCode CreateSystem(const Ctx ctx, Mat *pA, Vec *pRhs)
     }
   }
   
-  /* Assemble Preallocator */
-  ierr = MatAssemblyBegin(preallocator, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-  ierr = MatAssemblyEnd  (preallocator, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-
   /* Push the non-zero pattern defined within preallocator into A */
-  ierr = MatPreallocatorPreallocate(preallocator,PETSC_TRUE,A); CHKERRQ(ierr);
-
-  /* Destroy Preallocator */
-  ierr = MatDestroy(&preallocator); CHKERRQ(ierr);
+  ierr = MatPreallocatorEnd(*pA);CHKERRQ(ierr);
   
   /* View preallocated struct of A */
   //ierr = MatView(A,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
