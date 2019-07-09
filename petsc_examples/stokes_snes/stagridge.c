@@ -653,7 +653,7 @@ PetscErrorCode FormFunctionPV(SNES snes, Vec x, Vec f, void *ctx)
 
   // Map global vectors to local domain
   ierr = DMGetLocalVector(sol->dmPV, &xlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (sol->dmPV, sol->x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (sol->dmPV, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
 
   // Map coefficient data to local domain
   ierr = DMGetLocalVector(sol->dmCoeff, &coefflocal); CHKERRQ(ierr);
@@ -1116,7 +1116,7 @@ PetscErrorCode XMomentumResidual(SolverCtx *sol, Vec xlocal, PetscInt i, PetscIn
   dVzdx = etaUp   *(xx[8]-xx[7])/dx - etaDown*(xx[6]-xx[5])/dx;
   ffi   = -dPdx + 2.0*dVxdx/dx + dVxdz/dz + dVzdx/dz;
 
-  ff = &ffi;
+  *ff = ffi;
   PetscFunctionReturn(0);
 }
 
@@ -1188,7 +1188,7 @@ PetscErrorCode ZMomentumResidual(SolverCtx *sol, Vec xlocal, Vec coefflocal, Pet
   dVxdz = etaLeft *(xx[5]-xx[7])/dz - etaRight*(xx[6]-xx[8])/dz;
   ffi   = -dPdz + 2.0*dVzdz/dz + dVzdx/dx + dVxdz/dx - rhog;
 
-  ff = &ffi;
+  *ff = ffi;
 
   PetscFunctionReturn(0);
 }
