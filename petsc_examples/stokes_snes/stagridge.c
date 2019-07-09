@@ -433,7 +433,7 @@ PetscErrorCode JacobianMatrixPreallocation(SolverCtx *sol)
 
       // Z-momentum equation : (u_xx + u_zz) - p_z = rhog^z
       if (j > 0) {
-        nEntries = 11;
+        nEntries = 23;
         row.i    = i  ; row.j     = j  ; row.loc     = DOWN;     row.c     = 0;
         
         // Get stencil entries
@@ -1104,10 +1104,10 @@ PetscErrorCode XMomentumResidual(SolverCtx *sol, Vec xlocal, PetscInt i, PetscIn
   //ierr = CalcEffViscosity(sol, xlocal, i  ,j+1,CORNER, &etaUp   ); CHKERRQ(ierr);
   //ierr = CalcEffViscosity(sol, xlocal, i  ,j  ,CORNER, &etaDown ); CHKERRQ(ierr);
 
-  etaLeft = sol->usr->eta0;
+  etaLeft  = sol->usr->eta0;
   etaRight = sol->usr->eta0;
-  etaUp = sol->usr->eta0;
-  etaDown = sol->usr->eta0;
+  etaUp    = sol->usr->eta0;
+  etaDown  = sol->usr->eta0;
 
   // Calculate residual
   dPdx  = (xx[10]-xx[9])/dx;
