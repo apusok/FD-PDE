@@ -2,7 +2,7 @@ CFLAGS	 =
 FFLAGS	 =
 CPPFLAGS =
 FPPFLAGS =
-PROG     = stagridge
+PROG     = stokes_snes
 OBJECTS  = ${PROG}.o prealloc_helper.o
 
 all: ${PROG}
@@ -19,7 +19,7 @@ include ${PETSC_DIR}/lib/petsc/conf/rules
 ${PROG}: ${OBJECTS} chkopts
 	${RM} ${PROG}
 	-${CLINKER} -o ${PROG} ${OBJECTS} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
-	
+
 clean_all:
 	@echo "# -------------------------------- #"
 	@echo "#            Full clean            #"

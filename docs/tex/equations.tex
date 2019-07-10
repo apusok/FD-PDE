@@ -1,0 +1,268 @@
+\RequirePackage{lineno} 
+\documentclass[a4paper,11pt]{article}
+\usepackage[margin=2cm]{geometry}
+\usepackage{amsmath}
+\usepackage{natbib}
+\usepackage{graphicx}
+\usepackage{setspace}
+\usepackage{multirow}
+\usepackage{datetime}
+
+\usepackage{authblk}
+\usepackage{chngcntr}
+
+\usepackage{tabularx}
+\usepackage{mathabx}
+\usepackage{subfigure}
+\usepackage{fancyheadings}
+\usepackage[titletoc]{appendix}
+\usepackage{rotating}
+\usepackage{bm}
+\usepackage{courier}
+
+\bibliographystyle{plainnat}
+
+\DeclareGraphicsExtensions{.pdf,.png,.jpg}
+\graphicspath{{../img/}}
+
+\usepackage{color, colortbl}
+\definecolor{Gray}{gray}{0.6}
+\newcommand{\red}[1]{\textcolor{red}{#1}}
+\newcommand{\graynew}[1]{\textcolor{Gray}{#1}}
+
+\usepackage{cleveref}
+
+\def\imagetop#1{\vtop{\null\hbox{#1}}}
+
+\usepackage{etoolbox}%Italicsreferences
+\makeatletter
+\patchcmd{\NAT@test}{\else\NAT@nm}{\else\NAT@nmfmt{\NAT@nm}}{}{}
+\let\NAT@up\itshape
+\makeatother
+
+
+\title{Notes}
+\date{\today}
+
+\author[1]{Adina E. Pusok}
+\affil[1]{\small Depart. of Earth Sciences, University of Oxford, UK}
+\affil[*]{\small Corresponding author: adina.pusok@earth.ox.ac.uk}
+
+\begin{document}
+\maketitle
+
+%\tableofcontents
+%\newpage
+\pagestyle{fancyplain}
+\rhead[\fancyplain{}{\slshape \rightmark}]{\thepage}
+%\lhead{PUSOK ET AL.}
+%\lhead[\thepage]{\fancyplain{}%
+%{\slshape \leftmark}}
+\cfoot{}
+
+%\doublespacing
+
+%% ------------------------------------------------------------------------ %%
+%  MAIN BODY
+%% ------------------------------------------------------------------------ %%
+
+%\linenumbers
+%\begin{abstract}
+%\end{abstract}
+
+\section{Theoretical Framework}
+The governing equations in geodynamics generally represent conservation of mass, momentum and energy of the form:
+\begin{equation}
+ \text{Input} + \text{Generation} = \text{Output} + \text{Accumulation} \ + \text{Consumption} 
+\end{equation}
+
+\subsection{Single-phase Stokes Flow}
+The equations for conservation of mass and momentum (Stokes equations), assuming incompressibility and neglecting thermal diffusion, are given by:
+
+\begin{align}
+\nabla \cdot \bm{\sigma}+\rho \textbf{g} &= 0 \\
+\nabla \cdot \textbf{v} &= 0,
+\end{align}
+where $\bm{\sigma}= -P + \bm{\tau}$ is the total stress tensor with $P$ the pressure and $\bm{\tau}$ the deviatoric stress tensor, $\rho$ the fluid density, $\textbf{g}$ the gravitational acceleration and $\textbf{v}$ the velocity. The deviatoric stress tensor can be expressed as:
+\begin{align}
+\bm{\tau} &= 2\eta\bm{\dot{\varepsilon}} \\
+\bm{\dot{\varepsilon}} &= \frac{1}{2}\left(\nabla \textbf{v}+\nabla\textbf{v}^T\right),
+\end{align}
+where $\bm{\dot{\varepsilon}}$ is the strain rate tensor and $\eta$ is the effective viscosity (constant for linear viscous formulation, non-linear for visco-elasto-plastic rheology).
+
+The momentum equation then becomes:
+\begin{align}
+\nabla \cdot \bm{\tau}  -  \nabla P +\rho \textbf{g} &= 0 \\
+-\nabla P + \nabla \cdot \eta\left(\nabla \textbf{v}+\nabla\textbf{v}^T\right)+\rho \textbf{g} &= 0
+\end{align}
+
+So the system of Stokes equations to be solved is:
+\begin{align}
+\nabla \cdot \textbf{v} &= 0 \\
+-\nabla P + \nabla \cdot \eta\left(\nabla \textbf{v}+\nabla\textbf{v}^T\right)+\rho \textbf{g} &= 0
+\end{align}
+
+\textbf{Partial derivative form}
+
+For finite difference discretization, sometimes it is easier (and more intuitive) to write the equations in partial derivative form. The equations above can be written as:
+
+\begin{eqnarray}
+\frac{\displaystyle \partial v_{i}}{\displaystyle \partial x_i} &= 0 \\
+\frac{\displaystyle \partial \sigma_{ij}}{\displaystyle \partial x_j} + \rho g_i &= 0,\\
+\end{eqnarray}
+where $i,j$ represent spatial directions following the Einstein summation convention, $\sigma_{ij} = -P + \tau_{ij}$ is the total stress tensor with $P = -\sigma_{ij}/3$ the pressure and $\tau_{ij}$ the deviatoric stress tensor, $\rho$ the fluid density, $g_i$ the gravitational acceleration, $v_i$ the velocity and $x_i$ the spatial coordinate. The constitutive equations for the deviatoric stress tensor is $\tau_{ij} = 2\eta\dot{\varepsilon}_{ij}$, and for the deviatoric strain rate tensor $\dot{\varepsilon}_{ij}$:
+\begin{align}
+\dot{\varepsilon}_{ij} = \frac{1}{2}\left(\frac{\partial v_i}{\partial x_j}+\frac{\partial v_j}{\partial x_i}\right)
+\end{align}
+
+Rewriting the momentum equation for $x-$ and $z-$ components and $g_i = [0,0,-g]$, we have:
+
+\begin{align}
+\frac{\displaystyle \partial \sigma_{xx}}{\displaystyle \partial x}+\frac{\displaystyle \partial \sigma_{xz}}{\displaystyle \partial z} &= 0 \\
+\frac{\displaystyle \partial \sigma_{zx}}{\displaystyle \partial x}+\frac{\displaystyle \partial \sigma_{zz}}{\displaystyle \partial z}-\rho g &= 0,
+\end{align}
+where 
+\begin{align}
+\sigma_{xx} &= -P + 2\eta\frac{\displaystyle \partial v_x}{\displaystyle \partial x}\\ 
+\sigma_{zz} &= -P + 2\eta\frac{\displaystyle \partial v_z}{\displaystyle \partial z} \\
+\sigma_{xz} = \sigma_{zx} &= \eta\left(\frac{\displaystyle \partial v_x}{\displaystyle \partial z}+\frac{\displaystyle \partial v_z}{\displaystyle \partial x}\right) 
+\end{align}
+
+Substituting the above equations leads to extended Stokes equations:
+
+\begin{align}
+\frac{\displaystyle \partial v_x}{\displaystyle \partial x}+\frac{\displaystyle \partial v_z}{\displaystyle \partial z} &= 0  \label{eq:mass}\\
+& \nonumber \\ 
+-\frac{\displaystyle \partial P}{\displaystyle \partial x}+2\frac{\displaystyle \partial}{\displaystyle \partial x}\left(\eta\frac{\displaystyle \partial v_x}{\displaystyle \partial x}\right)+\frac{\displaystyle \partial}{\displaystyle \partial z}\left(\eta\left(\frac{\displaystyle \partial v_x}{\displaystyle \partial z}+\frac{\displaystyle \partial v_z}{\displaystyle \partial x}\right)\right) &= 0  \label{eq:momm1}\\
+&\nonumber  \\
+-\frac{\displaystyle \partial P}{\displaystyle \partial z}+2\frac{\displaystyle \partial}{\displaystyle \partial z}\left(\eta\frac{\displaystyle \partial v_z}{\displaystyle \partial z}\right)+\frac{\displaystyle \partial}{\displaystyle \partial x}\left(\eta\left(\frac{\displaystyle \partial v_x}{\displaystyle \partial z}+\frac{\displaystyle \partial v_z}{\displaystyle \partial x}\right)\right) - \rho g &= 0  \label{eq:momm2}
+\end{align}
+
+The unknown variables are: $v_x$, $v_z$ and $P$. 
+
+\subsubsection{Constitutive equations}
+Rheology 
+
+\section{Computational Framework}
+
+We solve this using finite differences discretization method on a staggered grid, where the $v_x$ and $v_z$ are located on edges and $P$ in the centre cell.
+
+\subsection{Linear solve}
+If $\eta$ is constant (Newtonian viscosity), equations (\ref{eq:mass}-\ref{eq:momm2}) become a linear system of equations written in matrix-vector form as:
+\begin{equation}
+\textbf{A} \textbf{x} = \textbf{rhs},
+\end{equation}
+where $\textbf{A}$ is the stiffness matrix, $\textbf{rhs}$ is the right-hand side vector containing the $\rho g$ terms and the boundary conditions, and $\textbf{x} $ is the solution vector. 
+
+One can solve this, by either:
+\begin{itemize} 
+\item assembling the matrix $\textbf{A}$ and the $\textbf{rhs}$ vector and solving the system as $\textbf{x} = \textbf{A}^{-1}\textbf{rhs}$ (linear solver routines available in most of the linear algebra libraries). The matrix $\textbf{A}$ remains the same for a given system, so can be formed once during a simulation. 
+\item minimize residual $r = \textbf{A} \textbf{x} - \textbf{rhs}$, which is matrix free.
+\end{itemize}
+
+In case the matrix is assembled, a small modification has to be made to the continuity equation (mass balance):
+\begin{equation}
+\frac{\displaystyle \partial v_x}{\displaystyle \partial x}+\frac{\displaystyle \partial v_z}{\displaystyle \partial z} = \frac{\displaystyle P}{\displaystyle \gamma}
+\end{equation}
+where the term $\frac{P}{\gamma}$ is added (assuming incompressibility). This is a "trick" called the penalty method, which ensures that the system of equations does not become ill-posed. $\gamma$ has to be sufficiently large ($\sim 10^4$).
+
+Figure \ref{fig:stokes_ksp} shows the stencil for the linear viscous Stokes case, and a PETSc example of how to solve the system is given in \texttt{./petsc\_examples/stokes\_ksp/}.
+
+% Figure - stokes_ksp
+\begin{figure}
+\begin{center}
+\noindent \includegraphics[trim=0mm 0mm 0mm 0mm, clip, width=\textwidth]{stencils-Stokes_ksp.pdf} 
+\caption{Staggered grid finite differences stencils for linear viscous Stokes equations (using the DMStag framework from PETSc).}
+\label{fig:stokes_ksp}
+  \end{center}
+\end{figure}
+
+\subsection{Nonlinear solve}
+If $\eta$ is non-linear (depending on P, T, strain rate etc.), equations (\ref{eq:mass}-\ref{eq:momm2}) become a nonlinear system of equations of the form:
+\begin{equation}
+\textbf{F(x)} = 0.
+\end{equation}
+When using the Newton method to solve the system, we need to define $\textbf{J(x}_\textbf{k}) = \textbf{F}^\prime\textbf{(x}_\textbf{k})$, which is the Jacobian matrix at the iteration $\textbf{x}_\textbf{k}$. If the viscosity is constant, the Jacobian matrix becomes the same as the stiffness matrix above. PETSc offers more details on how to solve the nonlinear system of equations using SNES.
+
+Figure \ref{fig:stokes_snes} shows the stencil for the nonlinear Stokes case, and a PETSc example of how to solve the system is given in \texttt{./petsc\_examples/stokes\_snes/}.
+
+% Figure - stokes_snes
+\begin{figure}
+\begin{center}
+\noindent \includegraphics[trim=0mm 0mm 0mm 0mm, clip, width=\textwidth]{stencils-Stokes_snes.pdf} 
+\caption{Staggered grid finite differences stencils for nonlinear viscous Stokes equations (using the DMStag framework from PETSc).}
+\label{fig:stokes_snes}
+  \end{center}
+\end{figure}
+
+*notes on discretization/implementation
+
+\section{Benchmarks}
+\subsection{SolCx (Zhong 1996, Moresi et al. 2007)}
+2-D analytical solution of a variable viscous Stokes flow with sharp viscosity jumps. The model domain is defined as $\Omega = [0, 1] \times [0, 1]$. The boundary conditions on all sides of the domain are free-slip, implying that the normal velocity to each wall is zero, and the tangential stress along the wall vanishes. 
+
+The density field is set as:
+\begin{equation}
+\rho(x,z) = \sin(\pi z) \cos(\pi x)
+\end{equation}
+
+And the viscosity field is set as:
+\begin{equation}
+\eta(x,z) = \left\{\begin{array}{lr}
+    \eta_1, &  x < 0.5\\
+    \eta_2, & x\ge 0.5
+  \end{array}\right.
+\end{equation}
+
+Internal to the domain, fluid flow is driven by a sinusoidal force given by:
+\begin{equation}
+F = (0,-\sin(\pi z) \cos(\pi x)^T
+\end{equation}
+
+Table \ref{tab:solcx} contains the input parameters for the SolCx model.
+
+% Table - Parameters table eta1,eta2, L, H, xmin, zmin
+\begin{table}[h]
+\begin{center}
+\footnotesize
+%\def\arraystretch{0.8}
+\begin{tabular}{c c l}
+\hline 
+Parameter (input)&Value&Comments\\
+\hline
+L&1&\\
+H&1&\\
+xmin&0&\\
+zmin&0&\\
+eta1&1&$\eta_1$\\
+eta2&1-$10^6$&$\eta_2$\\
+\hline  
+\end{tabular}
+\caption{SolCx input parameters.}
+\label{tab:solcx}
+\end{center}
+\end{table}
+
+\subsection{Corner flow at mid-ocean ridges}
+
+\textbf{Other benchmarks}
+
+*SolCx - Zhong 1996, Moresi et al. 2007
+*SolKz - Revenaugh and Parsons 1987, Underworld
+*Rayleigh-Taylor (with free surface) - Kaus et al 2010, Schmeling et al 2008
+*Pure shear inclusion test - Schmid and Podladchikov 2003, Schmid 2002, Moulas et al, 2014
+
+Papers using benchmarks and other useful tests for Stokes equations:
+Deubelbeiss and Kaus 2008, Schmeling et al. 2008, Gerya 2009, Kaus et al. 2010, Duretz et al. 2011, Dabrowski et 2008, Raess et al 2017, Pusok et al. 2017.
+
+%% ------------------------------------------------------------------------ %%
+%  BIBLIOGRAPHY
+%% ------------------------------------------------------------------------ %%
+
+\bibliographystyle{apalike}
+\bibliography{references}
+
+%\begin{thebibliography}{}
+%\end{thebibliography}
+
+\end{document}

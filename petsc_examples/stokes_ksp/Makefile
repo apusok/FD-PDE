@@ -2,7 +2,7 @@ CFLAGS	 =
 FFLAGS	 =
 CPPFLAGS =
 FPPFLAGS =
-PROG     = sokes_ksp
+PROG     = stokes_ksp
 OBJECTS  = ${PROG}.o prealloc_helper.o
 
 all: ${PROG}

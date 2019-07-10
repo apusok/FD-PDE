@@ -330,14 +330,6 @@ PetscErrorCode CreateSystem(SolverCtx *sol)
 
   // Create Jacobian
   ierr = DMCreateMatrix(sol->dmPV, &sol->J); CHKERRQ(ierr);
-  //ierr = MatCreate(sol->comm, &sol->J); CHKERRQ(ierr);
-  //ierr = MatSetType(sol->J, MATAIJ);    CHKERRQ(ierr);
-  //ierr = MatSetSizes(sol->J,PETSC_DECIDE,PETSC_DECIDE,sz,sz);CHKERRQ(ierr);
-  //ierr = MatSetBlockSize(sol->J,1); CHKERRQ(ierr);
-  //ierr = MatSetFromOptions(sol->J); CHKERRQ(ierr);
-
-  //ISLocalToGlobalMapping ltog;
-  //ierr = DMGetLocalToGlobalMapping(sol->dmPV,&ltog); CHKERRQ(ierr);
 
   // Matrix preallocation
   ierr = JacobianMatrixPreallocation(sol); CHKERRQ(ierr);
@@ -369,9 +361,12 @@ PetscErrorCode JacobianMatrixPreallocation(SolverCtx *sol)
 
   // Get non-zero pattern for preallocator - Loop over all local elements 
   PetscInt      nEntries;
-  PetscScalar   vv[23] = {0.0};
+  PetscScalar   vv[23];
   DMStagStencil row, col[23];
   
+  // Zero entries
+  ierr = PetscMemzero(vv,sizeof(PetscScalar)*23); CHKERRQ(ierr);
+
   for (j = sz; j<sz+nz; ++j) {
     for (i = sx; i<sx+nx; ++i) {
     
