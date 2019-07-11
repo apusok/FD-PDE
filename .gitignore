@@ -1,5 +1,11 @@
+# PDFS
 /docs/tex/*pdf
+
+# EXECS
 /petsc_examples/stokes_ksp/stokes_ksp
 /petsc_examples/stokes_snes/stokes_snes
+/StagRidge/src/stagridge
+
+# OUTPUT
 *.vtr
 
