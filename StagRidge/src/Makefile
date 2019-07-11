@@ -3,7 +3,7 @@ FFLAGS	 =
 CPPFLAGS =
 FPPFLAGS =
 PROG     = stagridge
-OBJECTS  = ${PROG}.o prealloc_helper.o consteq.o physics.o residual.o solver.o initialize.o output.o
+OBJECTS  = ${PROG}.o prealloc_helper.o input.o consteq.o physics.o residual.o solver.o initialize.o output.o
 
 all: ${PROG}
 	@echo "# -------------------------------- #"

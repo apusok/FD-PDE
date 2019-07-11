@@ -1,13 +1,12 @@
-#include <petscdm.h>
-#include <petscksp.h>
-#include <petscdmstag.h>
-#include <petscdmda.h>
-#include <petscsnes.h>
+#include "petsc.h"
 #include "prealloc_helper.h"
 
 // ---------------------------------------
 // Data structures
 // ---------------------------------------
+// general
+#define FNAME_LENGTH  200
+
 // define convenient names for DMStagStencilLocation
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
 #define DOWN       DMSTAG_DOWN
@@ -47,13 +46,16 @@ enum ModelType {
 // ---------------------------------------
 // user defined and model-dependent variables
 typedef struct {
-  MPI_Comm       comm;
   PetscInt       nx, nz;
   PetscScalar    L, H;
   PetscScalar    xmin, zmin;
   PetscScalar    rho1, rho2, eta0, ndisl;
   PetscScalar    g;
-  enum ModelType mtype;
+  PetscInt       bcleft, bcright, bcup, bcdown;
+  PetscInt       mtype;
+  char           fname_out[FNAME_LENGTH]; 
+  char           fname_in [FNAME_LENGTH];  
+  
 } UsrData;
 
 // grid variables
@@ -69,12 +71,14 @@ typedef struct {
   PetscScalar  xmin, zmin, xmax, zmax;
   enum BCType  bcleft, bcright, bcup, bcdown;
   PetscScalar  Vleft, Vright, Vup, Vdown;
+  PetscInt     dofV, dofP;
 } GridData;
 
 // solver variables
 typedef struct {
   MPI_Comm     comm;
   PetscMPIInt  rank;
+  PetscBag     bag;
   UsrData      *usr;
   GridData     *grd;
   DM           dmPV, dmCoeff;
@@ -88,6 +92,8 @@ typedef struct {
 // Function Definitions
 // ---------------------------------------
 // input
+PetscErrorCode InputParameters(SolverCtx**);
+PetscErrorCode InputPrintData (SolverCtx*);
 
 // initialize model
 PetscErrorCode InitializeModel(SolverCtx*);
