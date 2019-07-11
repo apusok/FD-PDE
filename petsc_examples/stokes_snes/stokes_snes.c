@@ -1,5 +1,10 @@
-static char help[] = "Solves nonlinear 2D Stokes equations and temperature \n";
-// 2-D Single-phase MOR model: x(i), z(j) directions. In 3-D should be adapted: x(i), y(j), z(k)
+static char help[] = "Solves isoviscous 2D Stokes equations with SNES\n";
+// 2-D Single-phase Stokes equations: x(i), z(j) directions.
+
+// Run program:
+// mpiexec -n 1 ./stokes_snes -snes_mf
+// mpiexec -n 1 ./stokes_snes -pc_type jacobi -snes_fd
+// mpiexec -n 1 ./stokes_snes -pc_type jacobi
 
 #include <petscdm.h>
 #include <petscksp.h>
@@ -301,9 +306,6 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return ierr;
 }
-
-// Run program:
-// mpiexec -n 2 stagridge -nx 21 -ny 21
 
 // ---------------------------------------
 // ---------------------------------------
