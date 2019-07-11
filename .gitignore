@@ -9,3 +9,5 @@
 # OUTPUT
 *.vtr
 
+# VSC/IDE
+.vscode
