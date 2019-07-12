@@ -1,0 +1,22 @@
+# model options
+-mtype 0 # model type 0-solcx
+-nx 20
+-nz 20
+-xmin 0.0
+-zmin 0.0
+-L 1.0
+-H 1.0
+-g 1.0
+-solcx_eta0 1e0
+-solcx_eta1 1e0
+
+-bcleft 0 # bc type 0-free slip
+-bcright 0
+-bcup 0
+-bcdown 0
+-output_file solcx_1e0
+
+# solver options
+-pc_type lu
+-pc_factor_mat_solver_type umfpack
+

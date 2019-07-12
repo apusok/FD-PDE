@@ -10,9 +10,9 @@ PetscErrorCode InitializeModel(SolverCtx *sol)
   PetscFunctionBeginUser;
   
   // Different model setups
-  if        (sol->usr->mtype == SOLCX){
+  if        (sol->grd->mtype == SOLCX){
     ierr = InitializeModel_SolCx(sol); CHKERRQ(ierr);
-  } else if (sol->usr->mtype == MOR  ){
+  } else if (sol->grd->mtype == MOR  ){
     //ierr = InitializeModel_MOR(sol); CHKERRQ(ierr);
   }
 

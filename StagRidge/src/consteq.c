@@ -16,6 +16,16 @@ PetscErrorCode CalcEffViscosity(SolverCtx *sol, Vec xlocal, PetscInt i, PetscInt
 
   PetscFunctionBegin;
   
+  // Model type - SolCx
+  if (sol->grd->mtype == SOLCX){
+    // Calculate viscosity
+    ierr = CalcEffViscosity_SolCx(sol,i,j,loctype,&eta); CHKERRQ(ierr);
+
+    // Assign value and exit
+    *etaeff = eta;
+    PetscFunctionReturn(0);
+  }
+
   /* Strain rate is defined in: 
       Corner - eps_xz 
       Center - eps_xx, eps_zz 
@@ -214,6 +224,46 @@ PetscErrorCode CalcEffViscosity(SolverCtx *sol, Vec xlocal, PetscInt i, PetscInt
     eta = 1/(inv_eta_diff+inv_eta_disl);
   }
 
+  *etaeff = eta;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// CalcEffViscosity_SolCx
+// ---------------------------------------
+PetscErrorCode CalcEffViscosity_SolCx(SolverCtx *sol, PetscInt i, PetscInt j, enum LocationType loctype, PetscScalar *etaeff)
+{
+  DMStagStencil  point;
+  PetscScalar    x, eta, L2;
+  Vec            coordLocal;
+  DM             dmCoord;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  
+  /* Viscosity is defined: 
+      solcx_eta1, x < 0.5
+      solcx_eta2, x >= 0.5
+   */
+
+  // Get some variables
+  L2 = (sol->grd->xmax-sol->grd->xmin)*0.5;
+
+  // Get coordinates
+  ierr = DMGetCoordinatesLocal(sol->dmPV, &coordLocal); CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM    (sol->dmPV, &dmCoord   ); CHKERRQ(ierr);
+  
+  // Get coordinate of eta point
+  if (loctype == CENTER) point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0;
+  if (loctype == CORNER) point.i = i; point.j = j; point.loc = LEFT;    point.c = 0;
+
+  ierr = DMStagVecGetValuesStencil(dmCoord,coordLocal,1,&point,&x); CHKERRQ(ierr);
+
+  // Set eta
+  if (x <  L2) eta = sol->usr->solcx_eta0;
+  else         eta = sol->usr->solcx_eta1;
+ 
   *etaeff = eta;
 
   PetscFunctionReturn(0);

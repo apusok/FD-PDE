@@ -50,12 +50,12 @@ typedef struct {
   PetscScalar    L, H;
   PetscScalar    xmin, zmin;
   PetscScalar    rho1, rho2, eta0, ndisl;
+  PetscScalar    solcx_eta0, solcx_eta1;
   PetscScalar    g;
   PetscInt       bcleft, bcright, bcup, bcdown;
-  PetscInt       mtype;
+  PetscInt       mtype, tests;
   char           fname_out[FNAME_LENGTH]; 
   char           fname_in [FNAME_LENGTH];  
-  
 } UsrData;
 
 // grid variables
@@ -66,12 +66,13 @@ typedef struct {
   PetscInt stencilWidth;
 
   // domain parameters
-  PetscInt     nx, nz;
-  PetscScalar  dx, dz;
-  PetscScalar  xmin, zmin, xmax, zmax;
-  enum BCType  bcleft, bcright, bcup, bcdown;
-  PetscScalar  Vleft, Vright, Vup, Vdown;
-  PetscInt     dofV, dofP;
+  PetscInt       nx, nz;
+  PetscScalar    dx, dz;
+  PetscScalar    xmin, zmin, xmax, zmax;
+  enum BCType    bcleft, bcright, bcup, bcdown;
+  enum ModelType mtype;
+  PetscScalar    Vleft, Vright, Vup, Vdown;
+  PetscInt       dofV, dofP;
 } GridData;
 
 // solver variables
@@ -116,6 +117,7 @@ PetscErrorCode ZMomentumStencil(PetscInt, PetscInt, PetscInt, PetscInt, DMStagSt
 
 // constitutive equations
 PetscErrorCode CalcEffViscosity(SolverCtx*, Vec, PetscInt, PetscInt, enum LocationType, PetscScalar*);
+PetscErrorCode CalcEffViscosity_SolCx(SolverCtx*, PetscInt, PetscInt, enum LocationType, PetscScalar*);
 
 // output
 PetscErrorCode DoOutput(SolverCtx*);

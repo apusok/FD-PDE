@@ -51,6 +51,13 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   // Model type
   ierr = PetscBagRegisterInt(bag, &usr->mtype, 0, "mtype", "Model type: 0 - SOLCX, 1 - MOR"); CHKERRQ(ierr);
 
+  // benchmarks
+  ierr = PetscBagRegisterInt(bag, &usr->tests, 0, "tests", "Test benchmarks: 0 - NO, 1 - YES"); CHKERRQ(ierr);
+
+  // SolCx parameters
+  ierr = PetscBagRegisterScalar(bag, &usr->solcx_eta1, 1.0, "solcx_eta0", "SolCx benchmark: eta1"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &usr->solcx_eta2, 1.0, "solcx_eta1", "SolCx benchmark: eta2"); CHKERRQ(ierr);
+
   // Boundary conditions
   ierr = PetscBagRegisterInt(bag, &usr->bcleft, 0, "bcleft", "LEFT Boundary condition type: 0 - FREE_SLIP, 1 - NO_SLIP" ); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &usr->bcright,0, "bcright","RIGHT Boundary condition type: 0 - FREE_SLIP, 1 - NO_SLIP"); CHKERRQ(ierr);
@@ -94,6 +101,10 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   grd->Vright = 0.0;
   grd->Vup    = 0.0;
   grd->Vdown  = 0.0;
+
+  // model type
+  if (usr->mtype == 0) grd->mtype = SOLCX;
+  if (usr->mtype == 1) grd->mtype = MOR;
 
   // return pointers
   sol->grd = grd;
