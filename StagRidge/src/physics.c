@@ -49,11 +49,6 @@ PetscErrorCode XMomentumResidual(SolverCtx *sol, Vec xlocal, PetscInt i, PetscIn
   ierr = CalcEffViscosity(sol, xlocal, i  ,j+1,CORNER, &etaUp   ); CHKERRQ(ierr);
   ierr = CalcEffViscosity(sol, xlocal, i  ,j  ,CORNER, &etaDown ); CHKERRQ(ierr);
 
-  //etaLeft  = sol->usr->eta0;
-  //etaRight = sol->usr->eta0;
-  //etaUp    = sol->usr->eta0;
-  //etaDown  = sol->usr->eta0;
-
   // Calculate residual
   dPdx  = (xx[10]-xx[9])/dx;
   dVxdx = etaRight*(xx[4]-xx[0])/dx - etaLeft*(xx[0]-xx[3])/dx;
@@ -120,11 +115,6 @@ PetscErrorCode ZMomentumResidual(SolverCtx *sol, Vec xlocal, Vec coefflocal, Pet
   ierr = CalcEffViscosity(sol, xlocal, i+1,j  ,CORNER, &etaRight); CHKERRQ(ierr);
   ierr = CalcEffViscosity(sol, xlocal, i  ,j  ,CENTER, &etaUp   ); CHKERRQ(ierr);
   ierr = CalcEffViscosity(sol, xlocal, i  ,j-1,CENTER, &etaDown ); CHKERRQ(ierr);
-
-  //etaLeft  = sol->usr->eta0;
-  //etaRight = sol->usr->eta0;
-  //etaUp    = sol->usr->eta0;
-  //etaDown  = sol->usr->eta0;
 
   // Calculate residual
   dPdz  = (xx[9]-xx[10])/dz;

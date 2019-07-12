@@ -107,7 +107,6 @@ PetscErrorCode SolveSystem(SNES, SolverCtx*);
 
 // residual calculations
 PetscErrorCode FormFunctionPV(SNES, Vec, Vec, void*); // global to local
-PetscErrorCode FormFunctionPV1(SNES, Vec, Vec, void*); // insert in global vector
 
 // physics - governing equations
 PetscErrorCode XMomentumResidual(SolverCtx*, Vec, PetscInt, PetscInt, enum LocationType, PetscScalar*);

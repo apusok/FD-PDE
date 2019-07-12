@@ -207,9 +207,8 @@ PetscErrorCode CalcEffViscosity(SolverCtx *sol, Vec xlocal, PetscInt i, PetscInt
   // Calculate effective viscosity - should include component ratios
   inv_eta_diff = 2.0 * sol->Pdiff;
 
-  if (sol->usr->ndisl==0) {
-    eta = 1/inv_eta_diff; // linear viscosity
-    //eta = sol->usr->eta0;
+  if (sol->usr->ndisl==0) { // linear viscosity
+    eta = 1/inv_eta_diff; 
   } else {
     inv_eta_disl = 2.0 * PetscPowScalar(sol->Pdisl,1/sol->usr->ndisl) * PetscPowScalar(epsII,1-1/sol->usr->ndisl);
     eta = 1/(inv_eta_diff+inv_eta_disl);

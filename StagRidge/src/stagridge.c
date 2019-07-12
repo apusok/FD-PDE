@@ -5,6 +5,7 @@ static char help[] = "Solves nonlinear 2D Stokes equations and temperature \n\n"
 // mpiexec -n 1 ./stagridge -snes_mf
 // mpiexec -n 1 ./stagridge -pc_type jacobi -snes_fd
 // mpiexec -n 1 ./stagridge -pc_type jacobi -nx 21 -nz 41
+// mpiexec -n 1 ./stagridge -options_file <FNAME>
 
 #include "stagridge.h"
 
@@ -22,7 +23,9 @@ int main (int argc,char **argv)
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return ierr;
 
+  // ---------------------------------------
   // Start code
+  // ---------------------------------------
 	ierr = PetscTime(&start_time); CHKERRQ(ierr);
  
   // ---------------------------------------
