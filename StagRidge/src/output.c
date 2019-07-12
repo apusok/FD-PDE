@@ -98,14 +98,24 @@ PetscErrorCode DoOutput(SolverCtx *sol)
   // Dump element-based fields to a .vtr file
   {
     PetscViewer viewer;
-    ierr = PetscViewerVTKOpen(PetscObjectComm((PetscObject)daVel),"stagridge_element.vtr",FILE_MODE_WRITE,&viewer); CHKERRQ(ierr);
-    
+
+    // Create output file name
+    char* fname = concat(sol->usr->fname_out, ".vtr");
+
+    PetscPrintf(sol->comm,"# --------------------------------------- #\n");
+    PetscPrintf(sol->comm,"# Output file: %s \n",fname);
+    PetscPrintf(sol->comm,"# --------------------------------------- #\n");
+
+    // Warning: is being output as Point Data instead of Cell Data - the grid is shifted to be in the center points.
+    ierr = PetscViewerVTKOpen(PetscObjectComm((PetscObject)daVel),fname,FILE_MODE_WRITE,&viewer); CHKERRQ(ierr);
     ierr = VecView(vecRho,   viewer); CHKERRQ(ierr);
     ierr = VecView(vaEta,    viewer); CHKERRQ(ierr);
     ierr = VecView(vaVel,    viewer); CHKERRQ(ierr);
     ierr = VecView(vecP,     viewer); CHKERRQ(ierr);
     
+    // Free memory
     ierr = PetscViewerDestroy  (&viewer); CHKERRQ(ierr);
+    free(fname);
   }
 
   // Destroy DMDAs and Vecs

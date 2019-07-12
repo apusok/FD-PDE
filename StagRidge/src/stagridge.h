@@ -120,3 +120,6 @@ PetscErrorCode CalcEffViscosity(SolverCtx*, Vec, PetscInt, PetscInt, enum Locati
 
 // output
 PetscErrorCode DoOutput(SolverCtx*);
+
+// utils
+char* concat(const char*, const char*);

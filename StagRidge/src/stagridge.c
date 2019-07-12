@@ -18,13 +18,27 @@ int main (int argc,char **argv)
   PetscErrorCode  ierr;
   SolverCtx       *sol;
   SNES            snes;
+  PetscLogDouble  start_time, end_time;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return ierr;
+
+  // Start code
+	ierr = PetscTime(&start_time); CHKERRQ(ierr);
  
+  // ---------------------------------------
+  // Load command line or input file if required
+  // ---------------------------------------
+  ierr = PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL); CHKERRQ(ierr);
+
   // ---------------------------------------
   // Input parameters
   // ---------------------------------------
   ierr = InputParameters(&sol); CHKERRQ(ierr);
+
+  // Save input options filename
+  for (int i = 0; i < argc; ++i) {
+    if (strcmp(argv[i],"-options_file")==0) strcpy(sol->usr->fname_in, argv[i+1]);
+  }
 
   // Print parameters
   ierr = InputPrintData(sol); CHKERRQ(ierr);
@@ -132,6 +146,13 @@ int main (int argc,char **argv)
   // solver context
   ierr = PetscFree(sol->grd); CHKERRQ(ierr);
   ierr = PetscFree(sol);      CHKERRQ(ierr);
+
+  // ---------------------------------------
+  // End code
+  // ---------------------------------------
+	ierr = PetscTime(&end_time); CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time);
+  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
   
   // Finalize main
   ierr = PetscFinalize();

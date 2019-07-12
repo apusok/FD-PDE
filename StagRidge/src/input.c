@@ -17,7 +17,7 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   ierr = PetscMalloc1(1, &sol); CHKERRQ(ierr);
   ierr = PetscMalloc1(1, &grd); CHKERRQ(ierr);
 
-  // Get comm and rank
+  // Get time, comm and rank
   sol->comm = PETSC_COMM_WORLD;
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &sol->rank); CHKERRQ(ierr);
 
@@ -43,7 +43,7 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   ierr = PetscBagRegisterScalar(bag, &usr->H, 1.0, "H", "Height of domain in z-dir"); CHKERRQ(ierr);
 
   // this should be adapted 
-  ierr = PetscBagRegisterScalar(bag, &usr->g   , 1.0, "g   ", "Gravitational acceleration"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &usr->g   , 1.0, "g", "Gravitational acceleration"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &usr->eta0, 1.0, "eta0", "Reference viscosity");        CHKERRQ(ierr);
 
   ierr = PetscBagRegisterInt(bag, &usr->ndisl, 0, "ndisl", "Power exponent for dislocation creep"); CHKERRQ(ierr);
@@ -58,9 +58,9 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   ierr = PetscBagRegisterInt(bag, &usr->bcdown, 0, "bcdown", "DOWN Boundary condition type: 0 - FREE_SLIP, 1 - NO_SLIP" ); CHKERRQ(ierr);
 
   // Input/output
-  ierr = PetscBagRegisterString(bag,&usr->fname_in ,FNAME_LENGTH,"null","input_file", "Name for input file, set with: -input_file <filename>"  ); CHKERRQ(ierr);
-  ierr = PetscBagRegisterString(bag,&usr->fname_out,FNAME_LENGTH,"null","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
-
+  //ierr = PetscBagRegisterString(bag,&usr->fname_in ,FNAME_LENGTH,"null","input_file", "Name for input file, set with: -input_file <filename>"  ); CHKERRQ(ierr);
+  ierr = PetscBagRegisterString(bag,&usr->fname_out,FNAME_LENGTH,"output","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
+  
   // ---------------------------------------
   // Initialize grid variables
   // ---------------------------------------
@@ -123,6 +123,15 @@ PetscErrorCode InputPrintData(SolverCtx *sol)
   PetscPrintf(sol->comm,"# StagRidge: %s \n",&(date[0]));
   PetscPrintf(sol->comm,"# --------------------------------------- #\n");
   PetscPrintf(sol->comm,"# PETSc options: %s \n",opts);
+  PetscPrintf(sol->comm,"# --------------------------------------- #\n");
+
+  // Input file info
+  if (strcmp(sol->usr->fname_in,"null")==0) {
+    PetscPrintf(sol->comm,"# Input options file: NONE (using default options)\n");
+  }
+  else {
+    PetscPrintf(sol->comm,"# Input options file: %s \n",sol->usr->fname_in);
+  }
   PetscPrintf(sol->comm,"# --------------------------------------- #\n");
 
   // Print usr bag
