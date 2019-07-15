@@ -57,7 +57,7 @@ PetscErrorCode InitializeModel_SolCx(SolverCtx *sol)
       ierr = DMStagVecGetValuesStencil(dmCoord,coordLocal,1,&pointCoordz,&z); CHKERRQ(ierr);
         
       // Set density value
-      rho  = PetscSinScalar(PETSC_PI*z) * PetscCosScalar(PETSC_PI*x); //sin(pi*z)*cos(pi*x); 
+      rho  = -PetscSinScalar(PETSC_PI*z) * PetscCosScalar(PETSC_PI*x); //-sin(pi*z)*cos(pi*x); 
       ierr = DMStagVecSetValuesStencil(sol->dmCoeff,sol->coeff,1,&point,&rho,INSERT_VALUES); CHKERRQ(ierr);
     }
   }

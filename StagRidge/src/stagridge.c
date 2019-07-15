@@ -118,6 +118,11 @@ int main (int argc,char **argv)
   
   // solve non-linear system
   ierr = SolveSystem(snes, sol); CHKERRQ(ierr);
+
+  // ---------------------------------------
+  // Benchmark Solution
+  // ---------------------------------------
+  if (sol->usr->tests) ierr = DoBenchmarks(sol); CHKERRQ(ierr);
   
   // ---------------------------------------
   // OUTPUT solution to file

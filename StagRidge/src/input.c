@@ -55,8 +55,8 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   ierr = PetscBagRegisterInt(bag, &usr->tests, 0, "tests", "Test benchmarks: 0 - NO, 1 - YES"); CHKERRQ(ierr);
 
   // SolCx parameters
-  ierr = PetscBagRegisterScalar(bag, &usr->solcx_eta1, 1.0, "solcx_eta0", "SolCx benchmark: eta1"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &usr->solcx_eta2, 1.0, "solcx_eta1", "SolCx benchmark: eta2"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &usr->solcx_eta0, 1.0, "solcx_eta0", "SolCx benchmark: eta0"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &usr->solcx_eta1, 1.0, "solcx_eta1", "SolCx benchmark: eta1"); CHKERRQ(ierr);
 
   // Boundary conditions
   ierr = PetscBagRegisterInt(bag, &usr->bcleft, 0, "bcleft", "LEFT Boundary condition type: 0 - FREE_SLIP, 1 - NO_SLIP" ); CHKERRQ(ierr);

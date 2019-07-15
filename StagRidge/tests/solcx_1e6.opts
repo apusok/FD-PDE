@@ -1,4 +1,5 @@
 # model options
+-tests 1
 -mtype 0 # model type 0-solcx
 -nx 20
 -nz 20

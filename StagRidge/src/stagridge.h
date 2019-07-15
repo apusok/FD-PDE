@@ -122,5 +122,10 @@ PetscErrorCode CalcEffViscosity_SolCx(SolverCtx*, PetscInt, PetscInt, enum Locat
 // output
 PetscErrorCode DoOutput(SolverCtx*);
 
+// benchmarks
+PetscErrorCode DoBenchmarks(SolverCtx*);
+PetscErrorCode CreateSolCx(SolverCtx*,DM*,Vec*);
+PetscErrorCode CalculateErrorNorms(SolverCtx*,DM,Vec);
+
 // utils
 char* concat(const char*, const char*);

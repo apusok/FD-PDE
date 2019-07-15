@@ -78,7 +78,6 @@ PetscErrorCode DoOutput(SolverCtx *sol)
     ierr = VecAssemblyEnd  (vecEta); CHKERRQ(ierr);
     
     // Restore vector
-      // Restore arrays, local vectors
     ierr = DMRestoreLocalVector(sol->dmPV,   &xlocal    ); CHKERRQ(ierr);
   }
 
