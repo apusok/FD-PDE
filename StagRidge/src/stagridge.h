@@ -128,4 +128,4 @@ PetscErrorCode CreateSolCx(SolverCtx*,DM*,Vec*);
 PetscErrorCode CalculateErrorNorms(SolverCtx*,DM,Vec);
 
 // utils
-char* concat(const char*, const char*);
+PetscErrorCode StrCreateConcatenate(const char[], const char[], char**);

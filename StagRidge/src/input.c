@@ -65,7 +65,7 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   ierr = PetscBagRegisterInt(bag, &usr->bcdown, 0, "bcdown", "DOWN Boundary condition type: 0 - FREE_SLIP, 1 - NO_SLIP" ); CHKERRQ(ierr);
 
   // Input/output
-  //ierr = PetscBagRegisterString(bag,&usr->fname_in ,FNAME_LENGTH,"null","input_file", "Name for input file, set with: -input_file <filename>"  ); CHKERRQ(ierr);
+  ierr = PetscBagRegisterString(bag,&usr->fname_in ,FNAME_LENGTH,"\0","input_file", "Name for input file, set with: -input_file <filename>"  ); CHKERRQ(ierr);
   ierr = PetscBagRegisterString(bag,&usr->fname_out,FNAME_LENGTH,"output","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
   
   // ---------------------------------------
@@ -137,7 +137,7 @@ PetscErrorCode InputPrintData(SolverCtx *sol)
   PetscPrintf(sol->comm,"# --------------------------------------- #\n");
 
   // Input file info
-  if (strcmp(sol->usr->fname_in,"null")==0) {
+  if (sol->usr->fname_in[0] == '\0') { // string is empty
     PetscPrintf(sol->comm,"# Input options file: NONE (using default options)\n");
   }
   else {

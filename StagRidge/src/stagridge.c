@@ -26,7 +26,7 @@ int main (int argc,char **argv)
   // ---------------------------------------
   // Start code
   // ---------------------------------------
-	ierr = PetscTime(&start_time); CHKERRQ(ierr);
+  ierr = PetscTime(&start_time); CHKERRQ(ierr);
  
   // ---------------------------------------
   // Load command line or input file if required
@@ -39,8 +39,11 @@ int main (int argc,char **argv)
   ierr = InputParameters(&sol); CHKERRQ(ierr);
 
   // Save input options filename
-  for (int i = 0; i < argc; ++i) {
-    if (strcmp(argv[i],"-options_file")==0) strcpy(sol->usr->fname_in, argv[i+1]);
+  for (int i = 1; i < argc; i++) {
+    PetscBool flg;
+    
+    ierr = PetscStrcmp(argv[i],"-options_file",&flg); CHKERRQ(ierr);
+    if (flg) { ierr = PetscStrcpy(sol->usr->fname_in, argv[i+1]); CHKERRQ(ierr); }
   }
 
   // Print parameters
@@ -158,7 +161,7 @@ int main (int argc,char **argv)
   // ---------------------------------------
   // End code
   // ---------------------------------------
-	ierr = PetscTime(&end_time); CHKERRQ(ierr);
+  ierr = PetscTime(&end_time); CHKERRQ(ierr);
   PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time);
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
   

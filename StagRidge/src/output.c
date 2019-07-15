@@ -96,10 +96,11 @@ PetscErrorCode DoOutput(SolverCtx *sol)
 
   // Dump element-based fields to a .vtr file
   {
+    char       *fname;
     PetscViewer viewer;
 
     // Create output file name
-    char* fname = concat(sol->usr->fname_out, ".vtr");
+    ierr = StrCreateConcatenate(sol->usr->fname_out, ".vtr", &fname); CHKERRQ(ierr);
 
     PetscPrintf(sol->comm,"# --------------------------------------- #\n");
     PetscPrintf(sol->comm,"# Output file: %s \n",fname);
@@ -113,8 +114,8 @@ PetscErrorCode DoOutput(SolverCtx *sol)
     ierr = VecView(vecP,     viewer); CHKERRQ(ierr);
     
     // Free memory
-    ierr = PetscViewerDestroy  (&viewer); CHKERRQ(ierr);
-    free(fname);
+    ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+    ierr = PetscFree(fname); CHKERRQ(ierr);
   }
 
   // Destroy DMDAs and Vecs

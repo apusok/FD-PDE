@@ -1,10 +1,19 @@
 #include "stagridge.h"
 
 // Concatenate two strings
-char* concat(const char *s1, const char *s2)
+PetscErrorCode StrCreateConcatenate(const char s1[], const char s2[], char **_result)
 {
-    char *result = malloc(strlen(s1) + strlen(s2) + 1); // +1 for the null-terminator
-    strcpy(result, s1);
-    strcat(result, s2);
-    return result;
+    size_t l1, l2;
+    char *result;
+    PetscErrorCode ierr;
+    PetscFunctionBeginUser;
+    
+    ierr = PetscStrlen(s1,&l1); CHKERRQ(ierr); 
+    ierr = PetscStrlen(s2,&l2); CHKERRQ(ierr); 
+    ierr = PetscMalloc1(l1+l2+1, &result); CHKERRQ(ierr); // +1 for the null-terminator
+    ierr = PetscStrcpy(result, s1); CHKERRQ(ierr); 
+    ierr = PetscStrcat(result, s2); CHKERRQ(ierr);
+    *_result = result;
+
+    PetscFunctionReturn(0);
 }
