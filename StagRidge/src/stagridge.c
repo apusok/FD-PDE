@@ -104,6 +104,10 @@ int main (int argc,char **argv)
   //ierr = KSPGetPC  (ksp,  &pc ); CHKERRQ(ierr);
   //ierr = PCSetType (pc, PCNONE); CHKERRQ(ierr);
 
+  // Set default solver options
+  ierr = PetscOptionsSetValue(NULL, "-pc_type", "lu"                       ); CHKERRQ(ierr);
+  ierr = PetscOptionsSetValue(NULL, "-pc_factor_mat_solver_type", "umfpack"); CHKERRQ(ierr);
+
   // Get default info on convergence
   ierr = PetscOptionsSetValue(NULL, "-snes_monitor",          ""); CHKERRQ(ierr);
   ierr = PetscOptionsSetValue(NULL, "-ksp_monitor",           ""); CHKERRQ(ierr);
