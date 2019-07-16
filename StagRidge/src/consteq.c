@@ -255,8 +255,8 @@ PetscErrorCode CalcEffViscosity_SolCx(SolverCtx *sol, PetscInt i, PetscInt j, en
   ierr = DMGetCoordinateDM    (sol->dmPV, &dmCoord   ); CHKERRQ(ierr);
   
   // Get coordinate of eta point
-  if (loctype == CENTER) point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0;
-  if (loctype == CORNER) point.i = i; point.j = j; point.loc = LEFT;    point.c = 0;
+  if (loctype == CENTER) { point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0; }
+  if (loctype == CORNER) { point.i = i; point.j = j; point.loc = LEFT;    point.c = 0; }
 
   ierr = DMStagVecGetValuesStencil(dmCoord,coordLocal,1,&point,&x); CHKERRQ(ierr);
 

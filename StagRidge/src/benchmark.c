@@ -8,6 +8,7 @@ PetscErrorCode DoBenchmarks(SolverCtx *sol)
 {
   DM           dmAnalytic;
   Vec          xAnalytic;
+  PetscLogDouble  start_time, end_time;
 
   PetscErrorCode ierr;
 
@@ -21,7 +22,15 @@ PetscErrorCode DoBenchmarks(SolverCtx *sol)
   }
 
   // Calculate norms
+  ierr = PetscTime(&start_time); CHKERRQ(ierr);
   ierr = CalculateErrorNorms(sol, dmAnalytic, xAnalytic); CHKERRQ(ierr);
+  ierr = PetscTime(&end_time); CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"# Time: %g (sec) \n", end_time - start_time);
+
+  ierr = PetscTime(&start_time); CHKERRQ(ierr);
+  ierr = CalculateErrorNorms1(sol, dmAnalytic, xAnalytic); CHKERRQ(ierr);
+  ierr = PetscTime(&end_time); CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"# Time: %g (sec) \n", end_time - start_time);
 
   // Free memory
   ierr = DMDestroy(&dmAnalytic); CHKERRQ(ierr);
@@ -129,6 +138,84 @@ PetscErrorCode CreateSolCx(SolverCtx *sol,DM *_da,Vec *_x)
 PetscErrorCode CalculateErrorNorms(SolverCtx *sol,DM da,Vec x)
 {
   PetscInt       i, j, sx, sz, nx, nz;
+  PetscScalar    xx[5], xa[3], dx, dz;
+  PetscScalar    nrm[3], gnrm[3];
+  Vec            xlocal, xalocal;
+
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  // Assign pointers and other variables
+  dx = sol->grd->dx;
+  dz = sol->grd->dz;
+
+  // Get domain corners
+  ierr = DMStagGetCorners(da, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+
+  // Map global vectors to local domain
+  ierr = DMGetLocalVector(sol->dmPV, &xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (sol->dmPV, sol->x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(da, &xalocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (da, x, INSERT_VALUES, xalocal); CHKERRQ(ierr);
+  
+  // Initialize norms
+  nrm[0] = 0.0; nrm[1] = 0.0; nrm[2] = 0.0;
+  
+  // Loop over local domain to calculate ELEMENT errors
+  for (j = sz; j < sz+nz; ++j) {
+    for (i = sx; i <sx+nx; ++i) {
+      
+      DMStagStencil  col[5], cal[3];
+      
+      // Get stencil values
+      col[0].i  = i  ; col[0].j  = j  ; col[0].loc  = LEFT;    col[0].c   = 0; // Vx
+      col[1].i  = i  ; col[1].j  = j  ; col[1].loc  = RIGHT;   col[1].c   = 0; // Vx
+      col[2].i  = i  ; col[2].j  = j  ; col[2].loc  = DOWN;    col[2].c   = 0; // Vz
+      col[3].i  = i  ; col[3].j  = j  ; col[3].loc  = UP;      col[3].c   = 0; // Vz
+      col[4].i  = i  ; col[4].j  = j  ; col[4].loc  = ELEMENT; col[4].c   = 0; // P
+
+      cal[0].i  = i  ; cal[0].j  = j  ; cal[0].loc  = ELEMENT; cal[0].c   = 0; // Vx
+      cal[1].i  = i  ; cal[1].j  = j  ; cal[1].loc  = ELEMENT; cal[1].c   = 1; // Vz
+      cal[2].i  = i  ; cal[2].j  = j  ; cal[2].loc  = ELEMENT; cal[2].c   = 2; // P
+
+      // Get numerical solution
+      ierr = DMStagVecGetValuesStencil(sol->dmPV, xlocal, 5, col, xx); CHKERRQ(ierr);
+
+      // Get analytical solution
+      ierr = DMStagVecGetValuesStencil(da, xalocal, 3, cal, xa); CHKERRQ(ierr);
+
+      // Calculate norms as in Duretz et al. 2011
+      nrm[0] += PetscAbsScalar((xx[1]+xx[0])*0.5 - xa[0])*dx*dz; 
+      nrm[1] += PetscAbsScalar((xx[3]+xx[2])*0.5 - xa[1])*dx*dz;
+      nrm[2]  += PetscAbsScalar(xx[4] - xa[2])*dx*dz;
+    }
+  }
+
+  // Collect data 
+  ierr = MPI_Allreduce(&nrm, &gnrm, 3, MPI_DOUBLE, MPI_SUM, sol->comm); CHKERRQ(ierr);
+
+  // Restore arrays and vectors
+  ierr = DMRestoreLocalVector(sol->dmPV, &xlocal ); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(da,        &xalocal); CHKERRQ(ierr);
+
+  // Print information
+  PetscPrintf(sol->comm,"# --------------------------------------- #\n");
+  PetscPrintf(sol->comm,"# NORMS: \n");
+  PetscPrintf(sol->comm,"# Velocity: norm1 = %1.12e norm1x = %1.12e norm1z = %1.12e \n",gnrm[0]+gnrm[1],gnrm[0],gnrm[1]);
+  PetscPrintf(sol->comm,"# Pressure: norm1 = %1.12e\n",gnrm[2]);
+  PetscPrintf(sol->comm,"# Grid info: hx = %1.12e hz = %1.12e \n",dx,dz);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// CalculateErrorNorms1 - calculate norms for values in ELEMENT
+// ---------------------------------------
+PetscErrorCode CalculateErrorNorms1(SolverCtx *sol,DM da,Vec x)
+{
+  PetscInt       i, j, sx, sz, nx, nz;
   PetscInt       N, Nx, Nz;
   PetscInt       indp, indv;
   PetscScalar    xx[5], xa[3], dx, dz;
@@ -227,7 +314,7 @@ PetscErrorCode CalculateErrorNorms(SolverCtx *sol,DM da,Vec x)
 
   // Print information
   PetscPrintf(sol->comm,"# --------------------------------------- #\n");
-  PetscPrintf(sol->comm,"# NORMS: \n");
+  PetscPrintf(sol->comm,"# NORMS1: \n");
   PetscPrintf(sol->comm,"# Velocity: norm1 = %1.12e norm2 = %1.12e norm_inf = %1.12e\n",nrm1[0]/N,nrm2[0]/PetscSqrtScalar(N),nrminf[0]);
   PetscPrintf(sol->comm,"# Pressure: norm1 = %1.12e norm2 = %1.12e norm_inf = %1.12e\n",nrm1[1]/N,nrm2[1]/PetscSqrtScalar(N),nrminf[1]);
   PetscPrintf(sol->comm,"# Grid info: hx = %1.12e hz = %1.12e \n",dx,dz);

@@ -126,6 +126,7 @@ PetscErrorCode DoOutput(SolverCtx*);
 PetscErrorCode DoBenchmarks(SolverCtx*);
 PetscErrorCode CreateSolCx(SolverCtx*,DM*,Vec*);
 PetscErrorCode CalculateErrorNorms(SolverCtx*,DM,Vec);
+PetscErrorCode CalculateErrorNorms1(SolverCtx*,DM,Vec);
 
 // utils
 PetscErrorCode StrCreateConcatenate(const char[], const char[], char**);
