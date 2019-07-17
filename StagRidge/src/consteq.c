@@ -261,7 +261,7 @@ PetscErrorCode CalcEffViscosity_SolCx(SolverCtx *sol, PetscInt i, PetscInt j, en
   ierr = DMStagVecGetValuesStencil(dmCoord,coordLocal,1,&point,&x); CHKERRQ(ierr);
 
   // Set eta
-  if (x <  L2) eta = sol->usr->solcx_eta0;
+  if (x <= L2) eta = sol->usr->solcx_eta0;
   else         eta = sol->usr->solcx_eta1;
  
   *etaeff = eta;

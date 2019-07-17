@@ -9,5 +9,11 @@
 # OUTPUT
 *.vtr
 
+# Logfiles
+*.out
+
+# Tests and results
+/StagRidge/tests/*.pdf
+
 # VSC/IDE
 .vscode
