@@ -16,10 +16,12 @@ PetscErrorCode DoBenchmarks(SolverCtx *sol)
 
   // SolCx
   if (sol->grd->mtype == SOLCX){
-      ierr = CreateSolCx(sol,&dmAnalytic,&xAnalytic); CHKERRQ(ierr);
-      ierr = DoOutput_SolCx(dmAnalytic,xAnalytic); CHKERRQ(ierr);
+    PetscPrintf(sol->comm,"# --------------------------------------- #\n");
+    PetscPrintf(sol->comm,"# SolCx Benchmark \n");
+    ierr = CreateSolCx(sol,&dmAnalytic,&xAnalytic); CHKERRQ(ierr);
+    ierr = DoOutput_SolCx(dmAnalytic,xAnalytic); CHKERRQ(ierr);
   } else {
-      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"No benchmark mtype specified!"); CHKERRQ(ierr);
+    SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"No benchmark mtype specified!"); CHKERRQ(ierr);
   }
 
   // Calculate norms
@@ -279,11 +281,11 @@ PetscErrorCode CalculateErrorNorms(SolverCtx *sol,DM da,Vec x)
       //PetscPrintf(sol->comm,"# [%d,%d]P: pe = %1.12e \n",i,j,pe);
 
       // Calculate norms as in Duretz et al. 2011
-      if      (i == 0   ) nrm[0] += ve[0]*dv*0.5;
+      if      (i == 0   ) { nrm[0] += ve[0]*dv*0.5; nrm[0] += ve[1]*dv; }
       else if (i == Nx-1) nrm[0] += ve[1]*dv*0.5;
       else                nrm[0] += ve[1]*dv;
 
-      if      (j == 0   ) nrm[1] += ve[2]*dv*0.5;
+      if      (j == 0   ) { nrm[1] += ve[2]*dv*0.5; nrm[1] += ve[3]*dv; }
       else if (j == Nz-1) nrm[1] += ve[3]*dv*0.5;
       else                nrm[1] += ve[3]*dv;
 
