@@ -1,4 +1,3 @@
-\RequirePackage{lineno} 
 \documentclass[a4paper,11pt]{article}
 \usepackage[margin=2cm]{geometry}
 \usepackage{amsmath}
@@ -12,13 +11,14 @@
 \usepackage{chngcntr}
 
 \usepackage{tabularx}
-\usepackage{mathabx}
+%\usepackage{mathabx}
 \usepackage{subfigure}
 \usepackage{fancyheadings}
 \usepackage[titletoc]{appendix}
 \usepackage{rotating}
 \usepackage{bm}
 \usepackage{courier}
+\usepackage{lineno}
 
 \bibliographystyle{plainnat}
 
@@ -98,8 +98,8 @@ The momentum equation then becomes:
 
 So the system of Stokes equations to be solved is:
 \begin{align}
-\nabla \cdot \textbf{v} &= 0 \\
--\nabla P + \nabla \cdot \eta\left(\nabla \textbf{v}+\nabla\textbf{v}^T\right)+\rho \textbf{g} &= 0
+\nabla \cdot \textbf{v} &= 0 \label{eq:vecmass}\\
+-\nabla P + \nabla \cdot \eta\left(\nabla \textbf{v}+\nabla\textbf{v}^T\right)+\rho \textbf{g} &= 0 \label{eq:vecmomm}
 \end{align}
 
 \textbf{Partial derivative form}
@@ -140,8 +140,182 @@ Substituting the above equations leads to extended Stokes equations:
 
 The unknown variables are: $v_x$, $v_z$ and $P$. 
 
-\subsubsection{Constitutive equations}
-Rheology 
+\subsection{Analytical solutions to Stokes equations: Corner flow}
+Based on \citet{Spiegelman1987,Turcotte2014} - (Geodynamics 3rd ed).\\
+
+We can derive analytical solutions to Stokes equations (Eq. \ref{eq:mass}-\ref{eq:momm2}), if we assume no buoyancy ($\rho g =0$) and constant viscosity ($\eta = \eta_0$). Using the constitutive equation to replace the terms $\frac{\partial^2 v_x}{\partial x\partial z}$ and $\frac{\partial^2 v_z}{\partial x\partial z}$, we can write the momentum equations as:
+
+\begin{align}
+\frac{\displaystyle \partial P}{\displaystyle \partial x}&=\eta_0\left(\frac{\displaystyle \partial^2 v_x}{\displaystyle \partial x^2} + \frac{\displaystyle \partial^2 v_x}{\displaystyle \partial z^2}\right) \label{eq:momm1-sim}\\
+&\nonumber  \\
+\frac{\displaystyle \partial P}{\displaystyle \partial z}&=\eta_0\left(\frac{\displaystyle \partial^2 v_z}{\displaystyle \partial x^2} + \frac{\displaystyle \partial^2 v_z}{\displaystyle \partial z^2}\right) \label{eq:momm2-sim}
+\end{align}
+
+Or in vector form:
+\begin{align}
+\nabla P = \eta_0\nabla^2\textbf{v} \label{eq:redpressure}
+\end{align}
+
+The incompressible continuity equation can be satisfied with a stream function $\psi$, such that:
+\begin{align}
+\textbf{v} = \nabla\times\psi\hat{\textbf{j}} \label{eq:stream}
+\end{align}
+or $v_x = -\frac{\partial\psi}{\partial z}$ and $v_z = \frac{\partial\psi}{\partial x}$. Verify continuity equation:
+\begin{align}
+\frac{\displaystyle \partial v_x}{\displaystyle \partial x}+\frac{\displaystyle \partial v_z}{\displaystyle \partial z} = -\frac{\partial^2\psi}{\partial x\partial z}+\frac{\partial^2\psi}{\partial z\partial x} = 0
+\end{align}
+
+Replacing eq. \ref{eq:stream} in the momentum equations (\ref{eq:momm1-sim}-\ref{eq:momm2-sim}), then taking the curl to eliminate the pressure gradient, and adding the component equations together, we obtain:
+\begin{align}
+2\frac{\partial^4\psi}{\partial x^2\partial z^2}+\frac{\partial^4\psi}{\partial x^4}+\frac{\partial^4\psi}{\partial z^4} = 0
+\end{align}
+or 
+\begin{align}
+\nabla^4\psi= 0 \label{eq:biharmonic}
+\end{align}
+
+Eq. \ref{eq:biharmonic} is called the \textit{biharmonic equation}. \citet{Batchelor2000} (in 1967) gives a similarity solution to the biharmonic equation with corner flow boundary conditions in polar coordinates of the form:
+\begin{align}
+\textbf{v} = \frac{1}{r}\frac{\partial\psi}{\partial\theta}\hat{\textbf{r}}-\frac{\partial\psi}{\partial r}\hat{\bm{\theta}} \label{eq:velpolar}
+\end{align}
+
+And the stream function:
+\begin{align}
+\psi = r U_0 f(\theta),
+\end{align}
+where
+\begin{align}
+f(\theta) = C_1\sin\theta+C_2\theta\sin\theta+C_3\cos\theta+C_4\theta\cos\theta
+\end{align}
+and $U_0$ is the characteristic velocity, $C_1-C_4$ are constants determined by model and boundary conditions. \citet{Spiegelman1987} give solutions to corner flow for mid-ocean ridge and subduction models. For these two models, the stream function with known coefficients is:
+\begin{align}
+\psi = r f(\theta) = 
+ \begin{cases}
+r(A\sin\theta-B\theta\cos\theta), & \quad \text{Mid-ocean ridge}\\
+r(C\sin\theta-C\theta\cos\theta+D\theta\sin\theta), & \quad \text{Subduction}
+  \end{cases}
+\end{align}
+where 
+\begin{align}
+A&=\frac{\displaystyle 2\sin\alpha}{\displaystyle \pi-2\alpha-\sin2\alpha} \\
+&\nonumber  \\
+B&=\frac{\displaystyle 2}{\displaystyle \pi-2\alpha-\sin2\alpha} \\
+&\nonumber  \\
+C&=\frac{\displaystyle \beta\sin\beta}{\displaystyle \beta^2-\sin^2\beta} \\
+&\nonumber  \\
+D&=\frac{\displaystyle \beta\cos\beta-\sin\beta}{\displaystyle \beta^2-\sin^2\beta}
+\end{align}
+and $\alpha$ is the wedge angle at mid-ocean ridges, and $\beta$ is the angle of subduction (Figure \ref{fig:corner_flow}).
+\newline\newline
+\textbf{Polar to Cartesian coordinate solutions.} We want to obtain solutions for rectangular grids (Cartesian coordinates), which means we need to transform the solutions from polar coordinates into cartesian coordinates. Let's define the coordinate systems such that (Figure \ref{fig:corner_flow}):
+\begin{align}
+x &= r\cos\theta \\
+z &= r\sin\theta \\
+r &= \sqrt{x^2+z^2}\\
+\theta &= \tan^{-1}({z/x})
+\end{align}
+
+From eq. \ref{eq:velpolar}, we can write:
+\begin{align}
+\textbf{v} = v_r\hat{\textbf{r}}+v_\theta\hat{\bm{\theta}}
+\end{align}
+where $v_r= \frac{1}{r}\frac{\partial\psi}{\partial\theta}$ and $v_\theta=-\frac{\partial\psi}{\partial r}$. In Cartesian coordinates, the velocity can be written:
+\begin{align}
+\textbf{v} = v_x\hat{\textbf{i}}+v_z\hat{\textbf{j}}
+\end{align}
+
+We need to transform the basis polar vectors $\hat{\textbf{r}}$ and $\hat{\bm{\theta}}$ into cartesian basis vectors $\hat{\textbf{i}}(x,v_x)$ and $\hat{\textbf{j}}(z,v_z)$. Let:
+\begin{align}
+\textbf{r} = x\hat{\textbf{i}}+z\hat{\textbf{j}} = r\cos\theta\hat{\textbf{i}} + r\sin\theta\hat{\textbf{j}}
+\end{align}
+The basis vectors are defined: 
+\begin{align}
+\hat{\textbf{r}} = \frac{\frac{d\textbf{r}}{dr}}{\left|\frac{d\textbf{r}}{dr}\right|} = \cos\theta\hat{\textbf{i}} + \sin\theta\hat{\textbf{j}}\\
+&\nonumber  \\
+\hat{\bm{\theta}} = \frac{\frac{d\textbf{r}}{d\theta}}{\left|\frac{d\textbf{r}}{d\theta}\right|} = -\sin\theta\hat{\textbf{i}} + \cos\theta\hat{\textbf{j}}
+\end{align}
+Therefore, the cartesian components of velocity are:
+\begin{align}
+v_x = v_r\cos\theta - v_\theta\sin\theta \label{eq:vx}\\
+v_z = v_r\sin\theta + v_\theta\cos\theta \label{eq:vz}
+\end{align}
+
+It can be easily shown that these expressions satisfy the continuity equation. The pressure is obtained by using eq. \ref{eq:vx}-\ref{eq:vz} in equation \ref{eq:redpressure} (applying the chain rule):
+\begin{align}
+ \frac{\partial}{\partial x}=\frac{\partial r}{\partial x}\frac{\partial}{\partial r}+\frac{\partial \theta}{\partial x}\frac{\partial}{\partial \theta}.
+ \end{align}
+
+\subsubsection{Mid-ocean ridge model}
+The stream function is:
+\begin{align}
+\psi = r(A\sin\theta-B\theta\cos\theta)
+\end{align}
+
+The polar velocity components:
+\begin{align}
+ v_r&= \frac{1}{r}\frac{\partial\psi}{\partial\theta} = A\cos\theta-B\cos\theta+B\theta\sin\theta\\
+v_\theta&=-\frac{\partial\psi}{\partial r} = -A\sin\theta+B\theta\cos\theta
+ \end{align}
+ 
+The cartesian velocity components:
+\begin{align}
+v_x = v_r\cos\theta - v_\theta\sin\theta\\
+v_z = v_r\sin\theta + v_\theta\cos\theta
+\end{align}
+
+Pressure:
+\begin{align}
+P &= \left(-\frac{2B}{r}+r\right)\cos\theta\\
+\red{P } &\red{= -\frac{2B}{r}\cos\theta}
+\end{align}
+
+\subsubsection{Subduction model}
+The stream function is:
+\begin{align}
+\psi = r(C\sin\theta-C\theta\cos\theta+D\theta\sin\theta)
+\end{align}
+
+The polar velocity components:
+\begin{align}
+ v_r&= \frac{1}{r}\frac{\partial\psi}{\partial\theta} = C\theta\sin\theta+D\sin\theta+D\theta\cos\theta\\
+v_\theta&=-\frac{\partial\psi}{\partial r} = -C\sin\theta+C\theta\cos\theta-D\theta\sin\theta
+ \end{align}
+ 
+The cartesian velocity components:
+\begin{align}
+v_x = v_r\cos\theta - v_\theta\sin\theta\\
+v_z = v_r\sin\theta + v_\theta\cos\theta
+\end{align}
+
+Pressure:
+\begin{align}
+P &= -\frac{2}{r}\left(C\cos\theta-D\sin\theta\right)+r\sin\theta \\
+\red{P } &\red{= -\frac{2}{r}\left(C\cos\theta-D\sin\theta\right)}
+\end{align}
+
+\textbf{Alternative.} \citet{Spiegelman1987} define the polar-cartesian system for the subduction model in the following way: $x=-r\cos\theta$ and $z=r\sin\theta$. In this case, the cartesian velocity components are:
+\begin{align}
+v_x = -v_r\cos\theta + v_\theta\sin\theta\\
+v_z = v_r\sin\theta + v_\theta\cos\theta
+\end{align}
+
+\citet{Turcotte2014} (Geodynamics 3rd Ed., 2014, Ch. 6.11) also derive a corner flow solution for subduction by only using cartesian coordinates (a bit more complicated to work with because it involves derivatives of $\tan^{-1}$). The stream function is defined in this case as:
+\begin{align}
+\psi = (A_1x+B_1z)+(C_1x+D_1z)\tan^{-1}(z/x)
+\end{align}
+where the constants $A_1-D_1$ depend on the model and boundary conditions. If $A_1=0, B_1=C, C_1=C, D_1=D$, the model becomes equivalent to the \citet{Spiegelman1987} solution.
+
+% Figure - model setups
+\begin{figure}
+\begin{center}
+\noindent \includegraphics[trim=0mm 0mm 0mm 0mm, clip, width=\textwidth]{corner_flow.pdf} 
+\caption{Model setup and boundary conditions for corner flow solutions. A. Mid ocean ridge. B. Subduction.}
+\label{fig:corner_flow}
+  \end{center}
+\end{figure}
+
+\subsection{Constitutive equations}
+Rheology. 
 
 \section{Computational Framework}
 
@@ -171,7 +345,7 @@ Figure \ref{fig:stokes_ksp} shows the stencil for the linear viscous Stokes case
 % Figure - stokes_ksp
 \begin{figure}
 \begin{center}
-\noindent \includegraphics[trim=0mm 0mm 0mm 0mm, clip, width=\textwidth]{stencils-Stokes_ksp.pdf} 
+\noindent \includegraphics[trim=0mm 0mm 0mm 0mm, clip, width=\textwidth]{dmstag.pdf} 
 \caption{Staggered grid finite differences stencils for linear viscous Stokes equations (using the DMStag framework from PETSc).}
 \label{fig:stokes_ksp}
   \end{center}
@@ -189,7 +363,7 @@ Figure \ref{fig:stokes_snes} shows the stencil for the nonlinear Stokes case, an
 % Figure - stokes_snes
 \begin{figure}
 \begin{center}
-\noindent \includegraphics[trim=0mm 0mm 0mm 0mm, clip, width=\textwidth]{stencils-Stokes_snes.pdf} 
+\noindent \includegraphics[trim=0mm 0mm 0mm 0mm, clip, width=\textwidth]{dmstag_snes.pdf} 
 \caption{Staggered grid finite differences stencils for nonlinear viscous Stokes equations (using the DMStag framework from PETSc).}
 \label{fig:stokes_snes}
   \end{center}
@@ -198,7 +372,7 @@ Figure \ref{fig:stokes_snes} shows the stencil for the nonlinear Stokes case, an
 *notes on discretization/implementation
 
 \section{Benchmarks}
-\subsection{SolCx (Zhong 1996, Moresi et al. 2007)}
+\subsection{SolCx \citep{Zhong1996, Moresi1996, Duretz2011}}
 2-D analytical solution of a variable viscous Stokes flow with sharp viscosity jumps. The model domain is defined as $\Omega = [0, 1] \times [0, 1]$. The boundary conditions on all sides of the domain are free-slip, implying that the normal velocity to each wall is zero, and the tangential stress along the wall vanishes. 
 
 The density field is set as:
@@ -209,8 +383,8 @@ The density field is set as:
 And the viscosity field is set as:
 \begin{equation}
 \eta(x,z) = \left\{\begin{array}{lr}
-    \eta_1, &  x < 0.5\\
-    \eta_2, & x\ge 0.5
+    \eta_0, &  x \le 0.5\\
+    \eta_1, & x > 0.5
   \end{array}\right.
 \end{equation}
 
@@ -234,8 +408,8 @@ L&1&\\
 H&1&\\
 xmin&0&\\
 zmin&0&\\
-eta1&1&$\eta_1$\\
-eta2&1-$10^6$&$\eta_2$\\
+eta0&1&$\eta_0$\\
+eta1&1-$10^6$&$\eta_1$\\
 \hline  
 \end{tabular}
 \caption{SolCx input parameters.}
@@ -243,11 +417,8 @@ eta2&1-$10^6$&$\eta_2$\\
 \end{center}
 \end{table}
 
-\subsection{Corner flow at mid-ocean ridges}
+\textbf{Other Stokes benchmarks}
 
-\textbf{Other benchmarks}
-
-*SolCx - Zhong 1996, Moresi et al. 2007
 *SolKz - Revenaugh and Parsons 1987, Underworld
 *Rayleigh-Taylor (with free surface) - Kaus et al 2010, Schmeling et al 2008
 *Pure shear inclusion test - Schmid and Podladchikov 2003, Schmid 2002, Moulas et al, 2014

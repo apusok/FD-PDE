@@ -1,5 +1,5 @@
 # PDFS
-/docs/tex/*pdf
+*.pdf
 
 # EXECS
 /petsc_examples/stokes_ksp/stokes_ksp
@@ -11,9 +11,6 @@
 
 # Logfiles
 *.out
-
-# Tests and results
-/StagRidge/tests/*.pdf
 
 # VSC/IDE
 .vscode

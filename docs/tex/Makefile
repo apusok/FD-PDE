@@ -5,18 +5,18 @@
 
 PDFLATEX = $(shell which pdflatex)
 BIBTEX = $(shell which bibtex)
+INKSCAPE = $(shell which inkscape)
 
 #====================================================
 # create pdf manuscript
 docs:
 ifneq "$(PDFLATEX)" ""
-	PDFLATEX=$(PDFLATEX) BIBTEX=$(BIBTEX) ./makedoc.sh
+	PDFLATEX=$(PDFLATEX) BIBTEX=$(BIBTEX) INKSCAPE=$(INKSCAPE) ./makedoc.sh
 	@echo "............................................."
-	@echo "  Created: ./equations.pdf   "
+	@echo "Created: ./equations.pdf   "
 	@echo "............................................."
 else
 	@echo "Cannot compile file because no TEX package was detected!"
 endif
-
 #====================================================
 
