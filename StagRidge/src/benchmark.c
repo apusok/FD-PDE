@@ -218,6 +218,8 @@ PetscErrorCode CalculateErrorNorms(SolverCtx *sol,DM da,Vec x)
   // Collect data 
   ierr = MPI_Allreduce(&totp, &gavgp, 1, MPI_DOUBLE, MPI_SUM, sol->comm); CHKERRQ(ierr);
   avgp = gavgp/Nx/Nz;
+
+  //PetscPrintf(sol->comm,"# Average Pressure: avgp = %1.12e\n",avgp);
   
   // Initialize norms
   nrm[0] = 0.0; nrm[1] = 0.0; nrm[2] = 0.0;
@@ -253,6 +255,9 @@ PetscErrorCode CalculateErrorNorms(SolverCtx *sol,DM da,Vec x)
       //PetscPrintf(sol->comm,"# [%d,%d]Vx: ve_left = %1.12e ve_right = %1.12e\n",i,j,ve[0],ve[1]);
       //PetscPrintf(sol->comm,"# [%d,%d]Vz: ve_down = %1.12e ve_up = %1.12e \n",i,j,ve[2],ve[3]);
       //PetscPrintf(sol->comm,"# [%d,%d]P: pe = %1.12e \n",i,j,pe);
+
+      // Check calculation of error norms
+      //ve[0] = 1; ve[1] = 1; ve[2] = 1; ve[3] = 1; pe = 1;
 
       // Calculate norms as in Duretz et al. 2011
       if      (i == 0   ) { nrm[0] += ve[0]*dv*0.5; nrm[0] += ve[1]*dv; }

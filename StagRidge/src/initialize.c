@@ -51,30 +51,35 @@ PetscErrorCode InitializeModel_SolCx(SolverCtx *sol)
       point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0;
       ierr = GetCoordinateStencilPoint(dmCoord, coordLocal, point, x); CHKERRQ(ierr);
       rho  = PetscSinScalar(PETSC_PI*x[1]) * PetscCosScalar(PETSC_PI*x[0]); //sin(pi*z)*cos(pi*x); 
+      //rho  = 1.0;
       ierr = DMStagVecSetValuesStencil(sol->dmCoeff,sol->coeff,1,&point,&rho,INSERT_VALUES); CHKERRQ(ierr);
 
       // Set density value - DOWN
       point.loc = DOWN;
       ierr = GetCoordinateStencilPoint(dmCoord, coordLocal, point, x); CHKERRQ(ierr);
       rho  = PetscSinScalar(PETSC_PI*x[1]) * PetscCosScalar(PETSC_PI*x[0]); //sin(pi*z)*cos(pi*x); 
+      //rho  = 1.0;
       ierr = DMStagVecSetValuesStencil(sol->dmCoeff,sol->coeff,1,&point,&rho,INSERT_VALUES); CHKERRQ(ierr);
 
       // Set density value - UP
       point.loc = UP;
       ierr = GetCoordinateStencilPoint(dmCoord, coordLocal, point, x); CHKERRQ(ierr);
       rho  = PetscSinScalar(PETSC_PI*x[1]) * PetscCosScalar(PETSC_PI*x[0]); //sin(pi*z)*cos(pi*x); 
+      //rho  = 1.0;
       ierr = DMStagVecSetValuesStencil(sol->dmCoeff,sol->coeff,1,&point,&rho,INSERT_VALUES); CHKERRQ(ierr);
 
       // Set density value - LEFT
       point.loc = LEFT;
       ierr = GetCoordinateStencilPoint(dmCoord, coordLocal, point, x); CHKERRQ(ierr);
       rho  = PetscSinScalar(PETSC_PI*x[1]) * PetscCosScalar(PETSC_PI*x[0]); //sin(pi*z)*cos(pi*x); 
+      //rho  = 1.0;
       ierr = DMStagVecSetValuesStencil(sol->dmCoeff,sol->coeff,1,&point,&rho,INSERT_VALUES); CHKERRQ(ierr);
 
       // Set density value - RIGHT
       point.loc = RIGHT;
       ierr = GetCoordinateStencilPoint(dmCoord, coordLocal, point, x); CHKERRQ(ierr);
       rho  = PetscSinScalar(PETSC_PI*x[1]) * PetscCosScalar(PETSC_PI*x[0]); //sin(pi*z)*cos(pi*x); 
+      //rho  = 1.0;
       ierr = DMStagVecSetValuesStencil(sol->dmCoeff,sol->coeff,1,&point,&rho,INSERT_VALUES); CHKERRQ(ierr);
     }
   }

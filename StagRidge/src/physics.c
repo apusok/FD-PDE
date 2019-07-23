@@ -93,8 +93,9 @@ PetscErrorCode ZMomentumResidual(SolverCtx *sol, Vec xlocal, Vec coefflocal, Pet
   col[6].i  = i  ; col[6].j  = j  ; col[6].loc  = RIGHT;   col[6].c   = 0; // Vx(i  ,j  )
   col[7].i  = i  ; col[7].j  = j-1; col[7].loc  = LEFT;    col[7].c   = 0; // Vx(i-1,j-1)
   col[8].i  = i  ; col[8].j  = j-1; col[8].loc  = RIGHT;   col[8].c   = 0; // Vx(i  ,j-1)
-  col[9].i  = i  ; col[9].j  = j  ; col[9].loc  = ELEMENT; col[9].c   = 0; // P (i  ,j  )
-  col[10].i = i  ; col[10].j = j-1; col[10].loc = ELEMENT; col[10].c  = 0; // P (i  ,j-1)
+  col[9].i  = i  ; col[9].j  = j-1; col[9].loc  = ELEMENT; col[9].c   = 0; // P (i  ,j-1)
+  col[10].i = i  ; col[10].j = j  ; col[10].loc = ELEMENT; col[10].c  = 0; // P (i  ,j  )
+  
 
   // For boundaries copy the missing stencil entry with the main DOF
   if (loctype == BCLEFT ) {
@@ -115,10 +116,10 @@ PetscErrorCode ZMomentumResidual(SolverCtx *sol, Vec xlocal, Vec coefflocal, Pet
   ierr = CalcEffViscosity(sol, xlocal, i  ,j-1,CENTER, &etaDown ); CHKERRQ(ierr);
 
   // Calculate residual
-  dPdz  = (xx[9]-xx[10])/dz;
+  dPdz  = (xx[10]-xx[9])/dz;
   dVzdz = etaUp   *(xx[1]-xx[0])/dz - etaDown *(xx[0]-xx[2])/dz;
   dVzdx = etaRight*(xx[4]-xx[0])/dx - etaLeft *(xx[0]-xx[3])/dx;
-  dVxdz = etaLeft *(xx[5]-xx[7])/dz - etaRight*(xx[6]-xx[8])/dz;
+  dVxdz = etaRight*(xx[6]-xx[8])/dz - etaLeft *(xx[5]-xx[7])/dz;
   ffi   = -dPdz + 2.0*dVzdz/dz + dVzdx/dx + dVxdz/dx - rhog;
 
   *ff = ffi;
