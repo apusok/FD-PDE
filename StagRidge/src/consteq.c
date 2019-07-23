@@ -242,10 +242,7 @@ PetscErrorCode CalcEffViscosity_SolCx(SolverCtx *sol, PetscInt i, PetscInt j, en
 
   PetscFunctionBegin;
   
-  /* Viscosity is defined: 
-      solcx_eta1, x < 0.5
-      solcx_eta2, x >= 0.5
-   */
+  // Viscosity is defined: solcx_eta0, for 0<=x<=0.5, solcx_eta1, for 0.5<x<=1
 
   // Get some variables
   L2 = (sol->grd->xmax-sol->grd->xmin)*0.5;

@@ -7,19 +7,20 @@
 # Import libraries
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.stats import linregress
 import os
 
 # Input file
 f1 = 'solcx_1e0.opts'
 f2 = 'solcx_1e6.opts'
 
-print('# ---------------------------- ')
+print('# --------------------------------------- #')
 print('# SolCx benchmark ')
-print('# ---------------------------- ')
+print('# --------------------------------------- #')
 
 # Parameters
 # n = [40, 80, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
-n = [40, 80, 100, 200, 300]
+n = [40, 80, 100, 200, 300, 400]
 
 # Run simulations
 for nx in n:
@@ -124,8 +125,31 @@ plt.ylabel('log10||e||',fontweight='bold',fontsize=12)
 plt.title('B. 1e6 viscosity jump',fontweight='bold',fontsize=16)
 plt.legend()
 
+# Print convergence orders:
+hx10    = np.log10(hx)
+nrm1v10 = np.log10(nrm1v)
+nrm1p10 = np.log10(nrm1p)
+
+hx10_1e6    = np.log10(hx_1e6)
+nrm1v10_1e6 = np.log10(nrm1v_1e6)
+nrm1p10_1e6 = np.log10(nrm1p_1e6)
+
+# Perform linear regression
+sl1e0v, intercept, r_value, p_value, std_err = linregress(hx10, nrm1v10)
+sl1e0p, intercept, r_value, p_value, std_err = linregress(hx10, nrm1p10)
+sl1e6v, intercept, r_value, p_value, std_err = linregress(hx10_1e6, nrm1v10_1e6)
+sl1e6p, intercept, r_value, p_value, std_err = linregress(hx10_1e6, nrm1p10_1e6)
+
+print('# --------------------------------------- #')
+print('# SolCx convergence order:')
+print('     (isoviscous 1e0): v_slope = '+str(sl1e0v)+' p_slope = '+str(sl1e0p))
+print('     (visc contr 1e6): v_slope = '+str(sl1e6v)+' p_slope = '+str(sl1e6p))
+
 fname = 'test_solcx_convergence.pdf'
 plt.savefig(fname)
-print('Printed SolCx convergence results to: '+fname)
+
+print('# --------------------------------------- #')
+print('# Printed SolCx convergence results to: '+fname)
+print('# --------------------------------------- #')
 
 #plt.show()

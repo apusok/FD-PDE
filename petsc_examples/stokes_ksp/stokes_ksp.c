@@ -77,7 +77,7 @@ int main(int argc,char **argv)
   
   /* Read variables from command line (or from file) */
   ierr = PetscOptionsGetInt(NULL, NULL, "-nx", &ctx->nx, NULL); CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(NULL, NULL, "-ny", &ctx->nx, NULL); CHKERRQ(ierr);
+  ierr = PetscOptionsGetInt(NULL, NULL, "-ny", &ctx->ny, NULL); CHKERRQ(ierr);
   
   // For this problem, allow only change in density and viscosity
   ierr = PetscOptionsGetScalar(NULL, NULL, "-eta1", &ctx->eta1, NULL); CHKERRQ(ierr);
@@ -207,6 +207,8 @@ static PetscErrorCode CreateSystem(const Ctx ctx, Mat *pA, Vec *pRhs)
   ierr = DMStagGetCorners(ctx->dmStokes, &startx, &starty, NULL, &nx, &ny, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   ierr = DMGetLocalVector(ctx->dmCoeff, &coeffLocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (ctx->dmCoeff, ctx->coeff, INSERT_VALUES, coeffLocal); CHKERRQ(ierr);
+
+  PetscPrintf(PETSC_COMM_SELF,"# [local]: sx=%d sy=%d nx=%d ny=%d [global]: nx=%d ny=%d \n",startx,starty,nx,ny,Nx,Ny);
 
   /* Get non-zero pattern - Loop over all local elements 
      This should be put into a routine that is called twice: first for non-zero structure, second for setting values*/
