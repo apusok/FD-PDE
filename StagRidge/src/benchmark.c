@@ -86,19 +86,14 @@ PetscErrorCode CreateSolCx(SolverCtx *sol,DM *_da,Vec *_x)
   for (j = sz; j < sz+nz; ++j) {
     for (i = sx; i <sx+nx; ++i) {
       
-      DMStagStencil  point, pointCoordx, pointCoordz;
+      DMStagStencil  point;
       PetscScalar    pos[2];
       PetscReal      pressure, vel[2], total_stress[3], strain_rate[3]; // Real vs Scalar?
       
       // 1) Vx
       // Get coordinate of Vx point
       point.i = i; point.j = j; point.loc = LEFT; point.c = 0;
-
-      pointCoordx = point; pointCoordx.c = 0;
-      pointCoordz = point; pointCoordz.c = 1;
-
-      ierr = DMStagVecGetValuesStencil(cda,coords,1,&pointCoordx,&pos[0]); CHKERRQ(ierr);
-      ierr = DMStagVecGetValuesStencil(cda,coords,1,&pointCoordz,&pos[1]); CHKERRQ(ierr);
+      ierr = GetCoordinateStencilPoint(cda,coords, point, pos); CHKERRQ(ierr);
 
       // Calculate SolCx
       evaluate_solCx(pos,eta0,eta1,xc,1,vel,&pressure,total_stress,strain_rate);
@@ -109,12 +104,7 @@ PetscErrorCode CreateSolCx(SolverCtx *sol,DM *_da,Vec *_x)
 
       if (i == Nx-1) {
         point.i = i; point.j = j; point.loc = RIGHT; point.c = 0;
-
-        pointCoordx = point; pointCoordx.c = 0;
-        pointCoordz = point; pointCoordz.c = 1;
-
-        ierr = DMStagVecGetValuesStencil(cda,coords,1,&pointCoordx,&pos[0]); CHKERRQ(ierr);
-        ierr = DMStagVecGetValuesStencil(cda,coords,1,&pointCoordz,&pos[1]); CHKERRQ(ierr);
+        ierr = GetCoordinateStencilPoint(cda,coords, point, pos); CHKERRQ(ierr);
 
         // Calculate SolCx
         evaluate_solCx(pos,eta0,eta1,xc,1,vel,&pressure,total_stress,strain_rate);
@@ -127,12 +117,7 @@ PetscErrorCode CreateSolCx(SolverCtx *sol,DM *_da,Vec *_x)
       // 2) Vz
       // Get coordinate of Vz point
       point.i = i; point.j = j; point.loc = DOWN; point.c = 0;
-
-      pointCoordx = point; pointCoordx.c = 0;
-      pointCoordz = point; pointCoordz.c = 1;
-
-      ierr = DMStagVecGetValuesStencil(cda,coords,1,&pointCoordx,&pos[0]); CHKERRQ(ierr);
-      ierr = DMStagVecGetValuesStencil(cda,coords,1,&pointCoordz,&pos[1]); CHKERRQ(ierr);
+      ierr = GetCoordinateStencilPoint(cda,coords, point, pos); CHKERRQ(ierr);
 
       // Calculate SolCx
       evaluate_solCx(pos,eta0,eta1,xc,1,vel,&pressure,total_stress,strain_rate);
@@ -143,12 +128,7 @@ PetscErrorCode CreateSolCx(SolverCtx *sol,DM *_da,Vec *_x)
 
       if (i == Nz-1) {
         point.i = i; point.j = j; point.loc = UP; point.c = 0;
-
-        pointCoordx = point; pointCoordx.c = 0;
-        pointCoordz = point; pointCoordz.c = 1;
-
-        ierr = DMStagVecGetValuesStencil(cda,coords,1,&pointCoordx,&pos[0]); CHKERRQ(ierr);
-        ierr = DMStagVecGetValuesStencil(cda,coords,1,&pointCoordz,&pos[1]); CHKERRQ(ierr);
+        ierr = GetCoordinateStencilPoint(cda,coords, point, pos); CHKERRQ(ierr);
 
         // Calculate SolCx
         evaluate_solCx(pos,eta0,eta1,xc,1,vel,&pressure,total_stress,strain_rate);
@@ -159,14 +139,8 @@ PetscErrorCode CreateSolCx(SolverCtx *sol,DM *_da,Vec *_x)
       }
     
       // 3) Pressure
-      // Get coordinate of Vz point
       point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0;
-
-      pointCoordx = point; pointCoordx.c = 0;
-      pointCoordz = point; pointCoordz.c = 1;
-
-      ierr = DMStagVecGetValuesStencil(cda,coords,1,&pointCoordx,&pos[0]); CHKERRQ(ierr);
-      ierr = DMStagVecGetValuesStencil(cda,coords,1,&pointCoordz,&pos[1]); CHKERRQ(ierr);
+      ierr = GetCoordinateStencilPoint(cda,coords, point, pos); CHKERRQ(ierr);
 
       // Calculate SolCx
       evaluate_solCx(pos,eta0,eta1,xc,1,vel,&pressure,total_stress,strain_rate);

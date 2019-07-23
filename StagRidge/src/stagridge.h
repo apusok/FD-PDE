@@ -130,3 +130,4 @@ PetscErrorCode DoOutput_SolCx(DM,Vec);
 
 // utils
 PetscErrorCode StrCreateConcatenate(const char[], const char[], char**);
+PetscErrorCode GetCoordinateStencilPoint(DM, Vec, DMStagStencil, PetscScalar[]);

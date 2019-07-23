@@ -17,3 +17,18 @@ PetscErrorCode StrCreateConcatenate(const char s1[], const char s2[], char **_re
 
     PetscFunctionReturn(0);
 }
+
+// Get coordinate of stencil point
+PetscErrorCode GetCoordinateStencilPoint(DM dm, Vec vec, DMStagStencil point, PetscScalar x[])
+{
+    DMStagStencil  pointx[2];
+    PetscErrorCode ierr;
+    PetscFunctionBeginUser;
+    
+    // Get coordinates x,z of point
+    pointx[0] = point; pointx[0].c = 0;
+    pointx[1] = point; pointx[1].c = 1;
+    ierr = DMStagVecGetValuesStencil(dm,vec,2,pointx,x); CHKERRQ(ierr);
+
+    PetscFunctionReturn(0);
+}

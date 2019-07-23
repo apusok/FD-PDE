@@ -19,7 +19,7 @@ PetscErrorCode InitializeModel(SolverCtx *sol)
   PetscFunctionReturn(0);
 }
 // ---------------------------------------
-// InitializeModel_SolCx
+// InitializeModel_SolCx - density defined on Vz-edges
 // ---------------------------------------
 PetscErrorCode InitializeModel_SolCx(SolverCtx *sol)
 {
@@ -44,20 +44,37 @@ PetscErrorCode InitializeModel_SolCx(SolverCtx *sol)
   for (j = sz; j < sz+nz; ++j) {
     for (i = sx; i <sx+nx; ++i) {
 
-      DMStagStencil point, pointCoordx, pointCoordz;
-      PetscScalar   x, z, rho;
+      DMStagStencil point;
+      PetscScalar   x[2], rho;
         
-      // Get coordinate of rho point
+      // Set density value - ELEMENT
       point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0;
+      ierr = GetCoordinateStencilPoint(dmCoord, coordLocal, point, x); CHKERRQ(ierr);
+      rho  = PetscSinScalar(PETSC_PI*x[1]) * PetscCosScalar(PETSC_PI*x[0]); //sin(pi*z)*cos(pi*x); 
+      ierr = DMStagVecSetValuesStencil(sol->dmCoeff,sol->coeff,1,&point,&rho,INSERT_VALUES); CHKERRQ(ierr);
 
-      pointCoordx = point; pointCoordx.c = 0;
-      pointCoordz = point; pointCoordz.c = 1;
+      // Set density value - DOWN
+      point.loc = DOWN;
+      ierr = GetCoordinateStencilPoint(dmCoord, coordLocal, point, x); CHKERRQ(ierr);
+      rho  = PetscSinScalar(PETSC_PI*x[1]) * PetscCosScalar(PETSC_PI*x[0]); //sin(pi*z)*cos(pi*x); 
+      ierr = DMStagVecSetValuesStencil(sol->dmCoeff,sol->coeff,1,&point,&rho,INSERT_VALUES); CHKERRQ(ierr);
 
-      ierr = DMStagVecGetValuesStencil(dmCoord,coordLocal,1,&pointCoordx,&x); CHKERRQ(ierr);
-      ierr = DMStagVecGetValuesStencil(dmCoord,coordLocal,1,&pointCoordz,&z); CHKERRQ(ierr);
-        
-      // Set density value
-      rho  = PetscSinScalar(PETSC_PI*z) * PetscCosScalar(PETSC_PI*x); //sin(pi*z)*cos(pi*x); 
+      // Set density value - UP
+      point.loc = UP;
+      ierr = GetCoordinateStencilPoint(dmCoord, coordLocal, point, x); CHKERRQ(ierr);
+      rho  = PetscSinScalar(PETSC_PI*x[1]) * PetscCosScalar(PETSC_PI*x[0]); //sin(pi*z)*cos(pi*x); 
+      ierr = DMStagVecSetValuesStencil(sol->dmCoeff,sol->coeff,1,&point,&rho,INSERT_VALUES); CHKERRQ(ierr);
+
+      // Set density value - LEFT
+      point.loc = LEFT;
+      ierr = GetCoordinateStencilPoint(dmCoord, coordLocal, point, x); CHKERRQ(ierr);
+      rho  = PetscSinScalar(PETSC_PI*x[1]) * PetscCosScalar(PETSC_PI*x[0]); //sin(pi*z)*cos(pi*x); 
+      ierr = DMStagVecSetValuesStencil(sol->dmCoeff,sol->coeff,1,&point,&rho,INSERT_VALUES); CHKERRQ(ierr);
+
+      // Set density value - RIGHT
+      point.loc = RIGHT;
+      ierr = GetCoordinateStencilPoint(dmCoord, coordLocal, point, x); CHKERRQ(ierr);
+      rho  = PetscSinScalar(PETSC_PI*x[1]) * PetscCosScalar(PETSC_PI*x[0]); //sin(pi*z)*cos(pi*x); 
       ierr = DMStagVecSetValuesStencil(sol->dmCoeff,sol->coeff,1,&point,&rho,INSERT_VALUES); CHKERRQ(ierr);
     }
   }

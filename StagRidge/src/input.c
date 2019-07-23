@@ -86,7 +86,7 @@ PetscErrorCode InputParameters(SolverCtx **psol)
 
   // stencil 
   grd->dofPV0 = 0; grd->dofPV1 = 1; grd->dofPV2 = 1; // Vx, Vz, P
-  grd->dofCf0 = 0; grd->dofCf1 = 0; grd->dofCf2 = 1; // rho_element
+  grd->dofCf0 = 0; grd->dofCf1 = 1; grd->dofCf2 = 1; // rho_element, edges
   grd->stencilWidth = 1;
 
   // dofs

@@ -68,8 +68,8 @@ PetscErrorCode ZMomentumResidual(SolverCtx *sol, Vec xlocal, Vec coefflocal, Pet
   PetscScalar    dVxdz, dVzdx, dPdz, dVzdz, rhog, ffi;
   PetscInt       nEntries = 11;
   PetscScalar    xx[11], dx, dz;
-  PetscScalar    etaLeft, etaRight, etaUp, etaDown, rho[2];
-  DMStagStencil  col[11];
+  PetscScalar    etaLeft, etaRight, etaUp, etaDown, rho;
+  DMStagStencil  col[11], row;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -79,11 +79,9 @@ PetscErrorCode ZMomentumResidual(SolverCtx *sol, Vec xlocal, Vec coefflocal, Pet
   dz = sol->grd->dz;
 
   // Get density values
-  col[0].i = i; col[0].j = j  ; col[0].loc = ELEMENT; col[0].c = 0;
-  col[1].i = i; col[1].j = j-1; col[1].loc = ELEMENT; col[1].c = 0;
-
-  ierr = DMStagVecGetValuesStencil(sol->dmCoeff, coefflocal, 2, col, rho); CHKERRQ(ierr);
-  rhog = -sol->usr->g * 0.5 * (rho[0] + rho[1]);
+  row.i = i; row.j = j  ; row.loc = DOWN; row.c = 0;
+  ierr = DMStagVecGetValuesStencil(sol->dmCoeff, coefflocal, 1, &row, &rho); CHKERRQ(ierr);
+  rhog = -sol->usr->g * rho;
 
   // Get stencil values
   col[0].i  = i  ; col[0].j  = j  ; col[0].loc  = DOWN;    col[0].c   = 0; // Vz(i  ,j  )
