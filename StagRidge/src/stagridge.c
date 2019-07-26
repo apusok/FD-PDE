@@ -159,8 +159,9 @@ int main (int argc,char **argv)
   ierr = PetscBagDestroy(&sol->bag); CHKERRQ(ierr);
 
   // solver context
-  ierr = PetscFree(sol->grd); CHKERRQ(ierr);
-  ierr = PetscFree(sol);      CHKERRQ(ierr);
+  ierr = PetscFree(sol->scal); CHKERRQ(ierr);
+  ierr = PetscFree(sol->grd ); CHKERRQ(ierr);
+  ierr = PetscFree(sol);       CHKERRQ(ierr);
 
   // ---------------------------------------
   // End code

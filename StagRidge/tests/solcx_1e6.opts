@@ -1,5 +1,6 @@
 # model options
 -tests 1
+-dim 0 # 0-dimensionless 1-dimensional 
 -mtype 0 # model type 0-solcx
 -nx 20
 -nz 20

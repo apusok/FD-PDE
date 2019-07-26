@@ -6,6 +6,7 @@
 // ---------------------------------------
 // general
 #define FNAME_LENGTH  200
+#define SEC_YEAR      31536000 //3600.00*24.00*365.00
 
 // define convenient names for DMStagStencilLocation
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
@@ -49,11 +50,12 @@ typedef struct {
   PetscInt       nx, nz;
   PetscScalar    L, H;
   PetscScalar    xmin, zmin;
-  PetscScalar    rho1, rho2, eta0, ndisl;
+  PetscScalar    rho0, eta0, ndisl;
   PetscScalar    solcx_eta0, solcx_eta1;
-  PetscScalar    g;
+  PetscScalar    mor_A, mor_B, mor_sina;
+  PetscScalar    g, u0, rangle;
   PetscInt       bcleft, bcright, bcup, bcdown;
-  PetscInt       mtype, tests;
+  PetscInt       mtype, tests, dim;
   char           fname_out[FNAME_LENGTH]; 
   char           fname_in [FNAME_LENGTH];  
 } UsrData;
@@ -71,9 +73,14 @@ typedef struct {
   PetscScalar    xmin, zmin, xmax, zmax;
   enum BCType    bcleft, bcright, bcup, bcdown;
   enum ModelType mtype;
-  PetscScalar    Vleft, Vright, Vup, Vdown;
   PetscInt       dofV, dofP;
 } GridData;
+
+// scaled variables
+typedef struct {
+  PetscScalar  charL, charg, chareta, chart, charv, charrho;
+  PetscScalar  eta0, g, u0, rho0;
+} ScalData;
 
 // solver variables
 typedef struct {
@@ -82,6 +89,7 @@ typedef struct {
   PetscBag     bag;
   UsrData      *usr;
   GridData     *grd;
+  ScalData     *scal;
   DM           dmPV, dmCoeff;
   Vec          coeff;
   Vec          r, x, xguess;
@@ -99,6 +107,7 @@ PetscErrorCode InputPrintData (SolverCtx*);
 // initialize model
 PetscErrorCode InitializeModel(SolverCtx*);
 PetscErrorCode InitializeModel_SolCx(SolverCtx*);
+PetscErrorCode InitializeModel_MOR(SolverCtx*);
 
 // solver
 PetscErrorCode CreateSystem(SolverCtx*);
@@ -108,6 +117,10 @@ PetscErrorCode SolveSystem(SNES, SolverCtx*);
 
 // residual calculations
 PetscErrorCode FormFunctionPV(SNES, Vec, Vec, void*); // global to local
+
+// boundary conditions
+PetscErrorCode BoundaryConditions_General(SolverCtx*, Vec, Vec, PetscScalar***);
+PetscErrorCode BoundaryConditions_MORAnalytic(SolverCtx*, Vec, PetscScalar***);
 
 // physics - governing equations
 PetscErrorCode XMomentumResidual(SolverCtx*, Vec, PetscInt, PetscInt, enum LocationType, PetscScalar*);
@@ -126,8 +139,13 @@ PetscErrorCode DoOutput(SolverCtx*);
 PetscErrorCode DoBenchmarks(SolverCtx*);
 PetscErrorCode CreateSolCx(SolverCtx*,DM*,Vec*);
 PetscErrorCode CalculateErrorNorms(SolverCtx*,DM,Vec);
-PetscErrorCode DoOutput_SolCx(DM,Vec);
+PetscErrorCode DoOutput_Analytic(DM,Vec);
+
+PetscErrorCode CreateMORAnalytic(SolverCtx*,DM*,Vec*);
+PetscErrorCode MORAnalytic_Vx(SolverCtx*, PetscScalar, PetscScalar, PetscScalar*);
+PetscErrorCode MORAnalytic_Vz(SolverCtx*, PetscScalar, PetscScalar, PetscScalar*);
+PetscErrorCode MORAnalytic_P (SolverCtx*, PetscScalar, PetscScalar, PetscScalar*);
 
 // utils
 PetscErrorCode StrCreateConcatenate(const char[], const char[], char**);
-PetscErrorCode GetCoordinateStencilPoint(DM, Vec, DMStagStencil, PetscScalar[]);
+PetscErrorCode GetCoordinatesStencil(DM, Vec, PetscInt, DMStagStencil[], PetscScalar[], PetscScalar[]);

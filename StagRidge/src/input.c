@@ -7,6 +7,7 @@ PetscErrorCode InputParameters(SolverCtx **psol)
 {
   SolverCtx     *sol;
   PetscBag       bag;
+  ScalData      *scal;
   UsrData       *usr;
   GridData      *grd;
   PetscErrorCode ierr;
@@ -14,8 +15,9 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   PetscFunctionBegin;
 
   // allocate memory to application context
-  ierr = PetscMalloc1(1, &sol); CHKERRQ(ierr);
-  ierr = PetscMalloc1(1, &grd); CHKERRQ(ierr);
+  ierr = PetscMalloc1(1, &sol ); CHKERRQ(ierr);
+  ierr = PetscMalloc1(1, &grd ); CHKERRQ(ierr);
+  ierr = PetscMalloc1(1, &scal); CHKERRQ(ierr);
 
   // Get time, comm and rank
   sol->comm = PETSC_COMM_WORLD;
@@ -33,23 +35,31 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   // ---------------------------------------
   // Initialize default (user) variables
   // ---------------------------------------
+  // Domain
   ierr = PetscBagRegisterInt(bag, &usr->nx, 20, "nx", "Element count in the x-dir"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &usr->nz, 20, "nz", "Element count in the z-dir"); CHKERRQ(ierr);
 
-  ierr = PetscBagRegisterScalar(bag, &usr->xmin, 0.0, "xmin", "Start coordinate of domain in x-dir"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &usr->zmin, 0.0, "zmin", "Start coordinate of domain in z-dir"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &usr->xmin, 0.0, "xmin", "Start coordinate of domain in x-dir [km]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &usr->zmin, 0.0, "zmin", "Start coordinate of domain in z-dir [km]"); CHKERRQ(ierr);
 
-  ierr = PetscBagRegisterScalar(bag, &usr->L, 1.0, "L", "Length of domain in x-dir"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &usr->H, 1.0, "H", "Height of domain in z-dir"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &usr->L, 1.0, "L", "Length of domain in x-dir [km]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &usr->H, 1.0, "H", "Height of domain in z-dir [km]"); CHKERRQ(ierr);
 
-  // this should be adapted 
-  ierr = PetscBagRegisterScalar(bag, &usr->g   , 1.0, "g", "Gravitational acceleration"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &usr->eta0, 1.0, "eta0", "Reference viscosity");        CHKERRQ(ierr);
+  // Physical parameters
+  ierr = PetscBagRegisterScalar(bag, &usr->g, 1.0, "g", "Gravitational acceleration [m/s2]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &usr->u0, 1.0, "u0", "Half-spreading rate [cm/yr]");     CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &usr->rangle, 0.0, "rangle", "Ridge angle [deg]");       CHKERRQ(ierr);
 
-  ierr = PetscBagRegisterInt(bag, &usr->ndisl, 0, "ndisl", "Power exponent for dislocation creep"); CHKERRQ(ierr);
+  // Material Parameters and Rheology
+  ierr = PetscBagRegisterScalar(bag, &usr->rho0, 1.0, "rho0", "Reference density [kg/m3]");      CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &usr->eta0, 1.0, "eta0", "Reference viscosity [Pa.s]");     CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &usr->ndisl, 0.0, "ndisl", "Power exponent for dislocation creep"); CHKERRQ(ierr);
+
+  // Dimensional/dimensionless
+  ierr = PetscBagRegisterInt(bag, &usr->dim, 0, "dim", "Dimensions: 0-dimensionless 1-dimensional"); CHKERRQ(ierr);
 
   // Model type
-  ierr = PetscBagRegisterInt(bag, &usr->mtype, 0, "mtype", "Model type: 0 - SOLCX, 1 - MOR"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &usr->mtype, 0, "mtype", "Model type: 0 - SOLCX, 1 - MOR_ANALYTIC"); CHKERRQ(ierr);
 
   // benchmarks
   ierr = PetscBagRegisterInt(bag, &usr->tests, 0, "tests", "Test benchmarks: 0 - NO, 1 - YES"); CHKERRQ(ierr);
@@ -59,16 +69,59 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   ierr = PetscBagRegisterScalar(bag, &usr->solcx_eta1, 1.0, "solcx_eta1", "SolCx benchmark: eta1"); CHKERRQ(ierr);
 
   // Boundary conditions
-  ierr = PetscBagRegisterInt(bag, &usr->bcleft, 0, "bcleft", "LEFT Boundary condition type: 0 - FREE_SLIP, 1 - NO_SLIP" ); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &usr->bcright,0, "bcright","RIGHT Boundary condition type: 0 - FREE_SLIP, 1 - NO_SLIP"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &usr->bcup,   0, "bcup",   "UP Boundary condition type: 0 - FREE_SLIP, 1 - NO_SLIP"   ); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &usr->bcdown, 0, "bcdown", "DOWN Boundary condition type: 0 - FREE_SLIP, 1 - NO_SLIP" ); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &usr->bcleft, 0, "bcleft", "LEFT Boundary condition type: 0-FREE_SLIP, 1-NO_SLIP" ); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &usr->bcright,0, "bcright","RIGHT Boundary condition type: 0-FREE_SLIP, 1-NO_SLIP"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &usr->bcup,   0, "bcup",   "UP Boundary condition type: 0-FREE_SLIP, 1-NO_SLIP"   ); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &usr->bcdown, 0, "bcdown", "DOWN Boundary condition type: 0-FREE_SLIP, 1-NO_SLIP" ); CHKERRQ(ierr);
 
   // Input/output
   ierr = PetscBagRegisterString(bag,&usr->fname_out,FNAME_LENGTH,"output","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
   
   // Other variables
   usr->fname_in[0] = '\0';
+
+  // MOR Analytic
+  if (usr->mtype == 1) {
+    usr->mor_sina = PetscSinScalar(usr->rangle);
+    usr->mor_A = 2*usr->mor_sina/(PETSC_PI-2*usr->rangle-PetscSinScalar(2*usr->rangle));
+    usr->mor_B = 2/(PETSC_PI-2*usr->rangle-PetscSinScalar(2*usr->rangle));
+  }
+
+  // ---------------------------------------
+  // Scaling variables
+  // ---------------------------------------
+  // Characteristic values
+  if (usr->dim == 1) {
+    // length [km]
+    scal->charL = PetscMax(usr->L, usr->H);
+
+    // gravity [m/s2] and derived
+    scal->charg = 10.0;
+    scal->chart = PetscPowScalar(scal->charL*1e3/scal->charg,0.5); //[s]
+    scal->charv = scal->charL*1e5/scal->chart/SEC_YEAR; //[cm/yr]
+
+    // viscosity [Pa.s = N.s/m2 = kg/m/s2] and derived
+    scal->chareta = usr->eta0; 
+    scal->charrho = scal->chareta/scal->charg/scal->charL/1e3; //[kg/m3]
+
+  } else {
+    scal->charL   = 1.0;
+    scal->charg   = 1.0;
+    scal->chareta = 1.0;
+    scal->chart   = 1.0;
+    scal->charv   = 1.0;
+    scal->charrho = 1.0;
+  }
+
+  // Scale parameters
+  scal->eta0 = usr->eta0/scal->chareta;
+  scal->g    = usr->g/scal->charg;
+  scal->u0   = usr->u0/scal->charv;
+  scal->rho0 = usr->rho0/scal->charrho;
+
+  PetscPrintf(PETSC_COMM_SELF,"# Characteristic scales:\n");
+  PetscPrintf(PETSC_COMM_SELF,"#     charL=%1.12e charg=%1.12e chareta=%1.12e\n",scal->charL,scal->charg,scal->chareta);
+  PetscPrintf(PETSC_COMM_SELF,"#     chart=%1.12e charv=%1.12e charrho=%1.12e\n",scal->chart,scal->charv,scal->charrho);
 
   // ---------------------------------------
   // Initialize grid variables
@@ -77,10 +130,10 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   // Grid context - contains scaled grid defined by user options
   grd->nx = usr->nx;
   grd->nz = usr->nz;
-  grd->xmin = usr->xmin;
-  grd->zmin = usr->zmin;
-  grd->xmax = usr->xmin + usr->L;
-  grd->zmax = usr->zmin + usr->H;
+  grd->xmin = usr->xmin/scal->charL;
+  grd->zmin = usr->zmin/scal->charL;
+  grd->xmax = (usr->xmin + usr->L)/scal->charL;
+  grd->zmax = (usr->zmin + usr->H)/scal->charL;
   grd->dx   = (grd->xmax - grd->xmin)/(grd->nx);
   grd->dz   = (grd->zmax - grd->zmin)/(grd->nz);
 
@@ -99,18 +152,14 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   if (usr->bcup    == 0) grd->bcup   = FREE_SLIP;
   if (usr->bcdown  == 0) grd->bcdown = FREE_SLIP;
 
-  grd->Vleft  = 0.0;
-  grd->Vright = 0.0;
-  grd->Vup    = 0.0;
-  grd->Vdown  = 0.0;
-
   // model type
   if (usr->mtype == 0) grd->mtype = SOLCX;
   if (usr->mtype == 1) grd->mtype = MOR;
 
   // return pointers
-  sol->grd = grd;
-  *psol    = sol;
+  sol->scal = scal;
+  sol->grd  = grd;
+  *psol     = sol;
 
   PetscFunctionReturn(0);
 }

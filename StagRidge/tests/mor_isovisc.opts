@@ -1,0 +1,21 @@
+# model options
+-tests 1
+-dim 1 # 0-dimensionless 1-dimensional 
+-mtype 1 # model type 0-solcx 1-mor_analytic
+-nx 20
+-nz 20
+-xmin 0.0 # start domain x-dir [km]
+-zmin -100.0 # start domain z-dir [km]
+-L 200.0 # length domain [km]
+-H 100.0 # height domain [km]
+-g 9.8 # gravitational acceleration [m/s2]
+-u0 1 # half-spreading rate [cm/yr]
+-rangle 30 # ridge angle [deg]
+-eta0 1e21 # reference viscosity [Pa.s]
+-rho0 0.0 # reference density [kg/m3]
+-output_file mor_isovisc
+
+# solver options
+-pc_type lu
+-pc_factor_mat_solver_type umfpack
+#-snes_mf_operator

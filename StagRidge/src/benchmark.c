@@ -19,7 +19,14 @@ PetscErrorCode DoBenchmarks(SolverCtx *sol)
     PetscPrintf(sol->comm,"# --------------------------------------- #\n");
     PetscPrintf(sol->comm,"# SolCx Benchmark \n");
     ierr = CreateSolCx(sol,&dmAnalytic,&xAnalytic); CHKERRQ(ierr);
-    ierr = DoOutput_SolCx(dmAnalytic,xAnalytic); CHKERRQ(ierr);
+    ierr = DoOutput_Analytic(dmAnalytic,xAnalytic); CHKERRQ(ierr);
+
+  } else if (sol->grd->mtype == MOR){
+    PetscPrintf(sol->comm,"# --------------------------------------- #\n");
+    PetscPrintf(sol->comm,"# Corner flow (MOR) Benchmark \n");
+    //ierr = CreateMORAnalytic(sol,&dmAnalytic,&xAnalytic); CHKERRQ(ierr);
+    //ierr = DoOutput_Analytic(dmAnalytic,xAnalytic); CHKERRQ(ierr);
+
   } else {
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"No benchmark mtype specified!"); CHKERRQ(ierr);
   }
@@ -92,7 +99,7 @@ PetscErrorCode CreateSolCx(SolverCtx *sol,DM *_da,Vec *_x)
       // 1) Vx
       // Get coordinate of Vx point
       point.i = i; point.j = j; point.loc = LEFT; point.c = 0;
-      ierr = GetCoordinateStencilPoint(cda,coords, point, pos); CHKERRQ(ierr);
+      ierr = GetCoordinatesStencil(cda, coords, 1, &point, &pos[0], &pos[1]); CHKERRQ(ierr);
 
       // Calculate SolCx
       evaluate_solCx(pos,eta0,eta1,xc,1,vel,&pressure,total_stress,strain_rate);
@@ -103,7 +110,7 @@ PetscErrorCode CreateSolCx(SolverCtx *sol,DM *_da,Vec *_x)
 
       if (i == Nx-1) {
         point.i = i; point.j = j; point.loc = RIGHT; point.c = 0;
-        ierr = GetCoordinateStencilPoint(cda,coords, point, pos); CHKERRQ(ierr);
+        ierr = GetCoordinatesStencil(cda, coords, 1, &point, &pos[0], &pos[1]); CHKERRQ(ierr);
 
         // Calculate SolCx
         evaluate_solCx(pos,eta0,eta1,xc,1,vel,&pressure,total_stress,strain_rate);
@@ -116,7 +123,7 @@ PetscErrorCode CreateSolCx(SolverCtx *sol,DM *_da,Vec *_x)
       // 2) Vz
       // Get coordinate of Vz point
       point.i = i; point.j = j; point.loc = DOWN; point.c = 0;
-      ierr = GetCoordinateStencilPoint(cda,coords, point, pos); CHKERRQ(ierr);
+      ierr = GetCoordinatesStencil(cda, coords, 1, &point, &pos[0], &pos[1]); CHKERRQ(ierr);
 
       // Calculate SolCx
       evaluate_solCx(pos,eta0,eta1,xc,1,vel,&pressure,total_stress,strain_rate);
@@ -127,7 +134,7 @@ PetscErrorCode CreateSolCx(SolverCtx *sol,DM *_da,Vec *_x)
 
       if (i == Nz-1) {
         point.i = i; point.j = j; point.loc = UP; point.c = 0;
-        ierr = GetCoordinateStencilPoint(cda,coords, point, pos); CHKERRQ(ierr);
+        ierr = GetCoordinatesStencil(cda, coords, 1, &point, &pos[0], &pos[1]); CHKERRQ(ierr);
 
         // Calculate SolCx
         evaluate_solCx(pos,eta0,eta1,xc,1,vel,&pressure,total_stress,strain_rate);
@@ -139,7 +146,7 @@ PetscErrorCode CreateSolCx(SolverCtx *sol,DM *_da,Vec *_x)
     
       // 3) Pressure
       point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0;
-      ierr = GetCoordinateStencilPoint(cda,coords, point, pos); CHKERRQ(ierr);
+      ierr = GetCoordinatesStencil(cda, coords, 1, &point, &pos[0], &pos[1]); CHKERRQ(ierr);
 
       // Calculate SolCx
       evaluate_solCx(pos,eta0,eta1,xc,1,vel,&pressure,total_stress,strain_rate);
@@ -279,9 +286,9 @@ PetscErrorCode CalculateErrorNorms(SolverCtx *sol,DM da,Vec x)
 }
 
 // ---------------------------------------
-// DoOutput_SolCx
+// DoOutput_Analytic
 // ---------------------------------------
-PetscErrorCode DoOutput_SolCx(DM da,Vec x)
+PetscErrorCode DoOutput_Analytic(DM da,Vec x)
 {
   DM             dmVel,  daVel, daP;
   Vec            vecVel, vaVel, vecP;
@@ -354,7 +361,7 @@ PetscErrorCode DoOutput_SolCx(DM da,Vec x)
     PetscViewer viewer;
 
     // Warning: is being output as Point Data instead of Cell Data - the grid is shifted to be in the center points.
-    ierr = PetscViewerVTKOpen(PetscObjectComm((PetscObject)daVel),"solcx_analytic.vtr",FILE_MODE_WRITE,&viewer); CHKERRQ(ierr);
+    ierr = PetscViewerVTKOpen(PetscObjectComm((PetscObject)daVel),"analytic_solution.vtr",FILE_MODE_WRITE,&viewer); CHKERRQ(ierr);
     ierr = VecView(vaVel,    viewer); CHKERRQ(ierr);
     ierr = VecView(vecP,     viewer); CHKERRQ(ierr);
     
@@ -371,5 +378,241 @@ PetscErrorCode DoOutput_SolCx(DM da,Vec x)
   ierr = DMDestroy(&daVel  ); CHKERRQ(ierr);
   ierr = DMDestroy(&daP    ); CHKERRQ(ierr);
 
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// Create MOR analytical solution (corner flow)
+// ---------------------------------------
+PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
+{
+  PetscInt       i, j, sx, sz, nx, nz, idx, Nx, Nz;
+  PetscScalar    ***xx;
+  DMStagStencil  point[3];
+  PetscScalar    xp[3], zp[3], r[3], sina, fval;
+  DM             da, cda;
+  Vec            x, xlocal;
+  Vec            coords;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  // Get parameters
+  Nx   = sol->grd->nx;
+  Nz   = sol->grd->nz;
+  sina = sol->usr->mor_sina;
+  
+  // Create identical DM as sol->dmPV for analytical solution
+  ierr = DMStagCreateCompatibleDMStag(sol->dmPV, sol->grd->dofPV0, sol->grd->dofPV1, sol->grd->dofPV2, 0, &da); CHKERRQ(ierr);
+  ierr = DMSetUp(da); CHKERRQ(ierr);
+  
+  // Set coordinates for new DM 
+  ierr = DMStagSetUniformCoordinatesExplicit(da, sol->grd->xmin, sol->grd->xmax, sol->grd->zmin, sol->grd->zmax, 0.0, 0.0); CHKERRQ(ierr);
+  
+  // Create local and global vector associated with DM
+  ierr = DMCreateGlobalVector(da, &x     ); CHKERRQ(ierr);
+  ierr = DMCreateLocalVector (da, &xlocal); CHKERRQ(ierr);
+
+  // Get array associated with vector
+  ierr = DMStagVecGetArrayDOF(da,xlocal,&xx); CHKERRQ(ierr);
+
+  // Get domain corners
+  ierr = DMStagGetCorners(da, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  
+  // Get coordinates
+  ierr = DMGetCoordinatesLocal(da, &coords); CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM    (da, &cda   ); CHKERRQ(ierr);
+
+  // Loop over elements and assign constraints
+  for (j = sz; j<sz+nz; ++j) {
+    for (i = sx; i<sx+nx; ++i) {
+
+      // Get stencil points - INTERIOR (lid) - LEFT, DOWN, ELEMENT
+      point[0].i = i; point[0].j = j; point[0].loc = ELEMENT; point[0].c = 0; // P
+      point[1].i = i; point[1].j = j; point[1].loc = LEFT;    point[1].c = 0; // Vx
+      point[2].i = i; point[2].j = j; point[2].loc = DOWN;    point[2].c = 0; // Vz
+
+      // Get coordinates and stencil values
+      ierr = GetCoordinatesStencil(cda, coords, 3, point, xp, zp); CHKERRQ(ierr);
+
+      // Calculate positions relative to the lid 
+      r[0] = PetscPowScalar(xp[0]*xp[0]+zp[0]*zp[0],0.5);
+      r[1] = PetscPowScalar(xp[1]*xp[1]+zp[1]*zp[1],0.5);
+      r[2] = PetscPowScalar(xp[2]*xp[2]+zp[2]*zp[2],0.5);
+
+      // 1) Constrain P - ELEMENT
+      if (PetscAbsScalar(zp[0])<=r[0]*sina){ 
+        fval = 0.0; // Lid
+      } else { 
+        ierr = MORAnalytic_P(sol, xp[0], zp[0], &fval); CHKERRQ(ierr);
+      }
+
+      // Set value in xx array
+      ierr = DMStagGetLocationSlot(da, ELEMENT, 0, &idx); CHKERRQ(ierr);
+      xx[j][i][idx] = fval;
+
+      // 2) Constrain Vx - LEFT
+      if (PetscAbsScalar(zp[1])<=r[1]*sina){ 
+        fval = sol->scal->u0; // Lid
+      } else { 
+        ierr = MORAnalytic_Vx(sol, xp[1], zp[1], &fval); CHKERRQ(ierr);
+      }
+
+      // Set value in xx array
+      ierr = DMStagGetLocationSlot(da, LEFT, 0, &idx); CHKERRQ(ierr);
+      xx[j][i][idx] = fval;
+
+      // 3) Constrain Vz - DOWN
+      if (PetscAbsScalar(zp[2])<=r[2]*sina){ 
+        fval = 0.0; // Lid
+      } else { 
+        ierr = MORAnalytic_Vz(sol, xp[2], zp[2], &fval); CHKERRQ(ierr);
+      }
+
+      // Set value in xx array
+      ierr = DMStagGetLocationSlot(da, DOWN, 0, &idx); CHKERRQ(ierr);
+      xx[j][i][idx] = fval;
+
+      // Vx - RIGHT 
+      if (i == Nx-1) {
+        // Get stencil point
+        point[0].i = i; point[0].j = j; point[0].loc = RIGHT; point[0].c = 0;
+
+        // Get coordinates
+        ierr = GetCoordinatesStencil(cda, coords, 1, point, xp, zp); CHKERRQ(ierr);
+
+        // Calculate positions relative to the lid 
+        r[0] = PetscPowScalar(xp[0]*xp[0]+zp[0]*zp[0],0.5);
+
+        // Constrain Vx - RIGHT
+        if (PetscAbsScalar(zp[0])<=r[0]*sina){
+          fval = sol->scal->u0;
+        } else {
+          ierr = MORAnalytic_Vx(sol, xp[0], zp[0], &fval); CHKERRQ(ierr);
+        }
+      }
+
+      // Set residual
+      ierr = DMStagGetLocationSlot(da, RIGHT, 0, &idx); CHKERRQ(ierr);
+      xx[j][i][idx] = fval;
+
+      // Vz - UP
+      if (j == Nz-1) {
+        point[0].i = i; point[0].j = j; point[0].loc = UP; point[0].c = 0;
+
+        // Get coordinates
+        ierr = GetCoordinatesStencil(cda, coords, 1, point, xp, zp); CHKERRQ(ierr);
+
+        // Calculate positions relative to the lid 
+        r[0] = PetscPowScalar(xp[0]*xp[0]+zp[0]*zp[0],0.5);
+
+        // Constrain Vz
+        if (PetscAbsScalar(zp[0])<=r[0]*sina){
+          fval = 0.0;
+        } else {
+          ierr = MORAnalytic_Vz(sol, xp[0], zp[0], &fval); CHKERRQ(ierr);
+        }
+      }
+      // Set residual
+      ierr = DMStagGetLocationSlot(da, UP, 0, &idx); CHKERRQ(ierr);
+      xx[j][i][idx] = fval;
+    }
+  }
+
+  // Restore array
+  ierr = DMStagVecRestoreArrayDOF(da,xlocal,&xx); CHKERRQ(ierr);
+
+  // Map local to global
+  ierr = DMLocalToGlobalBegin(da,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (da,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+
+  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
+
+  // Assign pointers
+  *_da = da;
+  *_x  = x;
+  
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// MORAnalytic_Vx
+// ---------------------------------------
+PetscErrorCode MORAnalytic_Vx(SolverCtx *sol, PetscScalar x, PetscScalar z, PetscScalar *fval)
+{
+  PetscScalar    vr, vth, r, zp, f;
+  PetscScalar    A, B, sinth, costh, th;
+  PetscFunctionBegin;
+
+  A = sol->usr->mor_A;
+  B = sol->usr->mor_B;
+
+  // Polar coordinates - defined as x=rcos_theta, z=rsin_theta (in this case |z|=rsin_theta)
+  zp = PetscAbsScalar(z);
+  r  = PetscPowScalar(x*x+zp*zp,0.5);
+  th = PetscAtanReal(zp/x);
+  sinth = zp/r;
+  costh = x/r;
+
+  vr = A*costh - B*costh + B*th*sinth;
+  vth = -A*sinth + B*th*costh;
+
+  // Vx velocity
+  f = vr*costh - vth*sinth;
+
+  *fval = f;
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// MORAnalytic_Vz
+// ---------------------------------------
+PetscErrorCode MORAnalytic_Vz(SolverCtx *sol, PetscScalar x, PetscScalar z, PetscScalar *fval)
+{
+  PetscScalar    vr, vth, r, zp, f;
+  PetscScalar    A, B, sinth, costh, th;
+  PetscFunctionBegin;
+
+  A = sol->usr->mor_A;
+  B = sol->usr->mor_B;
+
+  // Polar coordinates - defined as x=rcos_theta, z=rsin_theta (in this case |z|=rsin_theta)
+  zp = PetscAbsScalar(z);
+  r  = PetscPowScalar(x*x+zp*zp,0.5);
+  th = PetscAtanReal(zp/x);
+  sinth = zp/r;
+  costh = x/r;
+
+  vr = A*costh - B*costh + B*th*sinth;
+  vth = -A*sinth + B*th*costh;
+
+  // Vz velocity
+  f = vr*sinth + vth*costh;
+
+  *fval = f;
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// MORAnalytic_P
+// ---------------------------------------
+PetscErrorCode MORAnalytic_P(SolverCtx *sol, PetscScalar x, PetscScalar z, PetscScalar *fval)
+{
+  PetscScalar    r, zp, f;
+  PetscScalar    B, costh, th;
+  PetscFunctionBegin;
+
+  B = sol->usr->mor_B;
+
+  // Polar coordinates - defined as x=rcos_theta, z=rsin_theta (in this case |z|=rsin_theta)
+  zp = PetscAbsScalar(z);
+  r  = PetscPowScalar(x*x+zp*zp,0.5);
+  th = PetscAtanReal(zp/x);
+  costh = x/r;
+
+  // Pressure
+  f = -2*B/r*costh;
+
+  *fval = f;
   PetscFunctionReturn(0);
 }
