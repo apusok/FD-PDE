@@ -105,7 +105,7 @@ PetscErrorCode JacobianMatrixPreallocation(SolverCtx *sol)
 
       // X-momentum equation : (u_xx + u_zz) - p_x = rhog^x (rhog_x=0)
       if (i > 0) {
-          nEntries  = 23;
+          nEntries  = 11;
           row.i = i; row.j = j; row.loc = LEFT; row.c = 0;
 
           // Get stencil entries
@@ -117,7 +117,7 @@ PetscErrorCode JacobianMatrixPreallocation(SolverCtx *sol)
 
       // Z-momentum equation : (u_xx + u_zz) - p_z = rhog^z
       if (j > 0) {
-        nEntries = 23;
+        nEntries = 11;
         row.i    = i  ; row.j     = j  ; row.loc     = DOWN;     row.c     = 0;
         
         // Get stencil entries
