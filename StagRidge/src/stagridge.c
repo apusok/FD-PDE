@@ -109,8 +109,15 @@ int main (int argc,char **argv)
     PetscMPIInt commsize;
     ierr = MPI_Comm_size(sol->comm,&commsize);CHKERRQ(ierr);
     if (commsize == 1) {
+      #if defined(MATSOLVERUMFPACK)
       ierr = PetscOptionsSetValue(NULL, "-pc_type", "lu"                       ); CHKERRQ(ierr);
       ierr = PetscOptionsSetValue(NULL, "-pc_factor_mat_solver_type", "umfpack"); CHKERRQ(ierr);
+      #endif
+    } else {
+      #if defined(MATSOLVERMUMPS)
+      ierr = PetscOptionsSetValue(NULL, "-pc_type", "lu"                       ); CHKERRQ(ierr);
+      ierr = PetscOptionsSetValue(NULL, "-pc_factor_mat_solver_type", "mumps"); CHKERRQ(ierr);
+      #endif
     }
   }
 
