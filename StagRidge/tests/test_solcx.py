@@ -1,5 +1,5 @@
 # ----------------------------------------- #
-# Run convergence SolCx tests for the SolCx 
+# Run convergence tests for the SolCx 
 # benchmark with StagRidge
 # Adina Pusok, July 2019
 # ----------------------------------------- #
@@ -11,8 +11,8 @@ from scipy.stats import linregress
 import os
 
 # Input file
-f1 = 'solcx_1e0.opts'
-f2 = 'solcx_1e6.opts'
+f1 = 'solcx_1e0.opts' # isoviscous
+f2 = 'solcx_1e6.opts' # variable viscosity
 
 print('# --------------------------------------- #')
 print('# SolCx benchmark ')

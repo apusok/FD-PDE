@@ -10,7 +10,7 @@ PetscErrorCode CalcEffViscosity(SolverCtx *sol, Vec xlocal, PetscInt i, PetscInt
   PetscInt       nEntries, Nx, Nz;
   PetscScalar    xx[12], dx, dz;
   DMStagStencil  col[12];
-  PetscScalar    eps_xx, eps_zz, eps_xz, epsIIs2;
+  PetscScalar    eps_xx = 0.0, eps_zz = 0.0, eps_xz = 0.0, epsIIs2;
   PetscScalar    eps_xzi[4], eps_xxi[4], eps_zzi[4];
   PetscErrorCode ierr;
 
