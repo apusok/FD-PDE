@@ -138,13 +138,9 @@ PetscErrorCode DoOutput(SolverCtx*);
 // benchmarks
 PetscErrorCode DoBenchmarks(SolverCtx*);
 PetscErrorCode CreateSolCx(SolverCtx*,DM*,Vec*);
-PetscErrorCode CalculateErrorNorms(SolverCtx*,DM,Vec);
-PetscErrorCode DoOutput_Analytic(DM,Vec);
-
 PetscErrorCode CreateMORAnalytic(SolverCtx*,DM*,Vec*);
-PetscErrorCode MORAnalytic_Vx(SolverCtx*, PetscScalar, PetscScalar, PetscScalar*);
-PetscErrorCode MORAnalytic_Vz(SolverCtx*, PetscScalar, PetscScalar, PetscScalar*);
-PetscErrorCode MORAnalytic_P (SolverCtx*, PetscScalar, PetscScalar, PetscScalar*);
+PetscErrorCode CalculateErrorNorms(SolverCtx*,DM,Vec);
+PetscErrorCode DoOutput_Analytic(SolverCtx*,DM,Vec);
 
 // utils
 PetscErrorCode StrCreateConcatenate(const char[], const char[], char**);

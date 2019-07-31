@@ -1,5 +1,7 @@
 #include "stagridge.h"
 #include "../tests/ex43-solcx.h"
+#include "../tests/cornerflow.h"
+
 
 // ---------------------------------------
 // Main benchmark routine
@@ -19,13 +21,13 @@ PetscErrorCode DoBenchmarks(SolverCtx *sol)
     PetscPrintf(sol->comm,"# --------------------------------------- #\n");
     PetscPrintf(sol->comm,"# SolCx Benchmark \n");
     ierr = CreateSolCx(sol,&dmAnalytic,&xAnalytic); CHKERRQ(ierr);
-    ierr = DoOutput_Analytic(dmAnalytic,xAnalytic); CHKERRQ(ierr);
+    ierr = DoOutput_Analytic(sol,dmAnalytic,xAnalytic); CHKERRQ(ierr);
 
   } else if (sol->grd->mtype == MOR){
     PetscPrintf(sol->comm,"# --------------------------------------- #\n");
     PetscPrintf(sol->comm,"# Corner flow (MOR) Benchmark \n");
-    //ierr = CreateMORAnalytic(sol,&dmAnalytic,&xAnalytic); CHKERRQ(ierr);
-    //ierr = DoOutput_Analytic(dmAnalytic,xAnalytic); CHKERRQ(ierr);
+    ierr = CreateMORAnalytic(sol,&dmAnalytic,&xAnalytic); CHKERRQ(ierr);
+    ierr = DoOutput_Analytic(sol,dmAnalytic,xAnalytic); CHKERRQ(ierr);
 
   } else {
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"No benchmark mtype specified!"); CHKERRQ(ierr);
@@ -288,7 +290,7 @@ PetscErrorCode CalculateErrorNorms(SolverCtx *sol,DM da,Vec x)
 // ---------------------------------------
 // DoOutput_Analytic
 // ---------------------------------------
-PetscErrorCode DoOutput_Analytic(DM da,Vec x)
+PetscErrorCode DoOutput_Analytic(SolverCtx *sol, DM da,Vec x)
 {
   DM             dmVel,  daVel, daP;
   Vec            vecVel, vaVel, vecP;
@@ -301,7 +303,7 @@ PetscErrorCode DoOutput_Analytic(DM da,Vec x)
   ierr = DMSetUp(dmVel); CHKERRQ(ierr);
 
   // Set Coordinates
-  ierr = DMStagSetUniformCoordinatesExplicit(dmVel,0.0,1.0,0.0,1.0,0.0,0.0); CHKERRQ(ierr);
+  ierr = DMStagSetUniformCoordinatesExplicit(dmVel,sol->grd->xmin, sol->grd->xmax, sol->grd->zmin, sol->grd->zmax, 0.0, 0.0); CHKERRQ(ierr);
 
   // Create global vectors
   ierr = DMCreateGlobalVector(dmVel,&vecVel); CHKERRQ(ierr);
@@ -390,6 +392,7 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
   PetscScalar    ***xx;
   DMStagStencil  point[3];
   PetscScalar    xp[3], zp[3], r[3], sina, fval;
+  PetscScalar    v[2], p;
   DM             da, cda;
   Vec            x, xlocal;
   Vec            coords;
@@ -444,7 +447,8 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
       if (PetscAbsScalar(zp[0])<=r[0]*sina){ 
         fval = 0.0; // Lid
       } else { 
-        ierr = MORAnalytic_P(sol, xp[0], zp[0], &fval); CHKERRQ(ierr);
+        evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], PetscAbsScalar(zp[0]),v,&p);
+        fval = p;
       }
 
       // Set value in xx array
@@ -455,7 +459,8 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
       if (PetscAbsScalar(zp[1])<=r[1]*sina){ 
         fval = sol->scal->u0; // Lid
       } else { 
-        ierr = MORAnalytic_Vx(sol, xp[1], zp[1], &fval); CHKERRQ(ierr);
+        evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[1], PetscAbsScalar(zp[1]),v,&p);
+        fval = v[0];
       }
 
       // Set value in xx array
@@ -466,7 +471,8 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
       if (PetscAbsScalar(zp[2])<=r[2]*sina){ 
         fval = 0.0; // Lid
       } else { 
-        ierr = MORAnalytic_Vz(sol, xp[2], zp[2], &fval); CHKERRQ(ierr);
+        evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[2], PetscAbsScalar(zp[2]),v,&p);
+        fval = v[1];
       }
 
       // Set value in xx array
@@ -488,7 +494,8 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
         if (PetscAbsScalar(zp[0])<=r[0]*sina){
           fval = sol->scal->u0;
         } else {
-          ierr = MORAnalytic_Vx(sol, xp[0], zp[0], &fval); CHKERRQ(ierr);
+          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], PetscAbsScalar(zp[0]),v,&p);
+          fval = v[0];
         }
       }
 
@@ -510,7 +517,8 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
         if (PetscAbsScalar(zp[0])<=r[0]*sina){
           fval = 0.0;
         } else {
-          ierr = MORAnalytic_Vz(sol, xp[0], zp[0], &fval); CHKERRQ(ierr);
+          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], PetscAbsScalar(zp[0]),v,&p);
+          fval = v[1];
         }
       }
       // Set residual
@@ -532,87 +540,5 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
   *_da = da;
   *_x  = x;
   
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-// MORAnalytic_Vx
-// ---------------------------------------
-PetscErrorCode MORAnalytic_Vx(SolverCtx *sol, PetscScalar x, PetscScalar z, PetscScalar *fval)
-{
-  PetscScalar    vr, vth, r, zp, f;
-  PetscScalar    A, B, sinth, costh, th;
-  PetscFunctionBegin;
-
-  A = sol->usr->mor_A;
-  B = sol->usr->mor_B;
-
-  // Polar coordinates - defined as x=rcos_theta, z=rsin_theta (in this case |z|=rsin_theta)
-  zp = PetscAbsScalar(z);
-  r  = PetscPowScalar(x*x+zp*zp,0.5);
-  th = PetscAtanReal(zp/x);
-  sinth = zp/r;
-  costh = x/r;
-
-  vr = A*costh - B*costh + B*th*sinth;
-  vth = -A*sinth + B*th*costh;
-
-  // Vx velocity
-  f = vr*costh - vth*sinth;
-
-  *fval = f;
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-// MORAnalytic_Vz
-// ---------------------------------------
-PetscErrorCode MORAnalytic_Vz(SolverCtx *sol, PetscScalar x, PetscScalar z, PetscScalar *fval)
-{
-  PetscScalar    vr, vth, r, zp, f;
-  PetscScalar    A, B, sinth, costh, th;
-  PetscFunctionBegin;
-
-  A = sol->usr->mor_A;
-  B = sol->usr->mor_B;
-
-  // Polar coordinates - defined as x=rcos_theta, z=rsin_theta (in this case |z|=rsin_theta)
-  zp = PetscAbsScalar(z);
-  r  = PetscPowScalar(x*x+zp*zp,0.5);
-  th = PetscAtanReal(zp/x);
-  sinth = zp/r;
-  costh = x/r;
-
-  vr = A*costh - B*costh + B*th*sinth;
-  vth = -A*sinth + B*th*costh;
-
-  // Vz velocity
-  f = vr*sinth + vth*costh;
-
-  *fval = f;
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-// MORAnalytic_P
-// ---------------------------------------
-PetscErrorCode MORAnalytic_P(SolverCtx *sol, PetscScalar x, PetscScalar z, PetscScalar *fval)
-{
-  PetscScalar    r, zp, f;
-  PetscScalar    B, costh, th;
-  PetscFunctionBegin;
-
-  B = sol->usr->mor_B;
-
-  // Polar coordinates - defined as x=rcos_theta, z=rsin_theta (in this case |z|=rsin_theta)
-  zp = PetscAbsScalar(z);
-  r  = PetscPowScalar(x*x+zp*zp,0.5);
-  th = PetscAtanReal(zp/x);
-  costh = x/r;
-
-  // Pressure
-  f = -2*B/r*costh;
-
-  *fval = f;
   PetscFunctionReturn(0);
 }

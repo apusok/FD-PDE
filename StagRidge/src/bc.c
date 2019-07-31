@@ -1,4 +1,5 @@
 #include "stagridge.h"
+#include "../tests/cornerflow.h"
 
 // ---------------------------------------
 // Boundary Conditions - General
@@ -154,7 +155,7 @@ PetscErrorCode BoundaryConditions_MORAnalytic(SolverCtx *sol, Vec xlocal, PetscS
   PetscInt       i, j, idx;
   PetscInt       Nx, Nz, nx, nz, sx, sz;
   PetscScalar    xx[3], xp[3], zp[3], r[3];
-  PetscScalar    sina, fval;
+  PetscScalar    sina, v[2], p;
   DMStagStencil  point[3];
   Vec            coordLocal;
   DM             dmCoord;
@@ -193,44 +194,53 @@ PetscErrorCode BoundaryConditions_MORAnalytic(SolverCtx *sol, Vec xlocal, PetscS
 
       // 1) Constrain P - ELEMENT
       if (PetscAbsScalar(zp[0])<=r[0]*sina){ 
-        fval = 0.0; // Lid
+        // Set residual
+        ierr = DMStagGetLocationSlot(sol->dmPV, ELEMENT, 0, &idx); CHKERRQ(ierr);
+        ff[j][i][idx] = xx[0] - 0.0; // Lid
+
       } else { 
         // LEFT, BOTTOM, RIGHT, TOP Boundaries (in case alpha=0)
         if ((i == 0) || (j == 0) || (i == Nx-1) || (j == Nz-1)){
-          ierr = MORAnalytic_P(sol, xp[0], zp[0], &fval); CHKERRQ(ierr);
+          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], PetscAbsScalar(zp[0]),v,&p);
+
+          // Set residual
+          ierr = DMStagGetLocationSlot(sol->dmPV, ELEMENT, 0, &idx); CHKERRQ(ierr);
+          ff[j][i][idx] = xx[0] - p;
         }
       }
-      // Set residual
-      ierr = DMStagGetLocationSlot(sol->dmPV, ELEMENT, 0, &idx); CHKERRQ(ierr);
-      ff[j][i][idx] = xx[0] - fval;
 
       // 2) Constrain Vx - LEFT
       if (PetscAbsScalar(zp[1])<=r[1]*sina){ 
-        fval = sol->scal->u0; // Lid
+        // Set residual
+        ierr = DMStagGetLocationSlot(sol->dmPV, LEFT, 0, &idx); CHKERRQ(ierr);
+        ff[j][i][idx] = xx[1] - sol->scal->u0; // Lid
+
       } else { 
         // LEFT, BOTTOM, TOP Boundaries
         if ((i == 0) || (j == 0) || (j == Nz-1)){
-          ierr = MORAnalytic_Vx(sol, xp[1], zp[1], &fval); CHKERRQ(ierr);
+          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[1], PetscAbsScalar(zp[1]),v,&p);
+
+          // Set residual
+          ierr = DMStagGetLocationSlot(sol->dmPV, LEFT, 0, &idx); CHKERRQ(ierr);
+          ff[j][i][idx] = xx[1] - v[0];
         }
       }
-
-      // Set residual
-      ierr = DMStagGetLocationSlot(sol->dmPV, LEFT, 0, &idx); CHKERRQ(ierr);
-      ff[j][i][idx] = xx[1] - fval;
 
       // 3) Constrain Vz - DOWN
       if (PetscAbsScalar(zp[2])<=r[2]*sina){ 
-        fval = 0.0; // Lid
+        // Set residual
+        ierr = DMStagGetLocationSlot(sol->dmPV, DOWN, 0, &idx); CHKERRQ(ierr);
+        ff[j][i][idx] = xx[2] - 0.0; // Lid
+
       } else { 
         // LEFT, BOTTOM, RIGHT Boundaries
         if ((i == 0) || (j == 0) || (i == Nx-1)){
-          ierr = MORAnalytic_Vz(sol, xp[2], zp[2], &fval); CHKERRQ(ierr);
+          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[2], PetscAbsScalar(zp[2]),v,&p);
+          // Set residual
+          ierr = DMStagGetLocationSlot(sol->dmPV, DOWN, 0, &idx); CHKERRQ(ierr);
+          ff[j][i][idx] = xx[2] + v[1];
         }
       }
-
-      // Set residual
-      ierr = DMStagGetLocationSlot(sol->dmPV, DOWN, 0, &idx); CHKERRQ(ierr);
-      ff[j][i][idx] = xx[2] - fval;
 
       // Vx - RIGHT 
       if (i == Nx-1) {
@@ -246,15 +256,17 @@ PetscErrorCode BoundaryConditions_MORAnalytic(SolverCtx *sol, Vec xlocal, PetscS
 
         // Constrain Vx - RIGHT
         if (PetscAbsScalar(zp[0])<=r[0]*sina){
-          fval = sol->scal->u0;
+          // Set residual
+          ierr = DMStagGetLocationSlot(sol->dmPV, RIGHT, 0, &idx); CHKERRQ(ierr);
+          ff[j][i][idx] = xx[0] - sol->scal->u0; // lid
+
         } else {
-          ierr = MORAnalytic_Vx(sol, xp[0], zp[0], &fval); CHKERRQ(ierr);
+          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], PetscAbsScalar(zp[0]),v,&p);
+          // Set residual
+          ierr = DMStagGetLocationSlot(sol->dmPV, RIGHT, 0, &idx); CHKERRQ(ierr);
+          ff[j][i][idx] = xx[0] - v[0];
         }
       }
-
-      // Set residual
-      ierr = DMStagGetLocationSlot(sol->dmPV, RIGHT, 0, &idx); CHKERRQ(ierr);
-      ff[j][i][idx] = xx[0] - fval;
 
       // Vz - UP
       if (j == Nz-1) {
@@ -269,14 +281,17 @@ PetscErrorCode BoundaryConditions_MORAnalytic(SolverCtx *sol, Vec xlocal, PetscS
 
         // Constrain Vz
         if (PetscAbsScalar(zp[0])<=r[0]*sina){
-          fval = 0.0;
+          // Set residual
+          ierr = DMStagGetLocationSlot(sol->dmPV, UP, 0, &idx); CHKERRQ(ierr);
+          ff[j][i][idx] = xx[0] + 0.0; // lid
+
         } else {
-          ierr = MORAnalytic_Vz(sol, xp[0], zp[0], &fval); CHKERRQ(ierr);
+          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], PetscAbsScalar(zp[0]),v,&p);
+          // Set residual
+          ierr = DMStagGetLocationSlot(sol->dmPV, UP, 0, &idx); CHKERRQ(ierr);
+          ff[j][i][idx] = xx[0] + v[1];
         }
       }
-      // Set residual
-      ierr = DMStagGetLocationSlot(sol->dmPV, UP, 0, &idx); CHKERRQ(ierr);
-      ff[j][i][idx] = xx[0] - fval;
     }
   }
 
