@@ -1,7 +1,7 @@
 #!/bin/bash    
 
 # Clean tests directory
-rm *.pdf
+#rm *.pdf
 rm *.out
 rm *.vtr
 

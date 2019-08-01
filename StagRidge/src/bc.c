@@ -154,9 +154,9 @@ PetscErrorCode BoundaryConditions_MORAnalytic(SolverCtx *sol, Vec xlocal, PetscS
 {
   PetscInt       i, j, idx;
   PetscInt       Nx, Nz, nx, nz, sx, sz;
-  PetscScalar    xx[3], xp[3], zp[3], r[3];
+  PetscScalar    xx, xp, zp, r;
   PetscScalar    sina, v[2], p;
-  DMStagStencil  point[3];
+  DMStagStencil  point;
   Vec            coordLocal;
   DM             dmCoord;
   PetscErrorCode ierr;
@@ -178,118 +178,136 @@ PetscErrorCode BoundaryConditions_MORAnalytic(SolverCtx *sol, Vec xlocal, PetscS
   // Loop over elements and assign constraints
   for (j = sz; j<sz+nz; ++j) {
     for (i = sx; i<sx+nx; ++i) {
-      // Get stencil points - INTERIOR (lid) - LEFT, DOWN, ELEMENT
-      point[0].i = i; point[0].j = j; point[0].loc = ELEMENT; point[0].c = 0; // P
-      point[1].i = i; point[1].j = j; point[1].loc = LEFT;    point[1].c = 0; // Vx
-      point[2].i = i; point[2].j = j; point[2].loc = DOWN;    point[2].c = 0; // Vz
-
-      // Get coordinates and stencil values
-      ierr = GetCoordinatesStencil(dmCoord, coordLocal, 3, point, xp, zp); CHKERRQ(ierr);
-      ierr = DMStagVecGetValuesStencil(sol->dmPV, xlocal, 3, point, xx);   CHKERRQ(ierr);
-
-      // Calculate positions relative to the lid 
-      r[0] = PetscPowScalar(xp[0]*xp[0]+zp[0]*zp[0],0.5);
-      r[1] = PetscPowScalar(xp[1]*xp[1]+zp[1]*zp[1],0.5);
-      r[2] = PetscPowScalar(xp[2]*xp[2]+zp[2]*zp[2],0.5);
 
       // 1) Constrain P - ELEMENT
-      if (PetscAbsScalar(zp[0])<=r[0]*sina){ 
+      // Get coordinates and stencil values
+      point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0; // P
+      ierr = GetCoordinatesStencil(dmCoord, coordLocal, 1, &point,&xp,&zp); CHKERRQ(ierr);
+      ierr = DMStagVecGetValuesStencil(sol->dmPV,xlocal,1, &point,&xx    ); CHKERRQ(ierr);
+
+      // Calculate positions relative to the lid 
+      r = PetscPowScalar(xp*xp+zp*zp,0.5);
+
+      if (zp>=-r*sina){ 
         // Set residual
-        ierr = DMStagGetLocationSlot(sol->dmPV, ELEMENT, 0, &idx); CHKERRQ(ierr);
-        ff[j][i][idx] = xx[0] - 0.0; // Lid
+        ierr = DMStagGetLocationSlot(sol->dmPV, point.loc, point.c, &idx); CHKERRQ(ierr);
+        ff[j][i][idx] = xx - 0.0; // Lid
+        //PetscPrintf(PETSC_COMM_SELF,"# P lid ff[%d][%d][%d]=%f\n",j,i,idx,ff[j][i][idx]);
 
       } else { 
         // LEFT, BOTTOM, RIGHT, TOP Boundaries (in case alpha=0)
         if ((i == 0) || (j == 0) || (i == Nx-1) || (j == Nz-1)){
-          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], PetscAbsScalar(zp[0]),v,&p);
+          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp, zp,v,&p);
 
           // Set residual
-          ierr = DMStagGetLocationSlot(sol->dmPV, ELEMENT, 0, &idx); CHKERRQ(ierr);
-          ff[j][i][idx] = xx[0] - p;
+          ierr = DMStagGetLocationSlot(sol->dmPV, point.loc, point.c, &idx); CHKERRQ(ierr);
+          ff[j][i][idx] = xx - p;
+          //PetscPrintf(PETSC_COMM_SELF,"# P border ff[%d][%d][%d]=%f p=%f x=%f z=%f\n",j,i,idx,ff[j][i][idx],p,xp,zp);
         }
       }
 
       // 2) Constrain Vx - LEFT
-      if (PetscAbsScalar(zp[1])<=r[1]*sina){ 
+      // Get coordinates and stencil values
+      point.i = i; point.j = j; point.loc = LEFT; point.c = 0; // Vx
+      ierr = GetCoordinatesStencil(dmCoord, coordLocal, 1, &point,&xp,&zp); CHKERRQ(ierr);
+      ierr = DMStagVecGetValuesStencil(sol->dmPV,xlocal,1, &point,&xx    ); CHKERRQ(ierr);
+
+      // Calculate positions relative to the lid 
+      r = PetscPowScalar(xp*xp+zp*zp,0.5);
+
+      if (zp>=-r*sina){ 
         // Set residual
-        ierr = DMStagGetLocationSlot(sol->dmPV, LEFT, 0, &idx); CHKERRQ(ierr);
-        ff[j][i][idx] = xx[1] - sol->scal->u0; // Lid
+        ierr = DMStagGetLocationSlot(sol->dmPV, point.loc, point.c, &idx); CHKERRQ(ierr);
+        ff[j][i][idx] = xx - sol->scal->u0; // Lid
+        // PetscPrintf(PETSC_COMM_SELF,"# Vx lid ff[%d][%d][%d]=%f\n",j,i,idx,ff[j][i][idx]);
 
       } else { 
         // LEFT, BOTTOM, TOP Boundaries
         if ((i == 0) || (j == 0) || (j == Nz-1)){
-          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[1], PetscAbsScalar(zp[1]),v,&p);
+          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp, zp,v,&p);
 
           // Set residual
-          ierr = DMStagGetLocationSlot(sol->dmPV, LEFT, 0, &idx); CHKERRQ(ierr);
-          ff[j][i][idx] = xx[1] - v[0];
+          ierr = DMStagGetLocationSlot(sol->dmPV, point.loc, point.c, &idx); CHKERRQ(ierr);
+          ff[j][i][idx] = xx - v[0];
+          // PetscPrintf(PETSC_COMM_SELF,"# Vx border ff[%d][%d][%d]=%f\n",j,i,idx,ff[j][i][idx]);
         }
       }
 
       // 3) Constrain Vz - DOWN
-      if (PetscAbsScalar(zp[2])<=r[2]*sina){ 
+      // Get coordinates and stencil values
+      point.i = i; point.j = j; point.loc = DOWN; point.c = 0; // Vz
+      ierr = GetCoordinatesStencil(dmCoord, coordLocal, 1, &point,&xp,&zp); CHKERRQ(ierr);
+      ierr = DMStagVecGetValuesStencil(sol->dmPV,xlocal,1, &point,&xx    ); CHKERRQ(ierr);
+
+      // Calculate positions relative to the lid 
+      r = PetscPowScalar(xp*xp+zp*zp,0.5);
+
+      if (zp>=-r*sina){ 
         // Set residual
-        ierr = DMStagGetLocationSlot(sol->dmPV, DOWN, 0, &idx); CHKERRQ(ierr);
-        ff[j][i][idx] = xx[2] - 0.0; // Lid
+        ierr = DMStagGetLocationSlot(sol->dmPV, point.loc, point.c, &idx); CHKERRQ(ierr);
+        ff[j][i][idx] = xx - 0.0; // Lid
+        // PetscPrintf(PETSC_COMM_SELF,"# Vz lid ff[%d][%d][%d]=%f\n",j,i,idx,ff[j][i][idx]);
 
       } else { 
         // LEFT, BOTTOM, RIGHT Boundaries
         if ((i == 0) || (j == 0) || (i == Nx-1)){
-          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[2], PetscAbsScalar(zp[2]),v,&p);
+          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp, zp,v,&p);
           // Set residual
-          ierr = DMStagGetLocationSlot(sol->dmPV, DOWN, 0, &idx); CHKERRQ(ierr);
-          ff[j][i][idx] = xx[2] + v[1];
+          ierr = DMStagGetLocationSlot(sol->dmPV, point.loc, point.c, &idx); CHKERRQ(ierr);
+          ff[j][i][idx] = xx - v[1];
+          // PetscPrintf(PETSC_COMM_SELF,"# Vz border ff[%d][%d][%d]=%f\n",j,i,idx,ff[j][i][idx]);
         }
       }
 
-      // Vx - RIGHT 
+      // 4) Vx - RIGHT 
       if (i == Nx-1) {
-        // Get stencil point
-        point[0].i = i; point[0].j = j; point[0].loc = RIGHT; point[0].c = 0;
-
         // Get coordinates and stencil values
-        ierr = GetCoordinatesStencil(dmCoord, coordLocal, 1, point, xp, zp); CHKERRQ(ierr);
-        ierr = DMStagVecGetValuesStencil(sol->dmPV, xlocal, 1, point, xx);   CHKERRQ(ierr);
+        point.i = i; point.j = j; point.loc = RIGHT; point.c = 0; // Vx
+        ierr = GetCoordinatesStencil(dmCoord, coordLocal, 1, &point,&xp,&zp); CHKERRQ(ierr);
+        ierr = DMStagVecGetValuesStencil(sol->dmPV,xlocal,1, &point,&xx    ); CHKERRQ(ierr);
 
         // Calculate positions relative to the lid 
-        r[0] = PetscPowScalar(xp[0]*xp[0]+zp[0]*zp[0],0.5);
+        r = PetscPowScalar(xp*xp+zp*zp,0.5);
 
         // Constrain Vx - RIGHT
-        if (PetscAbsScalar(zp[0])<=r[0]*sina){
+        if (zp>=-r*sina){
           // Set residual
-          ierr = DMStagGetLocationSlot(sol->dmPV, RIGHT, 0, &idx); CHKERRQ(ierr);
-          ff[j][i][idx] = xx[0] - sol->scal->u0; // lid
+          ierr = DMStagGetLocationSlot(sol->dmPV, point.loc, point.c, &idx); CHKERRQ(ierr);
+          ff[j][i][idx] = xx - sol->scal->u0; // lid
+          // PetscPrintf(PETSC_COMM_SELF,"# Vx lid right ff[%d][%d][%d]=%f\n",j,i,idx,ff[j][i][idx]);
 
         } else {
-          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], PetscAbsScalar(zp[0]),v,&p);
+          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp, zp,v,&p);
           // Set residual
-          ierr = DMStagGetLocationSlot(sol->dmPV, RIGHT, 0, &idx); CHKERRQ(ierr);
-          ff[j][i][idx] = xx[0] - v[0];
+          ierr = DMStagGetLocationSlot(sol->dmPV, point.loc, point.c, &idx); CHKERRQ(ierr);
+          ff[j][i][idx] = xx - v[0];
+          // PetscPrintf(PETSC_COMM_SELF,"# Vx border right ff[%d][%d][%d]=%f\n",j,i,idx,ff[j][i][idx]);
         }
       }
 
-      // Vz - UP
+      // 5) Vz - UP
       if (j == Nz-1) {
-        point[0].i = i; point[0].j = j; point[0].loc = UP; point[0].c = 0;
-
         // Get coordinates and stencil values
-        ierr = GetCoordinatesStencil(dmCoord, coordLocal, 1, point, xp, zp); CHKERRQ(ierr);
-        ierr = DMStagVecGetValuesStencil(sol->dmPV, xlocal, 1, point, xx);   CHKERRQ(ierr);
+        point.i = i; point.j = j; point.loc = UP; point.c = 0; // Vz
+        ierr = GetCoordinatesStencil(dmCoord, coordLocal, 1, &point,&xp,&zp); CHKERRQ(ierr);
+        ierr = DMStagVecGetValuesStencil(sol->dmPV,xlocal,1, &point,&xx    ); CHKERRQ(ierr);
 
         // Calculate positions relative to the lid 
-        r[0] = PetscPowScalar(xp[0]*xp[0]+zp[0]*zp[0],0.5);
+        r = PetscPowScalar(xp*xp+zp*zp,0.5);
 
         // Constrain Vz
-        if (PetscAbsScalar(zp[0])<=r[0]*sina){
+        if (zp>=-r*sina){
           // Set residual
-          ierr = DMStagGetLocationSlot(sol->dmPV, UP, 0, &idx); CHKERRQ(ierr);
-          ff[j][i][idx] = xx[0] + 0.0; // lid
+          ierr = DMStagGetLocationSlot(sol->dmPV, point.loc, point.c, &idx); CHKERRQ(ierr);
+          ff[j][i][idx] = xx - 0.0; // lid
+          // PetscPrintf(PETSC_COMM_SELF,"# Vz lid up ff[%d][%d][%d]=%f\n",j,i,idx,ff[j][i][idx]);
 
         } else {
-          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], PetscAbsScalar(zp[0]),v,&p);
+          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp, zp,v,&p);
           // Set residual
-          ierr = DMStagGetLocationSlot(sol->dmPV, UP, 0, &idx); CHKERRQ(ierr);
-          ff[j][i][idx] = xx[0] + v[1];
+          ierr = DMStagGetLocationSlot(sol->dmPV, point.loc, point.c, &idx); CHKERRQ(ierr);
+          ff[j][i][idx] = xx - v[1];
+          // PetscPrintf(PETSC_COMM_SELF,"# Vz border up ff[%d][%d][%d]=%f\n",j,i,idx,ff[j][i][idx]);
         }
       }
     }

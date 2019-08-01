@@ -134,7 +134,7 @@ PetscErrorCode CreateSolCx(SolverCtx *sol,DM *_da,Vec *_x)
       ierr = DMStagGetLocationSlot(da, DOWN, 0, &idx); CHKERRQ(ierr);
       xx[j][i][idx] = vel[1];
 
-      if (i == Nz-1) {
+      if (j == Nz-1) {
         point.i = i; point.j = j; point.loc = UP; point.c = 0;
         ierr = GetCoordinatesStencil(cda, coords, 1, &point, &pos[0], &pos[1]); CHKERRQ(ierr);
 
@@ -225,6 +225,10 @@ PetscErrorCode CalculateErrorNorms(SolverCtx *sol,DM da,Vec x)
   // Collect data 
   ierr = MPI_Allreduce(&totp, &gavgp, 1, MPI_DOUBLE, MPI_SUM, sol->comm); CHKERRQ(ierr);
   avgp = gavgp/Nx/Nz;
+
+  if (sol->grd->mtype==MOR){
+    avgp = 0.0;
+  }
 
   // Initialize norms
   nrm[0] = 0.0; nrm[1] = 0.0; nrm[2] = 0.0;
@@ -444,10 +448,10 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
       r[2] = PetscPowScalar(xp[2]*xp[2]+zp[2]*zp[2],0.5);
 
       // 1) Constrain P - ELEMENT
-      if (PetscAbsScalar(zp[0])<=r[0]*sina){ 
+      if (zp[0]>=-r[0]*sina){ 
         fval = 0.0; // Lid
       } else { 
-        evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], PetscAbsScalar(zp[0]),v,&p);
+        evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], zp[0],v,&p);
         fval = p;
       }
 
@@ -456,10 +460,10 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
       xx[j][i][idx] = fval;
 
       // 2) Constrain Vx - LEFT
-      if (PetscAbsScalar(zp[1])<=r[1]*sina){ 
+      if (zp[1]>=-r[1]*sina){ 
         fval = sol->scal->u0; // Lid
       } else { 
-        evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[1], PetscAbsScalar(zp[1]),v,&p);
+        evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[1], zp[1],v,&p);
         fval = v[0];
       }
 
@@ -468,10 +472,10 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
       xx[j][i][idx] = fval;
 
       // 3) Constrain Vz - DOWN
-      if (PetscAbsScalar(zp[2])<=r[2]*sina){ 
+      if (zp[2]>=-r[2]*sina){ 
         fval = 0.0; // Lid
       } else { 
-        evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[2], PetscAbsScalar(zp[2]),v,&p);
+        evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[2], zp[2],v,&p);
         fval = v[1];
       }
 
@@ -491,10 +495,10 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
         r[0] = PetscPowScalar(xp[0]*xp[0]+zp[0]*zp[0],0.5);
 
         // Constrain Vx - RIGHT
-        if (PetscAbsScalar(zp[0])<=r[0]*sina){
+        if (zp[0]>=-r[0]*sina){
           fval = sol->scal->u0;
         } else {
-          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], PetscAbsScalar(zp[0]),v,&p);
+          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], zp[0],v,&p);
           fval = v[0];
         }
       }
@@ -514,10 +518,10 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
         r[0] = PetscPowScalar(xp[0]*xp[0]+zp[0]*zp[0],0.5);
 
         // Constrain Vz
-        if (PetscAbsScalar(zp[0])<=r[0]*sina){
+        if (zp[0]>=-r[0]*sina){
           fval = 0.0;
         } else {
-          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], PetscAbsScalar(zp[0]),v,&p);
+          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], zp[0],v,&p);
           fval = v[1];
         }
       }
