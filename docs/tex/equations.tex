@@ -8,7 +8,7 @@
 \usepackage{datetime}
 
 \usepackage{authblk}
-\usepackage{chngcntr}
+%\usepackage{chngcntr}
 
 \usepackage{tabularx}
 %\usepackage{mathabx}
@@ -207,7 +207,7 @@ D&=\frac{\displaystyle \beta\cos\beta-\sin\beta}{\displaystyle \beta^2-\sin^2\be
 \end{align}
 and $\alpha$ is the wedge angle at mid-ocean ridges, and $\beta$ is the angle of subduction (Figure \ref{fig:corner_flow}).
 \newline\newline
-\textbf{Polar to Cartesian coordinate solutions.} We want to obtain solutions for rectangular grids (Cartesian coordinates), which means we need to transform the solutions from polar coordinates into cartesian coordinates. Let's define the coordinate systems such that (Figure \ref{fig:corner_flow}):
+\textbf{Polar to Cartesian coordinate solutions.} We want to obtain solutions for rectangular grids (Cartesian coordinates), which means we need to transform the solutions from polar coordinates into cartesian coordinates. Let's define the coordinate systems such that (Figure \ref{fig:corner_flow}a):
 \begin{align}
 x &= r\cos\theta \\
 z &= r\sin\theta \\
@@ -245,7 +245,7 @@ It can be easily shown that these expressions satisfy the continuity equation. T
  \frac{\partial}{\partial x}=\frac{\partial r}{\partial x}\frac{\partial}{\partial r}+\frac{\partial \theta}{\partial x}\frac{\partial}{\partial \theta}.
  \end{align}
 
-\subsubsection{Mid-ocean ridge model}
+\subsubsection{Mid-ocean ridge model \citep{Spiegelman1987}}
 The stream function is:
 \begin{align}
 \psi = r(A\sin\theta-B\theta\cos\theta)
@@ -265,8 +265,45 @@ v_z = v_r\sin\theta + v_\theta\cos\theta
 
 Pressure:
 \begin{align}
-P &= \left(-\frac{2B}{r}+r\right)\cos\theta\\
-\red{P } &\red{= -\frac{2B}{r}\cos\theta}
+P &= \left(-\frac{2B}{r}+r\right)\cos\theta
+\end{align}
+
+\subsubsection{Mid-ocean ridge model (Implemented, Figure \ref{fig:corner_flow}A with coordinate system b)}\label{moranalytic}
+Define the coordinate systems such that:
+\begin{align}
+x &= r\cos\theta \\
+z &= -r\sin\theta \\
+r &= \sqrt{x^2+z^2}\\
+\theta &= \tan^{-1}({-z/x})
+\end{align}
+
+The stream function is:
+\begin{align}
+\psi = r(A\sin\theta-B\theta\cos\theta)
+\end{align}
+where 
+\begin{align}
+A&=-\frac{\displaystyle 2\sin\alpha}{\displaystyle \pi-2\alpha-\sin2\alpha} \\
+&\nonumber  \\
+B&=-\frac{\displaystyle 2}{\displaystyle \pi-2\alpha-\sin2\alpha}
+\end{align}
+and $\alpha$ is the wedge angle at mid-ocean ridges.
+
+The polar velocity components:
+\begin{align}
+ v_r&= \frac{1}{r}\frac{\partial\psi}{\partial\theta} = A\cos\theta-B\cos\theta+B\theta\sin\theta\\
+v_\theta&=-\frac{\partial\psi}{\partial r} = -A\sin\theta+B\theta\cos\theta
+ \end{align}
+ 
+The cartesian velocity components:
+\begin{align}
+v_x = v_r\cos\theta - v_\theta\sin\theta\\
+v_z = -v_r\sin\theta - v_\theta\cos\theta
+\end{align}
+
+Pressure:
+\begin{align}
+P= -\frac{2B}{r}\cos\theta
 \end{align}
 
 \subsubsection{Subduction model}
@@ -309,7 +346,7 @@ where the constants $A_1-D_1$ depend on the model and boundary conditions. If $A
 \begin{figure}
 \begin{center}
 \noindent \includegraphics[trim=0mm 0mm 0mm 0mm, clip, width=\textwidth]{corner_flow.pdf} 
-\caption{Model setup and boundary conditions for corner flow solutions. A. Mid ocean ridge. B. Subduction.}
+\caption{Model setup and boundary conditions for corner flow solutions. A. Mid ocean ridge. B. Subduction. a-b) Different Cartesian-polar coordinate systems.}
 \label{fig:corner_flow}
   \end{center}
 \end{figure}
@@ -372,7 +409,8 @@ Figure \ref{fig:stokes_snes} shows the stencil for the nonlinear Stokes case, an
 *notes on discretization/implementation
 
 \section{Benchmarks}
-\subsection{SolCx \citep{Zhong1996, Moresi1996, Duretz2011}}
+
+\subsection{SolCx \citep{Zhong1996, Moresi1996, Duretz2011}} \label{solcx}
 2-D analytical solution of a variable viscous Stokes flow with sharp viscosity jumps. The model domain is defined as $\Omega = [0, 1] \times [0, 1]$. The boundary conditions on all sides of the domain are free-slip, implying that the normal velocity to each wall is zero, and the tangential stress along the wall vanishes. 
 
 The density field is set as:
@@ -417,6 +455,27 @@ eta1&1-$10^6$&$\eta_1$\\
 \end{center}
 \end{table}
 
+\subsection{Benchmark list}
+Tests can be run in \texttt{./StagRidge/tests/} with \texttt{./run\_tests.sh} (requires python) or run each python script individually.
+
+% Table - Benchmarks
+\begin{table}[h]
+\begin{center}
+\footnotesize
+%\def\arraystretch{0.8}
+\begin{tabular}{l l l l}
+\hline 
+Name&Input files&Test&Comments\\
+\hline
+SolCx&\texttt{solcx\_1e0.opts, solcx\_1e6.opts}&\texttt{test\_solcx.py}&Section \ref{solcx}\\
+Corner flow (MOR)&\texttt{mor\_isovisc.opts}&\texttt{test\_cornerflow\_mor.py}&Section \ref{moranalytic}\\
+\hline  
+\end{tabular}
+\caption{Benchmark tests}
+\label{tab:benchmark}
+\end{center}
+\end{table}
+
 \textbf{Other Stokes benchmarks}
 
 *SolKz - Revenaugh and Parsons 1987, Underworld
@@ -430,7 +489,7 @@ Deubelbeiss and Kaus 2008, Schmeling et al. 2008, Gerya 2009, Kaus et al. 2010, 
 %  BIBLIOGRAPHY
 %% ------------------------------------------------------------------------ %%
 
-\bibliographystyle{apalike}
+%\bibliographystyle{apalike}
 \bibliography{references}
 
 %\begin{thebibliography}{}

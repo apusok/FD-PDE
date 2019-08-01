@@ -32,3 +32,5 @@ rm -f *.bbl
 rm -f *.blg
 rm -f *.lof
 rm -f *.lot
+rm -f *.fdb*
+rm -f *.fls
