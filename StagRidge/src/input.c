@@ -82,10 +82,10 @@ PetscErrorCode InputParameters(SolverCtx **psol)
 
   // MOR Analytic
   if (usr->mtype == 1) {
-    usr->mor_radalpha = -usr->rangle*PETSC_PI/180;
+    usr->mor_radalpha = usr->rangle*PETSC_PI/180;
     usr->mor_sina = PetscSinScalar(usr->mor_radalpha);
-    usr->mor_A = -2*usr->mor_sina/(PETSC_PI-2*usr->mor_radalpha-PetscSinScalar(2*usr->mor_radalpha));
-    usr->mor_B = -2/(PETSC_PI-2*usr->mor_radalpha-PetscSinScalar(2*usr->mor_radalpha));
+    usr->mor_C1 = 2*usr->mor_sina*usr->mor_sina/(PETSC_PI-2*usr->mor_radalpha-PetscSinScalar(2*usr->mor_radalpha));
+    usr->mor_C4 = -2/(PETSC_PI-2*usr->mor_radalpha-PetscSinScalar(2*usr->mor_radalpha));
   }
 
   // ---------------------------------------

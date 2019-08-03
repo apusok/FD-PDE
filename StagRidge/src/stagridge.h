@@ -52,7 +52,7 @@ typedef struct {
   PetscScalar    xmin, zmin;
   PetscScalar    rho0, eta0, ndisl;
   PetscScalar    solcx_eta0, solcx_eta1;
-  PetscScalar    mor_A, mor_B, mor_sina, mor_radalpha;
+  PetscScalar    mor_C1, mor_C4, mor_sina, mor_radalpha;
   PetscScalar    g, u0, rangle;
   PetscInt       bcleft, bcright, bcup, bcdown;
   PetscInt       mtype, tests, dim;

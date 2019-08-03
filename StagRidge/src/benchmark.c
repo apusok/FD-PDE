@@ -394,9 +394,9 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
 {
   PetscInt       i, j, sx, sz, nx, nz, idx, Nx, Nz;
   PetscScalar    ***xx;
-  DMStagStencil  point[3];
-  PetscScalar    xp[3], zp[3], r[3], sina, fval;
-  PetscScalar    v[2], p;
+  DMStagStencil  point;
+  PetscScalar    xp, zp, r, sina;
+  PetscScalar    v[2], p, C1, C4, u0, eta0;
   DM             da, cda;
   Vec            x, xlocal;
   Vec            coords;
@@ -408,6 +408,10 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
   Nx   = sol->grd->nx;
   Nz   = sol->grd->nz;
   sina = sol->usr->mor_sina;
+  u0   = sol->scal->u0;
+  eta0 = sol->scal->eta0;
+  C1   = sol->usr->mor_C1;
+  C4   = sol->usr->mor_C4;
   
   // Create identical DM as sol->dmPV for analytical solution
   ierr = DMStagCreateCompatibleDMStag(sol->dmPV, sol->grd->dofPV0, sol->grd->dofPV1, sol->grd->dofPV2, 0, &da); CHKERRQ(ierr);
@@ -434,100 +438,94 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
   for (j = sz; j<sz+nz; ++j) {
     for (i = sx; i<sx+nx; ++i) {
 
-      // Get stencil points - INTERIOR (lid) - LEFT, DOWN, ELEMENT
-      point[0].i = i; point[0].j = j; point[0].loc = ELEMENT; point[0].c = 0; // P
-      point[1].i = i; point[1].j = j; point[1].loc = LEFT;    point[1].c = 0; // Vx
-      point[2].i = i; point[2].j = j; point[2].loc = DOWN;    point[2].c = 0; // Vz
-
+      // 1) Constrain P - ELEMENT
       // Get coordinates and stencil values
-      ierr = GetCoordinatesStencil(cda, coords, 3, point, xp, zp); CHKERRQ(ierr);
+      point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0; // P
+      ierr = GetCoordinatesStencil(cda, coords, 1, &point, &xp, &zp); CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(da, point.loc, point.c, &idx);     CHKERRQ(ierr);
 
       // Calculate positions relative to the lid 
-      r[0] = PetscPowScalar(xp[0]*xp[0]+zp[0]*zp[0],0.5);
-      r[1] = PetscPowScalar(xp[1]*xp[1]+zp[1]*zp[1],0.5);
-      r[2] = PetscPowScalar(xp[2]*xp[2]+zp[2]*zp[2],0.5);
+      r = PetscPowScalar(xp*xp+zp*zp,0.5);
 
-      // 1) Constrain P - ELEMENT
-      if (zp[0]>=-r[0]*sina){ 
-        fval = 0.0; // Lid
+      // Set value
+      if (zp>=-r*sina){ 
+        xx[j][i][idx] = 0.0; // Lid
       } else { 
-        evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], zp[0],v,&p);
-        fval = p;
+        evaluate_CornerFlow_MOR(C1, C4, u0, eta0, xp, zp, v, &p);
+        xx[j][i][idx] = p;
       }
-
-      // Set value in xx array
-      ierr = DMStagGetLocationSlot(da, ELEMENT, 0, &idx); CHKERRQ(ierr);
-      xx[j][i][idx] = fval;
 
       // 2) Constrain Vx - LEFT
-      if (zp[1]>=-r[1]*sina){ 
-        fval = sol->scal->u0; // Lid
-      } else { 
-        evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[1], zp[1],v,&p);
-        fval = v[0];
-      }
+      // Get coordinates and stencil values
+      point.i = i; point.j = j; point.loc = LEFT; point.c = 0; // Vx
+      ierr = GetCoordinatesStencil(cda, coords, 1, &point, &xp, &zp); CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(da, point.loc, point.c, &idx);     CHKERRQ(ierr);
 
-      // Set value in xx array
-      ierr = DMStagGetLocationSlot(da, LEFT, 0, &idx); CHKERRQ(ierr);
-      xx[j][i][idx] = fval;
+      // Calculate positions relative to the lid 
+      r = PetscPowScalar(xp*xp+zp*zp,0.5);
+
+      // Set value
+      if (zp>=-r*sina){ 
+        xx[j][i][idx] = sol->scal->u0; // Lid
+      } else { 
+        evaluate_CornerFlow_MOR(C1, C4, u0, eta0, xp, zp, v, &p);
+        xx[j][i][idx] = v[0];
+      }
 
       // 3) Constrain Vz - DOWN
-      if (zp[2]>=-r[2]*sina){ 
-        fval = 0.0; // Lid
+      // Get coordinates and stencil values
+      point.i = i; point.j = j; point.loc = DOWN; point.c = 0; // Vz
+      ierr = GetCoordinatesStencil(cda, coords, 1, &point, &xp, &zp); CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(da, point.loc, point.c, &idx);     CHKERRQ(ierr);
+
+      // Calculate positions relative to the lid 
+      r = PetscPowScalar(xp*xp+zp*zp,0.5);
+
+      // Set value
+      if (zp>=-r*sina){ 
+        xx[j][i][idx] = 0.0; // Lid
       } else { 
-        evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[2], zp[2],v,&p);
-        fval = v[1];
+        evaluate_CornerFlow_MOR(C1, C4, u0, eta0, xp, zp, v, &p);
+        xx[j][i][idx] = v[1];
       }
 
-      // Set value in xx array
-      ierr = DMStagGetLocationSlot(da, DOWN, 0, &idx); CHKERRQ(ierr);
-      xx[j][i][idx] = fval;
-
-      // Vx - RIGHT 
+      // 4) Vx - RIGHT 
       if (i == Nx-1) {
-        // Get stencil point
-        point[0].i = i; point[0].j = j; point[0].loc = RIGHT; point[0].c = 0;
-
-        // Get coordinates
-        ierr = GetCoordinatesStencil(cda, coords, 1, point, xp, zp); CHKERRQ(ierr);
+        // Get coordinates and stencil values
+        point.i = i; point.j = j; point.loc = RIGHT; point.c = 0; // Vx right
+        ierr = GetCoordinatesStencil(cda, coords, 1, &point, &xp, &zp); CHKERRQ(ierr);
+        ierr = DMStagGetLocationSlot(da, point.loc, point.c, &idx);     CHKERRQ(ierr);
 
         // Calculate positions relative to the lid 
-        r[0] = PetscPowScalar(xp[0]*xp[0]+zp[0]*zp[0],0.5);
+        r = PetscPowScalar(xp*xp+zp*zp,0.5);
 
         // Constrain Vx - RIGHT
-        if (zp[0]>=-r[0]*sina){
-          fval = sol->scal->u0;
+        if (zp>=-r*sina){
+          xx[j][i][idx] = sol->scal->u0;
         } else {
-          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], zp[0],v,&p);
-          fval = v[0];
+          evaluate_CornerFlow_MOR(C1, C4, u0, eta0, xp, zp, v, &p);
+          xx[j][i][idx] = v[0];
         }
       }
 
-      // Set residual
-      ierr = DMStagGetLocationSlot(da, RIGHT, 0, &idx); CHKERRQ(ierr);
-      xx[j][i][idx] = fval;
-
-      // Vz - UP
+      // 5) Vz - UP
       if (j == Nz-1) {
-        point[0].i = i; point[0].j = j; point[0].loc = UP; point[0].c = 0;
-
-        // Get coordinates
-        ierr = GetCoordinatesStencil(cda, coords, 1, point, xp, zp); CHKERRQ(ierr);
+        // Get coordinates and stencil values
+        point.i = i; point.j = j; point.loc = UP; point.c = 0; // Vz up
+        ierr = GetCoordinatesStencil(cda, coords, 1, &point, &xp, &zp); CHKERRQ(ierr);
+        ierr = DMStagGetLocationSlot(da, point.loc, point.c, &idx);     CHKERRQ(ierr);
 
         // Calculate positions relative to the lid 
-        r[0] = PetscPowScalar(xp[0]*xp[0]+zp[0]*zp[0],0.5);
+        r = PetscPowScalar(xp*xp+zp*zp,0.5);
 
         // Constrain Vz
-        if (zp[0]>=-r[0]*sina){
-          fval = 0.0;
+        if (zp>=-r*sina){
+          xx[j][i][idx] = 0.0;
         } else {
-          evaluate_CornerFlow_MOR(sol->usr->mor_A, sol->usr->mor_B, xp[0], zp[0],v,&p);
-          fval = v[1];
+          evaluate_CornerFlow_MOR(C1, C4, u0, eta0, xp, zp, v, &p);
+          xx[j][i][idx] = v[1];
         }
       }
-      // Set residual
-      ierr = DMStagGetLocationSlot(da, UP, 0, &idx); CHKERRQ(ierr);
-      xx[j][i][idx] = fval;
     }
   }
 

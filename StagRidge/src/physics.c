@@ -56,10 +56,6 @@ PetscErrorCode XMomentumResidual(SolverCtx *sol, Vec xlocal, PetscInt i, PetscIn
   dVzdx = etaUp   *(xx[8]-xx[7])/dx - etaDown*(xx[6]-xx[5])/dx;
   ffi   = -dPdx + 2.0*dVxdx/dx + dVxdz/dz + dVzdx/dz;
 
-  /* if (sol->grd->mtype==MOR){ // isoviscous cornerflow
-    ffi = -dPdx + dVxdx/dx + dVxdz/dz; 
-  }*/
-
   *ff = ffi;
   PetscFunctionReturn(0);
 }
@@ -125,10 +121,6 @@ PetscErrorCode ZMomentumResidual(SolverCtx *sol, Vec xlocal, Vec coefflocal, Pet
   dVzdx = etaRight*(xx[4]-xx[0])/dx - etaLeft *(xx[0]-xx[3])/dx;
   dVxdz = etaRight*(xx[6]-xx[8])/dz - etaLeft *(xx[5]-xx[7])/dz;
   ffi   = -dPdz + 2.0*dVzdz/dz + dVzdx/dx + dVxdz/dx - rhog;
-
-  /* if (sol->grd->mtype==MOR){ // isoviscous cornerflow
-    ffi = -dPdz + dVzdz/dz + dVzdx/dx;
-  }*/
 
   *ff = ffi;
 
