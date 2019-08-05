@@ -94,17 +94,17 @@ PetscErrorCode FormFunctionPV(SNES snes, Vec x, Vec f, void *ctx)
     ierr = BoundaryConditions_General(sol, xlocal, coefflocal, ff); CHKERRQ(ierr);
   }
 
+  // Restore arrays, local vectors
+  ierr = DMStagVecRestoreArrayDOF(sol->dmPV,flocal,&ff); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(sol->dmCoeff,&coefflocal); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(sol->dmPV,   &xlocal    ); CHKERRQ(ierr);
+
   // ---------------------------------------
   // Return and clean up
   // ---------------------------------------
   // Map local to global
   ierr = DMLocalToGlobalBegin(sol->dmPV,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (sol->dmPV,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
-
-  // Restore arrays, local vectors
-  ierr = DMStagVecRestoreArrayDOF(sol->dmPV,flocal,&ff); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(sol->dmCoeff,&coefflocal); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(sol->dmPV,   &xlocal    ); CHKERRQ(ierr);
 
   ierr = VecDestroy(&flocal); CHKERRQ(ierr);
   
