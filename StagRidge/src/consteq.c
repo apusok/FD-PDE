@@ -24,6 +24,15 @@ PetscErrorCode CalcEffViscosity(SolverCtx *sol, Vec xlocal, PetscInt i, PetscInt
     // Assign value and exit
     *etaeff = eta;
     PetscFunctionReturn(0);
+  
+  // Model type - MOR Analytic
+  } else if (sol->grd->mtype == MOR){ 
+    // Isoviscous viscosity
+    eta = sol->scal->eta0;
+
+    // Assign value and exit
+    *etaeff = eta;
+    PetscFunctionReturn(0);
   }
 
   /* Strain rate is defined in: 

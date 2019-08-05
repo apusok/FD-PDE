@@ -1,7 +1,7 @@
 # model options
 -tests 1
 -dim 0 # 0-dimensionless 1-dimensional 
--mtype 1 # model type 0-solcx 1-mor_analytic
+-mtype 2 # model type 2-mor_analytic
 -nx 20
 -nz 20
 -xmin 0.0 # start domain x-dir [km]

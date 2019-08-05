@@ -39,6 +39,7 @@ enum BCType {
 // define names for standard models
 enum ModelType {
   SOLCX, 
+  SOLCX_EFF, 
   MOR
 };
 

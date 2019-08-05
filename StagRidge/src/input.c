@@ -59,7 +59,7 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   ierr = PetscBagRegisterInt(bag, &usr->dim, 0, "dim", "Dimensions: 0-dimensionless 1-dimensional"); CHKERRQ(ierr);
 
   // Model type
-  ierr = PetscBagRegisterInt(bag, &usr->mtype, 0, "mtype", "Model type: 0 - SOLCX, 1 - MOR_ANALYTIC"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &usr->mtype, 0, "mtype", "Model type: 0-SOLCX, 1-SOLCX_EFF, 2-MOR_ANALYTIC"); CHKERRQ(ierr);
 
   // benchmarks
   ierr = PetscBagRegisterInt(bag, &usr->tests, 0, "tests", "Test benchmarks: 0 - NO, 1 - YES"); CHKERRQ(ierr);
@@ -81,7 +81,7 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   usr->fname_in[0] = '\0';
 
   // MOR Analytic
-  if (usr->mtype == 1) {
+  if (usr->mtype == 2) {
     usr->mor_radalpha = usr->rangle*PETSC_PI/180;
     usr->mor_sina = PetscSinScalar(usr->mor_radalpha);
     usr->mor_C1 = 2*usr->mor_sina*usr->mor_sina/(PETSC_PI-2*usr->mor_radalpha-PetscSinScalar(2*usr->mor_radalpha));
@@ -155,8 +155,9 @@ PetscErrorCode InputParameters(SolverCtx **psol)
 
   // model type
   if (usr->mtype == 0) grd->mtype = SOLCX;
-  if (usr->mtype == 1) grd->mtype = MOR;
-
+  if (usr->mtype == 1) grd->mtype = SOLCX_EFF;
+  if (usr->mtype == 2) grd->mtype = MOR;
+  
   // return pointers
   sol->scal = scal;
   sol->grd  = grd;

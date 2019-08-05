@@ -17,7 +17,7 @@ PetscErrorCode DoBenchmarks(SolverCtx *sol)
   PetscFunctionBegin;
 
   // SolCx
-  if (sol->grd->mtype == SOLCX){
+  if ((sol->grd->mtype == SOLCX) || (sol->grd->mtype == SOLCX_EFF)){
     PetscPrintf(sol->comm,"# --------------------------------------- #\n");
     PetscPrintf(sol->comm,"# SolCx Benchmark \n");
     ierr = CreateSolCx(sol,&dmAnalytic,&xAnalytic); CHKERRQ(ierr);

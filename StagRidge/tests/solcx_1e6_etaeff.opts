@@ -1,0 +1,24 @@
+# model options
+-tests 1
+-dim 0 # 0-dimensionless 1-dimensional 
+-mtype 1 # model type 1-solcx_eff
+-nx 20
+-nz 20
+-xmin 0.0
+-zmin 0.0
+-L 1.0
+-H 1.0
+-g 1.0
+-solcx_eta0 1e0
+-solcx_eta1 1e6
+
+-bcleft 0 # bc type 0-free slip
+-bcright 0
+-bcup 0
+-bcdown 0
+-output_file solcx_1e6
+
+# solver options
+-pc_type lu
+-pc_factor_mat_solver_type umfpack
+#-snes_mf_operator
