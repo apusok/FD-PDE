@@ -1,6 +1,6 @@
 # ----------------------------------------- #
-# Run convergence tests for the SolCx 
-# benchmark with StagRidge
+# Run convergence tests for the Corner flow
+# (Mid-ocean ridge) benchmark with StagRidge
 # Adina Pusok, July 2019
 # ----------------------------------------- #
 
@@ -11,30 +11,35 @@ from scipy.stats import linregress
 import os
 
 # Input file
-f1 = 'solcx_1e0_etaeff.opts' # isoviscous
-f2 = 'solcx_1e6_etaeff.opts' # variable viscosity
+f1 = 'mor_isovisc.opts'     # nondimensional corner flow
+#f2 = 'mor_isovisc_dim.opts' # mid-ocean ridge dimensional
+
+# Directories
+dir_in  = './input/'
+dir_log = './logfiles/'
+dir_out = './output/'
 
 print('# --------------------------------------- #')
-print('# SolCx benchmark (Effective viscosity calculation)')
+print('# Corner flow (Mid-Ocean Ridge) benchmark ')
 print('# --------------------------------------- #')
 
 # Parameters
 # n = [40, 80, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
-n = [40, 80, 100, 200] #, 300, 400]
+n = [40, 80, 100, 200] #, 300]
 
 # Run simulations
 for nx in n:
 
     # Create output filename
-    fout1 = f1[:-5]+'_'+str(nx)+'.out'
-    fout2 = f2[:-5]+'_'+str(nx)+'.out'
+    fout1 = dir_log+f1[:-5]+'_rangle0_'+str(nx)+'.out'
+    fout2 = dir_log+f1[:-5]+'_rangle30_'+str(nx)+'.out'
 
     # Run Stagridge with different resolutions
-    str1 = '../src/stagridge -options_file '+f1+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
+    str1 = '../src/stagridge -options_file '+dir_in+f1+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
     print(str1)
     os.system(str1)
 
-    str2 = '../src/stagridge -options_file '+f2+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout2
+    str2 = '../src/stagridge -options_file '+dir_in+f1+' -rangle 30 -nx '+str(nx)+' -nz '+str(nx)+' > '+fout2
     print(str2)
     os.system(str2)
 
@@ -46,20 +51,20 @@ nrm1p = np.zeros(len(n))
 hx = np.zeros(len(n))
 hz = np.zeros(len(n))
 
-nrm1v_1e6 = np.zeros(len(n))
-nrm1vx_1e6 = np.zeros(len(n))
-nrm1vz_1e6 = np.zeros(len(n))
-nrm1p_1e6 = np.zeros(len(n))
-hx_1e6 = np.zeros(len(n))
-hz_1e6 = np.zeros(len(n))
+nrm1v_r30 = np.zeros(len(n))
+nrm1vx_r30 = np.zeros(len(n))
+nrm1vz_r30 = np.zeros(len(n))
+nrm1p_r30 = np.zeros(len(n))
+hx_r30 = np.zeros(len(n))
+hz_r30 = np.zeros(len(n))
 
 # Parse output and save norm info
 for i in range(0,len(n)):
     nx = n[i]
 
     # Create output filename
-    fout1 = f1[:-5]+'_'+str(nx)+'.out'
-    fout2 = f2[:-5]+'_'+str(nx)+'.out'
+    fout1 = dir_log+f1[:-5]+'_rangle0_'+str(nx)+'.out'
+    fout2 = dir_log+f1[:-5]+'_rangle30_'+str(nx)+'.out'
 
     # Open file 1 and read
     f = open(fout1, 'r')
@@ -80,14 +85,14 @@ for i in range(0,len(n)):
     f = open(fout2, 'r')
     for line in f:
         if 'Velocity:' in line:
-            nrm1v_1e6[i] = float(line[20:38])
-            nrm1vx_1e6[i] = float(line[48:66])
-            nrm1vz_1e6[i] = float(line[76:94])
+            nrm1v_r30[i] = float(line[20:38])
+            nrm1vx_r30[i] = float(line[48:66])
+            nrm1vz_r30[i] = float(line[76:94])
         if 'Pressure:' in line:
-            nrm1p_1e6[i] = float(line[20:38])
+            nrm1p_r30[i] = float(line[20:38])
         if 'Grid info:' in line:
-            hx_1e6[i] = float(line[18:36])
-            hz_1e6[i] = float(line[42:60])
+            hx_r30[i] = float(line[18:36])
+            hz_r30[i] = float(line[42:60])
     
     f.close()
 
@@ -109,20 +114,20 @@ plt.plot(np.log10(x2),np.log10(y2),'b-',label='slope=2')
 
 plt.xlabel('log10(h)',fontweight='bold',fontsize=12)
 plt.ylabel('log10||e||',fontweight='bold',fontsize=12)
-plt.title('A. Isoviscous',fontweight='bold',fontsize=16)
+plt.title('A. Non-dimensional MOR (rangle=0)',fontweight='bold',fontsize=16)
 plt.legend()
 
 plt.subplot(122)
 plt.grid(color='lightgray', linestyle=':')
-plt.plot(np.log10(hx_1e6),np.log10(nrm1v_1e6),'k+--',label='v')
-plt.plot(np.log10(hx_1e6),np.log10(nrm1p_1e6),'ko--',label='P')
+plt.plot(np.log10(hx_r30),np.log10(nrm1v_r30),'k+--',label='v')
+plt.plot(np.log10(hx_r30),np.log10(nrm1p_r30),'ko--',label='P')
 
 plt.plot(np.log10(x1),np.log10(y1),'r-',label='slope=1')
 plt.plot(np.log10(x2),np.log10(y2),'b-',label='slope=2')
 
 plt.xlabel('log10(h)',fontweight='bold',fontsize=12)
 plt.ylabel('log10||e||',fontweight='bold',fontsize=12)
-plt.title('B. 1e6 viscosity jump',fontweight='bold',fontsize=16)
+plt.title('B. Non-dimensional MOR (rangle=30)',fontweight='bold',fontsize=16)
 plt.legend()
 
 # Print convergence orders:
@@ -130,26 +135,26 @@ hx10    = np.log10(hx)
 nrm1v10 = np.log10(nrm1v)
 nrm1p10 = np.log10(nrm1p)
 
-hx10_1e6    = np.log10(hx_1e6)
-nrm1v10_1e6 = np.log10(nrm1v_1e6)
-nrm1p10_1e6 = np.log10(nrm1p_1e6)
+hx10_r30    = np.log10(hx_r30)
+nrm1v10_r30 = np.log10(nrm1v_r30)
+nrm1p10_r30 = np.log10(nrm1p_r30)
 
 # Perform linear regression
-sl1e0v, intercept, r_value, p_value, std_err = linregress(hx10, nrm1v10)
-sl1e0p, intercept, r_value, p_value, std_err = linregress(hx10, nrm1p10)
-sl1e6v, intercept, r_value, p_value, std_err = linregress(hx10_1e6, nrm1v10_1e6)
-sl1e6p, intercept, r_value, p_value, std_err = linregress(hx10_1e6, nrm1p10_1e6)
+slv, intercept, r_value, p_value, std_err = linregress(hx10, nrm1v10)
+slp, intercept, r_value, p_value, std_err = linregress(hx10, nrm1p10)
+slv_r30, intercept, r_value, p_value, std_err = linregress(hx10_r30, nrm1v10_r30)
+slp_r30, intercept, r_value, p_value, std_err = linregress(hx10_r30, nrm1p10_r30)
 
 print('# --------------------------------------- #')
-print('# SolCx (eta_eff) convergence order:')
-print('     (isoviscous 1e0): v_slope = '+str(sl1e0v)+' p_slope = '+str(sl1e0p))
-print('     (visc contr 1e6): v_slope = '+str(sl1e6v)+' p_slope = '+str(sl1e6p))
+print('# Corner flow (MOR) convergence order:')
+print('     (rangle = 0 ): v_slope = '+str(slv)+' p_slope = '+str(slp))
+print('     (rangle = 30): v_slope = '+str(slv_r30)+' p_slope = '+str(slp_r30))
 
-fname = 'test_solcx_etaeff_convergence.pdf'
+fname = dir_out+'test_mor_convergence.pdf'
 plt.savefig(fname)
 
 print('# --------------------------------------- #')
-print('# Printed SolCx (eta_eff) convergence results to: '+fname)
+print('# Printed Corner flow (MOR) convergence results to: '+fname)
 print('# --------------------------------------- #')
 
 #plt.show()

@@ -11,11 +11,16 @@ from scipy.stats import linregress
 import os
 
 # Input file
-f1 = 'solcx_1e0.opts' # isoviscous
-f2 = 'solcx_1e6.opts' # variable viscosity
+f1 = 'solcx_1e0_etaeff.opts' # isoviscous
+f2 = 'solcx_1e6_etaeff.opts' # variable viscosity
+
+# Directories
+dir_in  = './input/'
+dir_log = './logfiles/'
+dir_out = './output/'
 
 print('# --------------------------------------- #')
-print('# SolCx benchmark ')
+print('# SolCx benchmark (Effective viscosity calculation)')
 print('# --------------------------------------- #')
 
 # Parameters
@@ -26,15 +31,15 @@ n = [40, 80, 100, 200] #, 300, 400]
 for nx in n:
 
     # Create output filename
-    fout1 = f1[:-5]+'_'+str(nx)+'.out'
-    fout2 = f2[:-5]+'_'+str(nx)+'.out'
+    fout1 = dir_log+f1[:-5]+'_'+str(nx)+'.out'
+    fout2 = dir_log+f2[:-5]+'_'+str(nx)+'.out'
 
     # Run Stagridge with different resolutions
-    str1 = '../src/stagridge -options_file '+f1+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
+    str1 = '../src/stagridge -options_file '+dir_in+f1+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
     print(str1)
     os.system(str1)
 
-    str2 = '../src/stagridge -options_file '+f2+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout2
+    str2 = '../src/stagridge -options_file '+dir_in+f2+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout2
     print(str2)
     os.system(str2)
 
@@ -58,8 +63,8 @@ for i in range(0,len(n)):
     nx = n[i]
 
     # Create output filename
-    fout1 = f1[:-5]+'_'+str(nx)+'.out'
-    fout2 = f2[:-5]+'_'+str(nx)+'.out'
+    fout1 = dir_log+f1[:-5]+'_'+str(nx)+'.out'
+    fout2 = dir_log+f2[:-5]+'_'+str(nx)+'.out'
 
     # Open file 1 and read
     f = open(fout1, 'r')
@@ -141,15 +146,15 @@ sl1e6v, intercept, r_value, p_value, std_err = linregress(hx10_1e6, nrm1v10_1e6)
 sl1e6p, intercept, r_value, p_value, std_err = linregress(hx10_1e6, nrm1p10_1e6)
 
 print('# --------------------------------------- #')
-print('# SolCx convergence order:')
+print('# SolCx (eta_eff) convergence order:')
 print('     (isoviscous 1e0): v_slope = '+str(sl1e0v)+' p_slope = '+str(sl1e0p))
 print('     (visc contr 1e6): v_slope = '+str(sl1e6v)+' p_slope = '+str(sl1e6p))
 
-fname = 'test_solcx_convergence.pdf'
+fname = dir_out+'test_solcx_etaeff_convergence.pdf'
 plt.savefig(fname)
 
 print('# --------------------------------------- #')
-print('# Printed SolCx convergence results to: '+fname)
+print('# Printed SolCx (eta_eff) convergence results to: '+fname)
 print('# --------------------------------------- #')
 
 #plt.show()
