@@ -72,7 +72,7 @@ int main (int argc,char **argv)
   ierr = DMStagSetUniformCoordinatesExplicit(sol->dmCoeff, sol->grd->xmin, sol->grd->xmax, sol->grd->zmin, sol->grd->zmax, 0.0, 0.0); CHKERRQ(ierr);
 
   // ---------------------------------------
-  // Create global and matrices vectors
+  // Create global vectors and matrices
   // ---------------------------------------
   ierr = CreateSystem(sol); CHKERRQ(ierr);
 
@@ -99,28 +99,6 @@ int main (int argc,char **argv)
   // ---------------------------------------
   // SNES Options
   // ---------------------------------------
-  // customize DEFAULT SNES options
-  //ierr = SNESGetKSP(snes, &ksp); CHKERRQ(ierr);
-  //ierr = KSPGetPC  (ksp,  &pc ); CHKERRQ(ierr);
-  //ierr = PCSetType (pc, PCNONE); CHKERRQ(ierr);
-
-  // Set default solver options
-  {
-    PetscMPIInt commsize;
-    ierr = MPI_Comm_size(sol->comm,&commsize);CHKERRQ(ierr);
-    if (commsize == 1) {
-      #if defined(MATSOLVERUMFPACK)
-      ierr = PetscOptionsSetValue(NULL, "-pc_type", "lu"                       ); CHKERRQ(ierr);
-      ierr = PetscOptionsSetValue(NULL, "-pc_factor_mat_solver_type", "umfpack"); CHKERRQ(ierr);
-      #endif
-    } else {
-      #if defined(MATSOLVERMUMPS)
-      ierr = PetscOptionsSetValue(NULL, "-pc_type", "lu"                       ); CHKERRQ(ierr);
-      ierr = PetscOptionsSetValue(NULL, "-pc_factor_mat_solver_type", "mumps"); CHKERRQ(ierr);
-      #endif
-    }
-  }
-
   // Get default info on convergence
   ierr = PetscOptionsSetValue(NULL, "-snes_monitor",          ""); CHKERRQ(ierr);
   ierr = PetscOptionsSetValue(NULL, "-ksp_monitor",           ""); CHKERRQ(ierr);
