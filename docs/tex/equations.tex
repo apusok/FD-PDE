@@ -160,9 +160,9 @@ The incompressible continuity equation can be satisfied with a stream function $
 \begin{align}
 \textbf{v} = \nabla\times\psi\hat{\textbf{j}} \label{eq:stream}
 \end{align}
-or $v_x = -\frac{\partial\psi}{\partial z}$ and $v_z = \frac{\partial\psi}{\partial x}$. Verify continuity equation:
+or $v_x = \frac{\partial\psi}{\partial z}$ and $v_z = -\frac{\partial\psi}{\partial x}$. Verify continuity equation:
 \begin{align}
-\frac{\displaystyle \partial v_x}{\displaystyle \partial x}+\frac{\displaystyle \partial v_z}{\displaystyle \partial z} = -\frac{\partial^2\psi}{\partial x\partial z}+\frac{\partial^2\psi}{\partial z\partial x} = 0
+\frac{\displaystyle \partial v_x}{\displaystyle \partial x}+\frac{\displaystyle \partial v_z}{\displaystyle \partial z} = \frac{\partial^2\psi}{\partial x\partial z}-\frac{\partial^2\psi}{\partial z\partial x} = 0
 \end{align}
 
 Replacing eq. \ref{eq:stream} in the momentum equations (\ref{eq:momm1-sim}-\ref{eq:momm2-sim}), then taking the curl to eliminate the pressure gradient, and adding the component equations together, we obtain:
@@ -187,130 +187,78 @@ where
 \begin{align}
 f(\theta) = C_1\sin\theta+C_2\theta\sin\theta+C_3\cos\theta+C_4\theta\cos\theta
 \end{align}
-and $U_0$ is the characteristic velocity, $C_1-C_4$ are constants determined by model and boundary conditions. \citet{Spiegelman1987} give solutions to corner flow for mid-ocean ridge and subduction models. For these two models, the stream function with known coefficients is:
-\begin{align}
-\psi = r f(\theta) = 
- \begin{cases}
-r(A\sin\theta-B\theta\cos\theta), & \quad \text{Mid-ocean ridge}\\
-r(C\sin\theta-C\theta\cos\theta+D\theta\sin\theta), & \quad \text{Subduction}
-  \end{cases}
-\end{align}
-where 
-\begin{align}
-A&=\frac{\displaystyle 2\sin\alpha}{\displaystyle \pi-2\alpha-\sin2\alpha} \\
-&\nonumber  \\
-B&=\frac{\displaystyle 2}{\displaystyle \pi-2\alpha-\sin2\alpha} \\
-&\nonumber  \\
-C&=\frac{\displaystyle \beta\sin\beta}{\displaystyle \beta^2-\sin^2\beta} \\
-&\nonumber  \\
-D&=\frac{\displaystyle \beta\cos\beta-\sin\beta}{\displaystyle \beta^2-\sin^2\beta}
-\end{align}
-and $\alpha$ is the wedge angle at mid-ocean ridges, and $\beta$ is the angle of subduction (Figure \ref{fig:corner_flow}).
-\newline\newline
-\textbf{Polar to Cartesian coordinate solutions.} We want to obtain solutions for rectangular grids (Cartesian coordinates), which means we need to transform the solutions from polar coordinates into cartesian coordinates. Let's define the coordinate systems such that (Figure \ref{fig:corner_flow}a):
-\begin{align}
-x &= r\cos\theta \\
-z &= r\sin\theta \\
-r &= \sqrt{x^2+z^2}\\
-\theta &= \tan^{-1}({z/x})
-\end{align}
-
-From eq. \ref{eq:velpolar}, we can write:
-\begin{align}
-\textbf{v} = v_r\hat{\textbf{r}}+v_\theta\hat{\bm{\theta}}
-\end{align}
-where $v_r= \frac{1}{r}\frac{\partial\psi}{\partial\theta}$ and $v_\theta=-\frac{\partial\psi}{\partial r}$. In Cartesian coordinates, the velocity can be written:
-\begin{align}
-\textbf{v} = v_x\hat{\textbf{i}}+v_z\hat{\textbf{j}}
-\end{align}
-
-We need to transform the basis polar vectors $\hat{\textbf{r}}$ and $\hat{\bm{\theta}}$ into cartesian basis vectors $\hat{\textbf{i}}(x,v_x)$ and $\hat{\textbf{j}}(z,v_z)$. Let:
-\begin{align}
-\textbf{r} = x\hat{\textbf{i}}+z\hat{\textbf{j}} = r\cos\theta\hat{\textbf{i}} + r\sin\theta\hat{\textbf{j}}
-\end{align}
-The basis vectors are defined: 
-\begin{align}
-\hat{\textbf{r}} = \frac{\frac{d\textbf{r}}{dr}}{\left|\frac{d\textbf{r}}{dr}\right|} = \cos\theta\hat{\textbf{i}} + \sin\theta\hat{\textbf{j}}\\
-&\nonumber  \\
-\hat{\bm{\theta}} = \frac{\frac{d\textbf{r}}{d\theta}}{\left|\frac{d\textbf{r}}{d\theta}\right|} = -\sin\theta\hat{\textbf{i}} + \cos\theta\hat{\textbf{j}}
-\end{align}
-Therefore, the cartesian components of velocity are:
-\begin{align}
-v_x = v_r\cos\theta - v_\theta\sin\theta \label{eq:vx}\\
-v_z = v_r\sin\theta + v_\theta\cos\theta \label{eq:vz}
-\end{align}
-
-It can be easily shown that these expressions satisfy the continuity equation. The pressure is obtained by using eq. \ref{eq:vx}-\ref{eq:vz} in equation \ref{eq:redpressure} (applying the chain rule):
-\begin{align}
- \frac{\partial}{\partial x}=\frac{\partial r}{\partial x}\frac{\partial}{\partial r}+\frac{\partial \theta}{\partial x}\frac{\partial}{\partial \theta}.
- \end{align}
+and $U_0$ is the characteristic velocity, $C_1-C_4$ are constants determined by model and boundary conditions. \citet{Spiegelman1987} give solutions to corner flow for mid-ocean ridge and subduction models. 
 
 \subsubsection{Mid-ocean ridge model \citep{Spiegelman1987}}
+The model and boundary conditions are shown in Figure \ref{fig:corner_flow}A with coordinate system (a), and a full derivation is given in Appendix \ref{App:AppendixA}. Let's define the coordinate systems such that:
+\begin{align}
+x &= r\sin\theta \\
+z &= r\cos\theta \\
+r &= \sqrt{x^2+z^2}\\
+\theta &= \tan^{-1}({x/z}), \theta\in\left[-\frac{\pi}{2},\frac{\pi}{2}\right]
+\end{align}
+
 The stream function is:
 \begin{align}
-\psi = r(A\sin\theta-B\theta\cos\theta)
+\psi = r U_0 (C_1\sin\theta+C_4\theta\cos\theta)
 \end{align}
+where the coefficients are:
+\begin{align}
+C_1 &= \frac{\displaystyle 2\sin^2\alpha}{\displaystyle \pi-2\alpha-\sin2\alpha} \\
+C_4 &= -\frac{\displaystyle 2}{\displaystyle \pi-2\alpha-\sin2\alpha} 
+\end{align}
+and $\alpha$ is the wedge angle at mid-ocean ridges. In \citet{Spiegelman1987}, the coefficients are given as $A=C_1$ and $B=-C_4$.
 
 The polar velocity components:
 \begin{align}
- v_r&= \frac{1}{r}\frac{\partial\psi}{\partial\theta} = A\cos\theta-B\cos\theta+B\theta\sin\theta\\
-v_\theta&=-\frac{\partial\psi}{\partial r} = -A\sin\theta+B\theta\cos\theta
+ v_r&= U_0(C_1\cos\theta+C_4\cos\theta-C_4\theta\sin\theta) \label{eq:vr}\\
+v_\theta&= U_0(-C_1\sin\theta-C_4\theta\cos\theta)\label{eq:vtheta}
  \end{align}
  
 The cartesian velocity components:
 \begin{align}
-v_x = v_r\cos\theta - v_\theta\sin\theta\\
-v_z = v_r\sin\theta + v_\theta\cos\theta
+v_x = v_r\sin\theta + v_\theta\cos\theta\\
+v_z = v_r\cos\theta - v_\theta\sin\theta
 \end{align}
 
 Pressure:
 \begin{align}
-P &= \left(-\frac{2B}{r}+r\right)\cos\theta
+P &= \frac{2C_4 U_0 \eta_0}{r}\cos\theta
 \end{align}
 
 \subsubsection{Mid-ocean ridge model (Implemented, Figure \ref{fig:corner_flow}A with coordinate system b)}\label{moranalytic}
 Define the coordinate systems such that:
 \begin{align}
-x &= r\cos\theta \\
-z &= -r\sin\theta \\
+x &= r\sin\theta \\
+z &= -r\cos\theta \\
 r &= \sqrt{x^2+z^2}\\
-\theta &= \tan^{-1}({-z/x})
+\theta &= \tan^{-1}({-x/z})
 \end{align}
-
-The stream function is:
-\begin{align}
-\psi = r(A\sin\theta-B\theta\cos\theta)
-\end{align}
-where 
-\begin{align}
-A&=-\frac{\displaystyle 2\sin\alpha}{\displaystyle \pi-2\alpha-\sin2\alpha} \\
-&\nonumber  \\
-B&=-\frac{\displaystyle 2}{\displaystyle \pi-2\alpha-\sin2\alpha}
-\end{align}
-and $\alpha$ is the wedge angle at mid-ocean ridges.
-
-The polar velocity components:
-\begin{align}
- v_r&= \frac{1}{r}\frac{\partial\psi}{\partial\theta} = A\cos\theta-B\cos\theta+B\theta\sin\theta\\
-v_\theta&=-\frac{\partial\psi}{\partial r} = -A\sin\theta+B\theta\cos\theta
- \end{align}
  
 The cartesian velocity components:
 \begin{align}
-v_x = v_r\cos\theta - v_\theta\sin\theta\\
-v_z = -v_r\sin\theta - v_\theta\cos\theta
+v_x = v_r\sin\theta + v_\theta\cos\theta\\
+v_z = -v_r\cos\theta + v_\theta\sin\theta,
 \end{align}
+where $v_r$ and $v_\theta$ are defined in eq. \ref{eq:vr}-\ref{eq:vtheta}. 
 
-Pressure:
+The pressure also stays the same:
 \begin{align}
-P= -\frac{2B}{r}\cos\theta
+P &= \frac{2C_4 U_0 \eta_0}{r}\cos\theta
 \end{align}
 
 \subsubsection{Subduction model}
-The stream function is:
+
+The stream function with known coefficients \citep{Spiegelman1987} (Figure \ref{fig:corner_flow}B) is:
 \begin{align}
-\psi = r(C\sin\theta-C\theta\cos\theta+D\theta\sin\theta)
+\psi = r (C\sin\theta-C\theta\cos\theta+D\theta\sin\theta),
 \end{align}
+where
+\begin{align}
+C&=\frac{\displaystyle \beta\sin\beta}{\displaystyle \beta^2-\sin^2\beta} \\
+D&=\frac{\displaystyle \beta\cos\beta-\sin\beta}{\displaystyle \beta^2-\sin^2\beta}
+\end{align}
+and $\beta$ is the angle of subduction.
 
 The polar velocity components:
 \begin{align}
@@ -318,25 +266,18 @@ The polar velocity components:
 v_\theta&=-\frac{\partial\psi}{\partial r} = -C\sin\theta+C\theta\cos\theta-D\theta\sin\theta
  \end{align}
  
-The cartesian velocity components:
-\begin{align}
-v_x = v_r\cos\theta - v_\theta\sin\theta\\
-v_z = v_r\sin\theta + v_\theta\cos\theta
-\end{align}
-
-Pressure:
-\begin{align}
-P &= -\frac{2}{r}\left(C\cos\theta-D\sin\theta\right)+r\sin\theta \\
-\red{P } &\red{= -\frac{2}{r}\left(C\cos\theta-D\sin\theta\right)}
-\end{align}
-
-\textbf{Alternative.} \citet{Spiegelman1987} define the polar-cartesian system for the subduction model in the following way: $x=-r\cos\theta$ and $z=r\sin\theta$. In this case, the cartesian velocity components are:
+The polar-cartesian system for the subduction model are defined as: $x=-r\cos\theta$ and $z=r\sin\theta$. In this case, the cartesian velocity components are:
 \begin{align}
 v_x = -v_r\cos\theta + v_\theta\sin\theta\\
 v_z = v_r\sin\theta + v_\theta\cos\theta
 \end{align}
 
-\citet{Turcotte2014} (Geodynamics 3rd Ed., 2014, Ch. 6.11) also derive a corner flow solution for subduction by only using cartesian coordinates (a bit more complicated to work with because it involves derivatives of $\tan^{-1}$). The stream function is defined in this case as:
+Pressure:
+\begin{align}
+P &= -\frac{2}{r}\left(C\cos\theta-D\sin\theta\right)
+\end{align}
+
+\textbf{Alternative.} \citet{Turcotte2014} (Geodynamics 3rd Ed., 2014, Ch. 6.11) also derive a corner flow solution for subduction by only using cartesian coordinates (a bit more complicated to work with because it involves derivatives of $\tan^{-1}$). The stream function is defined in this case as:
 \begin{align}
 \psi = (A_1x+B_1z)+(C_1x+D_1z)\tan^{-1}(z/x)
 \end{align}
@@ -346,7 +287,7 @@ where the constants $A_1-D_1$ depend on the model and boundary conditions. If $A
 \begin{figure}
 \begin{center}
 \noindent \includegraphics[trim=0mm 0mm 0mm 0mm, clip, width=\textwidth]{corner_flow.pdf} 
-\caption{Model setup and boundary conditions for corner flow solutions. A. Mid ocean ridge. B. Subduction. a-b) Different Cartesian-polar coordinate systems.}
+\caption{Model setup and boundary conditions for corner flow solutions. A. Mid ocean ridge. B. Subduction. (a)-(b) Different Cartesian-polar coordinate systems.}
 \label{fig:corner_flow}
   \end{center}
 \end{figure}
@@ -484,6 +425,133 @@ Corner flow (MOR)&\texttt{mor\_isovisc.opts}&\texttt{test\_cornerflow\_mor.py}&S
 
 Papers using benchmarks and other useful tests for Stokes equations:
 Deubelbeiss and Kaus 2008, Schmeling et al. 2008, Gerya 2009, Kaus et al. 2010, Duretz et al. 2011, Dabrowski et 2008, Raess et al 2017, Pusok et al. 2017.
+
+%% ------------------------------------------------------------------------ %%
+%  APPENDIX
+%% ------------------------------------------------------------------------ %%
+\appendix
+
+\section{Corner flow analytical solution for Mid-ocean ridges (Full derivation)} \label{App:AppendixA}
+
+The biharmonic equation:
+\begin{align}
+\nabla^4\psi= 0
+\end{align}
+
+\citet{Batchelor2000} gives a similarity solution to the biharmonic equation with corner flow boundary conditions in polar coordinates of the form:
+\begin{align}
+\textbf{v} = \frac{1}{r}\frac{\partial\psi}{\partial\theta}\hat{\textbf{r}}-\frac{\partial\psi}{\partial r}\hat{\bm{\theta}} \label{eq:velpolar}
+\end{align}
+
+And the stream function:
+\begin{align}
+\psi = r U_0 f(\theta),
+\end{align}
+where
+\begin{align}
+f(\theta) &= C_1\sin\theta+C_2\theta\sin\theta+C_3\cos\theta+C_4\theta\cos\theta \\
+f'(\theta) &= C_1\cos\theta+C_2\sin\theta+C_2\theta\cos\theta-C_3\sin\theta+C_4\cos\theta-C_4\theta\sin\theta 
+\end{align}
+and $U_0$ is the characteristic velocity, $C_1-C_4$ are constants determined by model and boundary conditions. 
+
+From eq. \ref{eq:velpolar}, we can write:
+\begin{align}
+\textbf{v} = v_r\hat{\textbf{r}}+v_\theta\hat{\bm{\theta}} = v_x\hat{\textbf{i}}+v_z\hat{\textbf{j}} \label{eq:vgen}
+\end{align}
+where 
+\begin{align}
+v_r= \frac{1}{r}\frac{\partial\psi}{\partial\theta} = U_0 f'(\theta)\\
+v_\theta=-\frac{\partial\psi}{\partial r} = -U_0 f(\theta). 
+\end{align}
+We want to find expressions for $C_1-C_4$ and $v_x$, $v_z$ and $P$ for a mid-ocean ridge setup (Figure \ref{fig:corner_flow}A).
+
+Let's define the coordinate systems such that (Figure \ref{fig:corner_flow}a):
+\begin{align}
+x &= r\sin\theta \\
+z &= r\cos\theta \\
+r &= \sqrt{x^2+z^2}\\
+\theta &= \tan^{-1}({x/z}), \theta\in\left[-\frac{\pi}{2},\frac{\pi}{2}\right]
+\end{align}
+
+\subsection{Boundary conditions}
+
+1) $\theta = \frac{\pi}{2}-\alpha, v_x = U_0, v_z = 0$
+\begin{align}
+v_r= U_0\cos\alpha, f'(\frac{\pi}{2}-\alpha) = \cos\alpha\\
+v_\theta=U_0\sin\alpha, f(\frac{\pi}{2}-\alpha) = -\sin\alpha\\
+\end{align}
+
+2) $\theta = -(\frac{\pi}{2}-\alpha), v_x = -U_0, v_z = 0$
+\begin{align}
+v_r= U_0\cos\alpha, f'(-\frac{\pi}{2}+\alpha) = \cos\alpha\\
+v_\theta=-U_0\sin\alpha, f(-\frac{\pi}{2}+\alpha) = \sin\alpha\\
+\end{align}
+
+The above equations represent a system of 4 equations with 4 unknowns ($C_1-C_4)$. We find:
+\begin{align}
+C_1 &= \frac{\displaystyle 2\sin^2\alpha}{\displaystyle \pi-2\alpha-\sin2\alpha} \\
+C_2 &= 0\\
+C_3 &= 0\\
+C_4 &= -\frac{\displaystyle 2}{\displaystyle \pi-2\alpha-\sin2\alpha} 
+\end{align}
+
+The polar coordinate function and velocity become:
+\begin{align}
+f(\theta) &= C_1\sin\theta+C_4\theta\cos\theta \\
+v_r&= U_0 f'(\theta) = U_0*(C_1\cos\theta+C_4\cos\theta-C_4\theta\sin\theta\\
+v_\theta&=-U_0 f(\theta) = U_0*(-C_1\sin\theta-C_4\theta\cos\theta)
+\end{align}
+
+\subsection{Cartesian coordinate velocity}
+We need to transform the basis polar vectors $\hat{\textbf{r}}$ and $\hat{\bm{\theta}}$ into cartesian basis vectors $\hat{\textbf{i}}(x,v_x)$ and $\hat{\textbf{j}}(z,v_z)$. Let:
+\begin{align}
+\textbf{r} = x\hat{\textbf{i}}+z\hat{\textbf{j}} = r\sin\theta\hat{\textbf{i}} + r\cos\theta\hat{\textbf{j}}
+\end{align}
+The basis vectors are defined: 
+\begin{align}
+\hat{\textbf{r}} = \frac{\frac{d\textbf{r}}{dr}}{\left|\frac{d\textbf{r}}{dr}\right|} = \sin\theta\hat{\textbf{i}} + \cos\theta\hat{\textbf{j}}\\
+&\nonumber  \\
+\hat{\bm{\theta}} = \frac{\frac{d\textbf{r}}{d\theta}}{\left|\frac{d\textbf{r}}{d\theta}\right|} = \cos\theta\hat{\textbf{i}} - \sin\theta\hat{\textbf{j}}
+\end{align}
+Therefore, from equation \ref{eq:vgen}, the cartesian components of velocity are:
+\begin{align}
+v_x = v_r\sin\theta + v_\theta\cos\theta \label{eq:vx}\\
+v_z = v_r\cos\theta - v_\theta\sin\theta \label{eq:vz}
+\end{align}
+
+It can be easily shown that these expressions satisfy the continuity equation. 
+
+\subsection{Pressure}
+The pressure is obtained from equation $\nabla P = \eta_0\nabla^2\textbf{v}$. First, let's calculate some derivatives:
+\begin{align}
+&\frac{\partial r}{\partial x} = \sin\theta\\
+&\frac{\partial r}{\partial z} = \cos\theta\\
+&\frac{\partial \theta}{\partial x} = \frac{z}{x^+z^2} = \frac{\cos\theta}{r}\\
+&\frac{\partial \theta}{\partial z} = -\frac{x}{x^+z^2} = -\frac{\sin\theta}{r}\\
+&\frac{\partial v_r}{\partial r} = 0\\
+&\frac{\partial v_\theta}{\partial r} = 0\\
+&\frac{\partial v_r}{\partial \theta} = -C_1\sin\theta-2C_4\sin\theta-C_4\theta\cos\theta\\
+&\frac{\partial v_\theta}{\partial \theta} = -C_1\cos\theta-C_4\cos\theta+C_4\theta\sin\theta = -v_r
+\end{align}
+
+Also, let:
+\begin{align}
+&\frac{\partial v_x}{\partial r} = M\\
+&\frac{\partial v_x}{\partial \theta} = N\\
+\end{align}
+
+Then, the X-momentum equation becomes:
+\begin{align}
+\frac{\displaystyle \partial P}{\displaystyle \partial x}=\eta_0\left(\frac{\displaystyle \partial^2 v_x}{\displaystyle \partial x^2} + \frac{\displaystyle \partial^2 v_x}{\displaystyle \partial z^2}\right) = \eta_0\left(\frac{\partial M}{\partial r} + \frac{1}{r}M +\frac{1}{r^2}\frac{\partial N}{\partial \theta}\right) = \eta_0\left( -\frac{4C_4U_0\sin\theta\cos\theta}{r^2}\right)
+\end{align}
+after using the chain rule:
+\begin{align}
+ \frac{\partial}{\partial x}=\frac{\partial r}{\partial x}\frac{\partial}{\partial r}+\frac{\partial \theta}{\partial x}\frac{\partial}{\partial \theta}.
+ \end{align}
+The solution for pressure is given by:
+\begin{align}
+P =  \frac{2C_4\eta_0 U_0}{r}\cos\theta.
+ \end{align}
 
 %% ------------------------------------------------------------------------ %%
 %  BIBLIOGRAPHY
