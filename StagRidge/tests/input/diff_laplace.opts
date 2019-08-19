@@ -1,5 +1,5 @@
 # model options
--tests 0
+-tests 1
 -dim 0 # 0-dimensionless 1-dimensional
 -mtype 3 # model type 3-LAPLACE
 -nx 20

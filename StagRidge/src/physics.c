@@ -172,7 +172,7 @@ PetscErrorCode EnergyResidual(SolverCtx *sol, Vec xlocal, Vec pvlocal, Vec coeff
   col[1].i = i-1; col[1].j = j  ; col[1].loc = ELEMENT; col[1].c = 0; // Ti-1,j -W
   col[2].i = i+1; col[2].j = j  ; col[2].loc = ELEMENT; col[2].c = 0; // Ti+1,j -E
   col[3].i = i  ; col[3].j = j-1; col[3].loc = ELEMENT; col[3].c = 0; // Ti,j-1 -S
-  col[4].i = i+1; col[4].j = j+1; col[4].loc = ELEMENT; col[4].c = 0; // Ti,j+1 -N
+  col[4].i = i  ; col[4].j = j+1; col[4].loc = ELEMENT; col[4].c = 0; // Ti,j+1 -N
 
   // Get stencil values - advection (need to take into account outside boundaries)
   col[5].i = i-2; col[5].j = j  ; col[5].loc = ELEMENT; col[5].c = 0; // Ti-2,j -WW

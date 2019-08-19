@@ -154,7 +154,7 @@ PetscErrorCode FormFunctionHT(SNES snes, Vec x, Vec f, void *ctx)
   // Loop over elements
   for (j = sz; j<sz+nz-1; ++j) {
     for (i = sx; i<sx+nx-1; ++i) {
-      if ((j > 0) || (j < Nz-1) || (i > 0) || (i < Nx-1)) {
+      if ((j > 0) && (j < Nz-1) && (i > 0) && (i < Nx-1)) {
         // Get residual
         ierr = EnergyResidual(sol, xlocal, pvlocal, coefflocal, i, j, &fval); CHKERRQ(ierr);
 

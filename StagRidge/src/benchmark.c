@@ -10,34 +10,35 @@ PetscErrorCode DoBenchmarks(SolverCtx *sol)
 {
   DM           dmAnalytic;
   Vec          xAnalytic;
-  PetscLogDouble  start_time, end_time;
 
   PetscErrorCode ierr;
-
   PetscFunctionBegin;
 
-  // SolCx
+  // Benchmarks - should be modified
   if ((sol->grd->mtype == SOLCX) || (sol->grd->mtype == SOLCX_EFF)){
     PetscPrintf(sol->comm,"# --------------------------------------- #\n");
     PetscPrintf(sol->comm,"# SolCx Benchmark \n");
     ierr = CreateSolCx(sol,&dmAnalytic,&xAnalytic); CHKERRQ(ierr);
     ierr = DoOutput_Analytic(sol,dmAnalytic,xAnalytic); CHKERRQ(ierr);
+    ierr = CalculateErrorNorms(sol, dmAnalytic, xAnalytic); CHKERRQ(ierr);
 
   } else if (sol->grd->mtype == MOR){
     PetscPrintf(sol->comm,"# --------------------------------------- #\n");
     PetscPrintf(sol->comm,"# Corner flow (MOR) Benchmark \n");
     ierr = CreateMORAnalytic(sol,&dmAnalytic,&xAnalytic); CHKERRQ(ierr);
     ierr = DoOutput_Analytic(sol,dmAnalytic,xAnalytic); CHKERRQ(ierr);
+    ierr = CalculateErrorNorms(sol, dmAnalytic, xAnalytic); CHKERRQ(ierr);
+
+  } else if (sol->grd->mtype == LAPLACE){
+    PetscPrintf(sol->comm,"# --------------------------------------- #\n");
+    PetscPrintf(sol->comm,"# LAPLACE (diffusion) Benchmark \n");
+    ierr = CreateLaplaceAnalytic(sol,&dmAnalytic,&xAnalytic); CHKERRQ(ierr);
+    ierr = DoOutputTemp_Analytic(sol,dmAnalytic,xAnalytic); CHKERRQ(ierr);
+    ierr = CalculateErrorNormsTemp(sol, dmAnalytic, xAnalytic); CHKERRQ(ierr);
 
   } else {
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"No benchmark mtype specified!"); CHKERRQ(ierr);
   }
-
-  // Calculate norms
-  ierr = PetscTime(&start_time); CHKERRQ(ierr);
-  ierr = CalculateErrorNorms(sol, dmAnalytic, xAnalytic); CHKERRQ(ierr);
-  ierr = PetscTime(&end_time); CHKERRQ(ierr);
-  PetscPrintf(PETSC_COMM_WORLD,"# Time: %g (sec) \n", end_time - start_time);
 
   // Free memory
   ierr = DMDestroy(&dmAnalytic); CHKERRQ(ierr);
@@ -542,5 +543,181 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
   *_da = da;
   *_x  = x;
   
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// Create LAPLACE (diffusion) analytical solution - TEMP
+// ---------------------------------------
+PetscErrorCode CreateLaplaceAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
+{
+  PetscInt       i, j, sx, sz, nx, nz, idx;
+  PetscScalar    ***xx;
+  DMStagStencil  point;
+  PetscScalar    xp, zp, A;
+  DM             da, cda;
+  Vec            x, xlocal;
+  Vec            coords;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  // Get parameters
+  A = 1.0/PetscSinhReal(PETSC_PI);
+  
+  // Create identical DM as sol->dmHT for analytical solution
+  ierr = DMStagCreateCompatibleDMStag(sol->dmHT, sol->grd->dofHT0, sol->grd->dofHT1, sol->grd->dofHT2, 0, &da); CHKERRQ(ierr);
+  ierr = DMSetUp(da); CHKERRQ(ierr);
+  
+  // Set coordinates for new DM 
+  ierr = DMStagSetUniformCoordinatesExplicit(da, sol->grd->xmin, sol->grd->xmax, sol->grd->zmin, sol->grd->zmax, 0.0, 0.0); CHKERRQ(ierr);
+  
+  // Create local and global vector associated with DM
+  ierr = DMCreateGlobalVector(da, &x     ); CHKERRQ(ierr);
+  ierr = DMCreateLocalVector (da, &xlocal); CHKERRQ(ierr);
+
+  // Get array associated with vector
+  ierr = DMStagVecGetArrayDOF(da,xlocal,&xx); CHKERRQ(ierr);
+
+  // Get domain corners
+  ierr = DMStagGetCorners(da, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  
+  // Get coordinates
+  ierr = DMGetCoordinatesLocal(da, &coords); CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM    (da, &cda   ); CHKERRQ(ierr);
+
+  // Loop over elements and assign constraints
+  for (j = sz; j<sz+nz; ++j) {
+    for (i = sx; i<sx+nx; ++i) {
+
+      // Constrain ELEMENT values for the Laplace equation (nabla^2 u = 0)
+      // Get coordinates and stencil values
+      point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0; 
+      ierr = GetCoordinatesStencil(cda, coords, 1, &point, &xp, &zp); CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(da, point.loc, point.c, &idx);     CHKERRQ(ierr);
+
+      // Analytical solution
+      xx[j][i][idx] = A*PetscSinScalar(PETSC_PI*xp)*PetscSinhReal(PETSC_PI*zp);
+    }
+  }
+
+  // Restore array
+  ierr = DMStagVecRestoreArrayDOF(da,xlocal,&xx); CHKERRQ(ierr);
+
+  // Map local to global
+  ierr = DMLocalToGlobalBegin(da,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (da,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+
+  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
+
+  // Assign pointers
+  *_da = da;
+  *_x  = x;
+  
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// DoOutputTemp_Analytic
+// ---------------------------------------
+PetscErrorCode DoOutputTemp_Analytic(SolverCtx *sol, DM da,Vec x)
+{
+  DM             daT;
+  Vec            vecT;
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+
+  // Create individual DMDAs for sub-grids of our DMStag objects
+  ierr = DMStagVecSplitToDMDA(da,x,ELEMENT, 0,&daT,&vecT); CHKERRQ(ierr);
+  ierr = PetscObjectSetName  ((PetscObject)vecT,"Temperature");         CHKERRQ(ierr);
+
+  // Dump element-based fields to a .vtr file
+  {
+    PetscViewer viewer;
+
+    // Warning: is being output as Point Data instead of Cell Data - the grid is shifted to be in the center points.
+    ierr = PetscViewerVTKOpen(PetscObjectComm((PetscObject)daT),"analytic_solution_temp.vtr",FILE_MODE_WRITE,&viewer); CHKERRQ(ierr);
+    ierr = VecView(vecT,     viewer); CHKERRQ(ierr);
+    
+    // Free memory
+    ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+  }
+
+  // Destroy DMDAs and Vecs
+  ierr = VecDestroy(&vecT  ); CHKERRQ(ierr);
+  ierr = DMDestroy(&daT    ); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// CalculateErrorNormsTemp
+// ---------------------------------------
+PetscErrorCode CalculateErrorNormsTemp(SolverCtx *sol,DM da,Vec x)
+{
+  PetscInt       i, j, sx, sz, nx, nz;
+  PetscScalar    xx, xa, dx, dz, dv;
+  PetscScalar    nrmT, gnrmT;
+  Vec            xlocal, xalocal;
+
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  // Assign pointers and other variables
+  dx = sol->grd->dx;
+  dz = sol->grd->dz;
+
+  // Get domain corners
+  ierr = DMStagGetCorners(da, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+
+  // Map global vectors to local domain
+  ierr = DMGetLocalVector(sol->dmHT, &xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (sol->dmHT, sol->T, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(da, &xalocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (da, x, INSERT_VALUES, xalocal); CHKERRQ(ierr);
+
+  // Initialize norm
+  nrmT = 0.0;
+  dv = dx*dz;
+
+  // Loop over local domain to calculate ELEMENT errors
+  for (j = sz; j < sz+nz; ++j) {
+    for (i = sx; i <sx+nx; ++i) {
+      PetscScalar    Te;
+      DMStagStencil  col;
+      
+      // Get stencil values
+      col.i = i; col.j = j; col.loc = ELEMENT; col.c = 0; // T
+
+      // Get numerical solution
+      ierr = DMStagVecGetValuesStencil(sol->dmHT, xlocal, 1, &col, &xx); CHKERRQ(ierr);
+
+      // Get analytical solution
+      ierr = DMStagVecGetValuesStencil(da, xalocal, 1, &col, &xa); CHKERRQ(ierr);
+
+      // Calculate errors per element
+      Te = PetscAbsScalar(xx-xa);
+
+      // Calculate norms as in Duretz et al. 2011
+      nrmT += Te*dv;
+    }
+  }
+
+  // Collect data 
+  ierr = MPI_Allreduce(&nrmT, &gnrmT, 1, MPI_DOUBLE, MPI_SUM, sol->comm); CHKERRQ(ierr);
+
+  // Restore arrays and vectors
+  ierr = DMRestoreLocalVector(sol->dmHT, &xlocal ); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(da,        &xalocal); CHKERRQ(ierr);
+
+  // Print information
+  PetscPrintf(sol->comm,"# --------------------------------------- #\n");
+  PetscPrintf(sol->comm,"# NORMS: \n");
+  PetscPrintf(sol->comm,"# Temperature: norm1 = %1.12e\n",gnrmT);
+  PetscPrintf(sol->comm,"# Grid info: hx = %1.12e hz = %1.12e \n",dx,dz);
+
   PetscFunctionReturn(0);
 }

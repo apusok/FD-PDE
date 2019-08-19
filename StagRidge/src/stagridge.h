@@ -168,6 +168,10 @@ PetscErrorCode CreateMORAnalytic(SolverCtx*,DM*,Vec*);
 PetscErrorCode CalculateErrorNorms(SolverCtx*,DM,Vec);
 PetscErrorCode DoOutput_Analytic(SolverCtx*,DM,Vec);
 
+PetscErrorCode CreateLaplaceAnalytic(SolverCtx*,DM*,Vec*);
+PetscErrorCode DoOutputTemp_Analytic(SolverCtx*,DM,Vec);
+PetscErrorCode CalculateErrorNormsTemp(SolverCtx*,DM,Vec);
+
 // advection
 PetscErrorCode AdvectionResidual(SolverCtx*, PetscScalar[], PetscScalar[], PetscScalar*);
 PetscScalar UpwindAdvection(PetscScalar[], PetscScalar[], PetscScalar, PetscScalar);

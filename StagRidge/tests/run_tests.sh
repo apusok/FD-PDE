@@ -8,3 +8,5 @@ mkdir -p ./output
 python ./python/test_solcx.py
 python ./python/test_solcx_etaeff.py
 python ./python/test_cornerflow_mor.py
+
+python ./python/test_laplace.py

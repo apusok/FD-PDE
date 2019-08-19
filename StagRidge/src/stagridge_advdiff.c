@@ -18,7 +18,7 @@ int main (int argc,char **argv)
 {
   PetscErrorCode  ierr;
   SolverCtx       *sol;
-  SNES            snes, snesT;
+  SNES            snesT;
   PetscLogDouble  start_time, end_time;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return ierr;
@@ -139,6 +139,12 @@ int main (int argc,char **argv)
 
   //ierr = SNESSetOptionsPrefix(snesT,"ht"); CHKERRQ(ierr);
 
+  // Get default info on convergence
+  ierr = PetscOptionsSetValue(NULL, "-snes_monitor",          ""); CHKERRQ(ierr);
+  ierr = PetscOptionsSetValue(NULL, "-ksp_monitor",           ""); CHKERRQ(ierr);
+  ierr = PetscOptionsSetValue(NULL, "-snes_converged_reason", ""); CHKERRQ(ierr);
+  ierr = PetscOptionsSetValue(NULL, "-ksp_converged_reason",  ""); CHKERRQ(ierr);
+
   // overwrite default options from command line
   ierr = SNESSetFromOptions(snesT); CHKERRQ(ierr);
   
@@ -184,7 +190,7 @@ int main (int argc,char **argv)
   ierr = DMDestroy(&sol->dmCoeff); CHKERRQ(ierr);
   
   // snes
-  ierr = SNESDestroy(&snes); CHKERRQ(ierr);
+  ierr = SNESDestroy(&snesT); CHKERRQ(ierr);
 
   // petscbag
   ierr = PetscBagDestroy(&sol->bag); CHKERRQ(ierr);

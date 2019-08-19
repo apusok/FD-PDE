@@ -255,7 +255,7 @@ PetscErrorCode FormInitialGuess(SolverCtx *sol)
 // ---------------------------------------
 PetscErrorCode FormInitialGuessTemp(SolverCtx *sol)
 {
-  PetscScalar    pval = -0.00001;
+  PetscScalar    pval = 1.0;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
