@@ -110,3 +110,80 @@ PetscErrorCode FormFunctionPV(SNES snes, Vec x, Vec f, void *ctx)
   
   PetscFunctionReturn(0);
 }
+
+// ---------------------------------------
+// FormFunctionHT
+// ---------------------------------------
+PetscErrorCode FormFunctionHT(SNES snes, Vec x, Vec f, void *ctx)
+{
+  SolverCtx      *sol = (SolverCtx*) ctx;
+  PetscInt       i, j, Nx, Nz, sx, sz, nx, nz, idx;
+  Vec            xlocal, flocal, coefflocal, pvlocal;
+  PetscScalar    ***ff, fval;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  // Assign pointers and other variables
+  Nx = sol->grd->nx;
+  Nz = sol->grd->nz;
+
+  // Get local domain
+  ierr = DMStagGetCorners(sol->dmHT, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+
+  // Map global vectors to local domain
+  ierr = DMGetLocalVector(sol->dmHT, &xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (sol->dmHT, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+
+  // Map global vectors to local domain
+  ierr = DMCreateLocalVector(sol->dmHT, &flocal); CHKERRQ(ierr);
+
+  // Map coefficient + stokes data to local domain
+  ierr = DMGetLocalVector(sol->dmCoeff, &coefflocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (sol->dmCoeff, sol->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(sol->dmPV, &pvlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (sol->dmPV, sol->x, INSERT_VALUES, pvlocal); CHKERRQ(ierr);
+
+  // Get residual array
+  ierr = DMStagVecGetArrayDOF(sol->dmHT, flocal, &ff); CHKERRQ(ierr);
+
+  // ---------------------------------------
+  // Interior domain
+  // ---------------------------------------
+  // Loop over elements
+  for (j = sz; j<sz+nz-1; ++j) {
+    for (i = sx; i<sx+nx-1; ++i) {
+      if ((j > 0) || (j < Nz-1) || (i > 0) || (i < Nx-1)) {
+        // Get residual
+        ierr = EnergyResidual(sol, xlocal, pvlocal, coefflocal, i, j, &fval); CHKERRQ(ierr);
+
+        // Set residual in array
+        ierr = DMStagGetLocationSlot(sol->dmHT, ELEMENT, 0, &idx); CHKERRQ(ierr);
+        ff[j][i][idx] = fval;
+      }
+    }
+  }
+
+  // ---------------------------------------
+  // Boundary conditions
+  // ---------------------------------------
+  ierr = BoundaryConditionsTemp(sol, xlocal, ff); CHKERRQ(ierr);
+
+  // Restore arrays, local vectors
+  ierr = DMStagVecRestoreArrayDOF(sol->dmHT,flocal,&ff); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(sol->dmHT,   &xlocal    ); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(sol->dmCoeff,&coefflocal); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(sol->dmPV,   &pvlocal   ); CHKERRQ(ierr);
+
+  // ---------------------------------------
+  // Return and clean up
+  // ---------------------------------------
+  // Map local to global
+  ierr = DMLocalToGlobalBegin(sol->dmHT,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (sol->dmHT,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
+
+  ierr = VecDestroy(&flocal); CHKERRQ(ierr);
+  
+  PetscFunctionReturn(0);
+}

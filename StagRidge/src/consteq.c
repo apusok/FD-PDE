@@ -274,3 +274,18 @@ PetscErrorCode CalcEffViscosity_SolCx(SolverCtx *sol, PetscInt i, PetscInt j, en
 
   PetscFunctionReturn(0);
 }
+
+// ---------------------------------------
+// CalcConductivity_k
+// ---------------------------------------
+PetscErrorCode CalcConductivity_k(SolverCtx *sol, PetscScalar *keff)
+{
+  PetscScalar k;
+  PetscFunctionBegin;
+  
+  // Conductivity is defined on edges (should be defined for variable conductivity)
+  k = sol->usr->k0;
+  *keff = k;
+
+  PetscFunctionReturn(0);
+}

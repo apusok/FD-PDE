@@ -96,7 +96,6 @@ PetscErrorCode ZMomentumResidual(SolverCtx *sol, Vec xlocal, Vec coefflocal, Pet
   col[9].i  = i  ; col[9].j  = j-1; col[9].loc  = ELEMENT; col[9].c   = 0; // P (i  ,j-1)
   col[10].i = i  ; col[10].j = j  ; col[10].loc = ELEMENT; col[10].c  = 0; // P (i  ,j  )
   
-
   // For boundaries copy the missing stencil entry with the main DOF
   if (loctype == BCLEFT ) {
     // Free slip
@@ -124,6 +123,87 @@ PetscErrorCode ZMomentumResidual(SolverCtx *sol, Vec xlocal, Vec coefflocal, Pet
 
   *ff = ffi;
 
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// EnergyResidual
+// ---------------------------------------
+PetscErrorCode EnergyResidual(SolverCtx *sol, Vec xlocal, Vec pvlocal, Vec coefflocal, PetscInt i, PetscInt j, PetscScalar *ff)
+{
+  PetscScalar    ffi;
+  PetscInt       Nx, Nz;
+  PetscScalar    xx[9], v[5], vx[4], dx, dz, rho[2];
+  PetscScalar    kLeft, kRight, kUp, kDown;
+  PetscScalar    dTdx, dTdz, diff, adv, rhocp;
+  DMStagStencil  col[9];
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  // Get variables
+  Nx = sol->grd->nx;
+  Nz = sol->grd->nz;
+  dx = sol->grd->dx;
+  dz = sol->grd->dz;
+
+  // Get coefficients - density values
+  col[0].i = i; col[0].j = j; col[0].loc = UP;   col[0].c = 0;
+  col[1].i = i; col[1].j = j; col[1].loc = DOWN; col[1].c = 0;
+
+  ierr = DMStagVecGetValuesStencil(sol->dmCoeff, coefflocal, 2, col, rho); CHKERRQ(ierr);
+  rhocp = sol->usr->cp * (rho[0]+rho[1])*0.5;
+
+  // Get velocity for advection
+  col[0].i = i; col[0].j = j; col[0].loc = LEFT ; col[0].c = 0; //vW
+  col[1].i = i; col[1].j = j; col[1].loc = RIGHT; col[1].c = 0; //vE
+  col[2].i = i; col[2].j = j; col[2].loc = DOWN;  col[2].c = 0; //vS
+  col[3].i = i; col[3].j = j; col[3].loc = UP;    col[3].c = 0; //vN
+
+  ierr = DMStagVecGetValuesStencil(sol->dmPV, pvlocal, 4, col, vx); CHKERRQ(ierr);
+  v[0] = 0.0;
+  v[1] = vx[0]; //vW
+  v[2] = vx[1]; //vE
+  v[3] = vx[2]; //vS
+  v[4] = vx[3]; //vN
+
+  // Get stencil values - diffusion
+  col[0].i = i  ; col[0].j = j  ; col[0].loc = ELEMENT; col[0].c = 0; // Ti,j -C
+  col[1].i = i-1; col[1].j = j  ; col[1].loc = ELEMENT; col[1].c = 0; // Ti-1,j -W
+  col[2].i = i+1; col[2].j = j  ; col[2].loc = ELEMENT; col[2].c = 0; // Ti+1,j -E
+  col[3].i = i  ; col[3].j = j-1; col[3].loc = ELEMENT; col[3].c = 0; // Ti,j-1 -S
+  col[4].i = i+1; col[4].j = j+1; col[4].loc = ELEMENT; col[4].c = 0; // Ti,j+1 -N
+
+  // Get stencil values - advection (need to take into account outside boundaries)
+  col[5].i = i-2; col[5].j = j  ; col[5].loc = ELEMENT; col[5].c = 0; // Ti-2,j -WW
+  col[6].i = i+2; col[6].j = j  ; col[6].loc = ELEMENT; col[6].c = 0; // Ti+2,j -EE
+  col[7].i = i  ; col[7].j = j-2; col[7].loc = ELEMENT; col[7].c = 0; // Ti,j-2 -SS
+  col[8].i = i  ; col[8].j = j+2; col[8].loc = ELEMENT; col[8].c = 0; // Ti,j+2 -NN
+
+  if (i == 1) col[5] = col[1];
+  if (j == 1) col[7] = col[3];
+  if (i == Nx-1) col[6] = col[2];
+  if (j == Nz-1) col[8] = col[4];
+
+  // Get values
+  ierr = DMStagVecGetValuesStencil(sol->dmHT, xlocal, 9, col, xx); CHKERRQ(ierr);
+
+  // Calculate diffusivity 
+  ierr = CalcConductivity_k(sol, &kLeft ); CHKERRQ(ierr);
+  ierr = CalcConductivity_k(sol, &kRight); CHKERRQ(ierr);
+  ierr = CalcConductivity_k(sol, &kUp   ); CHKERRQ(ierr);
+  ierr = CalcConductivity_k(sol, &kDown ); CHKERRQ(ierr);
+
+  // Calculate diff residual
+  dTdx = kRight*(xx[2]-xx[0])/dx - kLeft*(xx[0]-xx[1])/dx;
+  dTdz = kUp   *(xx[4]-xx[0])/dz - kDown*(xx[0]-xx[3])/dz;
+  diff = dTdx/dx + dTdz/dz;
+
+  // Calculate diffadv residual
+  ierr = AdvectionResidual(sol,v,xx,&adv); CHKERRQ(ierr);
+  ffi  = diff - adv*rhocp;
+
+  *ff = ffi;
   PetscFunctionReturn(0);
 }
 

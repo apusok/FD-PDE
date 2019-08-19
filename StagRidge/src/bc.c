@@ -296,3 +296,110 @@ PetscErrorCode BoundaryConditions_MORAnalytic(SolverCtx *sol, Vec xlocal, PetscS
 
   PetscFunctionReturn(0);
 }
+
+// ---------------------------------------
+// BoundaryConditionsTemp
+// ---------------------------------------
+PetscErrorCode BoundaryConditionsTemp(SolverCtx *sol, Vec xlocal, PetscScalar ***ff)
+{
+  PetscInt       i, j, idx;
+  PetscInt       Nx, Nz, nx, nz, sx, sz;
+  PetscScalar    fval, xx, fzero = 0.0;
+  Vec            coordLocal;
+  DM             dmCoord;
+  DMStagStencil  point;
+  PetscErrorCode ierr;
+  PetscFunctionBeginUser;
+
+  // Assign pointers and other variables
+  Nx = sol->grd->nx;
+  Nz = sol->grd->nz;
+
+  // Get local domain
+  ierr = DMStagGetCorners(sol->dmHT, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+
+  // Get coordinates
+  ierr = DMGetCoordinatesLocal(sol->dmHT, &coordLocal); CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM    (sol->dmHT, &dmCoord   ); CHKERRQ(ierr);
+
+  // Dirichlet BC
+  // LEFT
+  i = sx;
+  if (i == 0) {
+    for (j = sz; j<sz+nz; ++j) {
+      // Get stencil values
+      point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0;
+      ierr = DMStagVecGetValuesStencil(sol->dmHT, xlocal, 1, &point, &xx); CHKERRQ(ierr);
+
+      // Calculate residual
+      fval = xx - fzero;
+      
+      // Set residual in array
+      ierr = DMStagGetLocationSlot(sol->dmHT, ELEMENT, 0, &idx); CHKERRQ(ierr);
+      ff[j][i][idx] = fval;
+    }
+  }
+
+  // RIGHT
+  i = sx+nx-1;
+  if (i == Nx-1) {
+    for (j = sz; j<sz+nz; ++j) {
+      // Get stencil values
+      point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0;
+      ierr = DMStagVecGetValuesStencil(sol->dmHT, xlocal, 1, &point, &xx); CHKERRQ(ierr);
+
+      // Calculate residual
+      fval = xx - fzero;
+      
+      // Set residual in array
+      ierr = DMStagGetLocationSlot(sol->dmHT, ELEMENT, 0, &idx); CHKERRQ(ierr);
+      ff[j][i][idx] = fval;
+    }
+  }
+
+// DOWN
+  j = sz;
+  if (j == 0) {
+    for (i = sx; i<sx+nx; ++i) {
+      // Get stencil values
+      point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0;
+      ierr = DMStagVecGetValuesStencil(sol->dmHT, xlocal, 1, &point, &xx); CHKERRQ(ierr);
+
+      // Calculate residual
+      fval = xx - fzero;
+      
+      // Set residual in array
+      ierr = DMStagGetLocationSlot(sol->dmHT, ELEMENT, 0, &idx); CHKERRQ(ierr);
+      ff[j][i][idx] = fval;
+    }
+  }
+
+  // UP - constant value
+  j = sz+nz-1;
+  if (j == Nz-1) {
+    for (i = sx; i<sx+nx; ++i) {
+      // Get stencil values
+      point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0;
+      ierr = DMStagVecGetValuesStencil(sol->dmHT, xlocal, 1, &point, &xx); CHKERRQ(ierr);
+
+      // Calculate residual
+      fval = xx - fzero;
+
+      // Analytical solution
+      if (sol->grd->mtype == LAPLACE){
+        PetscScalar a, xp, zp;
+
+        // Get coordinate
+        ierr = GetCoordinatesStencil(dmCoord, coordLocal, 1, &point, &xp, &zp); CHKERRQ(ierr);
+        a = PetscSinScalar(PETSC_PI*xp);
+        fval = xx - a;
+      }
+      
+      // Set residual in array
+      ierr = DMStagGetLocationSlot(sol->dmHT, ELEMENT, 0, &idx); CHKERRQ(ierr);
+      ff[j][i][idx] = fval;
+    }
+  }
+
+  PetscFunctionReturn(0);
+}

@@ -40,7 +40,14 @@ enum BCType {
 enum ModelType {
   SOLCX, 
   SOLCX_EFF, 
-  MOR
+  MOR,
+  LAPLACE
+};
+
+// define names for standard models
+enum ADVType {
+  UPWIND, 
+  FROMM
 };
 
 // ---------------------------------------
@@ -55,8 +62,9 @@ typedef struct {
   PetscScalar    solcx_eta0, solcx_eta1;
   PetscScalar    mor_C1, mor_C4, mor_sina, mor_radalpha;
   PetscScalar    g, u0, rangle;
+  PetscScalar    k0, cp;
   PetscInt       bcleft, bcright, bcup, bcdown;
-  PetscInt       mtype, tests, dim;
+  PetscInt       mtype, tests, dim, advtype;
   char           fname_out[FNAME_LENGTH]; 
   char           fname_in [FNAME_LENGTH];  
 } UsrData;
@@ -66,6 +74,7 @@ typedef struct {
   // stencils: dof0 per vertex, dof1 per edge, dof1 per face/element
   PetscInt dofPV0, dofPV1, dofPV2;
   PetscInt dofCf0, dofCf1, dofCf2;
+  PetscInt dofHT0, dofHT1, dofHT2;
   PetscInt stencilWidth;
 
   // domain parameters
@@ -73,6 +82,7 @@ typedef struct {
   PetscScalar    dx, dz;
   PetscScalar    xmin, zmin, xmax, zmax;
   enum BCType    bcleft, bcright, bcup, bcdown;
+  enum ADVType   advtype;
   enum ModelType mtype;
   PetscInt       dofV, dofP;
 } GridData;
@@ -91,10 +101,11 @@ typedef struct {
   UsrData      *usr;
   GridData     *grd;
   ScalData     *scal;
-  DM           dmPV, dmCoeff;
+  DM           dmPV, dmHT, dmCoeff;
   Vec          coeff;
   Vec          r, x, xguess;
-  Mat          J;
+  Vec          Tr, T, Tguess;
+  Mat          J, JT;
   PetscScalar  Pdiff, Pdisl;
 } SolverCtx;
 
@@ -109,6 +120,9 @@ PetscErrorCode InputPrintData (SolverCtx*);
 PetscErrorCode InitializeModel(SolverCtx*);
 PetscErrorCode InitializeModel_SolCx(SolverCtx*);
 PetscErrorCode InitializeModel_MOR(SolverCtx*);
+PetscErrorCode InitializeModelTemp(SolverCtx*);
+PetscErrorCode InitializeModelTemp_Rho(SolverCtx*);
+PetscErrorCode InitializeModelTemp_Vel(SolverCtx*);
 
 // solver
 PetscErrorCode CreateSystem(SolverCtx*);
@@ -116,25 +130,36 @@ PetscErrorCode JacobianMatrixPreallocation(SolverCtx*);
 PetscErrorCode FormInitialGuess(SolverCtx*);
 PetscErrorCode SolveSystem(SNES, SolverCtx*);
 
+PetscErrorCode CreateSystemTemp(SolverCtx*);
+PetscErrorCode FormInitialGuessTemp(SolverCtx*);
+PetscErrorCode JacobianMatrixPreallocationTemp(SolverCtx*);
+PetscErrorCode SolveSystemTemp(SNES, SolverCtx*);
+
 // residual calculations
 PetscErrorCode FormFunctionPV(SNES, Vec, Vec, void*); // global to local
+PetscErrorCode FormFunctionHT(SNES, Vec, Vec, void*);
 
 // boundary conditions
 PetscErrorCode BoundaryConditions_General(SolverCtx*, Vec, Vec, PetscScalar***);
 PetscErrorCode BoundaryConditions_MORAnalytic(SolverCtx*, Vec, PetscScalar***);
+PetscErrorCode BoundaryConditionsTemp(SolverCtx*, Vec, PetscScalar***);
 
 // physics - governing equations
 PetscErrorCode XMomentumResidual(SolverCtx*, Vec, PetscInt, PetscInt, enum LocationType, PetscScalar*);
 PetscErrorCode ZMomentumResidual(SolverCtx*, Vec, Vec, PetscInt, PetscInt, enum LocationType, PetscScalar*);
 PetscErrorCode XMomentumStencil(PetscInt, PetscInt, PetscInt, PetscInt, DMStagStencil*);
 PetscErrorCode ZMomentumStencil(PetscInt, PetscInt, PetscInt, PetscInt, DMStagStencil*);
+PetscErrorCode EnergyResidual(SolverCtx*, Vec, Vec, Vec, PetscInt, PetscInt, PetscScalar*);
+
 
 // constitutive equations
 PetscErrorCode CalcEffViscosity(SolverCtx*, Vec, PetscInt, PetscInt, enum LocationType, PetscScalar*);
 PetscErrorCode CalcEffViscosity_SolCx(SolverCtx*, PetscInt, PetscInt, enum LocationType, PetscScalar*);
+PetscErrorCode CalcConductivity_k(SolverCtx*, PetscScalar*);
 
 // output
 PetscErrorCode DoOutput(SolverCtx*);
+PetscErrorCode DoOutputTemp(SolverCtx*);
 
 // benchmarks
 PetscErrorCode DoBenchmarks(SolverCtx*);
@@ -142,6 +167,11 @@ PetscErrorCode CreateSolCx(SolverCtx*,DM*,Vec*);
 PetscErrorCode CreateMORAnalytic(SolverCtx*,DM*,Vec*);
 PetscErrorCode CalculateErrorNorms(SolverCtx*,DM,Vec);
 PetscErrorCode DoOutput_Analytic(SolverCtx*,DM,Vec);
+
+// advection
+PetscErrorCode AdvectionResidual(SolverCtx*, PetscScalar[], PetscScalar[], PetscScalar*);
+PetscScalar UpwindAdvection(PetscScalar[], PetscScalar[], PetscScalar, PetscScalar);
+PetscScalar FrommAdvection(PetscScalar[], PetscScalar[], PetscScalar, PetscScalar);
 
 // utils
 PetscErrorCode StrCreateConcatenate(const char[], const char[], char**);

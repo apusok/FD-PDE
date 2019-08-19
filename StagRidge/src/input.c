@@ -59,7 +59,10 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   ierr = PetscBagRegisterInt(bag, &usr->dim, 0, "dim", "Dimensions: 0-dimensionless 1-dimensional"); CHKERRQ(ierr);
 
   // Model type
-  ierr = PetscBagRegisterInt(bag, &usr->mtype, 0, "mtype", "Model type: 0-SOLCX, 1-SOLCX_EFF, 2-MOR_ANALYTIC"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &usr->mtype, 0, "mtype", "Model type: 0-SOLCX, 1-SOLCX_EFF, 2-MOR_ANALYTIC, 3-LAPLACE"); CHKERRQ(ierr);
+
+  // Advection type
+  ierr = PetscBagRegisterInt(bag, &usr->advtype, 0, "advtype", "Grid-Advection type: 0-UPWIND, 1-FROMM"); CHKERRQ(ierr);
 
   // benchmarks
   ierr = PetscBagRegisterInt(bag, &usr->tests, 0, "tests", "Test benchmarks: 0 - NO, 1 - YES"); CHKERRQ(ierr);
@@ -68,6 +71,10 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   ierr = PetscBagRegisterScalar(bag, &usr->solcx_eta0, 1.0, "solcx_eta0", "SolCx benchmark: eta0"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &usr->solcx_eta1, 1.0, "solcx_eta1", "SolCx benchmark: eta1"); CHKERRQ(ierr);
 
+  // Temperature
+  ierr = PetscBagRegisterScalar(bag, &usr->k0, 1e-2, "k0", "Reference thermal conductivity [W/m/K]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &usr->cp, 1e3, "cp", "Reference heat capacity [J/kg/K]");        CHKERRQ(ierr);
+  
   // Boundary conditions
   ierr = PetscBagRegisterInt(bag, &usr->bcleft, 0, "bcleft", "LEFT Boundary condition type: 0-FREE_SLIP, 1-NO_SLIP" ); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &usr->bcright,0, "bcright","RIGHT Boundary condition type: 0-FREE_SLIP, 1-NO_SLIP"); CHKERRQ(ierr);
@@ -139,7 +146,8 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   grd->dz   = (grd->zmax - grd->zmin)/(grd->nz);
 
   // stencil 
-  grd->dofPV0 = 0; grd->dofPV1 = 1; grd->dofPV2 = 1; // Vx, Vz, P
+  grd->dofPV0 = 0; grd->dofPV1 = 1; grd->dofPV2 = 1; // Vx, Vz, P element
+  grd->dofHT0 = 0; grd->dofHT1 = 0; grd->dofHT2 = 1; // T element
   grd->dofCf0 = 0; grd->dofCf1 = 1; grd->dofCf2 = 1; // rho_element, edges
   grd->stencilWidth = 1;
 
@@ -157,7 +165,12 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   if (usr->mtype == 0) grd->mtype = SOLCX;
   if (usr->mtype == 1) grd->mtype = SOLCX_EFF;
   if (usr->mtype == 2) grd->mtype = MOR;
+  if (usr->mtype == 3) grd->mtype = LAPLACE;
   
+  // grid-advection type
+  if (usr->advtype == 0) grd->advtype = UPWIND;
+  if (usr->advtype == 1) grd->advtype = FROMM;
+
   // return pointers
   sol->scal = scal;
   sol->grd  = grd;

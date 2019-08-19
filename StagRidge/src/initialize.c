@@ -6,7 +6,6 @@
 PetscErrorCode InitializeModel(SolverCtx *sol)
 {
   PetscErrorCode ierr;
-
   PetscFunctionBeginUser;
   
   // Different model setups
@@ -18,6 +17,7 @@ PetscErrorCode InitializeModel(SolverCtx *sol)
 
   PetscFunctionReturn(0);
 }
+
 // ---------------------------------------
 // InitializeModel_SolCx - density defined on Vz-edges
 // ---------------------------------------
@@ -119,6 +119,112 @@ PetscErrorCode InitializeModel_MOR(SolverCtx *sol)
   // Vector Assembly and Restore local vector
   ierr = VecAssemblyBegin(sol->coeff); CHKERRQ(ierr);
   ierr = VecAssemblyEnd  (sol->coeff); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// InitializeModelTemp
+// ---------------------------------------
+PetscErrorCode InitializeModelTemp(SolverCtx *sol)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBeginUser;
+  
+  // Velocity vector sol->x
+  ierr = InitializeModelTemp_Vel(sol); CHKERRQ(ierr);
+
+  // Density
+  ierr = InitializeModelTemp_Rho(sol); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// InitializeModelTemp_Rho
+// ---------------------------------------
+PetscErrorCode InitializeModelTemp_Rho(SolverCtx *sol)
+{
+  PetscInt       i, j, sx, sz, nx, nz;
+  Vec            coordLocal;
+  DM             dmCoord;
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  
+  // Access vector with density
+  ierr = DMCreateGlobalVector(sol->dmCoeff, &sol->coeff); CHKERRQ(ierr);
+  
+  // Get domain corners
+  ierr = DMStagGetCorners(sol->dmCoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  
+  // Get coordinates
+  ierr = DMGetCoordinatesLocal(sol->dmCoeff, &coordLocal); CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM    (sol->dmCoeff, &dmCoord   ); CHKERRQ(ierr);
+  
+  // Loop over local domain
+  for (j = sz; j < sz+nz; ++j) {
+    for (i = sx; i <sx+nx; ++i) {
+
+      DMStagStencil point[5];
+      PetscScalar   rho[5];
+      
+      // Constant density (zero)
+      rho[0] = sol->scal->rho0; rho[1] = rho[0]; rho[2] = rho[0]; rho[3] = rho[0]; rho[4] = rho[0];
+
+      // Set density value - ELEMENT
+      point[0].i = i; point[0].j = j; point[0].loc = ELEMENT; point[0].c = 0;
+      point[1] = point[0]; point[1].loc = DOWN;
+      point[2] = point[0]; point[2].loc = UP;
+      point[3] = point[0]; point[3].loc = LEFT;
+      point[4] = point[0]; point[4].loc = RIGHT;
+      ierr = DMStagVecSetValuesStencil(sol->dmCoeff,sol->coeff,5,point,rho,INSERT_VALUES); CHKERRQ(ierr);
+    }
+  }
+  
+  // Vector Assembly and Restore local vector
+  ierr = VecAssemblyBegin(sol->coeff); CHKERRQ(ierr);
+  ierr = VecAssemblyEnd  (sol->coeff); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// InitializeModelTemp_Vel
+// ---------------------------------------
+PetscErrorCode InitializeModelTemp_Vel(SolverCtx *sol)
+{
+  PetscInt       i, j, sx, sz, nx, nz;
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  
+  // Get domain corners
+  ierr = DMStagGetCorners(sol->dmPV, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+    
+  // Loop over local domain
+  for (j = sz; j < sz+nz; ++j) {
+    for (i = sx; i <sx+nx; ++i) {
+
+      DMStagStencil point[5];
+      PetscScalar   val[5];
+      
+      // Constant velocity (zero) - modify if necessary
+      val[0] = 0.0; val[1] = val[0]; val[2] = val[0]; val[3] = val[0]; val[4] = val[0];
+
+      // Set density value - ELEMENT
+      point[0].i = i; point[0].j = j; point[0].loc = ELEMENT; point[0].c = 0;
+      point[1] = point[0]; point[1].loc = DOWN;
+      point[2] = point[0]; point[2].loc = UP;
+      point[3] = point[0]; point[3].loc = LEFT;
+      point[4] = point[0]; point[4].loc = RIGHT;
+      ierr = DMStagVecSetValuesStencil(sol->dmPV,sol->x,5,point,val,INSERT_VALUES); CHKERRQ(ierr);
+    }
+  }
+  
+  // Vector Assembly and Restore local vector
+  ierr = VecAssemblyBegin(sol->x); CHKERRQ(ierr);
+  ierr = VecAssemblyEnd  (sol->x); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
