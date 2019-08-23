@@ -190,7 +190,7 @@ PetscErrorCode InitializeModelTemp_Rho(SolverCtx *sol)
 }
 
 // ---------------------------------------
-// InitializeModelTemp_Vel
+// InitializeModelTemp_Vel - initialize Stokes solution (velocity and pressure)
 // ---------------------------------------
 PetscErrorCode InitializeModelTemp_Vel(SolverCtx *sol)
 {
@@ -210,7 +210,18 @@ PetscErrorCode InitializeModelTemp_Vel(SolverCtx *sol)
       PetscScalar   val[5];
       
       // Constant velocity (zero) - modify if necessary
-      val[0] = 0.0; val[1] = val[0]; val[2] = val[0]; val[3] = val[0]; val[4] = val[0];
+      val[0] = 0.0; // P
+
+      // for advdiff_analytic vx = 0, vz = 1
+      if (sol->grd->mtype==ADVDIFF_ANALYTIC) {
+        val[1] = 1.0; // vz
+        val[2] = 1.0; // vz
+      } else {
+        val[1] = 0.0; // vz
+        val[2] = 0.0; // vz
+      }
+      val[3] = 0.0; // vx
+      val[4] = 0.0; // vx
 
       // Set density value - ELEMENT
       point[0].i = i; point[0].j = j; point[0].loc = ELEMENT; point[0].c = 0;

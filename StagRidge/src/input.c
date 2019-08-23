@@ -166,6 +166,7 @@ PetscErrorCode InputParameters(SolverCtx **psol)
   if (usr->mtype == 1) grd->mtype = SOLCX_EFF;
   if (usr->mtype == 2) grd->mtype = MOR;
   if (usr->mtype == 3) grd->mtype = LAPLACE;
+  if (usr->mtype == 4) grd->mtype = ADVDIFF_ANALYTIC;
   
   // grid-advection type
   if (usr->advtype == 0) grd->advtype = UPWIND;

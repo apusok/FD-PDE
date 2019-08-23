@@ -35,6 +35,13 @@ PetscErrorCode DoBenchmarks(SolverCtx *sol)
     ierr = CreateLaplaceAnalytic(sol,&dmAnalytic,&xAnalytic); CHKERRQ(ierr);
     ierr = DoOutputTemp_Analytic(sol,dmAnalytic,xAnalytic); CHKERRQ(ierr);
     ierr = CalculateErrorNormsTemp(sol, dmAnalytic, xAnalytic); CHKERRQ(ierr);
+  
+  } else if (sol->grd->mtype == ADVDIFF_ANALYTIC){
+    PetscPrintf(sol->comm,"# --------------------------------------- #\n");
+    PetscPrintf(sol->comm,"# DVDIFF_ANALYTIC Benchmark \n");
+    ierr = CreateADVDIFFAnalytic(sol,&dmAnalytic,&xAnalytic); CHKERRQ(ierr);
+    ierr = DoOutputTemp_Analytic(sol,dmAnalytic,xAnalytic); CHKERRQ(ierr);
+    ierr = CalculateErrorNormsTemp(sol, dmAnalytic, xAnalytic); CHKERRQ(ierr);
 
   } else {
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"No benchmark mtype specified!"); CHKERRQ(ierr);
@@ -598,6 +605,73 @@ PetscErrorCode CreateLaplaceAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
 
       // Analytical solution
       xx[j][i][idx] = A*PetscSinScalar(PETSC_PI*xp)*PetscSinhReal(PETSC_PI*zp);
+    }
+  }
+
+  // Restore array
+  ierr = DMStagVecRestoreArrayDOF(da,xlocal,&xx); CHKERRQ(ierr);
+
+  // Map local to global
+  ierr = DMLocalToGlobalBegin(da,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (da,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+
+  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
+
+  // Assign pointers
+  *_da = da;
+  *_x  = x;
+  
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// Create ADVDIFF analytical solution - TEMP
+// ---------------------------------------
+PetscErrorCode CreateADVDIFFAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
+{
+  PetscInt       i, j, sx, sz, nx, nz, idx;
+  PetscScalar    ***xx;
+  DMStagStencil  point;
+  PetscScalar    xp, zp;
+  DM             da, cda;
+  Vec            x, xlocal;
+  Vec            coords;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  // Create identical DM as sol->dmHT for analytical solution
+  ierr = DMStagCreateCompatibleDMStag(sol->dmHT, sol->grd->dofHT0, sol->grd->dofHT1, sol->grd->dofHT2, 0, &da); CHKERRQ(ierr);
+  ierr = DMSetUp(da); CHKERRQ(ierr);
+  
+  // Set coordinates for new DM 
+  ierr = DMStagSetUniformCoordinatesExplicit(da, sol->grd->xmin, sol->grd->xmax, sol->grd->zmin, sol->grd->zmax, 0.0, 0.0); CHKERRQ(ierr);
+  
+  // Create local and global vector associated with DM
+  ierr = DMCreateGlobalVector(da, &x     ); CHKERRQ(ierr);
+  ierr = DMCreateLocalVector (da, &xlocal); CHKERRQ(ierr);
+
+  // Get array associated with vector
+  ierr = DMStagVecGetArrayDOF(da,xlocal,&xx); CHKERRQ(ierr);
+
+  // Get domain corners
+  ierr = DMStagGetCorners(da, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  
+  // Get coordinates
+  ierr = DMGetCoordinatesLocal(da, &coords); CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM    (da, &cda   ); CHKERRQ(ierr);
+
+  // Loop over elements and assign constraints
+  for (j = sz; j<sz+nz; ++j) {
+    for (i = sx; i<sx+nx; ++i) {
+
+      // Get coordinates and stencil values
+      point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0; 
+      ierr = GetCoordinatesStencil(cda, coords, 1, &point, &xp, &zp); CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(da, point.loc, point.c, &idx);     CHKERRQ(ierr);
+
+      // Analytical solution ADVDIFF
+      xx[j][i][idx] = xp*(1-PetscExpScalar((zp-1)/sol->usr->k0))/(1-PetscExpScalar(-2/sol->usr->k0));
     }
   }
 

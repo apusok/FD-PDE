@@ -41,7 +41,8 @@ enum ModelType {
   SOLCX, 
   SOLCX_EFF, 
   MOR,
-  LAPLACE
+  LAPLACE,
+  ADVDIFF_ANALYTIC
 };
 
 // define names for standard models
@@ -169,6 +170,7 @@ PetscErrorCode CalculateErrorNorms(SolverCtx*,DM,Vec);
 PetscErrorCode DoOutput_Analytic(SolverCtx*,DM,Vec);
 
 PetscErrorCode CreateLaplaceAnalytic(SolverCtx*,DM*,Vec*);
+PetscErrorCode CreateADVDIFFAnalytic(SolverCtx*,DM*,Vec*);
 PetscErrorCode DoOutputTemp_Analytic(SolverCtx*,DM,Vec);
 PetscErrorCode CalculateErrorNormsTemp(SolverCtx*,DM,Vec);
 

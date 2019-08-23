@@ -333,6 +333,11 @@ PetscErrorCode BoundaryConditionsTemp(SolverCtx *sol, Vec xlocal, PetscScalar **
 
       // Calculate residual
       fval = xx - fzero;
+
+      // Analytical solution - for model type
+      if (sol->grd->mtype == ADVDIFF_ANALYTIC){
+        fval = xx + 1.0; // T = -1
+      }
       
       // Set residual in array
       ierr = DMStagGetLocationSlot(sol->dmHT, ELEMENT, 0, &idx); CHKERRQ(ierr);
@@ -350,6 +355,11 @@ PetscErrorCode BoundaryConditionsTemp(SolverCtx *sol, Vec xlocal, PetscScalar **
 
       // Calculate residual
       fval = xx - fzero;
+
+      // Analytical solution - for model type
+      if (sol->grd->mtype == ADVDIFF_ANALYTIC){
+        fval = xx - 1.0; // T = 1
+      }
       
       // Set residual in array
       ierr = DMStagGetLocationSlot(sol->dmHT, ELEMENT, 0, &idx); CHKERRQ(ierr);
@@ -367,6 +377,15 @@ PetscErrorCode BoundaryConditionsTemp(SolverCtx *sol, Vec xlocal, PetscScalar **
 
       // Calculate residual
       fval = xx - fzero;
+
+      // Analytical solution - for model type
+      if (sol->grd->mtype == ADVDIFF_ANALYTIC){
+        PetscScalar xp, zp;
+
+        // Get coordinate
+        ierr = GetCoordinatesStencil(dmCoord, coordLocal, 1, &point, &xp, &zp); CHKERRQ(ierr);
+        fval = xx - xp; // T = x
+      }
       
       // Set residual in array
       ierr = DMStagGetLocationSlot(sol->dmHT, ELEMENT, 0, &idx); CHKERRQ(ierr);
@@ -385,7 +404,7 @@ PetscErrorCode BoundaryConditionsTemp(SolverCtx *sol, Vec xlocal, PetscScalar **
       // Calculate residual
       fval = xx - fzero;
 
-      // Analytical solution
+      // Analytical solution 
       if (sol->grd->mtype == LAPLACE){
         PetscScalar a, xp, zp;
 
