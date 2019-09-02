@@ -51,7 +51,7 @@
 \begin{document}
 \maketitle
 
-%\tableofcontents
+\tableofcontents
 %\newpage
 \pagestyle{fancyplain}
 \rhead[\fancyplain{}{\slshape \rightmark}]{\thepage}
@@ -292,6 +292,76 @@ where the constants $A_1-D_1$ depend on the model and boundary conditions. If $A
   \end{center}
 \end{figure}
 
+\subsection{Conservation of energy (Heat equation)}
+The energy equation has the form:
+\begin{align}
+\rho c_p \left(\frac{\partial T}{\partial t} + \nabla\cdot\left(\textbf{v}T\right)\right)-\nabla\cdot (k\nabla T)+H = 0 \label{eq:heateq}
+\end{align}
+OR
+\begin{align}
+\rho c_p \left(\frac{\partial T}{\partial t} + v_x\frac{\partial T}{\partial x} + v_z\frac{\partial T}{\partial z} \right)-\left( \frac{\partial}{\partial x}\left(k\frac{\partial T}{\partial x}\right) + \frac{\partial}{\partial z}\left(k\frac{\partial T}{\partial z}\right) \right)+H = 0,
+\end{align}
+where $\rho$ is density, $c_p$ heat capacity, $k$ thermal conductivity, $\textbf{v} = [v_x, v_z]$ velocity, $T$ temperature, and $H$ other heat sources (i.e., internal heat production). Equation (\ref{eq:heateq}) shows that change in temperature is due to advection, diffusion and heat sources. Peclet number.
+
+If thermal conductivity is constant and no sources ($H=0$), the equation can be simplified as:
+\begin{align}
+\frac{\partial T}{\partial t} + v_x\frac{\partial T}{\partial x} + v_z\frac{\partial T}{\partial z}-\kappa\left(\frac{\partial^2 T}{\partial x^2} + \frac{\partial^2 T}{\partial z^2} \right) = 0,
+\end{align}
+where $\kappa=\frac{k}{\rho c_p}$ is thermal diffusivity.
+
+\subsection{Analytical solutions to the steady-state heat equation (advection-diffusion operators)}
+\subsubsection{Laplace equation (diffusion)} \label{laplace}
+To isolate the diffusion part, we take $\rho=0, c_p=0, k=1$. Then the equation \ref{eq:heateq} becomes:
+\begin{align}
+\frac{\partial^2 T}{\partial x^2} + \frac{\partial^2 T}{\partial z^2} = 0,
+\end{align}
+and is called the Laplace equation (a specific case for the more general Poisson equation $\nabla^2 T=f$). Analytical solutions can be derived for the Laplace equation using separation of variables for generalized boundary conditions. However, an easier solution can be obtained for Dirichlet boundary conditions. Let the domain be $x\in [0,a]$ and $z\in [0,b]$ with boundary conditions:
+\begin{align}
+&\text{Left: } T(0,z) = 0 \\
+&\text{Bottom: } T(x,0) = 0\\
+&\text{Right: } T(a,z) = 0\\
+&\text{Top: } T(x,b) = T_0\sin\frac{\pi x}{a}
+\end{align}
+
+Separation of variables method. Let:
+\begin{align}
+T(x,z) = X(x)Z(z)
+\end{align}
+which means that
+\begin{align}
+X''Z+XZ'' = 0\\
+\frac{X''}{X}=-\frac{Z''}{Z} = m,
+\end{align}
+where $m$ is a constant that can either be $=, >, < 0$. It can be shown that for $m\ge0$ the solution $T(x,z)$ is always 0. Therefore, for $m = -\alpha^2$, let $T(x,z) be$:
+\begin{align}
+T(x,z) = (A \cos\alpha x +B\sin\alpha x)(C \cosh\alpha z +D\sinh\alpha z).
+\end{align}
+Applying the zero Dirichlet boundary conditions, we obtain $A = 0, C = 0, \sin\alpha a=0$. From the $T(x,b) = T_0\sin\frac{\pi x}{a}$ boundary condition, a final solution can be obtained:
+\begin{align}
+T(x,z) = \frac{T_0}{\sinh \frac{\pi b}{a}}\sin\frac{\pi x}{a}\sinh\frac{\pi z}{a}.
+\end{align}
+
+For $a=1, b=1, T_0=1$, the solution becomes:
+\begin{align}
+T(x,z) = \frac{1}{\sinh \pi}\sin(\pi x)\sinh(\pi z).
+\end{align}
+
+\subsubsection{Advection-diffusion equation} \label{advdiff}
+In \citet{Elman2005} (Ch. 3 - The convection-diffusion equation), a couple analytical solutions are given for the advection-diffusion equation. We implement example 3.1.1 with zero source term, constant vertical velocity and an exponential boundary layer.
+
+Let the domain be $x\in [-1,1]$ and $z\in [-1,1]$ with boundary conditions:
+\begin{align}
+&\text{Left: } T(-1,z) = -1 \\
+&\text{Bottom: } T(x,-1) = x\\
+&\text{Right: } T(1,z) = 1\\
+&\text{Top: } T(x,1) = 0
+\end{align}
+
+The velocity field is $\textbf{v} = [v_x=0, v_z=1]$, and $\rho=1$, $c_p=1$ and $k=0.005$. The solution then is:
+\begin{align}
+T(x,z) = x\left(\frac{1-e^{(z-1)/k}}{1-e^{-2/k}}\right).
+\end{align}
+
 \subsection{Constitutive equations}
 Rheology. 
 
@@ -410,6 +480,8 @@ Name&Input files&Test&Comments\\
 \hline
 SolCx&\texttt{solcx\_1e0.opts, solcx\_1e6.opts}&\texttt{test\_solcx.py}&Section \ref{solcx}\\
 Corner flow (MOR)&\texttt{mor\_isovisc.opts}&\texttt{test\_cornerflow\_mor.py}&Section \ref{moranalytic}\\
+Laplace&\texttt{diff\_laplace.opts}&\texttt{test\_laplace.py}&Section \ref{laplace}\\
+Adv-diff&\texttt{diff\_adv\_analytic.opts}&\texttt{test\_advdiff.py}&Section \ref{advdiff}\\
 \hline  
 \end{tabular}
 \caption{Benchmark tests}
