@@ -1,0 +1,327 @@
+/* Finite differences staggered grid context for STOKES equations */
+
+#include "fdstokes.h"
+
+
+const char stokes_description[] =
+"  << FD-PDE Stokes >> solves the PDEs: \n"
+"    div ( 2 eta symgrad(u) ) - grad(p) = f(x) \n"
+"                              - div(u) = g(x) \n"
+"  [User notes] \n"
+"  * The function f(x) is defined in velocity points, and g(x) is defined \n" 
+"    in center points. For DMStag the following right-hand-side coefficients  \n" 
+"    f(x) = [fux, fuz] and g(x) = fp need to be specified. \n"
+"  * The viscosity is defined in corner and center points for a staggered grid\n" 
+"    discretization, so the eta coefficients become [eta_c, eta_n].";
+
+// ---------------------------------------
+// FDCreate_Stokes
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDCreate_Stokes"
+PetscErrorCode FDCreate_Stokes(FD fd)
+{
+  CoeffStokes    *cdata;
+  PetscErrorCode ierr;
+  
+  PetscFunctionBegin;
+
+  // Initialize data
+  ierr = PetscStrallocpy(stokes_description,&fd->description); CHKERRQ(ierr);
+
+  // Coefficient structure
+  ierr = PetscMalloc1(1,&cdata);CHKERRQ(ierr);
+  cdata->eta_n = NULL;
+  cdata->eta_c = NULL;
+  cdata->fux   = NULL;
+  cdata->fuz   = NULL;
+  cdata->fp    = NULL;
+  fd->coeff_context = cdata;
+
+  // Evaluation functions
+  fd->ops->form_function     = FormFunction_Stokes;
+  fd->ops->view              = FDView_Stokes;
+  fd->ops->destroy           = FDDestroy_Stokes;
+  fd->ops->jacobian_prealloc = FDJacobianPreallocator_Stokes;
+
+  // Create coefficients
+  ierr = CoefficientCreate(fd->comm,&cdata->eta_n,DMSTAG_DOWN_RIGHT);CHKERRQ(ierr);
+  ierr = CoefficientCreate(fd->comm,&cdata->eta_c,DMSTAG_ELEMENT);CHKERRQ(ierr);
+  ierr = CoefficientCreate(fd->comm,&cdata->fux,DMSTAG_RIGHT);CHKERRQ(ierr);
+  ierr = CoefficientCreate(fd->comm,&cdata->fuz,DMSTAG_DOWN);CHKERRQ(ierr);
+  ierr = CoefficientCreate(fd->comm,&cdata->fp,DMSTAG_ELEMENT);CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// FDDestroy_Stokes
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDDestroy_Stokes"
+PetscErrorCode FDDestroy_Stokes(FD fd)
+{
+  CoeffStokes    *cdata;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  cdata = fd->coeff_context;
+  ierr = CoefficientDestroy(&cdata->eta_n); CHKERRQ(ierr);
+  ierr = CoefficientDestroy(&cdata->eta_c); CHKERRQ(ierr);
+  ierr = CoefficientDestroy(&cdata->fux); CHKERRQ(ierr);
+  ierr = CoefficientDestroy(&cdata->fuz); CHKERRQ(ierr);
+  ierr = CoefficientDestroy(&cdata->fp); CHKERRQ(ierr);
+  
+  ierr = PetscFree(cdata);CHKERRQ(ierr);
+  fd->coeff_context = NULL;
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// FDView_Stokes <INCOMPLETE>
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDView_Stokes"
+PetscErrorCode FDView_Stokes(FD fd, PetscViewer viewer)
+{
+  //PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// FDStokesGetCoefficients
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDStokesGetCoefficients"
+PetscErrorCode FDStokesGetCoefficients(FD fd,Coefficient *eta_c, Coefficient *eta_n,Coefficient *fux,Coefficient *fuz,Coefficient *fp)
+{
+  CoeffStokes *cdata;
+  PetscFunctionBegin;
+
+  cdata = (CoeffStokes*)fd->coeff_context;
+  if (eta_c) { 
+    cdata->eta_c->type = COEFF_EVAL;
+    *eta_c = cdata->eta_c; 
+    }
+  if (eta_n) { 
+    cdata->eta_n->type = COEFF_EVAL;
+    *eta_n = cdata->eta_n; 
+    }
+  if (fux) { 
+    cdata->fux->type = COEFF_EVAL;
+    *fux = cdata->fux;
+    }
+  if (fuz) { 
+    cdata->fuz->type = COEFF_EVAL;
+    *fuz = cdata->fuz;
+    }
+  if (fp ) { 
+    cdata->fp->type = COEFF_EVAL;
+    *fp  = cdata->fp; 
+    }
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// FDStokesSetData
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDStokesSetData"
+PetscErrorCode FDStokesSetData(FD fd, DM dm, DM dmcoeff, BCList *bclist, PetscInt nbc)
+{
+  CoeffStokes *cdata;
+  PetscScalar    pval = -0.00001;
+  PetscErrorCode ierr;
+  
+  PetscFunctionBegin;
+  cdata = (CoeffStokes*)fd->coeff_context;
+
+  // Save pointers to dms and bclist
+  if (dm) fd->dmstag = dm;
+  if (dmcoeff) fd->dmcoeff = dmcoeff;
+  if (bclist) fd->bc_list = bclist;
+  if (nbc) fd->nbc = nbc;
+
+  // Save global dm size
+  ierr = DMStagGetGlobalSizes(fd->dmstag,&fd->Nx,&fd->Nz,NULL);CHKERRQ(ierr);
+
+  // Allocate memory to coefficients
+  ierr = CoefficientAllocateMemory(fd,&cdata->eta_n);CHKERRQ(ierr);
+  ierr = CoefficientAllocateMemory(fd,&cdata->eta_c);CHKERRQ(ierr);
+  ierr = CoefficientAllocateMemory(fd,&cdata->fux);CHKERRQ(ierr);
+  ierr = CoefficientAllocateMemory(fd,&cdata->fuz);CHKERRQ(ierr);
+  ierr = CoefficientAllocateMemory(fd,&cdata->fp );CHKERRQ(ierr);
+
+  // Create global vectors
+  ierr = DMCreateGlobalVector(fd->dmstag, &fd->x    ); CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(fd->dmcoeff,&fd->coeff); CHKERRQ(ierr);
+  ierr = VecDuplicate(fd->x,&fd->r     ); CHKERRQ(ierr);
+  ierr = VecDuplicate(fd->x,&fd->xguess); CHKERRQ(ierr);
+
+  // Set initial values for xguess, coeff
+  ierr = VecSet(fd->xguess,pval);CHKERRQ(ierr);
+
+  // Create Jacobian
+  ierr = DMCreateMatrix(fd->dmstag, &fd->J); CHKERRQ(ierr);
+
+  // Preallocate Jacobian
+  ierr = fd->ops->jacobian_prealloc(fd); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// FDJacobianPreallocator_Stokes
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDJacobianPreallocator_Stokes"
+PetscErrorCode FDJacobianPreallocator_Stokes(FD fd)
+{
+  PetscInt       Nx, Nz;               // global variables
+  PetscInt       i, j, sx, sz, nx, nz; // local variables
+  Mat            preallocator = NULL;
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+
+  // Assign pointers and other variables
+  Nx = fd->Nx;
+  Nz = fd->Nz;
+
+  // MatPreallocate begin
+  ierr = MatPreallocatePhaseBegin(fd->J, &preallocator); CHKERRQ(ierr);
+  
+  // Get local domain
+  ierr = DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  
+  // Zero entries
+  PetscScalar   xx[11];
+  DMStagStencil point[11];
+  ierr = PetscMemzero(xx,sizeof(PetscScalar)*11); CHKERRQ(ierr);
+
+  // NOTE: Should take into account fd->bc_list for BC
+  // Get non-zero pattern for preallocator - Loop over all local elements 
+  for (j = sz; j<sz+nz; ++j) {
+    for (i = sx; i<sx+nx; ++i) {
+
+      // Top boundary velocity Dirichlet
+      if (j == Nz-1) {
+        point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_UP; point[0].c = 0;
+        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,1,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      }
+      
+      // Bottom boundary velocity Dirichlet
+      if (j == 0) {
+        point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_DOWN; point[0].c = 0;
+        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,1,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      } 
+
+      // Right Boundary velocity Dirichlet
+      if (i == Nx-1) {
+        point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_RIGHT; point[0].c = 0;
+        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,1,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      }
+      
+      // Left velocity Dirichlet
+      if (i == 0) {
+        point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_LEFT; point[0].c = 0;
+        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,1,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      } 
+
+      // Continuity equation (P) : V_x + V_z = 0
+      ierr = ContinuityStencil(i,j,point); CHKERRQ(ierr);
+      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,5,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+
+      // X-momentum equation : (u_xx + u_zz) - p_x = rhog^x (rhog_x=0)
+      if (i > 0) {
+        ierr = XMomentumStencil(i,j,Nz,point); CHKERRQ(ierr);
+        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,11,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      }
+
+      // Z-momentum equation : (u_xx + u_zz) - p_z = rhog^z
+      if (j > 0) {
+        ierr = ZMomentumStencil(i,j,Nx,point); CHKERRQ(ierr);
+        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,11,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      }
+    }
+  }
+  
+  // Push the non-zero pattern defined within preallocator into the Jacobian
+  ierr = MatPreallocatePhaseEnd(fd->J); CHKERRQ(ierr);
+  
+  // View preallocated struct of the Jacobian
+  //ierr = MatView(fd->J,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+
+  // Matrix assembly
+  ierr = MatAssemblyBegin(fd->J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+  ierr = MatAssemblyEnd  (fd->J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// ContinuityStencil
+// ---------------------------------------
+PetscErrorCode ContinuityStencil(PetscInt i,PetscInt j, DMStagStencil *point)
+{
+  PetscFunctionBegin;
+  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0;
+  point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_LEFT;    point[1].c = 0;
+  point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_RIGHT;   point[2].c = 0;
+  point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_DOWN;    point[3].c = 0;
+  point[4].i = i; point[4].j = j; point[4].loc = DMSTAG_UP;      point[4].c = 0;
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// XMomentumStencil
+// ---------------------------------------
+PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt N, DMStagStencil *point)
+{
+  PetscFunctionBegin;
+  point[0].i  = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_LEFT;    point[0].c   = 0;
+  point[1].i  = i  ; point[1].j  = j-1; point[1].loc  = DMSTAG_LEFT;    point[1].c   = 0;
+  point[2].i  = i  ; point[2].j  = j+1; point[2].loc  = DMSTAG_LEFT;    point[2].c   = 0;
+  point[3].i  = i-1; point[3].j  = j  ; point[3].loc  = DMSTAG_LEFT;    point[3].c   = 0;
+  point[4].i  = i  ; point[4].j  = j  ; point[4].loc  = DMSTAG_RIGHT;   point[4].c   = 0;
+  point[5].i  = i-1; point[5].j  = j  ; point[5].loc  = DMSTAG_DOWN;    point[5].c   = 0;
+  point[6].i  = i  ; point[6].j  = j  ; point[6].loc  = DMSTAG_DOWN;    point[6].c   = 0;
+  point[7].i  = i-1; point[7].j  = j  ; point[7].loc  = DMSTAG_UP;      point[7].c   = 0;
+  point[8].i  = i  ; point[8].j  = j  ; point[8].loc  = DMSTAG_UP;      point[8].c   = 0;
+  point[9].i  = i-1; point[9].j  = j  ; point[9].loc  = DMSTAG_ELEMENT; point[9].c   = 0;
+  point[10].i = i  ; point[10].j = j  ; point[10].loc = DMSTAG_ELEMENT; point[10].c  = 0;
+
+  if (j == 0) {
+    point[1] = point[0];
+  } else if (j == N-1) {
+    point[2] = point[0];
+  }
+  PetscFunctionReturn(0);
+}
+// ---------------------------------------
+// ZMomentumStencil
+// ---------------------------------------
+PetscErrorCode ZMomentumStencil(PetscInt i,PetscInt j,PetscInt N, DMStagStencil *point)
+{
+  PetscFunctionBegin;
+  point[0].i = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_DOWN;    point[0].c  = 0;
+  point[1].i = i  ; point[1].j  = j-1; point[1].loc  = DMSTAG_DOWN;    point[1].c  = 0;
+  point[2].i = i  ; point[2].j  = j+1; point[2].loc  = DMSTAG_DOWN;    point[2].c  = 0;
+  point[3].i = i-1; point[3].j  = j  ; point[3].loc  = DMSTAG_DOWN;    point[3].c  = 0;
+  point[4].i = i+1; point[4].j  = j  ; point[4].loc  = DMSTAG_DOWN;    point[4].c  = 0;
+  point[5].i = i  ; point[5].j  = j-1; point[5].loc  = DMSTAG_LEFT;    point[5].c  = 0;
+  point[6].i = i  ; point[6].j  = j-1; point[6].loc  = DMSTAG_RIGHT;   point[6].c  = 0;
+  point[7].i = i  ; point[7].j  = j  ; point[7].loc  = DMSTAG_LEFT;    point[7].c  = 0;
+  point[8].i = i  ; point[8].j  = j  ; point[8].loc  = DMSTAG_RIGHT;   point[8].c  = 0;
+  point[9].i = i  ; point[9].j  = j-1; point[9].loc  = DMSTAG_ELEMENT; point[9].c  = 0;
+  point[10].i= i  ; point[10].j = j  ; point[10].loc = DMSTAG_ELEMENT; point[10].c = 0;
+
+  if (i == 0) {
+    point[3] = point[0]; 
+  } else if (i == N-1) {
+    point[4] = point[0];
+  }
+  PetscFunctionReturn(0);
+}
