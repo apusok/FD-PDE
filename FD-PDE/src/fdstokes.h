@@ -37,4 +37,7 @@ PetscErrorCode ZMomentumResidual(DM, Vec,PetscScalar**,PetscScalar**,PetscScalar
 // RESIDUAL
 PetscErrorCode FormFunction_Stokes(SNES, Vec, Vec, void*);
 
+// BOUNDARY CONDITION IMPOSITION
+PetscErrorCode FDBCApplyStokes(DM,Vec,BCList*,PetscInt, PetscScalar**,PetscScalar**,PetscScalar*, PetscScalar*,PetscInt[], PetscScalar***);
+
 #endif

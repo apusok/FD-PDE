@@ -31,7 +31,6 @@ struct _p_BCList {
 PetscErrorCode FDBCListCreate(DM, BCList**, PetscInt*);
 //PetscErrorCode FDBCListDestroy(BCList*);
 PetscErrorCode FDBCGetEntry(DM,PetscScalar**,PetscScalar**,DMStagStencilLocation, PetscInt, PetscInt, PetscInt, BCList*);
-PetscErrorCode FDBCApplyStokes(DM,Vec,BCList*,PetscInt, PetscScalar**,PetscScalar**,PetscScalar*, PetscScalar*,PetscInt[], PetscScalar***);
 
 // UTILS
 PetscErrorCode DMStagExtract1DComponent(DM, Vec, DMStagStencilLocation, PetscInt, PetscScalar, PetscScalar*);
