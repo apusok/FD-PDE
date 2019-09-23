@@ -190,11 +190,11 @@ PetscErrorCode FDBCListCreate(DM dm, BCList **_list, PetscInt *_ndof)
 #define __FUNCT__ "FDBCGetEntry"
 PetscErrorCode FDBCGetEntry(DM dm,PetscScalar **cx,PetscScalar **cz, DMStagStencilLocation loc, PetscInt c, PetscInt i, PetscInt j, BCList *list)
 {
-  PetscInt       ii = 0, jj = 0, iprev, inext, icenter;
+  PetscInt       ii = 0, jj = 0, iprev=-1, inext=-1, icenter=-1;
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
 
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
+  if (loc == DMSTAG_ELEMENT){ ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); }
   ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
   ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
 
