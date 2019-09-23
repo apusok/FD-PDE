@@ -6,6 +6,8 @@
 #include "petsc.h"
 #include "petscvec.h"
 #include "petscdm.h"
+#include "petscdmstag.h"
+#include "utils.h"
 
 typedef struct _p_BCList BCList;
 
@@ -22,9 +24,6 @@ struct _p_BCList {
   BCType        type;
   PetscScalar   val;
   PetscScalar   coord[2];
-  //PetscInt  i, j, c, idx;
-  //DMStagStencilLocation loc;
-  //PetscInt  face_id;
 };
 
 // ---------------------------------------
@@ -33,9 +32,5 @@ struct _p_BCList {
 PetscErrorCode FDBCListCreate(DM, BCList**, PetscInt*);
 PetscErrorCode FDBCListDestroy(BCList**);
 PetscErrorCode FDBCGetEntry(DM,PetscScalar**,PetscScalar**,DMStagStencilLocation, PetscInt, PetscInt, PetscInt, BCList*);
-
-// UTILS
-PetscErrorCode DMStagExtract1DComponent(DM, Vec, DMStagStencilLocation, PetscInt, PetscScalar, PetscScalar*);
-PetscErrorCode GetCoordinatesStencil(DM, Vec, PetscInt, DMStagStencil[], PetscScalar[], PetscScalar[]);
 
 #endif
