@@ -56,7 +56,7 @@ PetscErrorCode eval_fuz(Coefficient, void*);
 PetscErrorCode eval_fp(Coefficient, void*);
 PetscErrorCode eval_eta_n(Coefficient, void*);
 PetscErrorCode eval_eta_c(Coefficient, void*);
-PetscErrorCode FDBCListPopulate(DM, BCList*, PetscInt);
+PetscErrorCode StokesBCListPopulate(DM, DMStagBC*, PetscInt);
 PetscErrorCode ComputeErrorNorms(DM,Vec,Vec,void*);
 PetscErrorCode DoOutput(DM,Vec,const char[]);
 
@@ -69,7 +69,7 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
 {
   UsrData     *usr = (UsrData*) ctx;
   FD           fd;
-  BCList       *bclist;
+  DMStagBC       *bclist;
   DM           dmPV, dmCoeff;
   Vec          x, coeff;
   PetscInt     nx, nz, dofPV0, dofPV1, dofPV2;
@@ -110,8 +110,8 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   ierr = DMStagSetUniformCoordinatesProduct(dmCoeff, xmin, xmax, zmin, zmax, 0.0, 0.0);CHKERRQ(ierr);
 
   // Create boundary conditions list
-  ierr = FDBCListCreate(dmPV,&bclist,&nbc);CHKERRQ(ierr);
-  ierr = FDBCListPopulate(dmPV,bclist,nbc);CHKERRQ(ierr);
+  ierr = DMStagBCCreateDefault(dmPV,&bclist,&nbc);CHKERRQ(ierr);
+  ierr = StokesBCListPopulate(dmPV,bclist,nbc);CHKERRQ(ierr);
 
   // Create the FD-pde object
   ierr = FDCreate(usr->comm,&fd); CHKERRQ(ierr);
@@ -142,7 +142,7 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   //ierr = DMStagVTKDump(dmCoeff,coeff);CHKERRQ(ierr);
 
   // Destroy FD-PDE object
-  ierr = PetscFree(bclist);CHKERRQ(ierr);
+  ierr = DMStagBCDestroy(&bclist);CHKERRQ(ierr);
   ierr = FDDestroy(&fd);CHKERRQ(ierr);
   ierr = DMDestroy(&dmCoeff);CHKERRQ(ierr);
   ierr = VecDestroy(&coeff);CHKERRQ(ierr);
@@ -557,13 +557,13 @@ PetscErrorCode eval_eta_c(Coefficient c, void *data)
 }
 
 // ---------------------------------------
-// FDBCListPopulate(dmPV,&bclist,nbc)
+// StokesListPopulate(dmPV,&bclist,nbc)
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDBCListPopulate"
-PetscErrorCode FDBCListPopulate(DM dm, BCList *bclist, PetscInt ndof)
+#define __FUNCT__ "StokesBCListPopulate"
+PetscErrorCode StokesBCListPopulate(DM dm, DMStagBC *bclist, PetscInt ndof)
 {
-  BCList         *list;
+  DMStagBC         *list;
   PetscInt       i, j, idx, ibc, Nx, Nz;
   PetscInt       iright, ileft, idown, iup;
   PetscErrorCode ierr;

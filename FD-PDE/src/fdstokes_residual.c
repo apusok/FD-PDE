@@ -16,7 +16,7 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   PetscInt       iprev, inext, icenter;
   PetscScalar    ***ff;
   PetscScalar    **coordx,**coordz;
-  BCList         *bclist;
+  DMStagBC       *bclist;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -112,7 +112,7 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDBCApplyStokes"
-PetscErrorCode FDBCApplyStokes(DM dm, Vec xlocal, BCList *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz, PetscScalar *eta_n, PetscScalar *eta_c,PetscInt n[], PetscScalar ***ff)
+PetscErrorCode FDBCApplyStokes(DM dm, Vec xlocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz, PetscScalar *eta_n, PetscScalar *eta_c,PetscInt n[], PetscScalar ***ff)
 {
   PetscScalar    xx, dx, dz;
   PetscScalar    etaLeft, etaRight, etaUp, etaDown;

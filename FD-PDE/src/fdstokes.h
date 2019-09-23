@@ -21,7 +21,7 @@ PetscErrorCode FDCreate_Stokes(FD);
 PetscErrorCode FDDestroy_Stokes(FD);
 PetscErrorCode FDView_Stokes(FD,PetscViewer);
 PetscErrorCode FDStokesGetCoefficients(FD,Coefficient*, Coefficient*,Coefficient*,Coefficient*,Coefficient*);
-PetscErrorCode FDStokesSetData(FD, DM, DM, BCList*, PetscInt);
+PetscErrorCode FDStokesSetData(FD, DM, DM, DMStagBC*, PetscInt);
 PetscErrorCode FDJacobianPreallocator_Stokes(FD);
 
 // FD STOKES PREALLOCATOR STENCIL
@@ -38,6 +38,6 @@ PetscErrorCode ZMomentumResidual(DM, Vec,PetscScalar**,PetscScalar**,PetscScalar
 PetscErrorCode FormFunction_Stokes(SNES, Vec, Vec, void*);
 
 // BOUNDARY CONDITION IMPOSITION
-PetscErrorCode FDBCApplyStokes(DM,Vec,BCList*,PetscInt, PetscScalar**,PetscScalar**,PetscScalar*, PetscScalar*,PetscInt[], PetscScalar***);
+PetscErrorCode FDBCApplyStokes(DM,Vec,DMStagBC*,PetscInt, PetscScalar**,PetscScalar**,PetscScalar*, PetscScalar*,PetscInt[], PetscScalar***);
 
 #endif

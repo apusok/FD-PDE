@@ -129,7 +129,7 @@ PetscErrorCode FDStokesGetCoefficients(FD fd,Coefficient *eta_c, Coefficient *et
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDStokesSetData"
-PetscErrorCode FDStokesSetData(FD fd, DM dm, DM dmcoeff, BCList *bclist, PetscInt nbc)
+PetscErrorCode FDStokesSetData(FD fd, DM dm, DM dmcoeff, DMStagBC *bclist, PetscInt nbc)
 {
   CoeffStokes *cdata;
   PetscScalar    pval = -0.00001;

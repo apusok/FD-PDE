@@ -33,7 +33,7 @@ struct _p_FD {
   DM      dmstag,dmcoeff;
   Mat     J;
   Vec     x,xguess,r,coeff;
-  BCList *bc_list;
+  DMStagBC *bc_list;
   PetscInt nbc;
   void   *coeff_context;
   enum FDPDEType type;

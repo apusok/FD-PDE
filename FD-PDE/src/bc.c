@@ -4,13 +4,13 @@
 // FDBCListCreate
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDBCListCreate"
-PetscErrorCode FDBCListCreate(DM dm, BCList **_list, PetscInt *_ndof)
+#define __FUNCT__ "DMStagBCCreateDefault"
+PetscErrorCode DMStagBCCreateDefault(DM dm, DMStagBC **_list, PetscInt *_ndof)
 {
   PetscInt Nx, Nz, sx, sz, nx, nz;
   PetscInt i, j, ii, idof, ndof, dof0, dof1, dof2;
   DMStagStencilLocation loc, loc1;
-  BCList *list = NULL;
+  DMStagBC *list = NULL;
   PetscScalar    **coordx,**coordz;
 
   PetscErrorCode ierr;
@@ -55,8 +55,8 @@ PetscErrorCode FDBCListCreate(DM dm, BCList **_list, PetscInt *_ndof)
   }
 
   // Allocate memory to list
-  ierr = PetscMalloc((size_t)ndof*sizeof(BCList),&list);CHKERRQ(ierr);
-  ierr = PetscMemzero(list,(size_t)ndof*sizeof(BCList));CHKERRQ(ierr);
+  ierr = PetscMalloc((size_t)ndof*sizeof(DMStagBC),&list);CHKERRQ(ierr);
+  ierr = PetscMemzero(list,(size_t)ndof*sizeof(DMStagBC));CHKERRQ(ierr);
 
   // Get dm coordinates array
   ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -173,10 +173,10 @@ PetscErrorCode FDBCListCreate(DM dm, BCList **_list, PetscInt *_ndof)
 // FDBCListDestroy
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDBCListDestroy"
-PetscErrorCode FDBCListDestroy(BCList **_list)
+#define __FUNCT__ "DMStagBCDestroy"
+PetscErrorCode DMStagBCDestroy(DMStagBC **_list)
 {
-  BCList *list;
+  DMStagBC *list;
   PetscErrorCode ierr;
   PetscFunctionBegin;
   if (!_list) PetscFunctionReturn(0);
@@ -191,7 +191,7 @@ PetscErrorCode FDBCListDestroy(BCList **_list)
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDBCGetEntry"
-PetscErrorCode FDBCGetEntry(DM dm,PetscScalar **cx,PetscScalar **cz, DMStagStencilLocation loc, PetscInt c, PetscInt i, PetscInt j, BCList *list)
+PetscErrorCode FDBCGetEntry(DM dm,PetscScalar **cx,PetscScalar **cz, DMStagStencilLocation loc, PetscInt c, PetscInt i, PetscInt j, DMStagBC *list)
 {
   PetscInt       ii = 0, jj = 0, iprev=-1, inext=-1, icenter=-1;
   PetscErrorCode ierr;

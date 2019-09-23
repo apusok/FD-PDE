@@ -9,8 +9,6 @@
 #include "petscdmstag.h"
 #include "utils.h"
 
-typedef struct _p_BCList BCList;
-
 // BC type
 typedef enum { BC_UNINIT, BC_DIRICHLET, BC_NEUMANN, BC_ROBIN } BCType;
 
@@ -18,19 +16,19 @@ typedef enum { BC_UNINIT, BC_DIRICHLET, BC_NEUMANN, BC_ROBIN } BCType;
 // Struct definitions
 // ---------------------------------------
 // BC struct 
-struct _p_BCList {
+typedef struct {
   DMStagStencil point;
   PetscInt      idx;
   BCType        type;
   PetscScalar   val;
   PetscScalar   coord[2];
-};
+} DMStagBC;
 
 // ---------------------------------------
 // Function definitions
 // ---------------------------------------
-PetscErrorCode FDBCListCreate(DM, BCList**, PetscInt*);
-PetscErrorCode FDBCListDestroy(BCList**);
-PetscErrorCode FDBCGetEntry(DM,PetscScalar**,PetscScalar**,DMStagStencilLocation, PetscInt, PetscInt, PetscInt, BCList*);
+PetscErrorCode DMStagBCCreateDefault(DM, DMStagBC**, PetscInt*);
+PetscErrorCode DMStagBCDestroy(DMStagBC**);
+PetscErrorCode FDBCGetEntry(DM,PetscScalar**,PetscScalar**,DMStagStencilLocation, PetscInt, PetscInt, PetscInt, DMStagBC*);
 
 #endif
