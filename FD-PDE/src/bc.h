@@ -8,7 +8,7 @@
 typedef struct _p_BCList BCList;
 
 // BC type
-enum BCType { BC_UNINIT, DIRICHLET, NEUMANN, ROBIN };
+typedef enum { BC_UNINIT, BC_DIRICHLET, BC_NEUMANN, BC_ROBIN } BCType;
 
 // ---------------------------------------
 // Struct definitions
@@ -17,7 +17,7 @@ enum BCType { BC_UNINIT, DIRICHLET, NEUMANN, ROBIN };
 struct _p_BCList {
   DMStagStencil point;
   PetscInt      idx;
-  enum BCType   type;
+  BCType        type;
   PetscScalar   val;
   PetscScalar   coord[2];
   //PetscInt  i, j, c, idx;

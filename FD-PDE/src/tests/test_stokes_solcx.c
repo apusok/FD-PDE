@@ -587,42 +587,42 @@ PetscErrorCode FDBCListPopulate(DM dm, BCList *bclist, PetscInt ndof)
 
     // Dirichlet BC Vx=0 on LEFT
     if ((i==0) && (idx==ileft)) { //5
-      list[ibc].type = DIRICHLET;
+      list[ibc].type = BC_DIRICHLET;
       list[ibc].val  = 0.0;
     }
 
     // Dirichlet BC Vx=0 on RIGHT
     if ((i==Nx-1) && (idx==iright)) {//5
-      list[ibc].type = DIRICHLET;
+      list[ibc].type = BC_DIRICHLET;
       list[ibc].val  = 0.0;
     }
 
     // Dirichlet BC Vz=0 on DOWN
     if ((j==0) && (idx==idown)) {
-      list[ibc].type = DIRICHLET;
+      list[ibc].type = BC_DIRICHLET;
       list[ibc].val  = 0.0;
     }
 
     // Dirichlet BC Vz=0 on UP
     if ((j==Nz-1) && (idx==iup)) {
-      list[ibc].type = DIRICHLET;
+      list[ibc].type = BC_DIRICHLET;
       list[ibc].val  = 0.0;
     }
 
     // Neumann BC dVz/dx = 0 on LEFT/RIGHT
     if (((i==0) || (i==Nx-1)) && (j>0) && (idx==idown)) {
-      list[ibc].type = NEUMANN;
+      list[ibc].type = BC_NEUMANN;
       list[ibc].val  = 0.0;
     }
 
     // Neumann BC dVx/dz = 0 on DOWN/UP - one missing defined as RIGHT (below)
     if (((j==0) || (j==Nz-1)) && (i>0) && (idx==ileft)) {
-      list[ibc].type = NEUMANN;
+      list[ibc].type = BC_NEUMANN;
       list[ibc].val  = 0.0;
     }
 
     if (((j==0) || (j==Nz-1)) && (i==Nx-2) && (idx==iright)) {
-      list[ibc].type = NEUMANN;
+      list[ibc].type = BC_NEUMANN;
       list[ibc].val  = 0.0;
     }
   }
