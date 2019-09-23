@@ -169,19 +169,22 @@ PetscErrorCode FDBCListCreate(DM dm, BCList **_list, PetscInt *_ndof)
   PetscFunctionReturn(0);
 }
 
-// // ---------------------------------------
-// // FDBCListDestroy
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDBCListDestroy"
-// PetscErrorCode FDBCListDestroy(BCList *list)
-// {
-//   PetscErrorCode ierr;
-//   PetscFunctionBegin;
-
-//   ierr = PetscFree(list);CHKERRQ(ierr);
-//   PetscFunctionReturn(0);
-// }
+// ---------------------------------------
+// FDBCListDestroy
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDBCListDestroy"
+PetscErrorCode FDBCListDestroy(BCList **_list)
+{
+  BCList *list;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  if (!_list) PetscFunctionReturn(0);
+  list = *_list;
+  ierr = PetscFree(list);CHKERRQ(ierr);
+  *_list = NULL;
+  PetscFunctionReturn(0);
+}
 
 // ---------------------------------------
 // Get BC Entry details

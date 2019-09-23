@@ -4,6 +4,8 @@
 #define BC_H
 
 #include "petsc.h"
+#include "petscvec.h"
+#include "petscdm.h"
 
 typedef struct _p_BCList BCList;
 
@@ -29,7 +31,7 @@ struct _p_BCList {
 // Function definitions
 // ---------------------------------------
 PetscErrorCode FDBCListCreate(DM, BCList**, PetscInt*);
-//PetscErrorCode FDBCListDestroy(BCList*);
+PetscErrorCode FDBCListDestroy(BCList**);
 PetscErrorCode FDBCGetEntry(DM,PetscScalar**,PetscScalar**,DMStagStencilLocation, PetscInt, PetscInt, PetscInt, BCList*);
 
 // UTILS
