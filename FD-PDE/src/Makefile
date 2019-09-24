@@ -22,4 +22,4 @@ clean_all:
 	@echo "# -------------------------------- #"
 	@echo "#            Full clean            #"
 	@echo "# -------------------------------- #"
-	@rm -rf ${PROG} *.dSYM
+	@rm -rf ${PROGDIR}/test_stokes_solcx ${PROGDIR}/test_bclist ${PROGDIR}/*.o ${PROGDIR}/*.dSYM
