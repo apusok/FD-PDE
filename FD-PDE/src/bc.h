@@ -12,7 +12,8 @@
 // BC type
 typedef enum { BC_NULL = 0, BC_DIRICHLET, BC_NEUMANN, BC_ROBIN } BCType;
 
-typedef enum { BCLOC_NULL = 0, BCLOC_LEFT, BCLOC_RIGHT, BCLOC_UP, BCLOC_DOWN } DMStagBCLocation;
+typedef enum { BCLOC_NULL = 0, BCLOC_LEFT, BCLOC_RIGHT, BCLOC_UP, BCLOC_DOWN,
+               BCLOC_CORNER_NE, BCLOC_CORNER_SE, BCLOC_CORNER_SW, BCLOC_CORNER_NW } DMStagBCLocation;
 
 // ---------------------------------------
 // Struct definitions
