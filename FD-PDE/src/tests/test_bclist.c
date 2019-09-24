@@ -108,7 +108,7 @@ PetscErrorCode test0(PetscInt nx,PetscInt ny)
   DMStagBC        *list;
   PetscErrorCode  ierr;
   
-  dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
+  dof0 = 0; dof1 = 1; dof2 = 0; /* (vertex) (face) (element) */
   stencilWidth = 1;
   
   ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,
@@ -137,7 +137,7 @@ PetscErrorCode test1(PetscInt nx,PetscInt ny)
   DMStagBCList    bclist;
   PetscErrorCode  ierr;
   
-  dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
+  dof0 = 0; dof1 = 1; dof2 = 0; /* (vertex) (face) (element) */
   stencilWidth = 1;
   
   ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,
@@ -165,9 +165,9 @@ int main (int argc,char **argv)
     
   ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return(ierr);
 
-  ierr = test0_v(2,3);CHKERRQ(ierr);
-  ierr = test0_f(2,3);CHKERRQ(ierr);
-  ierr = test0_e(2,3);CHKERRQ(ierr);
+  //ierr = test0_v(2,3);CHKERRQ(ierr);
+  //ierr = test0_f(2,3);CHKERRQ(ierr);
+  //ierr = test0_e(2,3);CHKERRQ(ierr);
   
   ierr = test0(2,3);CHKERRQ(ierr);
   
