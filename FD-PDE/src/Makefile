@@ -3,27 +3,23 @@ FFLAGS	 =
 CPPFLAGS =
 FPPFLAGS =
 PROGDIR  = tests
-PROG     = ${PROGDIR}/test_stokes_solcx
-OBJECTS  = ${PROG}.o prealloc_helper.o utils.o bc.o fd.o coefficient.o fdstokes_physics.o fdstokes_residual.o fdstokes.o 
+OBJECTS  = prealloc_helper.o utils.o bc.o fd.o coefficient.o fdstokes_physics.o fdstokes_residual.o fdstokes.o 
 
-all: ${PROG}
+all: test_stokes_solcx test_bclist
 	@echo "# -------------------------------- #"
-	@echo "# Compiled Program: " ${PROG} "    #"
 	@echo "# -------------------------------- #"
-	${RM} ${OBJECTS}
-	@rm -rf ${PROG}.dSYM
-
-debug: ${PROG}
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
 
-${PROG}: ${OBJECTS} chkopts
-	${RM} ${PROG}
-	-${CLINKER} -o ${PROG} ${OBJECTS} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
+test_stokes_solcx: ${PROGDIR}/test_stokes_solcx.o ${OBJECTS} chkopts
+	-${CLINKER} -o ${PROGDIR}/test_stokes_solcx ${PROGDIR}/test_stokes_solcx.o ${OBJECTS} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
+
+test_bclist: ${PROGDIR}/test_bclist.o ${OBJECTS} chkopts
+	-${CLINKER} -o ${PROGDIR}/test_bclist ${PROGDIR}/test_bclist.o ${OBJECTS} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
 
 clean_all:
 	@echo "# -------------------------------- #"
 	@echo "#            Full clean            #"
 	@echo "# -------------------------------- #"
-	@rm -rf ${PROG} *.dSYM
+	@rm -rf ${PROGDIR}/test_stokes_solcx ${PROGDIR}/test_bclist ${PROGDIR}/*.o ${PROGDIR}/*.dSYM
