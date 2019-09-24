@@ -197,31 +197,67 @@ PetscErrorCode DMStagBCDestroy(DMStagBC **_list)
 #define __FUNCT__ "FDBCGetEntry"
 static PetscErrorCode FDBCGetEntry(DM dm,PetscScalar **cx,PetscScalar **cz, DMStagStencilLocation loc, PetscInt c, PetscInt i, PetscInt j, DMStagBC *list)
 {
-  PetscInt       ii = 0, jj = 0, iprev=-1, inext=-1, icenter=-1;
+  PetscInt       ii = -1, jj = -1, dof[]={0,0,0};
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
-
-  if (loc == DMSTAG_ELEMENT){ ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); }
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
 
   list->point.i   = i;
   list->point.j   = j;
   list->point.c   = c;
   list->point.loc = loc;
-
   ierr = DMStagGetLocationSlot(dm,loc,c,&list->idx); CHKERRQ(ierr);
 
-  if ((loc == DMSTAG_DOWN_LEFT)  || (loc == DMSTAG_UP_LEFT)  || (loc == DMSTAG_LEFT))  ii = iprev;
-  if ((loc == DMSTAG_ELEMENT)    || (loc == DMSTAG_DOWN)     || (loc == DMSTAG_UP))    ii = icenter;
-  if ((loc == DMSTAG_DOWN_RIGHT) || (loc == DMSTAG_UP_RIGHT) || (loc == DMSTAG_RIGHT)) ii = inext;
+  ierr = DMStagGetDOF(dm,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
 
-  if ((loc == DMSTAG_DOWN_LEFT) || (loc == DMSTAG_DOWN) || (loc == DMSTAG_DOWN_RIGHT)) jj = iprev;
-  if ((loc == DMSTAG_ELEMENT)   || (loc == DMSTAG_LEFT) || (loc == DMSTAG_RIGHT))      jj = icenter;
-  if ((loc == DMSTAG_UP_LEFT)   || (loc == DMSTAG_UP)   || (loc == DMSTAG_UP_RIGHT))   jj = inext;
+  if (dof[0]) { /* has vertices */
+    PetscInt iprev=-1, inext=-1;
+    
+    ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_LEFT, &iprev);CHKERRQ(ierr);
+    ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr);
 
-  list->coord[0] = cx[i][ii];
-  list->coord[1] = cz[j][jj];
+    if ((loc == DMSTAG_DOWN_LEFT)  || (loc == DMSTAG_UP_LEFT))  ii = iprev;
+    if ((loc == DMSTAG_DOWN_RIGHT) || (loc == DMSTAG_UP_RIGHT)) ii = inext;
+    
+    if ((loc == DMSTAG_DOWN_LEFT) || (loc == DMSTAG_DOWN_RIGHT)) jj = iprev;
+    if ((loc == DMSTAG_UP_LEFT)   || (loc == DMSTAG_UP_RIGHT))   jj = inext;
+    
+    list->coord[0] = cx[i][ii];
+    list->coord[1] = cz[j][jj];
+  }
+  if (dof[1]) { /* has faces */
+    PetscInt iprev=-1, inext=-1;
+    
+    ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_LEFT, &iprev);CHKERRQ(ierr);
+    ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr);
+
+    ii = i;
+    jj = j;
+    if (loc == DMSTAG_LEFT)  ii = iprev;
+    if (loc == DMSTAG_RIGHT) ii = inext;
+    
+    if (loc == DMSTAG_DOWN)  jj = iprev;
+    if (loc == DMSTAG_UP)    jj = inext;
+    
+    if (loc == DMSTAG_LEFT || loc == DMSTAG_RIGHT) {
+      list->coord[0] = cx[i][ii];
+      list->coord[1] = 0.5 * (cz[0][jj] + cz[0][jj+1]);
+    }
+    
+    if (loc == DMSTAG_DOWN || loc == DMSTAG_UP) {
+      list->coord[0] = 0.5 * (cx[0][ii] + cx[0][ii+1]);
+      list->coord[1] = cz[j][jj];
+    }
+  }
+  if (dof[2]) { /* has elements */
+    PetscInt icenter=-1;
+    
+    ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr);
+    ii = icenter;
+    jj = icenter;
+    
+    list->coord[0] = cx[i][ii];
+    list->coord[1] = cz[j][jj];
+  }
 
   PetscFunctionReturn(0);
 }
@@ -243,27 +279,77 @@ static PetscErrorCode _DMStagBCFillIndices(DM dm,DMStagStencilLocation loc,Petsc
 
 #undef __FUNCT__
 #define __FUNCT__ "_DMStagBCFillCoords"
-static PetscErrorCode _DMStagBCFillCoords(DM dm,PetscScalar **cx,PetscScalar **cz,DMStagStencilLocation loc,PetscInt i, PetscInt j,DMStagBC *bc)
+static PetscErrorCode _DMStagBCFillCoords(PetscInt stratum_id,DM dm,PetscScalar **cx,PetscScalar **cz,DMStagStencilLocation loc,PetscInt i, PetscInt j,DMStagBC *bc)
 {
-  PetscInt       ii=0,jj=0,iprev=-1,inext=-1,icenter=-1;
+  PetscInt       ii=-1,jj=-1,dof[]={0,0,0};
   PetscErrorCode ierr;
-  
   PetscFunctionBeginUser;
-  if (loc == DMSTAG_ELEMENT){ ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); }
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr);
   
-  if ((loc == DMSTAG_DOWN_LEFT)  || (loc == DMSTAG_UP_LEFT)  || (loc == DMSTAG_LEFT))  ii = iprev;
-  if ((loc == DMSTAG_ELEMENT)    || (loc == DMSTAG_DOWN)     || (loc == DMSTAG_UP))    ii = icenter;
-  if ((loc == DMSTAG_DOWN_RIGHT) || (loc == DMSTAG_UP_RIGHT) || (loc == DMSTAG_RIGHT)) ii = inext;
-  
-  if ((loc == DMSTAG_DOWN_LEFT) || (loc == DMSTAG_DOWN) || (loc == DMSTAG_DOWN_RIGHT)) jj = iprev;
-  if ((loc == DMSTAG_ELEMENT)   || (loc == DMSTAG_LEFT) || (loc == DMSTAG_RIGHT))      jj = icenter;
-  if ((loc == DMSTAG_UP_LEFT)   || (loc == DMSTAG_UP)   || (loc == DMSTAG_UP_RIGHT))   jj = inext;
-  
-  bc->coord[0] = cx[i][ii];
-  bc->coord[1] = cz[j][jj];
-  
+  ierr = DMStagGetDOF(dm,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
+
+  switch (stratum_id) {
+    case 0: /* vertices */
+    {
+      PetscInt iprev=-1, inext=-1;
+      
+      ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_LEFT, &iprev);CHKERRQ(ierr);
+      ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr);
+      
+      if ((loc == DMSTAG_DOWN_LEFT)  || (loc == DMSTAG_UP_LEFT))  ii = iprev;
+      if ((loc == DMSTAG_DOWN_RIGHT) || (loc == DMSTAG_UP_RIGHT)) ii = inext;
+      
+      if ((loc == DMSTAG_DOWN_LEFT) || (loc == DMSTAG_DOWN_RIGHT)) jj = iprev;
+      if ((loc == DMSTAG_UP_LEFT)   || (loc == DMSTAG_UP_RIGHT))   jj = inext;
+      
+      bc->coord[0] = cx[i][ii];
+      bc->coord[1] = cz[j][jj];
+    }
+      break;
+      
+    case 1: /* faces */
+    {
+      PetscInt iprev=-1, inext=-1;
+      
+      ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_LEFT, &iprev);CHKERRQ(ierr);
+      ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr);
+      
+      ii = i;
+      jj = j;
+      if (loc == DMSTAG_LEFT)  ii = iprev;
+      if (loc == DMSTAG_RIGHT) ii = inext;
+      
+      if (loc == DMSTAG_DOWN)  jj = iprev;
+      if (loc == DMSTAG_UP)    jj = inext;
+      
+      if (loc == DMSTAG_LEFT || loc == DMSTAG_RIGHT) {
+        bc->coord[0] = cx[i][ii];
+        bc->coord[1] = 0.5 * (cz[0][jj] + cz[0][jj+1]);
+      }
+      
+      if (loc == DMSTAG_DOWN || loc == DMSTAG_UP) {
+        bc->coord[0] = 0.5 * (cx[0][ii] + cx[0][ii+1]);
+        bc->coord[1] = cz[j][jj];
+      }
+    }
+      break;
+      
+    case 2: /* elements */
+    {
+      PetscInt icenter=-1;
+      
+      ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr);
+      ii = icenter;
+      jj = icenter;
+      
+      bc->coord[0] = cx[i][ii];
+      bc->coord[1] = cz[j][jj];
+    }
+      break;
+      
+    default:
+      SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_USER,"Stratum index (arg 1) must {0,1,2}");
+      break;
+  }
   PetscFunctionReturn(0);
 }
 
@@ -399,7 +485,7 @@ static PetscErrorCode _DMStagBCListSetupCoordinates(DMStagBCList list)
     for (k=0; k<3; k++) {
       for (ii = 0; ii<size[k]; ii++) {
         DMStagBC *b = &bcs[k][ii];
-        ierr = _DMStagBCFillCoords(dm,coordx,coordz,b->point.loc,b->point.i,b->point.j,b);CHKERRQ(ierr);
+        ierr = _DMStagBCFillCoords(k,dm,coordx,coordz,b->point.loc,b->point.i,b->point.j,b);CHKERRQ(ierr);
       }
     }
   }
