@@ -538,9 +538,7 @@ static PetscErrorCode _DMStagBCListSetupLocations(DMStagBCList list)
         if (b->point.i == 0    && b->point.j == Nz-1 && b->point.loc == DMSTAG_UP_LEFT)   { b->location = BCLOC_CORNER_NW; }
         
         if (b->location == BCLOC_NULL) {
-          PetscPrintf(PETSC_COMM_SELF,"[vertex]    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D)\n",ii,b->coord[0],b->coord[1],b->point.i,b->point.j,b->point.loc);
-          printf("error\n");
-          exit(1);
+          PetscPrintf(PETSC_COMM_SELF,"WARNING [vertex]    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D)\n",ii,b->coord[0],b->coord[1],b->point.i,b->point.j,b->point.loc);
         }
         
       }
@@ -562,9 +560,7 @@ static PetscErrorCode _DMStagBCListSetupLocations(DMStagBCList list)
         if (b->point.i == 0    && b->point.j == Nz-1) { b->location = BCLOC_CORNER_NW; }
         
         if (b->location == BCLOC_NULL) {
-          PetscPrintf(PETSC_COMM_SELF,"[element]    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D)\n",ii,b->coord[0],b->coord[1],b->point.i,b->point.j,b->point.loc);
-          printf("error\n");
-          exit(1);
+          PetscPrintf(PETSC_COMM_SELF,"WARNING [element]    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D)\n",ii,b->coord[0],b->coord[1],b->point.i,b->point.j,b->point.loc);
         }
       }
     }
@@ -584,7 +580,7 @@ static PetscErrorCode _DMStagBCListSetupLocations(DMStagBCList list)
         if (b->point.i == Nx-1 && b->point.j == Nz-1 && b->point.loc == DMSTAG_UP)  { b->location = BCLOC_UP; }
         
         if (b->point.i == Nx-1 && b->point.j == 0    && b->point.loc == DMSTAG_RIGHT){ b->location = BCLOC_RIGHT; }
-        if (b->point.i == Nx-1 && b->point.j == 0    && b->point.loc == DMSTAG_DOWN){ b->location = DMSTAG_DOWN; }
+        if (b->point.i == Nx-1 && b->point.j == 0    && b->point.loc == DMSTAG_DOWN){ b->location = BCLOC_DOWN; }
         
         if (b->point.i == 0    && b->point.j == 0    && b->point.loc == DMSTAG_LEFT) { b->location = BCLOC_LEFT; }
         if (b->point.i == 0    && b->point.j == 0    && b->point.loc == DMSTAG_DOWN) { b->location = BCLOC_DOWN; }
@@ -593,9 +589,7 @@ static PetscErrorCode _DMStagBCListSetupLocations(DMStagBCList list)
         if (b->point.i == 0    && b->point.j == Nz-1 && b->point.loc == DMSTAG_UP)   { b->location = BCLOC_UP; }
 
         if (b->location == BCLOC_NULL) {
-          PetscPrintf(PETSC_COMM_SELF,"[face]    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D)\n",ii,b->coord[0],b->coord[1],b->point.i,b->point.j,b->point.loc);
-          printf("error\n");
-          exit(1);
+          PetscPrintf(PETSC_COMM_SELF,"WARNING [face]    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D)\n",ii,b->coord[0],b->coord[1],b->point.i,b->point.j,b->point.loc);
         }
       }
     }
