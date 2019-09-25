@@ -3,9 +3,9 @@ FFLAGS	 =
 CPPFLAGS =
 FPPFLAGS =
 PROGDIR  = tests
-OBJECTS  = prealloc_helper.o utils.o bc.o fd.o coefficient.o fdstokes_physics.o fdstokes_residual.o fdstokes.o 
+OBJECTS  = dmstagfieldlabel.o prealloc_helper.o utils.o bc.o fd.o coefficient.o fdstokes_physics.o fdstokes_residual.o fdstokes.o 
 
-all: test_stokes_solcx test_bclist_compare
+all: test_stokes_solcx test_bclist_compare test_label
 	@echo "# -------------------------------- #"
 	@echo "# -------------------------------- #"
 
@@ -17,6 +17,9 @@ test_stokes_solcx: ${PROGDIR}/test_stokes_solcx.o ${OBJECTS} chkopts
 
 test_bclist_compare: ${PROGDIR}/test_bclist_compare.o ${OBJECTS} chkopts
 	-${CLINKER} -o ${PROGDIR}/test_bclist_compare ${PROGDIR}/test_bclist_compare.o ${OBJECTS} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
+
+test_label: ${PROGDIR}/test_label.o ${OBJECTS} chkopts
+	-${CLINKER} -o ${PROGDIR}/test_label ${PROGDIR}/test_label.o ${OBJECTS} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
 
 clean_all:
 	@echo "# -------------------------------- #"
