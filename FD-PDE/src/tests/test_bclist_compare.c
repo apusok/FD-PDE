@@ -34,7 +34,7 @@ PetscErrorCode test0_v(PetscInt nx,PetscInt ny)
   ierr = DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
   ierr = DMStagBCCreateDefault(dm,&list,&nbc);CHKERRQ(ierr);
   for (i=0; i<nbc; i++) {
-    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D) side %d\n",i,list[i].coord[0],list[i].coord[1],list[i].point.i,list[i].point.j,list[i].point.loc,(int)(list[i].location));
+    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D)\n",i,list[i].coord[0],list[i].coord[1],list[i].point.i,list[i].point.j,list[i].point.loc);
   }
   
   ierr = DMStagBCDestroy(&list);CHKERRQ(ierr);
@@ -63,7 +63,7 @@ PetscErrorCode test0_f(PetscInt nx,PetscInt ny)
   ierr = DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
   ierr = DMStagBCCreateDefault(dm,&list,&nbc);CHKERRQ(ierr);
   for (i=0; i<nbc; i++) {
-    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D) side %d\n",i,list[i].coord[0],list[i].coord[1],list[i].point.i,list[i].point.j,list[i].point.loc,(int)(list[i].location));
+    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D)\n",i,list[i].coord[0],list[i].coord[1],list[i].point.i,list[i].point.j,list[i].point.loc);
   }
   
   ierr = DMStagBCDestroy(&list);CHKERRQ(ierr);
@@ -92,7 +92,7 @@ PetscErrorCode test0_e(PetscInt nx,PetscInt ny)
   ierr = DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
   ierr = DMStagBCCreateDefault(dm,&list,&nbc);CHKERRQ(ierr);
   for (i=0; i<nbc; i++) {
-    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D) side %d\n",i,list[i].coord[0],list[i].coord[1],list[i].point.i,list[i].point.j,list[i].point.loc,(int)(list[i].location));
+    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D)\n",i,list[i].coord[0],list[i].coord[1],list[i].point.i,list[i].point.j,list[i].point.loc);
   }
 
   ierr = DMStagBCDestroy(&list);CHKERRQ(ierr);
@@ -108,7 +108,7 @@ PetscErrorCode test0(PetscInt nx,PetscInt ny)
   DMStagBC        *list;
   PetscErrorCode  ierr;
   
-  dof0 = 0; dof1 = 1; dof2 = 0; /* (vertex) (face) (element) */
+  dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
   
   ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,
@@ -121,7 +121,7 @@ PetscErrorCode test0(PetscInt nx,PetscInt ny)
   ierr = DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
   ierr = DMStagBCCreateDefault(dm,&list,&nbc);CHKERRQ(ierr);
   for (i=0; i<nbc; i++) {
-    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D) side %d\n",i,list[i].coord[0],list[i].coord[1],list[i].point.i,list[i].point.j,list[i].point.loc,(int)(list[i].location));
+    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D)\n",i,list[i].coord[0],list[i].coord[1],list[i].point.i,list[i].point.j,list[i].point.loc);
   }
   
   ierr = DMStagBCDestroy(&list);CHKERRQ(ierr);
@@ -137,7 +137,7 @@ PetscErrorCode test1(PetscInt nx,PetscInt ny)
   DMStagBCList    bclist;
   PetscErrorCode  ierr;
   
-  dof0 = 0; dof1 = 1; dof2 = 0; /* (vertex) (face) (element) */
+  dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
   
   ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,
@@ -169,9 +169,9 @@ int main (int argc,char **argv)
   //ierr = test0_f(2,3);CHKERRQ(ierr);
   //ierr = test0_e(2,3);CHKERRQ(ierr);
   
-  ierr = test0(2,3);CHKERRQ(ierr);
+  ierr = test0(3,3);CHKERRQ(ierr);
   
-  ierr = test1(2,3);CHKERRQ(ierr);
+  ierr = test1(3,3);CHKERRQ(ierr);
   
   ierr = PetscFinalize();
   return(ierr);

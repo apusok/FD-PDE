@@ -12,8 +12,6 @@
 // BC type
 typedef enum { BC_NULL = 0, BC_DIRICHLET, BC_NEUMANN, BC_ROBIN } BCType;
 
-typedef enum { BCLOC_NULL = 0, BCLOC_LEFT, BCLOC_RIGHT, BCLOC_UP, BCLOC_DOWN,
-               BCLOC_CORNER_NE, BCLOC_CORNER_SE, BCLOC_CORNER_SW, BCLOC_CORNER_NW } DMStagBCLocation;
 
 // ---------------------------------------
 // Struct definitions
@@ -25,7 +23,6 @@ typedef struct {
   BCType           type;
   PetscScalar      val;
   PetscScalar      coord[2];
-  DMStagBCLocation location;
 } DMStagBC;
 
 typedef struct _p_DMStagBCList *DMStagBCList;
@@ -53,6 +50,7 @@ PetscErrorCode DMStagBCListSetupCoordinates(DMStagBCList);
 PetscErrorCode DMStagBCListGetVertexBCs(DMStagBCList,PetscInt*,DMStagBC**);
 PetscErrorCode DMStagBCListGetFaceBCs(DMStagBCList,PetscInt*,DMStagBC**);
 PetscErrorCode DMStagBCListGetElementBCs(DMStagBCList,PetscInt*,DMStagBC**);
+/*
 PetscErrorCode DMStagBCListTraverse(
                   DMStagBCList,PetscInt,DMStagBCLocation,
                   PetscErrorCode (*f)(const DMStagStencil*,
@@ -60,5 +58,6 @@ PetscErrorCode DMStagBCListTraverse(
                                       PetscBool*,
                                       PetscScalar*,void*),
                   void*);
+*/
 
 #endif

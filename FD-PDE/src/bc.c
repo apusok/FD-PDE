@@ -1,7 +1,5 @@
 #include "bc.h"
 
-const char *DMStagBCLocationNames[] = { "null", "left", "right", "up", "down", "ne", "se", "sw", "nw", 0 };
-
 static PetscErrorCode FDBCGetEntry(DM,PetscScalar**,PetscScalar**,DMStagStencilLocation,PetscInt,PetscInt,PetscInt,DMStagBC*);
 
 // ---------------------------------------
@@ -508,97 +506,6 @@ PetscErrorCode DMStagBCListSetupCoordinates(DMStagBCList list)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "_DMStagBCListSetupLocations"
-static PetscErrorCode _DMStagBCListSetupLocations(DMStagBCList list)
-{
-  PetscInt       ii,k,Nx,Nz;
-  DM             dm;
-  PetscErrorCode ierr;
-  
-  PetscFunctionBegin;
-  dm = list->dm;
-  ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  {
-    DMStagBC *bcs[] = { list->bc_v , list->bc_f, list->bc_e };
-    PetscInt size[] = { list->nbc_vertex , list->nbc_face , list->nbc_element };
-    
-    /*  */
-    {
-      k = 0;
-      for (ii = 0; ii<size[k]; ii++) {
-        DMStagBC *b = &bcs[k][ii];
-        if (b->point.i == 0    && ( b->point.loc == DMSTAG_UP_LEFT ||  b->point.loc == DMSTAG_DOWN_LEFT))    { b->location = BCLOC_LEFT; }
-        if (b->point.j == 0    && ( b->point.loc == DMSTAG_DOWN_LEFT ||  b->point.loc == DMSTAG_DOWN_RIGHT)) { b->location = BCLOC_DOWN; }
-        if (b->point.i == Nx-1 && ( b->point.loc == DMSTAG_UP_RIGHT ||  b->point.loc == DMSTAG_DOWN_RIGHT))  { b->location = BCLOC_RIGHT; }
-        if (b->point.j == Nz-1 && ( b->point.loc == DMSTAG_UP_LEFT ||  b->point.loc == DMSTAG_UP_RIGHT))     { b->location = BCLOC_UP; }
-
-        if (b->point.i == Nx-1 && b->point.j == Nz-1 && b->point.loc == DMSTAG_UP_RIGHT)  { b->location = BCLOC_CORNER_NE; }
-        if (b->point.i == Nx-1 && b->point.j == 0    && b->point.loc == DMSTAG_DOWN_RIGHT){ b->location = BCLOC_CORNER_SE; }
-        if (b->point.i == 0    && b->point.j == 0    && b->point.loc == DMSTAG_DOWN_LEFT) { b->location = BCLOC_CORNER_SW; }
-        if (b->point.i == 0    && b->point.j == Nz-1 && b->point.loc == DMSTAG_UP_LEFT)   { b->location = BCLOC_CORNER_NW; }
-        
-        if (b->location == BCLOC_NULL) {
-          PetscPrintf(PETSC_COMM_SELF,"WARNING [vertex]    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D)\n",ii,b->coord[0],b->coord[1],b->point.i,b->point.j,b->point.loc);
-        }
-        
-      }
-    }
-
-    /* for elements the cell i,j uniquely defines the location  */
-    {
-      k = 2;
-      for (ii = 0; ii<size[k]; ii++) {
-        DMStagBC *b = &bcs[k][ii];
-        if (b->point.i == 0) { b->location = BCLOC_LEFT; }
-        if (b->point.j == 0) { b->location = BCLOC_DOWN; }
-        if (b->point.i == Nx-1) { b->location = BCLOC_RIGHT; }
-        if (b->point.j == Nz-1) { b->location = BCLOC_UP; }
-        
-        if (b->point.i == Nx-1 && b->point.j == Nz-1) { b->location = BCLOC_CORNER_NE; }
-        if (b->point.i == Nx-1 && b->point.j == 0)    { b->location = BCLOC_CORNER_SE; }
-        if (b->point.i == 0    && b->point.j == 0)    { b->location = BCLOC_CORNER_SW; }
-        if (b->point.i == 0    && b->point.j == Nz-1) { b->location = BCLOC_CORNER_NW; }
-        
-        if (b->location == BCLOC_NULL) {
-          PetscPrintf(PETSC_COMM_SELF,"WARNING [element]    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D)\n",ii,b->coord[0],b->coord[1],b->point.i,b->point.j,b->point.loc);
-        }
-      }
-    }
-    
-
-    /* there are no corners (multiply defined states) for faces */
-    {
-      k = 1;
-      for (ii = 0; ii<size[k]; ii++) {
-        DMStagBC *b = &bcs[k][ii];
-        if (b->point.i == 0    && b->point.loc == DMSTAG_LEFT)  { b->location = BCLOC_LEFT; }
-        if (b->point.j == 0    && b->point.loc == DMSTAG_DOWN)  { b->location = BCLOC_DOWN; }
-        if (b->point.i == Nx-1 && b->point.loc == DMSTAG_RIGHT) { b->location = BCLOC_RIGHT; }
-        if (b->point.j == Nz-1 && b->point.loc == DMSTAG_UP)    { b->location = BCLOC_UP; }
-
-        if (b->point.i == Nx-1 && b->point.j == Nz-1 && b->point.loc == DMSTAG_RIGHT)  { b->location = BCLOC_RIGHT; }
-        if (b->point.i == Nx-1 && b->point.j == Nz-1 && b->point.loc == DMSTAG_UP)  { b->location = BCLOC_UP; }
-        
-        if (b->point.i == Nx-1 && b->point.j == 0    && b->point.loc == DMSTAG_RIGHT){ b->location = BCLOC_RIGHT; }
-        if (b->point.i == Nx-1 && b->point.j == 0    && b->point.loc == DMSTAG_DOWN){ b->location = BCLOC_DOWN; }
-        
-        if (b->point.i == 0    && b->point.j == 0    && b->point.loc == DMSTAG_LEFT) { b->location = BCLOC_LEFT; }
-        if (b->point.i == 0    && b->point.j == 0    && b->point.loc == DMSTAG_DOWN) { b->location = BCLOC_DOWN; }
-        
-        if (b->point.i == 0    && b->point.j == Nz-1 && b->point.loc == DMSTAG_LEFT)   { b->location = BCLOC_LEFT; }
-        if (b->point.i == 0    && b->point.j == Nz-1 && b->point.loc == DMSTAG_UP)   { b->location = BCLOC_UP; }
-
-        if (b->location == BCLOC_NULL) {
-          PetscPrintf(PETSC_COMM_SELF,"WARNING [face]    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D)\n",ii,b->coord[0],b->coord[1],b->point.i,b->point.j,b->point.loc);
-        }
-      }
-    }
-
-  }
-  PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__
 #define __FUNCT__ "DMStagBCListGetVertexBCs"
 PetscErrorCode DMStagBCListGetVertexBCs(DMStagBCList list,PetscInt *nbc,DMStagBC *l[])
 {
@@ -707,8 +614,6 @@ PetscErrorCode DMStagBCListCreate(DM dm,DMStagBCList *list)
       }
     }
     
-    ierr = _DMStagBCListSetupLocations(l);CHKERRQ(ierr);
-    
     // Initialize list type
     for (ii = 0; ii<l->nbc_vertex; ii++) {
       l->bc_v[ii].type = BC_NULL;
@@ -747,7 +652,7 @@ PetscErrorCode DMStagBCListDestroy(DMStagBCList *list)
   PetscFunctionReturn(0);
 }
 
-
+#if 0
 #undef __FUNCT__
 #define __FUNCT__ "DMStagBCListTraverse"
 PetscErrorCode DMStagBCListTraverse(DMStagBCList list,
@@ -787,6 +692,7 @@ PetscErrorCode DMStagBCListTraverse(DMStagBCList list,
   }
   PetscFunctionReturn(0);
 }
+#endif
 
 #undef __FUNCT__
 #define __FUNCT__ "DMStagBCListView"
@@ -804,18 +710,18 @@ PetscErrorCode DMStagBCListView(DMStagBCList list)
   PetscPrintf(PETSC_COMM_SELF,"  bc_vertices: size %D\n",list->nbc_vertex);
   bc = list->bc_v;
   for (i=0; i<list->nbc_vertex; i++) {
-    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D) side %s\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc,DMStagBCLocationNames[(int)(bc[i].location)]);
+    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D)\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc);
   }
   PetscPrintf(PETSC_COMM_SELF,"  bc_faces: size %D\n",list->nbc_face);
   bc = list->bc_f;
   for (i=0; i<list->nbc_face; i++) {
-    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D) side %s\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc,DMStagBCLocationNames[(int)(bc[i].location)]);
+    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D)\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc);
   }
   
   PetscPrintf(PETSC_COMM_SELF,"  bc_elements: size %D\n",list->nbc_element);
   bc = list->bc_e;
   for (i=0; i<list->nbc_element; i++) {
-    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D) side %s\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc,DMStagBCLocationNames[(int)(bc[i].location)]);
+    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D)\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc);
   }
   PetscFunctionReturn(0);
 }
