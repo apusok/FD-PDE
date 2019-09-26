@@ -474,7 +474,7 @@ static PetscErrorCode _DMStagBCListSetupCoordinates(DMStagBCList list)
   ierr = DMGetCoordinateDM(dm,&dmCoord);CHKERRQ(ierr);
   ierr = DMGetType(dmCoord,&dmType);CHKERRQ(ierr);
   ierr = PetscStrcmp(DMPRODUCT,dmType,&isProduct);CHKERRQ(ierr);
-  if (!isProduct) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Coordinate DM is not of type DMPRODUCT");
+  if (!isProduct) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Coordinate DM must be of type DMPRODUCT");
   ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
   {
     DMStagBC *bcs[] = { list->bc_v , list->bc_f, list->bc_e };
@@ -495,12 +495,12 @@ static PetscErrorCode _DMStagBCListSetupCoordinates(DMStagBCList list)
 #define __FUNCT__ "DMStagBCListSetupCoordinates"
 PetscErrorCode DMStagBCListSetupCoordinates(DMStagBCList list)
 {
-  DM             dmCoord;
+  DM             dmCoord = NULL;
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
-  ierr = DMGetCoordinateDM(list->dm,&dmCoord);CHKERRQ(ierr);
-  if (!dmCoord) SETERRQ(PetscObjectComm((PetscObject)list->dm),PETSC_ERR_ARG_WRONGSTATE,"DM does not have a coordinate DM");
+  ierr = DMGetCoordinateDM(list->dm,&dmCoord);
+  if (!dmCoord) SETERRQ(PetscObjectComm((PetscObject)list->dm),PETSC_ERR_SUP,"DMStag must have coordinates defined. Hint - coordinates must be defined via DMPRODUCT)");
   ierr = _DMStagBCListSetupCoordinates(list);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -540,7 +540,7 @@ PetscErrorCode DMStagBCListGetElementBCs(DMStagBCList list,PetscInt *nbc,DMStagB
 PetscErrorCode DMStagBCListCreate(DM dm,DMStagBCList *list)
 {
   PetscErrorCode ierr;
-  PetscInt       dim;
+  PetscInt       dim,Nx,Nz;
   PetscBool      isstag;
   DMStagBCList   l;
   
@@ -550,6 +550,14 @@ PetscErrorCode DMStagBCListCreate(DM dm,DMStagBCList *list)
   if (dim != 2) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Only valid for 2d DM");
   ierr = PetscObjectTypeCompare((PetscObject)dm,DMSTAG,&isstag);CHKERRQ(ierr);
   if (!isstag) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Only valid for DMStag");
+  ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
+  if (Nx < 3) SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Implementation of BCList only valid for n-cells-i >= 3. Found nx=%D",Nx);
+  if (Nz < 3) SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Implementation of BCList only valid for n-cells-j >= 3. Found ny=%D",Nz);
+  { /* Check for existence of a coordinateDM - I deliberately don't call CHKERRQ() after DMGetCoordinateDM() so that I can through the error message below which is more helpful than the error thrown from DMGetCoordinateDM() */
+    DM dmCoord = NULL;
+    ierr = DMGetCoordinateDM(dm,&dmCoord);
+    if (!dmCoord) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"DMStag must have coordinates defined. Hint - coordinates must be defined via DMPRODUCT");
+  }
   
   ierr = PetscCalloc1(1,&l);CHKERRQ(ierr);
   l->dm = dm;
@@ -557,11 +565,10 @@ PetscErrorCode DMStagBCListCreate(DM dm,DMStagBCList *list)
   l->context = NULL;
   
   {
-    PetscInt Nx,Nz,sx,sz,nx,nz;
+    PetscInt sx,sz,nx,nz;
     PetscInt ii,i,j,ndof0,ndof1,ndof2,dof0,dof1,dof2;
     
     // Count local boundary dofs
-    ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
     ierr = DMStagGetCorners(dm,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
     ierr = DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL);CHKERRQ(ierr);
     
@@ -605,14 +612,7 @@ PetscErrorCode DMStagBCListCreate(DM dm,DMStagBCList *list)
     
     ierr = _DMStagBCListSetupIndices(l);CHKERRQ(ierr);
     
-    /* optionally setup the coordinates if the DM has coordinates defined */
-    {
-      DM dmCoord;
-      ierr = DMGetCoordinateDM(dm,&dmCoord);CHKERRQ(ierr);
-      if (dmCoord) {
-        ierr = _DMStagBCListSetupCoordinates(l);CHKERRQ(ierr);
-      }
-    }
+    ierr = _DMStagBCListSetupCoordinates(l);CHKERRQ(ierr);
     
     // Initialize list type
     for (ii = 0; ii<l->nbc_vertex; ii++) {
