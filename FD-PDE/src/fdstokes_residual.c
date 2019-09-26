@@ -8,7 +8,7 @@
 PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
 {
   FD             fd = (FD)ctx;
-  CoeffStokes    *cdata;
+  // CoeffStokes    *cdata;
   DM             dmPV;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
   Vec            xlocal, flocal;
@@ -22,7 +22,7 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   PetscFunctionBegin;
 
   // Assign pointers and other variables
-  cdata   = (CoeffStokes*)fd->coeff_context;
+  // cdata   = (CoeffStokes*)fd->coeff_context;
   dmPV    = fd->dmstag;
   Nx = fd->Nx;
   Nz = fd->Nz;
@@ -34,11 +34,11 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   // Update coefficients
   ierr = fd->ops->form_coefficient(fd->dmstag,fd->x,fd->dmcoeff,fd->coeff,fd->user_context);CHKERRQ(ierr);
 
-  ierr = CoefficientEvaluate(cdata->eta_n);CHKERRQ(ierr);
-  ierr = CoefficientEvaluate(cdata->eta_c);CHKERRQ(ierr);
-  ierr = CoefficientEvaluate(cdata->fux);CHKERRQ(ierr);
-  ierr = CoefficientEvaluate(cdata->fuz);CHKERRQ(ierr);
-  ierr = CoefficientEvaluate(cdata->fp );CHKERRQ(ierr);
+  // ierr = CoefficientEvaluate(cdata->eta_n);CHKERRQ(ierr);
+  // ierr = CoefficientEvaluate(cdata->eta_c);CHKERRQ(ierr);
+  // ierr = CoefficientEvaluate(cdata->fux);CHKERRQ(ierr);
+  // ierr = CoefficientEvaluate(cdata->fuz);CHKERRQ(ierr);
+  // ierr = CoefficientEvaluate(cdata->fp );CHKERRQ(ierr);
 
   // Get local domain
   ierr = DMStagGetCorners(dmPV, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);

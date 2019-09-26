@@ -34,6 +34,9 @@ PetscErrorCode FDCreate(MPI_Comm comm, FD *_fd)
   fd->user_context = NULL;
   fd->type  = FD_UNINIT;
   fd->comm  = comm;
+
+  fd->Nx = 0;
+  fd->Nz = 0;
   
   *_fd = fd;
   
@@ -67,9 +70,12 @@ PetscErrorCode FDDestroy(FD *_fd)
   ierr = VecDestroy(&fd->xguess);CHKERRQ(ierr);
   ierr = MatDestroy(&fd->J);CHKERRQ(ierr);
   ierr = SNESDestroy(&fd->snes);CHKERRQ(ierr);
+
   //ierr = DMDestroy(&fd->dmcoeff); CHKERRQ(ierr);
-  fd->dmstag  = NULL;
-  fd->dmcoeff = NULL;
+
+  // fd->dmstag  = NULL;
+  // fd->dmcoeff = NULL;
+
   fd->bc_list = NULL;
   fd->user_context = NULL;
 
@@ -95,6 +101,45 @@ PetscErrorCode FDView(FD fd, PetscViewer viewer)
   if (fd->ops->view) {
     ierr = fd->ops->view(fd,viewer); CHKERRQ(ierr);
   }
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// FDSetDimensions
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDSetDimensions"
+PetscErrorCode FDSetDimensions(FD fd, PetscInt nx, PetscInt nz)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  if (!nx) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Dimension 1 not provided for FD-PDE dmstag");
+  if (!nz) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Dimension 2 not provided for FD-PDE dmstag");
+
+  fd->Nx = nx;
+  fd->Nz = nz;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// FDGetDM
+// ---------------------------------------
+/*@ FDGetDM - Retrieves the dmstag from the fd object. User has to call DMDestroy() to free the space. @*/
+#undef __FUNCT__
+#define __FUNCT__ "FDGetDM"
+PetscErrorCode FDGetDM(FD fd, DM *dm)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  if (!fd->dmstag) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"DMStag for FD-PDE not provided - Call FDCreate()");
+  *dm = dm->dmstag;
+
+  // Increase reference count 
+  ierr = PetscObjectReference((PetscObject)dm->dmstag);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -137,6 +182,26 @@ PetscErrorCode FDSetType(FD fd, enum FDPDEType type)
 }
 
 // ---------------------------------------
+// FDSetBC
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDSetBC"
+PetscErrorCode FDSetBC(FD fd, BCList *bclist, PetscInt nbc)
+{
+  PetscErrorCode ierr; 
+  PetscFunctionBegin;
+
+  // Save pointers to bclist
+  if (bclist) fd->bc_list = bclist;
+  if (nbc) fd->nbc = nbc;
+
+  // Preallocate Jacobian including bclist
+  ierr = fd->ops->jacobian_prealloc(fd); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
 // FDSetFunctionCoefficient
 // ---------------------------------------
 #undef __FUNCT__
@@ -147,7 +212,10 @@ PetscErrorCode FDSetFunctionCoefficient(FD fd, PetscErrorCode (*form_coefficient
 
   if (!form_coefficient) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No function is provided to calculate the coeffients!");
   fd->ops->form_coefficient = form_coefficient;
-  fd->user_context     = data;
+  fd->user_context = data;
+
+  // Create coefficient 
+  ierr = fd->ops->create_coefficient(fd);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

@@ -22,6 +22,7 @@ typedef struct _p_FD *FD;
 struct _FDPDEOps {
   PetscErrorCode (*form_function)(SNES,Vec,Vec,void*);
   PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*);
+  PetscErrorCode (*create_coefficient)(FD);
   PetscErrorCode (*create)(FD);
   PetscErrorCode (*destroy)(FD);
   PetscErrorCode (*view)(FD,PetscViewer);

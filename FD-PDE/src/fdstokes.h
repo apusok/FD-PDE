@@ -9,10 +9,10 @@
 #include "fd.h"
 #include "coefficient.h"
 
-typedef struct {
-  Coefficient eta_c, eta_n;
-  Coefficient fux, fuz, fp;
-} CoeffStokes;
+// typedef struct {
+//   Coefficient eta_c, eta_n;
+//   Coefficient fux, fuz, fp;
+// } CoeffStokes;
 
 // ---------------------------------------
 // Function definitions
