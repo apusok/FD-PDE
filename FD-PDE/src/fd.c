@@ -31,9 +31,10 @@ PetscErrorCode FDCreate(MPI_Comm comm, FD *_fd)
   fd->coeff = NULL;
   fd->J     = NULL;
   fd->snes  = NULL;
+  fd->user_context = NULL;
   fd->type  = FD_UNINIT;
   fd->comm  = comm;
-
+  
   *_fd = fd;
   
   PetscFunctionReturn(0);
@@ -70,6 +71,7 @@ PetscErrorCode FDDestroy(FD *_fd)
   fd->dmstag  = NULL;
   fd->dmcoeff = NULL;
   fd->bc_list = NULL;
+  fd->user_context = NULL;
 
   ierr = PetscFree(fd->description);CHKERRQ(ierr);
   ierr = PetscFree(fd);CHKERRQ(ierr);
@@ -134,31 +136,21 @@ PetscErrorCode FDSetType(FD fd, enum FDPDEType type)
   PetscFunctionReturn(0);
 }
 
-// // ---------------------------------------
-// // FDSetDM
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDSetDM"
-// PetscErrorCode FDSetDM(FD fd, DM *dm)
-// {
-//   PetscErrorCode ierr;
-//   PetscFunctionBegin;
+// ---------------------------------------
+// FDSetFunctionCoefficient
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDSetFunctionCoefficient"
+PetscErrorCode FDSetFunctionCoefficient(FD fd, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), void *data)
+{
+  PetscFunctionBegin;
 
-//   PetscFunctionReturn(0);
-// }
+  if (!form_coefficient) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No function is provided to calculate the coeffients!");
+  fd->ops->form_coefficient = form_coefficient;
+  fd->user_context     = data;
 
-// // ---------------------------------------
-// // FDGetDM
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDGetDM"
-// PetscErrorCode FDGetDM(FD fd, DM *dm)
-// {
-//   PetscErrorCode ierr;
-//   PetscFunctionBegin;
-
-//   PetscFunctionReturn(0);
-// }
+  PetscFunctionReturn(0);
+}
 
 // ---------------------------------------
 // FDGetSolution

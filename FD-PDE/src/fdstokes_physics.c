@@ -26,10 +26,7 @@ PetscErrorCode ContinuityResidual(DM dm, Vec xlocal, PetscScalar **coordx, Petsc
   ierr = DMStagVecGetValuesStencil(dm, xlocal, nEntries, point, xx); CHKERRQ(ierr);
       
   // Calculate residual
-  /* << DEBUG >> */
-  // rhs = fp[i-sx+(j-sz)*nz];
-  rhs = 0.0;
-   /* << DEBUG >> */
+  rhs = fp[i-sx+(j-sz)*nz];
   dx = coordx[i][inext]-coordx[i][iprev];
   dz = coordz[j][inext]-coordz[j][iprev];
   ffi = (xx[1]-xx[0])/dx + (xx[3]-xx[2])/dz - rhs;
@@ -78,17 +75,10 @@ PetscErrorCode XMomentumResidual(DM dm, Vec xlocal,PetscScalar **coordx,PetscSca
   ierr = DMStagVecGetValuesStencil(dm, xlocal, nEntries, point, xx); CHKERRQ(ierr);
 
   // Viscosity
-   /* << DEBUG >> */
   etaLeft  = eta_c[i-1-sx+(j  -sz)*nz];
   etaRight = eta_c[i  -sx+(j  -sz)*nz];
   etaUp    = eta_n[i  -sx+(j+1-sz)*nz];
   etaDown  = eta_n[i  -sx+(j  -sz)*nz];
-
-  etaLeft  = 1.0;
-  etaRight = 1.0;
-  etaUp    = 1.0;
-  etaDown  = 1.0;
-   /* << DEBUG >> */
 
   // Grid spacings - need to correct for missing values
   dx  = coordx[i  ][icenter]-coordx[i-1][icenter];
@@ -113,10 +103,8 @@ PetscErrorCode XMomentumResidual(DM dm, Vec xlocal,PetscScalar **coordx,PetscSca
   dVxdx = etaRight*(xx[4]-xx[0])/dx2 - etaLeft*(xx[0]-xx[3])/dx1;
   dVxdz = etaUp   *(xx[2]-xx[0])/dz2 - etaDown*(xx[0]-xx[1])/dz1;
   dVzdx = etaUp   *(xx[8]-xx[7])/dx  - etaDown*(xx[6]-xx[5])/dx;
-   /* << DEBUG >> */
-  // rhs   = fux[i-sx+(j-sz)*nz];
-  rhs = 0.0;
-   /* << DEBUG >> */
+  rhs   = fux[i-sx+(j-sz)*nz];
+
   ffi   = -dPdx + 2.0*dVxdx/dx + dVxdz/dz + dVzdx/dz - rhs;
 
   *ff = ffi;
@@ -163,17 +151,10 @@ PetscErrorCode ZMomentumResidual(DM dm, Vec xlocal,PetscScalar **coordx,PetscSca
   ierr = DMStagVecGetValuesStencil(dm, xlocal, nEntries, point, xx); CHKERRQ(ierr);
 
   // Viscosity
-   /* << DEBUG >> */
   etaLeft  = eta_n[i  -sx+(j  -sz)*nz];
   etaRight = eta_n[i+1-sx+(j  -sz)*nz];
   etaUp    = eta_c[i  -sx+(j  -sz)*nz];
   etaDown  = eta_c[i  -sx+(j-1-sz)*nz];
-
-  etaLeft  = 1.0;
-  etaRight = 1.0;
-  etaUp    = 1.0;
-  etaDown  = 1.0;
-   /* << DEBUG >> */
 
   // Grid spacings
   dx  = coordx[i  ][inext  ]-coordx[i  ][iprev  ];
@@ -198,10 +179,8 @@ PetscErrorCode ZMomentumResidual(DM dm, Vec xlocal,PetscScalar **coordx,PetscSca
   dVzdz = etaUp   *(xx[1]-xx[0])/dz2 - etaDown *(xx[0]-xx[2])/dz1;
   dVzdx = etaRight*(xx[4]-xx[0])/dx2 - etaLeft *(xx[0]-xx[3])/dx1;
   dVxdz = etaRight*(xx[6]-xx[8])/dz - etaLeft *(xx[5]-xx[7])/dz;
-   /* << DEBUG >> */
-  // rhs   = fuz[i-sx+(j-sz)*nz];
-  rhs = -PetscSinScalar(PETSC_PI*coordz[j][iprev])*PetscCosScalar(PETSC_PI*coordx[i][icenter])*1.0; //rho*g
-   /* << DEBUG >> */
+  rhs   = fuz[i-sx+(j-sz)*nz];
+
   ffi   = -dPdz + 2.0*dVzdz/dz + dVzdx/dx + dVxdz/dx - rhs;
 
   *ff = ffi;

@@ -32,6 +32,8 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   nbc    = fd->nbc;
 
   // Update coefficients
+  ierr = fd->ops->form_coefficient(fd->dmstag,fd->x,fd->dmcoeff,fd->coeff,fd->user_context);CHKERRQ(ierr);
+
   ierr = CoefficientEvaluate(cdata->eta_n);CHKERRQ(ierr);
   ierr = CoefficientEvaluate(cdata->eta_c);CHKERRQ(ierr);
   ierr = CoefficientEvaluate(cdata->fux);CHKERRQ(ierr);

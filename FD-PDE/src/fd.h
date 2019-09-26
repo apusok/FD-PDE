@@ -21,6 +21,7 @@ typedef struct _p_FD *FD;
 
 struct _FDPDEOps {
   PetscErrorCode (*form_function)(SNES,Vec,Vec,void*);
+  PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*);
   PetscErrorCode (*create)(FD);
   PetscErrorCode (*destroy)(FD);
   PetscErrorCode (*view)(FD,PetscViewer);
@@ -36,6 +37,7 @@ struct _p_FD {
   BCList *bc_list;
   PetscInt nbc;
   void   *coeff_context;
+  void   *user_context;
   enum FDPDEType type;
   char   *description;
   SNES    snes;
@@ -50,8 +52,7 @@ PetscErrorCode FDCreate(MPI_Comm, FD*);
 PetscErrorCode FDDestroy(FD*);
 PetscErrorCode FDView(FD, PetscViewer);
 PetscErrorCode FDSetType(FD, enum FDPDEType);
-// PetscErrorCode FDSetDM(FD, DM*);
-// PetscErrorCode FDGetDM(FD, DM*);
+PetscErrorCode FDSetFunctionCoefficient(FD, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), void*);
 PetscErrorCode FDGetSolution(FD, Vec*, Vec*);
 PetscErrorCode FDCreateSNES(MPI_Comm, FD);
 PetscErrorCode FDSetOptionsPrefix(FD,const char[]);

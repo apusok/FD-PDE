@@ -48,9 +48,7 @@ PetscErrorCode SNESStokes_Solcx(DM*,Vec*,void*);
 PetscErrorCode Analytic_Solcx(DM,Vec*,void*);
 PetscErrorCode InputParameters(UsrData**);
 PetscErrorCode InputPrintData(UsrData*);
-PetscErrorCode InitializeDensity_SolCx(UsrData*, DM, Vec);
-PetscErrorCode InitializeViscosityCenter_SolCx(UsrData*, DM, Vec);
-PetscErrorCode InitializeViscosityCorner_SolCx(UsrData*, DM, Vec);
+PetscErrorCode FormCoefficient(DM, Vec, DM, Vec, void*);
 PetscErrorCode eval_fux(Coefficient, void*);
 PetscErrorCode eval_fuz(Coefficient, void*);
 PetscErrorCode eval_fp(Coefficient, void*);
@@ -123,6 +121,8 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   {
     Coefficient eta_c, eta_n, fux, fuz, fp;
     ierr = FDStokesGetCoefficients(fd,&eta_c,&eta_n,&fux,&fuz,&fp); CHKERRQ(ierr);
+    ierr = FDSetFunctionCoefficient(fd,FormCoefficient,usr); CHKERRQ(ierr);
+
     ierr = CoefficientSetEvaluate(eta_c,eval_eta_c,(void*)usr); CHKERRQ(ierr);
     ierr = CoefficientSetEvaluate(eta_n,eval_eta_n,(void*)usr); CHKERRQ(ierr);
     ierr = CoefficientSetEvaluate(fux,eval_fux,(void*)usr); CHKERRQ(ierr);
@@ -259,199 +259,98 @@ PetscErrorCode InputPrintData(UsrData *usr)
   PetscFunctionReturn(0);
 }
 // ---------------------------------------
-// InitializeDensity_SolCx - array
-// Density is defined (edges): sin(pi*z)*cos(pi*x); 
+// FormCoefficient
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "InitializeDensity_SolCx"
-PetscErrorCode InitializeDensity_SolCx(UsrData *usr, DM dm, Vec coeff)
+#define __FUNCT__ "FormCoefficient"
+PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
+  UsrData        *usr = (UsrData*)ctx;
   PetscInt       i, j, sx, sz, nx, nz;
   Vec            coefflocal;
   PetscScalar    **coordx,**coordz;
   PetscInt       iprev, inext, icenter;
   PetscScalar    ***c;
+  PetscScalar    L2 = 0.5;
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
 
+  // Density is defined (edges): sin(pi*z)*cos(pi*x); 
+  // Viscosity is defined (corner and center): solcx_eta0, for 0<=x<=0.5, solcx_eta1, for 0.5<x<=1
+  // DM dm, Vec x - used for non-linear coefficients
+
   // Get domain corners
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
   // Get dm coordinates array
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,RIGHT,&inext);CHKERRQ(ierr); 
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,LEFT,&iprev);CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,RIGHT,&inext);CHKERRQ(ierr); 
+  ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter);CHKERRQ(ierr);
 
-  // Map global vectors to local domain
-  ierr = DMGetLocalVector(dm, &coefflocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm, coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayDOF(dm, coefflocal, &c); CHKERRQ(ierr);
+  // Create coefficient local vector
+  ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayDOF(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
   
   // Loop over local domain - set initial density and viscosity
   for (j = sz; j < sz+nz; ++j) {
     for (i = sx; i <sx+nx; ++i) {
 
-      DMStagStencil point[4];
-      PetscScalar   xp[4], zp[4], fval=0.0;
+      DMStagStencil point[9];
+      PetscScalar   xp[9], zp[9], fval=0.0;
       PetscInt      ii, idx;
         
       // Set stencil values
-      point[0].i = i; point[0].j = j; point[0].loc = LEFT;    point[0].c = 0;
-      point[1].i = i; point[1].j = j; point[1].loc = RIGHT;   point[1].c = 0;
-      point[2].i = i; point[2].j = j; point[2].loc = DOWN;    point[2].c = 0;
-      point[3].i = i; point[3].j = j; point[3].loc = UP;      point[3].c = 0;
+      point[0].i = i; point[0].j = j; point[0].loc = LEFT;       point[0].c = 0; // rho
+      point[1].i = i; point[1].j = j; point[1].loc = RIGHT;      point[1].c = 0;
+      point[2].i = i; point[2].j = j; point[2].loc = DOWN;       point[2].c = 0;
+      point[3].i = i; point[3].j = j; point[3].loc = UP;         point[3].c = 0;
+      point[4].i = i; point[4].j = j; point[4].loc = ELEMENT;    point[4].c = 0; // eta center
+      point[5].i = i; point[5].j = j; point[5].loc = DOWN_LEFT;  point[5].c = 0; // eta corner
+      point[6].i = i; point[6].j = j; point[6].loc = DOWN_RIGHT; point[6].c = 0;
+      point[7].i = i; point[7].j = j; point[7].loc = UP_LEFT;    point[7].c = 0;
+      point[8].i = i; point[8].j = j; point[8].loc = UP_RIGHT;   point[8].c = 0;
 
       // Get coordinates
       xp[0] = coordx[i][iprev  ]; zp[0] = coordz[j][icenter];
       xp[1] = coordx[i][inext  ]; zp[1] = coordz[j][icenter];
       xp[2] = coordx[i][icenter]; zp[2] = coordz[j][iprev  ];
       xp[3] = coordx[i][icenter]; zp[3] = coordz[j][inext  ];
+      xp[4] = coordx[i][icenter]; zp[4] = coordz[j][icenter];
+      xp[5] = coordx[i][iprev  ]; zp[5] = coordz[j][iprev  ];
+      xp[6] = coordx[i][inext  ]; zp[6] = coordz[j][iprev  ];
+      xp[7] = coordx[i][iprev  ]; zp[7] = coordz[j][inext  ];
+      xp[8] = coordx[i][inext  ]; zp[8] = coordz[j][inext  ];
 
       // Set densities
       for (ii = 0; ii < 4; ++ii) {
         fval = PetscSinScalar(PETSC_PI*zp[ii]) * PetscCosScalar(PETSC_PI*xp[ii]); 
-        ierr = DMStagGetLocationSlot(dm, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+        ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
         c[j][i][idx] = fval;
+        // PetscPrintf(PETSC_COMM_WORLD,"# BK1 [j=%d][i=%d][idx=%d][loc=%d] #\n",j,i,idx,point[ii].loc);
       }
-    }
-  }
 
-  // Restore arrays, local vectors
-  ierr = DMStagVecRestoreArrayDOF(dm,coefflocal,&c);CHKERRQ(ierr);
-  ierr = DMLocalToGlobal(dm,coefflocal,INSERT_VALUES,coeff);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm,&coefflocal);CHKERRQ(ierr);
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-
-  PetscFunctionReturn(0);
-}
-// ---------------------------------------
-// InitializeViscosityCenter_SolCx
-// Viscosity is defined (corner and center): solcx_eta0, for 0<=x<=0.5, solcx_eta1, for 0.5<x<=1
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "InitializeViscosityCenter_SolCx"
-PetscErrorCode InitializeViscosityCenter_SolCx(UsrData *usr, DM dm, Vec coeff)
-{
-  PetscInt       i, j, sx, sz, nx, nz;
-  Vec            coefflocal;
-  PetscScalar    **coordx,**coordz;
-  PetscInt       icenter;
-  PetscScalar    L2 = 0.5;
-  PetscScalar    ***c;
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-
-  // Get domain corners
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-
-  // Get dm coordinates array
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr);
-
-  // Map global vectors to local domain
-  ierr = DMGetLocalVector(dm, &coefflocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm, coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayDOF(dm, coefflocal, &c); CHKERRQ(ierr);
-  
-  // Loop over local domain - set initial density and viscosity
-  for (j = sz; j < sz+nz; ++j) {
-    for (i = sx; i <sx+nx; ++i) {
-      DMStagStencil point;
-      PetscScalar   xp, fval=0.0;
-      PetscInt      idx;
-        
-      // Set stencil values
-      point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0;
-
-      // Get coordinates
-      xp = coordx[i][icenter];
-
-      // Set eta
-      if (xp <= L2) fval = usr->par->eta0;
-      else          fval = usr->par->eta1;
-
-      ierr = DMStagGetLocationSlot(dm, point.loc, point.c, &idx); CHKERRQ(ierr);
-      c[j][i][idx] = fval;
-    }
-  }
-
-  // Restore arrays, local vectors
-  ierr = DMStagVecRestoreArrayDOF(dm,coefflocal,&c); CHKERRQ(ierr);
-  ierr = DMLocalToGlobal(dm,coefflocal,INSERT_VALUES,coeff);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm,&coefflocal);       CHKERRQ(ierr);
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-
-  PetscFunctionReturn(0);
-}
-// ---------------------------------------
-// InitializeViscosityCorner_SolCx
-// Viscosity is defined (corner and center): solcx_eta0, for 0<=x<=0.5, solcx_eta1, for 0.5<x<=1
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "InitializeViscosityCorner_SolCx"
-PetscErrorCode InitializeViscosityCorner_SolCx(UsrData *usr, DM dm, Vec coeff)
-{
-  PetscInt       i, j, sx, sz, nx, nz;
-  Vec            coefflocal;
-  PetscScalar    **coordx,**coordz;
-  PetscInt       iprev, inext;
-  PetscScalar    L2 = 0.5;
-  PetscScalar    ***c;
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-
-  // Get domain corners
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-
-  // Get dm coordinates array
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,RIGHT,&inext);CHKERRQ(ierr); 
-
-  // Map global vectors to local domain
-  ierr = DMGetLocalVector(dm, &coefflocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm, coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayDOF(dm, coefflocal, &c); CHKERRQ(ierr);
-  
-  // Loop over local domain - set initial density and viscosity
-  for (j = sz; j < sz+nz; ++j) {
-    for (i = sx; i <sx+nx; ++i) {
-      DMStagStencil point[4];
-      PetscScalar   xp[4], fval=0.0;
-      PetscInt      ii, idx;
-        
-      // Set stencil values
-      point[0].i = i; point[0].j = j; point[0].loc = DOWN_LEFT;  point[0].c = 0;
-      point[1].i = i; point[1].j = j; point[1].loc = DOWN_RIGHT; point[1].c = 0;
-      point[2].i = i; point[2].j = j; point[2].loc = UP_LEFT;    point[2].c = 0;
-      point[3].i = i; point[3].j = j; point[3].loc = UP_RIGHT;   point[3].c = 0;
-
-      // Get coordinates
-      xp[0] = coordx[i][iprev];
-      xp[1] = coordx[i][inext];
-      xp[2] = coordx[i][iprev];
-      xp[3] = coordx[i][inext];
-
-      // Set eta
-      for (ii = 0; ii < 4; ++ii) {
+      // Set eta center
+      for (ii = 4; ii < 9; ++ii) {
         if (xp[ii] <= L2) fval = usr->par->eta0;
         else              fval = usr->par->eta1;
 
-        ierr = DMStagGetLocationSlot(dm, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+        ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
         c[j][i][idx] = fval;
+        // PetscPrintf(PETSC_COMM_WORLD,"# BK2 [j=%d][i=%d][idx=%d][loc=%d] #\n",j,i,idx,point[ii].loc);
       }
     }
   }
 
   // Restore arrays, local vectors
-  ierr = DMStagVecRestoreArrayDOF(dm,coefflocal,&c); CHKERRQ(ierr);
-  ierr = DMLocalToGlobal(dm,coefflocal,INSERT_VALUES,coeff);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm,&coefflocal);       CHKERRQ(ierr);
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagRestore1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+
+  ierr = DMStagVecRestoreArrayDOF(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  
+  ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -486,8 +385,8 @@ PetscErrorCode eval_fuz(Coefficient c, void *data)
   PetscFunctionBegin;
   fd = c->fd;
 
-  // Initialize/update density
-  ierr = InitializeDensity_SolCx(usr,fd->dmcoeff,fd->coeff);CHKERRQ(ierr);
+  // // Initialize/update density
+  // ierr = InitializeDensity_SolCx(usr,fd->dmcoeff,fd->coeff);CHKERRQ(ierr);
 
   // Extract Rho part from dmcoeff [Vz] and multiply by prefactor a=-g
   ierr = DMStagExtract1DComponent(fd->dmcoeff, fd->coeff, DOWN, 0, -usr->par->g, c->coeff);CHKERRQ(ierr);
@@ -520,13 +419,13 @@ PetscErrorCode eval_fp(Coefficient c, void *data)
 PetscErrorCode eval_eta_n(Coefficient c, void *data)
 {
   FD fd;
-  UsrData *usr = (UsrData*)data;
+  // UsrData *usr = (UsrData*)data;
   PetscErrorCode ierr;
   PetscFunctionBegin;
   fd = c->fd;
 
-  // Initialize/Update viscosity in corners
-  ierr = InitializeViscosityCorner_SolCx(usr,fd->dmcoeff,fd->coeff);CHKERRQ(ierr);
+  // // Initialize/Update viscosity in corners
+  // ierr = InitializeViscosityCorner_SolCx(usr,fd->dmcoeff,fd->coeff);CHKERRQ(ierr);
 
   // Extract part from dmCoeff [eta_n corners]
   ierr = DMStagExtract1DComponent(fd->dmcoeff, fd->coeff, DOWN_RIGHT, 0, 1.0, c->coeff);CHKERRQ(ierr);
@@ -542,13 +441,13 @@ PetscErrorCode eval_eta_n(Coefficient c, void *data)
 PetscErrorCode eval_eta_c(Coefficient c, void *data)
 {
   FD fd;
-  UsrData *usr = (UsrData*)data;
+  // UsrData *usr = (UsrData*)data;
   PetscErrorCode ierr;
   PetscFunctionBegin;
   fd = c->fd;
 
-  // Initialize/Update viscosity in center
-  ierr = InitializeViscosityCenter_SolCx(usr,fd->dmcoeff,fd->coeff);CHKERRQ(ierr);
+  // // Initialize/Update viscosity in center
+  // ierr = InitializeViscosityCenter_SolCx(usr,fd->dmcoeff,fd->coeff);CHKERRQ(ierr);
 
   // Extract part from dmCoeff [eta_c center]
   ierr = DMStagExtract1DComponent(fd->dmcoeff, fd->coeff, ELEMENT, 0, 1.0, c->coeff);CHKERRQ(ierr);
