@@ -61,10 +61,6 @@ PetscErrorCode FDDestroy(FD *_fd)
   if (!fd) PetscFunctionReturn(0);
 
   // Destroy objects
-  // if (fd->ops->destroy) {
-  //   ierr = fd->ops->destroy(fd); CHKERRQ(ierr); //empty
-  //   ierr = PetscFree(fd->ops);CHKERRQ(ierr);
-  // }
   ierr = PetscFree(fd->ops);CHKERRQ(ierr);
   ierr = VecDestroy(&fd->x);CHKERRQ(ierr);
   ierr = VecDestroy(&fd->r);CHKERRQ(ierr);
@@ -75,9 +71,6 @@ PetscErrorCode FDDestroy(FD *_fd)
 
   ierr = DMDestroy(&fd->dmcoeff); CHKERRQ(ierr);
   ierr = DMDestroy(&fd->dmstag); CHKERRQ(ierr);
-
-  // fd->dmstag  = NULL;
-  // fd->dmcoeff = NULL;
 
   fd->bc_list = NULL;
   fd->user_context = NULL;
@@ -95,15 +88,12 @@ PetscErrorCode FDDestroy(FD *_fd)
 #define __FUNCT__ "FDView"
 PetscErrorCode FDView(FD fd, PetscViewer viewer)
 {
-  PetscErrorCode ierr;
+  // PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  // also write some fd object info 
+  // View FD object
 
-  // ASCII, but also need to rewrite VTK files for center/corner DM stag
-  if (fd->ops->view) {
-    ierr = fd->ops->view(fd,viewer); CHKERRQ(ierr);
-  }
+
 
   PetscFunctionReturn(0);
 }
@@ -140,8 +130,6 @@ PetscErrorCode FDGetDM(FD fd, DM *dm)
 
   if (!fd->dmstag) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"DMStag for FD-PDE not provided - Call FDCreate()");
   *dm = fd->dmstag;
-
-  // Increase reference count 
   ierr = PetscObjectReference((PetscObject)fd->dmstag);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
@@ -214,7 +202,7 @@ PetscErrorCode FDSetFunctionCoefficient(FD fd, PetscErrorCode (*form_coefficient
   fd->ops->form_coefficient = form_coefficient;
   fd->user_context = data;
 
-  // Create coefficient 
+  // Create coefficient dm and vector - specific to FD-PDE
   ierr = fd->ops->create_coefficient(fd);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
@@ -231,21 +219,12 @@ PetscErrorCode FDGetSolution(FD fd, Vec *_x)
   PetscErrorCode ierr;
   PetscFunctionBegin;
   if (fd->x == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Solution of FD-PDE not provided - Call FDSetSolution()");
-  // if (fd->coeff == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Coefficient vector has not been set.");
   if (fd->type == FD_UNINIT) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Type of FD-PDE has not been set.");
   if (_x) {
     *_x = fd->x;
-
-    // Increase reference count 
     ierr = PetscObjectReference((PetscObject)fd->x);CHKERRQ(ierr);
   }
-  // if (_coeff) {
-  //   Vec coeff;
-  //   ierr = VecDuplicate(fd->coeff,&coeff);CHKERRQ(ierr);
-  //   ierr = VecCopy(fd->coeff,coeff);CHKERRQ(ierr);
-  //   *_coeff = coeff;
-  //   //*coeff = fd->coeff;
-  // }
+
   PetscFunctionReturn(0);
 }
 
@@ -322,8 +301,7 @@ PetscErrorCode FDConfigureSNES(FD fd)
   // set Jacobian
   ierr = SNESSetJacobian(fd->snes, fd->J, fd->J, SNESComputeJacobianDefaultColor, NULL); CHKERRQ(ierr);
 
-  // SNES Options
-  // Get default info on convergence
+  // SNES Options - default info on convergence
   ierr = PetscOptionsSetValue(NULL, "-snes_monitor",          ""); CHKERRQ(ierr);
   ierr = PetscOptionsSetValue(NULL, "-ksp_monitor",           ""); CHKERRQ(ierr);
   ierr = PetscOptionsSetValue(NULL, "-snes_converged_reason", ""); CHKERRQ(ierr);

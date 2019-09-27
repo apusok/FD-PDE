@@ -27,7 +27,6 @@ typedef struct {
   PetscScalar    L, H;
   PetscScalar    xmin, zmin;
   PetscScalar    eta0, eta1, g;
-  PetscInt       bcleft, bcright, bcup, bcdown;
   char           fname_out[FNAME_LENGTH]; 
   char           fname_in [FNAME_LENGTH];  
 } Params;
@@ -49,11 +48,6 @@ PetscErrorCode Analytic_Solcx(DM,Vec*,void*);
 PetscErrorCode InputParameters(UsrData**);
 PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode FormCoefficient(DM, Vec, DM, Vec, void*);
-// PetscErrorCode eval_fux(Coefficient, void*);
-// PetscErrorCode eval_fuz(Coefficient, void*);
-// PetscErrorCode eval_fp(Coefficient, void*);
-// PetscErrorCode eval_eta_n(Coefficient, void*);
-// PetscErrorCode eval_eta_c(Coefficient, void*);
 PetscErrorCode FDBCListPopulate(DM, BCList*, PetscInt);
 PetscErrorCode ComputeErrorNorms(DM,Vec,Vec,void*);
 PetscErrorCode DoOutput(DM,Vec,const char[]);
@@ -65,14 +59,13 @@ PetscErrorCode DoOutput(DM,Vec,const char[]);
 #define __FUNCT__ "SNESStokes_SolCx"
 PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
 {
-  UsrData     *usr = (UsrData*) ctx;
-  FD           fd;
-  BCList       *bclist;
-  DM           dmPV; //, dmCoeff;
-  Vec          x; //, coeff;
-  PetscInt     nx, nz; //, dofPV0, dofPV1, dofPV2;
-  PetscInt     nbc; //, dofCf0, dofCf1, dofCf2, stencilWidth;
-  PetscScalar  xmin, zmin, xmax, zmax;
+  UsrData       *usr = (UsrData*) ctx;
+  FD             fd;
+  BCList        *bclist;
+  DM             dmPV;
+  Vec            x;
+  PetscInt       nx, nz, nbc;
+  PetscScalar    xmin, zmin, xmax, zmax;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -86,13 +79,6 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   zmin = usr->par->zmin;
   xmax = usr->par->xmin+usr->par->L;
   zmax = usr->par->zmin+usr->par->H;
-
-  // // stencil dofs - need to be more explicit what are the location and c
-  // dofPV0 = 0; dofPV1 = 1; dofPV2 = 1; // dmPV: Vx, Vz (edges), P (element)
-  // dofCf0 = 1; dofCf1 = 1; dofCf2 = 1; // dmCoeff: rho (edges), eta (corner, elements)
-  // stencilWidth = 1;
-
-  // Create a DMStag for help in Coefficient evaluation
 
   // Create the FD-pde object
   ierr = FDCreate(usr->comm,&fd); CHKERRQ(ierr);
@@ -109,53 +95,22 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   ierr = FDSetBCList(fd,bclist,nbc);CHKERRQ(ierr);
   //ierr = FDSetOptionsPrefix(fd,"stk_"); CHKERRQ(ierr);
 
-  // // Create DMStag object for Stokes unknowns: dmPV (P-element, v-vertex)
-  // ierr = DMStagCreate2d(usr->comm, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, nz, 
-  //           PETSC_DECIDE, PETSC_DECIDE, dofPV0, dofPV1, dofPV2, 
-  //           DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dmPV); CHKERRQ(ierr);
-  // ierr = DMSetFromOptions(dmPV); CHKERRQ(ierr);
-  // ierr = DMSetUp         (dmPV); CHKERRQ(ierr);
-  // ierr = DMStagSetUniformCoordinatesProduct(dmPV, xmin, xmax, zmin, zmax, 0.0, 0.0);CHKERRQ(ierr);
-
-  // // Create DMStag object for Stokes coefficients: dmCoeff 
-  // ierr = DMStagCreateCompatibleDMStag(dmPV, dofCf0, dofCf1, dofCf2, 0, &dmCoeff); CHKERRQ(ierr);
-  // ierr = DMSetUp(dmCoeff); CHKERRQ(ierr);
-  // ierr = DMStagSetUniformCoordinatesProduct(dmCoeff, xmin, xmax, zmin, zmax, 0.0, 0.0);CHKERRQ(ierr);
-
-  // // Create the FD-pde object
-  // ierr = FDCreate(usr->comm,&fd); CHKERRQ(ierr);
-  // ierr = FDSetType(fd,STOKES); CHKERRQ(ierr);
-  // ierr = FDStokesSetData(fd,dmPV,dmCoeff,bclist,nbc);CHKERRQ(ierr);
-  //ierr = FDSetOptionsPrefix(fd,"stk_"); CHKERRQ(ierr);
-
-  // Set coefficients evaluation functions for eta, f
+  // Set coefficients evaluation function
   ierr = FDSetFunctionCoefficient(fd,FormCoefficient,usr); CHKERRQ(ierr);
-  // {
-  //   Coefficient eta_c, eta_n, fux, fuz, fp;
-  //   ierr = FDStokesGetCoefficients(fd,&eta_c,&eta_n,&fux,&fuz,&fp); CHKERRQ(ierr);
-  //   ierr = FDSetFunctionCoefficient(fd,FormCoefficient,usr); CHKERRQ(ierr);
-
-  //   ierr = CoefficientSetEvaluate(eta_c,eval_eta_c,(void*)usr); CHKERRQ(ierr);
-  //   ierr = CoefficientSetEvaluate(eta_n,eval_eta_n,(void*)usr); CHKERRQ(ierr);
-  //   ierr = CoefficientSetEvaluate(fux,eval_fux,(void*)usr); CHKERRQ(ierr);
-  //   ierr = CoefficientSetEvaluate(fuz,eval_fuz,(void*)usr); CHKERRQ(ierr);
-  //   ierr = CoefficientSetEvaluate(fp ,eval_fp ,(void*)usr); CHKERRQ(ierr);
-  // }
 
   // FD SNES Solver
   ierr = FDSetSolveSNES(fd);CHKERRQ(ierr);
-  ierr = FDGetSolution(fd,&x);CHKERRQ(ierr); // output solution vector
 
-  //ierr = FDView();CHKERRQ(ierr); //standard ASCII view on screen
+  // Get solution vector
+  ierr = FDGetSolution(fd,&x);CHKERRQ(ierr); 
+  //ierr = FDView(fd,PETSC_COMM_WORLD); CHKERRQ(ierr); //standard ASCII view on screen
 
-  // Output solution and coefficient (CENTER or CORNER) - dm and associated vector
+  // Output solution to file
   ierr = DoOutput(dmPV,x,"numerical_solution.vtr");CHKERRQ(ierr);
 
   // Destroy FD-PDE object
   ierr = PetscFree(bclist);CHKERRQ(ierr);
   ierr = FDDestroy(&fd);CHKERRQ(ierr);
-  // ierr = DMDestroy(&dmCoeff);CHKERRQ(ierr);
-  // ierr = VecDestroy(&coeff);CHKERRQ(ierr);
 
   *_x  = x;
   *_dm = dmPV;
@@ -206,8 +161,6 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->g, 1.0, "g", "Gravitational acceleration"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta0, 1.0, "eta0", "Viscosity eta0"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta1, 1.0, "eta1", "Viscosity eta1"); CHKERRQ(ierr);
-
-  // Boundary conditions
 
   // Input/output 
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"output","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
@@ -320,7 +273,6 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
         for (ii = 0; ii < 2; ++ii) {
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           c[j][i][idx] = 0.0;
-          // PetscPrintf(PETSC_COMM_WORLD,"# BK1 [j=%d][i=%d][idx=%d][loc=%d] #\n",j,i,idx,point[ii].loc);
         }
       }
 
@@ -339,7 +291,6 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
           fval = g*PetscSinScalar(PETSC_PI*zp[ii]) * PetscCosScalar(PETSC_PI*xp[ii]); 
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           c[j][i][idx] = fval;
-          // PetscPrintf(PETSC_COMM_WORLD,"# BK2 [j=%d][i=%d][idx=%d][loc=%d] #\n",j,i,idx,point[ii].loc);
         }
       }
 
@@ -350,7 +301,6 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
         point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 0;
         ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
         c[j][i][idx] = 0.0;
-        // PetscPrintf(PETSC_COMM_WORLD,"# BK3 [j=%d][i=%d][idx=%d][loc=%d] #\n",j,i,idx,point[ii].loc);
       }
 
       { // eta_c = eta0:eta1
@@ -366,7 +316,6 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 
         ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
         c[j][i][idx] = fval;
-        // PetscPrintf(PETSC_COMM_WORLD,"# BK4 [j=%d][i=%d][idx=%d][loc=%d] #\n",j,i,idx,point[ii].loc);
       }
 
       { // eta_n = eta0:eta1
@@ -390,7 +339,6 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           c[j][i][idx] = fval;
-          // PetscPrintf(PETSC_COMM_WORLD,"# BK5 [j=%d][i=%d][idx=%d][loc=%d] #\n",j,i,idx,point[ii].loc);
         }
       }
     }
@@ -407,106 +355,6 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 
   PetscFunctionReturn(0);
 }
-
-// // ---------------------------------------
-// // eval_fux = 0
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "eval_fux"
-// PetscErrorCode eval_fux(Coefficient c, void *data)
-// {
-//   FD fd;
-//   PetscErrorCode ierr;
-//   PetscFunctionBegin;
-//   fd = c->fd;
-//   // Extract part from dmcoeff [Vx] and multiply by prefactor a=0.0
-//   ierr = DMStagExtract1DComponent(fd->dmcoeff, fd->coeff, RIGHT, 0, 0.0, c->coeff);CHKERRQ(ierr);
-
-//   PetscFunctionReturn(0);
-// }
-
-// // ---------------------------------------
-// // eval_fuz = rho*g
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "eval_fuz"
-// PetscErrorCode eval_fuz(Coefficient c, void *data)
-// {
-//   FD fd;
-//   UsrData *usr = (UsrData*)data;
-//   PetscErrorCode ierr;
-//   PetscFunctionBegin;
-//   fd = c->fd;
-
-//   // // Initialize/update density
-//   // ierr = InitializeDensity_SolCx(usr,fd->dmcoeff,fd->coeff);CHKERRQ(ierr);
-
-//   // Extract Rho part from dmcoeff [Vz] and multiply by prefactor a=-g
-//   ierr = DMStagExtract1DComponent(fd->dmcoeff, fd->coeff, DOWN, 0, -usr->par->g, c->coeff);CHKERRQ(ierr);
-
-//   PetscFunctionReturn(0);
-// }
-
-// // ---------------------------------------
-// // eval_fp = 0
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "eval_fp"
-// PetscErrorCode eval_fp(Coefficient c, void *data)
-// {
-//   FD fd;
-//   PetscErrorCode ierr;
-//   PetscFunctionBegin;
-//   fd = c->fd;
-//   // Extract part from dmcoeff [eta_c/dummy location] and multiply by prefactor a=0.0
-//   ierr = DMStagExtract1DComponent(fd->dmcoeff, fd->coeff, ELEMENT, 0, 0.0, c->coeff);CHKERRQ(ierr);
-
-//   PetscFunctionReturn(0);
-// }
-
-// // ---------------------------------------
-// // eval_eta_n = eta0_n
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "eval_eta_n"
-// PetscErrorCode eval_eta_n(Coefficient c, void *data)
-// {
-//   FD fd;
-//   // UsrData *usr = (UsrData*)data;
-//   PetscErrorCode ierr;
-//   PetscFunctionBegin;
-//   fd = c->fd;
-
-//   // // Initialize/Update viscosity in corners
-//   // ierr = InitializeViscosityCorner_SolCx(usr,fd->dmcoeff,fd->coeff);CHKERRQ(ierr);
-
-//   // Extract part from dmCoeff [eta_n corners]
-//   ierr = DMStagExtract1DComponent(fd->dmcoeff, fd->coeff, DOWN_RIGHT, 0, 1.0, c->coeff);CHKERRQ(ierr);
-
-//   PetscFunctionReturn(0);
-// }
-
-// // ---------------------------------------
-// // eval_eta_c = eta0_c
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "eval_eta_c"
-// PetscErrorCode eval_eta_c(Coefficient c, void *data)
-// {
-//   FD fd;
-//   // UsrData *usr = (UsrData*)data;
-//   PetscErrorCode ierr;
-//   PetscFunctionBegin;
-//   fd = c->fd;
-
-//   // // Initialize/Update viscosity in center
-//   // ierr = InitializeViscosityCenter_SolCx(usr,fd->dmcoeff,fd->coeff);CHKERRQ(ierr);
-
-//   // Extract part from dmCoeff [eta_c center]
-//   ierr = DMStagExtract1DComponent(fd->dmcoeff, fd->coeff, ELEMENT, 0, 1.0, c->coeff);CHKERRQ(ierr);
-
-//   PetscFunctionReturn(0);
-// }
 
 // ---------------------------------------
 // FDBCListPopulate(dmPV,&bclist,nbc)
@@ -538,13 +386,13 @@ PetscErrorCode FDBCListPopulate(DM dm, BCList *bclist, PetscInt ndof)
     idx = list[ibc].idx;
 
     // Dirichlet BC Vx=0 on LEFT
-    if ((i==0) && (idx==ileft)) { //5
+    if ((i==0) && (idx==ileft)) {
       list[ibc].type = DIRICHLET;
       list[ibc].val  = 0.0;
     }
 
     // Dirichlet BC Vx=0 on RIGHT
-    if ((i==Nx-1) && (idx==iright)) {//5
+    if ((i==Nx-1) && (idx==iright)) {
       list[ibc].type = DIRICHLET;
       list[ibc].val  = 0.0;
     }
@@ -718,7 +566,7 @@ PetscErrorCode ComputeErrorNorms(DM dm,Vec x,Vec xanalytic, void *ctx)
       DMStagStencil  point;
       
       // Get stencil values
-      point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0; // P
+      point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0;
       ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &point, &p); CHKERRQ(ierr);
 
       // Average pressure

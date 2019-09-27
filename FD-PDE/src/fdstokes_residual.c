@@ -8,7 +8,6 @@
 PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
 {
   FD             fd = (FD)ctx;
-  // CoeffStokes    *cdata;
   DM             dmPV, dmCoeff;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
   Vec            xlocal, flocal, coefflocal;
@@ -22,7 +21,6 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   PetscFunctionBegin;
 
   // Assign pointers and other variables
-  // cdata   = (CoeffStokes*)fd->coeff_context;
   dmPV    = fd->dmstag;
   dmCoeff = fd->dmcoeff;
   Nx = fd->Nx;
@@ -34,12 +32,6 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
 
   // Update coefficients
   ierr = fd->ops->form_coefficient(dmPV,x,dmCoeff,fd->coeff,fd->user_context);CHKERRQ(ierr);
-
-  // ierr = CoefficientEvaluate(cdata->eta_n);CHKERRQ(ierr);
-  // ierr = CoefficientEvaluate(cdata->eta_c);CHKERRQ(ierr);
-  // ierr = CoefficientEvaluate(cdata->fux);CHKERRQ(ierr);
-  // ierr = CoefficientEvaluate(cdata->fuz);CHKERRQ(ierr);
-  // ierr = CoefficientEvaluate(cdata->fp );CHKERRQ(ierr);
 
   // Get local domain
   ierr = DMStagGetCorners(dmPV, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -126,7 +118,7 @@ PetscErrorCode FDBCApplyStokes(DM dm, Vec xlocal,DM dmcoeff, Vec coefflocal, BCL
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
 
-  // DM domain info
+  // dm domain info
   Nx = n[0]; Nz = n[1]; iprev = n[3]; inext = n[4];
 
   // Loop over all boundaries

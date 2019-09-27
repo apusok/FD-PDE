@@ -7,22 +7,12 @@
 #include "prealloc_helper.h"
 #include "bc.h"
 #include "fd.h"
-// #include "coefficient.h"
-
-// typedef struct {
-//   Coefficient eta_c, eta_n;
-//   Coefficient fux, fuz, fp;
-// } CoeffStokes;
 
 // ---------------------------------------
 // Function definitions
 // ---------------------------------------
 PetscErrorCode FDCreate_Stokes(FD);
-// PetscErrorCode FDDestroy_Stokes(FD);
-// PetscErrorCode FDView_Stokes(FD,PetscViewer);
 PetscErrorCode FDCreateCoefficient_Stokes(FD);
-// PetscErrorCode FDStokesGetCoefficients(FD,Coefficient*, Coefficient*,Coefficient*,Coefficient*,Coefficient*);
-// PetscErrorCode FDStokesSetData(FD, DM, DM, BCList*, PetscInt);
 PetscErrorCode FDJacobianPreallocator_Stokes(FD);
 
 // FD STOKES PREALLOCATOR STENCIL
