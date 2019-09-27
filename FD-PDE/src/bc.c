@@ -911,7 +911,7 @@ PetscErrorCode DMStagBCListInsertValues(DMStagBCList list,const char label,
   DMStagBC *bc = NULL;
   PetscInt si,k,n;
   PetscInt *idx;
-  PetscScalar *value,*xc;
+  PetscScalar *value;
   BCType *type;
   PetscErrorCode ierr;
   
@@ -921,7 +921,6 @@ PetscErrorCode DMStagBCListInsertValues(DMStagBCList list,const char label,
   
   n = *_n;
   idx = *_idx;
-  xc = *_xc;
   value = *_value;
   type = *_type;
   
