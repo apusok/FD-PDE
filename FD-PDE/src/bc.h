@@ -50,6 +50,10 @@ PetscErrorCode DMStagBCListSetupCoordinates(DMStagBCList);
 PetscErrorCode DMStagBCListGetVertexBCs(DMStagBCList,PetscInt*,DMStagBC**);
 PetscErrorCode DMStagBCListGetFaceBCs(DMStagBCList,PetscInt*,DMStagBC**);
 PetscErrorCode DMStagBCListGetElementBCs(DMStagBCList,PetscInt*,DMStagBC**);
+
+PetscErrorCode DMStagBCListGetValues(DMStagBCList,const char,const char,PetscInt,PetscInt*,PetscInt**,PetscScalar**,PetscScalar**,BCType**);
+PetscErrorCode DMStagBCListInsertValues(DMStagBCList,const char,PetscInt,PetscInt*,PetscInt**,PetscScalar**,PetscScalar**,BCType**);
+
 /*
 PetscErrorCode DMStagBCListTraverse(
                   DMStagBCList,PetscInt,DMStagBCLocation,
