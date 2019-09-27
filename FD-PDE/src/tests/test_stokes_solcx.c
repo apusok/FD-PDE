@@ -625,6 +625,8 @@ PetscErrorCode StokesBCListPopulate(DM dm, DMStagBC *bclist, PetscInt ndof)
       list[ibc].type = BC_NEUMANN;
       list[ibc].val  = 0.0;
     }
+    
+    if (list[ibc].type == BC_NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"BC missing");
   }
 
   PetscFunctionReturn(0);
