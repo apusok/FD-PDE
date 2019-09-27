@@ -281,7 +281,7 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
   PetscScalar    **coordx,**coordz;
   PetscInt       iprev, inext, icenter;
   PetscScalar    ***c;
-  PetscScalar    L2 = 0.5;
+  PetscScalar    g, L2 = 0.5;
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -289,6 +289,9 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
   // Density is defined (edges): sin(pi*z)*cos(pi*x); 
   // Viscosity is defined (corner and center): solcx_eta0, for 0<=x<=0.5, solcx_eta1, for 0.5<x<=1
   // DM dm, Vec x - used for non-linear coefficients
+
+  // User parameters
+  g = -usr->par->g;
 
   // Get domain corners
   ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -333,7 +336,7 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
         xp[1] = coordx[i][icenter]; zp[1] = coordz[j][inext  ];
 
         for (ii = 0; ii < 2; ++ii) {
-          fval = PetscSinScalar(PETSC_PI*zp[ii]) * PetscCosScalar(PETSC_PI*xp[ii]); 
+          fval = g*PetscSinScalar(PETSC_PI*zp[ii]) * PetscCosScalar(PETSC_PI*xp[ii]); 
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           c[j][i][idx] = fval;
           // PetscPrintf(PETSC_COMM_WORLD,"# BK2 [j=%d][i=%d][idx=%d][loc=%d] #\n",j,i,idx,point[ii].loc);
@@ -362,7 +365,7 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
         else          fval = usr->par->eta1;
 
         ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
-        c[j][i][idx] = 0.0;
+        c[j][i][idx] = fval;
         // PetscPrintf(PETSC_COMM_WORLD,"# BK4 [j=%d][i=%d][idx=%d][loc=%d] #\n",j,i,idx,point[ii].loc);
       }
 
