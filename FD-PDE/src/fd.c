@@ -37,6 +37,7 @@ PetscErrorCode FDCreate(MPI_Comm comm, FD *_fd)
 
   fd->Nx = 0;
   fd->Nz = 0;
+  fd->nbc= 0;
   
   *_fd = fd;
   
@@ -60,10 +61,11 @@ PetscErrorCode FDDestroy(FD *_fd)
   if (!fd) PetscFunctionReturn(0);
 
   // Destroy objects
-  if (fd->ops->destroy) {
-    ierr = fd->ops->destroy(fd); CHKERRQ(ierr);
-    ierr = PetscFree(fd->ops);CHKERRQ(ierr);
-  }
+  // if (fd->ops->destroy) {
+  //   ierr = fd->ops->destroy(fd); CHKERRQ(ierr); //empty
+  //   ierr = PetscFree(fd->ops);CHKERRQ(ierr);
+  // }
+  ierr = PetscFree(fd->ops);CHKERRQ(ierr);
   ierr = VecDestroy(&fd->x);CHKERRQ(ierr);
   ierr = VecDestroy(&fd->r);CHKERRQ(ierr);
   ierr = VecDestroy(&fd->coeff );CHKERRQ(ierr);
@@ -71,7 +73,8 @@ PetscErrorCode FDDestroy(FD *_fd)
   ierr = MatDestroy(&fd->J);CHKERRQ(ierr);
   ierr = SNESDestroy(&fd->snes);CHKERRQ(ierr);
 
-  //ierr = DMDestroy(&fd->dmcoeff); CHKERRQ(ierr);
+  ierr = DMDestroy(&fd->dmcoeff); CHKERRQ(ierr);
+  ierr = DMDestroy(&fd->dmstag); CHKERRQ(ierr);
 
   // fd->dmstag  = NULL;
   // fd->dmcoeff = NULL;
@@ -220,29 +223,29 @@ PetscErrorCode FDSetFunctionCoefficient(FD fd, PetscErrorCode (*form_coefficient
 // ---------------------------------------
 // FDGetSolution
 // ---------------------------------------
+/*@ FDGetSolution - Retrieves the solution vector from the fd object. User has to call VecDestroy() to free the space. @*/
 #undef __FUNCT__
 #define __FUNCT__ "FDGetSolution"
-PetscErrorCode FDGetSolution(FD fd, Vec *_x, Vec *_coeff)
+PetscErrorCode FDGetSolution(FD fd, Vec *_x)
 {
   PetscErrorCode ierr;
   PetscFunctionBegin;
   if (fd->x == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Solution of FD-PDE not provided - Call FDSetSolution()");
-  if (fd->coeff == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Coefficient vector has not been set.");
+  // if (fd->coeff == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Coefficient vector has not been set.");
   if (fd->type == FD_UNINIT) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Type of FD-PDE has not been set.");
   if (_x) {
-    Vec x;
-    ierr = VecDuplicate(fd->x,&x);CHKERRQ(ierr);
-    ierr = VecCopy(fd->x,x);CHKERRQ(ierr);
-    *_x = x;
-    //*x = fd->x;
+    *_x = fd->x;
+
+    // Increase reference count 
+    ierr = PetscObjectReference((PetscObject)fd->x);CHKERRQ(ierr);
   }
-  if (_coeff) {
-    Vec coeff;
-    ierr = VecDuplicate(fd->coeff,&coeff);CHKERRQ(ierr);
-    ierr = VecCopy(fd->coeff,coeff);CHKERRQ(ierr);
-    *_coeff = coeff;
-    //*coeff = fd->coeff;
-  }
+  // if (_coeff) {
+  //   Vec coeff;
+  //   ierr = VecDuplicate(fd->coeff,&coeff);CHKERRQ(ierr);
+  //   ierr = VecCopy(fd->coeff,coeff);CHKERRQ(ierr);
+  //   *_coeff = coeff;
+  //   //*coeff = fd->coeff;
+  // }
   PetscFunctionReturn(0);
 }
 

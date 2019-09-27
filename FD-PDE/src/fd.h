@@ -24,7 +24,7 @@ struct _FDPDEOps {
   PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*);
   PetscErrorCode (*create_coefficient)(FD);
   PetscErrorCode (*create)(FD);
-  PetscErrorCode (*destroy)(FD);
+  // PetscErrorCode (*destroy)(FD);
   PetscErrorCode (*view)(FD,PetscViewer);
   PetscErrorCode (*jacobian_prealloc)(FD);
 };
@@ -57,7 +57,7 @@ PetscErrorCode FDSetType(FD, enum FDPDEType);
 PetscErrorCode FDSetBCList(FD, BCList*, PetscInt);
 PetscErrorCode FDSetFunctionCoefficient(FD, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), void*);
 PetscErrorCode FDGetDM(FD, DM*);
-PetscErrorCode FDGetSolution(FD, Vec*, Vec*);
+PetscErrorCode FDGetSolution(FD, Vec*);
 PetscErrorCode FDCreateSNES(MPI_Comm, FD);
 PetscErrorCode FDSetOptionsPrefix(FD,const char[]);
 PetscErrorCode FDConfigureSNES(FD);

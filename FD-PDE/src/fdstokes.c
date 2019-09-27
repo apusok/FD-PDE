@@ -79,8 +79,8 @@ PetscErrorCode FDCreate_Stokes(FD fd)
 
   // Evaluation functions
   fd->ops->form_function      = FormFunction_Stokes;
-  fd->ops->view               = FDView_Stokes;
-  fd->ops->destroy            = FDDestroy_Stokes;
+  // fd->ops->view               = FDView_Stokes;
+  // fd->ops->destroy            = FDDestroy_Stokes;
   fd->ops->jacobian_prealloc  = FDJacobianPreallocator_Stokes;
   fd->ops->create_coefficient = FDCreateCoefficient_Stokes;
 
@@ -140,41 +140,41 @@ PetscErrorCode FDCreateCoefficient_Stokes(FD fd)
   PetscFunctionReturn(0);
 }
 
-// ---------------------------------------
-// FDDestroy_Stokes
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDDestroy_Stokes"
-PetscErrorCode FDDestroy_Stokes(FD fd)
-{
-  // CoeffStokes    *cdata;
-  //PetscErrorCode ierr;
-  PetscFunctionBegin;
+// // ---------------------------------------
+// // FDDestroy_Stokes
+// // ---------------------------------------
+// #undef __FUNCT__
+// #define __FUNCT__ "FDDestroy_Stokes"
+// PetscErrorCode FDDestroy_Stokes(FD fd)
+// {
+//   // CoeffStokes    *cdata;
+//   //PetscErrorCode ierr;
+//   PetscFunctionBegin;
 
-  // cdata = fd->coeff_context;
-  // ierr = CoefficientDestroy(&cdata->eta_n); CHKERRQ(ierr);
-  // ierr = CoefficientDestroy(&cdata->eta_c); CHKERRQ(ierr);
-  // ierr = CoefficientDestroy(&cdata->fux); CHKERRQ(ierr);
-  // ierr = CoefficientDestroy(&cdata->fuz); CHKERRQ(ierr);
-  // ierr = CoefficientDestroy(&cdata->fp); CHKERRQ(ierr);
+//   // cdata = fd->coeff_context;
+//   // ierr = CoefficientDestroy(&cdata->eta_n); CHKERRQ(ierr);
+//   // ierr = CoefficientDestroy(&cdata->eta_c); CHKERRQ(ierr);
+//   // ierr = CoefficientDestroy(&cdata->fux); CHKERRQ(ierr);
+//   // ierr = CoefficientDestroy(&cdata->fuz); CHKERRQ(ierr);
+//   // ierr = CoefficientDestroy(&cdata->fp); CHKERRQ(ierr);
   
-  // ierr = PetscFree(cdata);CHKERRQ(ierr);
-  // fd->coeff_context = NULL;
-  PetscFunctionReturn(0);
-}
+//   // ierr = PetscFree(cdata);CHKERRQ(ierr);
+//   // fd->coeff_context = NULL;
+//   PetscFunctionReturn(0);
+// }
 
-// ---------------------------------------
-// FDView_Stokes <INCOMPLETE>
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDView_Stokes"
-PetscErrorCode FDView_Stokes(FD fd, PetscViewer viewer)
-{
-  //PetscErrorCode ierr;
-  PetscFunctionBegin;
+// // ---------------------------------------
+// // FDView_Stokes <INCOMPLETE>
+// // ---------------------------------------
+// #undef __FUNCT__
+// #define __FUNCT__ "FDView_Stokes"
+// PetscErrorCode FDView_Stokes(FD fd, PetscViewer viewer)
+// {
+//   //PetscErrorCode ierr;
+//   PetscFunctionBegin;
 
-  PetscFunctionReturn(0);
-}
+//   PetscFunctionReturn(0);
+// }
 
 // // ---------------------------------------
 // // FDStokesGetCoefficients

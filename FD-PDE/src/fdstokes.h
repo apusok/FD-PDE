@@ -18,8 +18,8 @@
 // Function definitions
 // ---------------------------------------
 PetscErrorCode FDCreate_Stokes(FD);
-PetscErrorCode FDDestroy_Stokes(FD);
-PetscErrorCode FDView_Stokes(FD,PetscViewer);
+// PetscErrorCode FDDestroy_Stokes(FD);
+// PetscErrorCode FDView_Stokes(FD,PetscViewer);
 PetscErrorCode FDCreateCoefficient_Stokes(FD);
 // PetscErrorCode FDStokesGetCoefficients(FD,Coefficient*, Coefficient*,Coefficient*,Coefficient*,Coefficient*);
 // PetscErrorCode FDStokesSetData(FD, DM, DM, BCList*, PetscInt);

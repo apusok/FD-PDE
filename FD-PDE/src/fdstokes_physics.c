@@ -6,17 +6,13 @@
 PetscErrorCode ContinuityResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, PetscInt n[],PetscScalar *ff)
 {
   PetscScalar    ffi, xx[4], rhs, dx, dz;
-  PetscInt       sx, sz, nz;
   PetscInt       iprev, inext, nEntries = 4;
   DMStagStencil  point[4];
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  sx = n[0]; 
-  sz = n[1]; 
-  nz = n[3];
-  iprev = n[7]; 
-  inext = n[8];
+  iprev = n[3]; 
+  inext = n[4];
 
   // Get stencil values
   point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_LEFT;  point[0].c = 0;
@@ -44,8 +40,7 @@ PetscErrorCode ContinuityResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, 
 PetscErrorCode XMomentumResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx,PetscScalar **coordz,PetscInt i, PetscInt j,PetscInt n[],PetscScalar *ff)
 {
   PetscScalar    dVxdz, dVzdx, dPdx, dVxdx, rhs, ffi;
-  PetscInt       nEntries = 11, iprev, inext, icenter;
-  PetscInt       sx, sz, nz, Nz;
+  PetscInt       nEntries = 11, Nz, iprev, inext, icenter;
   PetscScalar    xx[11], dx, dx1, dx2, dz, dz1, dz2;
   PetscScalar    etaLeft, etaRight, etaUp, etaDown;
   DMStagStencil  point[11];
@@ -53,9 +48,7 @@ PetscErrorCode XMomentumResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, P
 
   PetscFunctionBegin;
 
-  sx = n[0]; sz = n[1]; 
-  nz = n[3]; Nz = n[5];
-  icenter = n[6]; iprev = n[7]; inext = n[8];
+  Nz = n[1]; icenter = n[2]; iprev = n[3]; inext = n[4];
 
   // Get stencil values
   point[0].i  = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_LEFT;    point[0].c   = 0; // Vx(i  ,j  )
@@ -129,8 +122,7 @@ PetscErrorCode XMomentumResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, P
 PetscErrorCode ZMomentumResidual(DM dm, Vec xlocal, DM dmcoeff, Vec coefflocal,PetscScalar **coordx,PetscScalar **coordz,PetscInt i, PetscInt j,PetscInt n[],PetscScalar *ff)
 {
   PetscScalar    dVxdz, dVzdx, dPdz, dVzdz, rhs, ffi;
-  PetscInt       nEntries = 11, iprev, inext, icenter;
-  PetscInt       sx, sz, nz, Nx;
+  PetscInt       nEntries = 11, Nx, iprev, inext, icenter;
   PetscScalar    xx[11], dx, dz, dx1, dx2, dz1, dz2;
   PetscScalar    etaLeft, etaRight, etaUp, etaDown;
   DMStagStencil  point[11];
@@ -138,9 +130,7 @@ PetscErrorCode ZMomentumResidual(DM dm, Vec xlocal, DM dmcoeff, Vec coefflocal,P
 
   PetscFunctionBegin;
 
-  sx = n[0]; sz = n[1]; 
-  nz = n[3]; Nx = n[4];
-  icenter = n[6]; iprev = n[7]; inext = n[8];
+  Nx = n[0]; icenter = n[2]; iprev = n[3]; inext = n[4];
 
   // Get stencil values
   point[0].i  = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_DOWN;    point[0].c   = 0; // Vz(i  ,j  )

@@ -12,7 +12,7 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   DM             dmPV, dmCoeff;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
   Vec            xlocal, flocal, coefflocal;
-  PetscInt       idx, n[9], nbc;
+  PetscInt       idx, n[5], nbc;
   PetscInt       iprev, inext, icenter;
   PetscScalar    ***ff;
   PetscScalar    **coordx,**coordz;
@@ -48,9 +48,7 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMStagGet1dCoordinateLocationSlot(dmPV,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
 
   // Save useful variables for residual calculations
-  n[0] = sx; n[1] = sz; n[2] = nx; n[3] = nz;
-  n[4] = Nx; n[5] = Nz;
-  n[6] = icenter; n[7] = iprev; n[8] = inext;
+  n[0] = Nx; n[1] = Nz; n[2] = icenter; n[3] = iprev; n[4] = inext;
 
   // Map global vectors to local domain
   ierr = DMGetLocalVector(dmPV, &xlocal); CHKERRQ(ierr);
@@ -123,17 +121,13 @@ PetscErrorCode FDBCApplyStokes(DM dm, Vec xlocal,DM dmcoeff, Vec coefflocal, BCL
 {
   PetscScalar    xx, dx, dz;
   PetscScalar    etaLeft, etaRight, etaUp, etaDown;
-  PetscInt       i, j, ibc, idx, iprev, inext;
-  PetscInt       sx, sz, nz, Nx, Nz;
+  PetscInt       i, j, ibc, idx, iprev, inext, Nx, Nz;
   DMStagStencil  point;
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
 
   // DM domain info
-  sx = n[0]; sz = n[1]; 
-  nz = n[3];
-  Nx = n[4]; Nz = n[5];
-  iprev = n[7]; inext = n[8];
+  Nx = n[0]; Nz = n[1]; iprev = n[3]; inext = n[4];
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
