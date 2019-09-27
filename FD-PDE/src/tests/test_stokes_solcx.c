@@ -119,7 +119,7 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   
   
   // Create the FD-pde object
-  ierr = FDCreate(PETSC_COMM_WORLD,&fd); CHKERRQ(ierr);
+  ierr = FDCreate(usr->comm,&fd); CHKERRQ(ierr);
   ierr = FDSetType(fd,STOKES); CHKERRQ(ierr);
   ierr = FDStokesSetData(fd,dmPV,dmCoeff,bclist);CHKERRQ(ierr);
   //ierr = FDSetOptionsPrefix(fd,"stk_"); CHKERRQ(ierr);
