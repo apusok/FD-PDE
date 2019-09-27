@@ -26,6 +26,7 @@ struct _p_BCList {
 // Function definitions
 // ---------------------------------------
 PetscErrorCode FDBCListCreate(DM, BCList**, PetscInt*);
+PetscErrorCode FDBCListDestroy(BCList**);
 PetscErrorCode FDBCGetEntry(DM,PetscScalar**,PetscScalar**,DMStagStencilLocation, PetscInt, PetscInt, PetscInt, BCList*);
 
 #endif

@@ -109,7 +109,7 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   ierr = DoOutput(dmPV,x,"numerical_solution.vtr");CHKERRQ(ierr);
 
   // Destroy FD-PDE object
-  ierr = PetscFree(bclist);CHKERRQ(ierr);
+  ierr = FDBCListDestroy(&bclist);CHKERRQ(ierr);
   ierr = FDDestroy(&fd);CHKERRQ(ierr);
 
   *_x  = x;
