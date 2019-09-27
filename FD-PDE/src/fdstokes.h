@@ -21,7 +21,7 @@ PetscErrorCode FDCreate_Stokes(FD);
 PetscErrorCode FDDestroy_Stokes(FD);
 PetscErrorCode FDView_Stokes(FD,PetscViewer);
 PetscErrorCode FDStokesGetCoefficients(FD,Coefficient*, Coefficient*,Coefficient*,Coefficient*,Coefficient*);
-PetscErrorCode FDStokesSetData(FD, DM, DM, DMStagBC*, PetscInt);
+PetscErrorCode FDStokesSetData(FD, DM, DM, DMStagBCList);
 PetscErrorCode FDJacobianPreallocator_Stokes(FD);
 
 // FD STOKES PREALLOCATOR STENCIL

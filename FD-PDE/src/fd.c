@@ -305,7 +305,7 @@ PetscErrorCode FDSetSolveSNES(FD fd)
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  ierr = FDCreateSNES(fd->comm,fd); CHKERRQ(ierr);
+  ierr = FDCreateSNES(PETSC_COMM_WORLD,fd); CHKERRQ(ierr);
   ierr = FDConfigureSNES(fd); CHKERRQ(ierr);
   ierr = FDSolveSNES(fd); CHKERRQ(ierr);
 

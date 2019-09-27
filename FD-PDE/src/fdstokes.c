@@ -129,7 +129,7 @@ PetscErrorCode FDStokesGetCoefficients(FD fd,Coefficient *eta_c, Coefficient *et
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDStokesSetData"
-PetscErrorCode FDStokesSetData(FD fd, DM dm, DM dmcoeff, DMStagBC *bclist, PetscInt nbc)
+PetscErrorCode FDStokesSetData(FD fd, DM dm, DM dmcoeff, DMStagBCList bclist)
 {
   CoeffStokes *cdata;
   PetscScalar    pval = -0.00001;
@@ -142,7 +142,6 @@ PetscErrorCode FDStokesSetData(FD fd, DM dm, DM dmcoeff, DMStagBC *bclist, Petsc
   if (dm) fd->dmstag = dm;
   if (dmcoeff) fd->dmcoeff = dmcoeff;
   if (bclist) fd->bc_list = bclist;
-  if (nbc) fd->nbc = nbc;
 
   // Save global dm size
   ierr = DMStagGetGlobalSizes(fd->dmstag,&fd->Nx,&fd->Nz,NULL);CHKERRQ(ierr);

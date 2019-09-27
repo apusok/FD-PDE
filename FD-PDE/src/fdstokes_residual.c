@@ -12,11 +12,11 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   DM             dmPV;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
   Vec            xlocal, flocal;
-  PetscInt       idx, n[9], nbc;
+  PetscInt       idx, n[9];
   PetscInt       iprev, inext, icenter;
   PetscScalar    ***ff;
   PetscScalar    **coordx,**coordz;
-  DMStagBC       *bclist;
+  DMStagBCList   bclist;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -29,7 +29,6 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
 
   // Get BC list
   bclist = fd->bc_list;
-  nbc    = fd->nbc;
 
   // Update coefficients
   ierr = CoefficientEvaluate(cdata->eta_n);CHKERRQ(ierr);
@@ -87,7 +86,7 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   }
 
   // Boundary conditions
-  ierr = FDBCApplyStokes(dmPV,xlocal,bclist,nbc,coordx,coordz,cdata->eta_n->coeff,cdata->eta_c->coeff,n,ff);CHKERRQ(ierr);
+  ierr = FDBCApplyStokes(dmPV,xlocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,cdata->eta_n->coeff,cdata->eta_c->coeff,n,ff);CHKERRQ(ierr);
 
   // Restore arrays, local vectors
   ierr = DMStagRestore1dCoordinateArraysDOFRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
