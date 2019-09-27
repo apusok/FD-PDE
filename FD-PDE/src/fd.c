@@ -112,7 +112,7 @@ PetscErrorCode FDView(FD fd, PetscViewer viewer)
 #define __FUNCT__ "FDSetDimensions"
 PetscErrorCode FDSetDimensions(FD fd, PetscInt nx, PetscInt nz)
 {
-  PetscErrorCode ierr;
+  //PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (!nx) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Dimension 1 not provided for FD-PDE dmstag");
@@ -136,10 +136,10 @@ PetscErrorCode FDGetDM(FD fd, DM *dm)
   PetscFunctionBegin;
 
   if (!fd->dmstag) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"DMStag for FD-PDE not provided - Call FDCreate()");
-  *dm = dm->dmstag;
+  *dm = fd->dmstag;
 
   // Increase reference count 
-  ierr = PetscObjectReference((PetscObject)dm->dmstag);CHKERRQ(ierr);
+  ierr = PetscObjectReference((PetscObject)fd->dmstag);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -185,18 +185,14 @@ PetscErrorCode FDSetType(FD fd, enum FDPDEType type)
 // FDSetBC
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDSetBC"
-PetscErrorCode FDSetBC(FD fd, BCList *bclist, PetscInt nbc)
+#define __FUNCT__ "FDSetBCList"
+PetscErrorCode FDSetBCList(FD fd, BCList *bclist, PetscInt nbc)
 {
-  PetscErrorCode ierr; 
   PetscFunctionBegin;
 
   // Save pointers to bclist
   if (bclist) fd->bc_list = bclist;
   if (nbc) fd->nbc = nbc;
-
-  // Preallocate Jacobian including bclist
-  ierr = fd->ops->jacobian_prealloc(fd); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -208,6 +204,7 @@ PetscErrorCode FDSetBC(FD fd, BCList *bclist, PetscInt nbc)
 #define __FUNCT__ "FDSetFunctionCoefficient"
 PetscErrorCode FDSetFunctionCoefficient(FD fd, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), void *data)
 {
+  PetscErrorCode ierr; 
   PetscFunctionBegin;
 
   if (!form_coefficient) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No function is provided to calculate the coeffients!");
@@ -231,7 +228,7 @@ PetscErrorCode FDGetSolution(FD fd, Vec *_x, Vec *_coeff)
   PetscFunctionBegin;
   if (fd->x == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Solution of FD-PDE not provided - Call FDSetSolution()");
   if (fd->coeff == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Coefficient vector has not been set.");
-  if (fd->type == FD_UNINIT) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Type of FD-PDE has not been set");
+  if (fd->type == FD_UNINIT) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Type of FD-PDE has not been set.");
   if (_x) {
     Vec x;
     ierr = VecDuplicate(fd->x,&x);CHKERRQ(ierr);
@@ -247,6 +244,25 @@ PetscErrorCode FDGetSolution(FD fd, Vec *_x, Vec *_coeff)
     //*coeff = fd->coeff;
   }
   PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// FDJacobianPreallocator
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDJacobianPreallocator"
+PetscErrorCode FDJacobianPreallocator(FD fd)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  if (fd->J == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Jacobian matrix for FD-PDE has not been set.");
+  if (fd->ops->jacobian_prealloc==NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No Jacobian preallocation method has not been set.");
+
+  // Preallocate Jacobian including bclist
+  ierr = fd->ops->jacobian_prealloc(fd); CHKERRQ(ierr);
+
+    PetscFunctionReturn(0);
 }
 
 // ---------------------------------------
@@ -365,7 +381,8 @@ PetscErrorCode FDSetSolveSNES(FD fd)
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  ierr = FDCreateSNES(fd->comm,fd); CHKERRQ(ierr);
+  ierr = FDJacobianPreallocator(fd);CHKERRQ(ierr);
+  ierr = FDCreateSNES(fd->comm,fd);CHKERRQ(ierr);
   ierr = FDConfigureSNES(fd); CHKERRQ(ierr);
   ierr = FDSolveSNES(fd); CHKERRQ(ierr);
 

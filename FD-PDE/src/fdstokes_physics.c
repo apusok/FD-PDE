@@ -3,7 +3,7 @@
 // ---------------------------------------
 // ContinuityResidual
 // ---------------------------------------
-PetscErrorCode ContinuityResidual(DM dm, Vec xlocal, PetscScalar **coordx, PetscScalar **coordz, PetscScalar *fp, PetscInt i, PetscInt j, PetscInt n[],PetscScalar *ff)
+PetscErrorCode ContinuityResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, PetscInt n[],PetscScalar *ff)
 {
   PetscScalar    ffi, xx[4], rhs, dx, dz;
   PetscInt       sx, sz, nz;
@@ -24,9 +24,12 @@ PetscErrorCode ContinuityResidual(DM dm, Vec xlocal, PetscScalar **coordx, Petsc
   point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_DOWN;  point[2].c = 0;
   point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_UP;    point[3].c = 0;
   ierr = DMStagVecGetValuesStencil(dm, xlocal, nEntries, point, xx); CHKERRQ(ierr);
-      
+  
+  // Coefficients
+  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT;  point[0].c = 0;
+  ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, point, &rhs); CHKERRQ(ierr);
+
   // Calculate residual
-  rhs = fp[i-sx+(j-sz)*nz];
   dx = coordx[i][inext]-coordx[i][iprev];
   dz = coordz[j][inext]-coordz[j][iprev];
   ffi = (xx[1]-xx[0])/dx + (xx[3]-xx[2])/dz - rhs;
@@ -38,7 +41,7 @@ PetscErrorCode ContinuityResidual(DM dm, Vec xlocal, PetscScalar **coordx, Petsc
 // ---------------------------------------
 // XMomentumResidual
 // ---------------------------------------
-PetscErrorCode XMomentumResidual(DM dm, Vec xlocal,PetscScalar **coordx,PetscScalar **coordz,PetscScalar *eta_n,PetscScalar *eta_c,PetscScalar *fux,PetscInt i, PetscInt j,PetscInt n[],PetscScalar *ff)
+PetscErrorCode XMomentumResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx,PetscScalar **coordz,PetscInt i, PetscInt j,PetscInt n[],PetscScalar *ff)
 {
   PetscScalar    dVxdz, dVzdx, dPdx, dVxdx, rhs, ffi;
   PetscInt       nEntries = 11, iprev, inext, icenter;
@@ -74,11 +77,21 @@ PetscErrorCode XMomentumResidual(DM dm, Vec xlocal,PetscScalar **coordx,PetscSca
   // Residual values
   ierr = DMStagVecGetValuesStencil(dm, xlocal, nEntries, point, xx); CHKERRQ(ierr);
 
-  // Viscosity
-  etaLeft  = eta_c[i-1-sx+(j  -sz)*nz];
-  etaRight = eta_c[i  -sx+(j  -sz)*nz];
-  etaUp    = eta_n[i  -sx+(j+1-sz)*nz];
-  etaDown  = eta_n[i  -sx+(j  -sz)*nz];
+  // Coefficients
+  PetscScalar  cx[5];
+  point[0].i = i  ; point[0].j = j; point[0].loc = DMSTAG_LEFT;      point[0].c = 0; // rhs
+  point[1].i = i-1; point[1].j = j; point[1].loc = DMSTAG_ELEMENT;   point[1].c = 1; // etc_c - left
+  point[2].i = i  ; point[2].j = j; point[2].loc = DMSTAG_ELEMENT;   point[2].c = 1; // etc_c - right
+  point[3].i = i  ; point[3].j = j; point[3].loc = DMSTAG_UP_LEFT;   point[3].c = 0; // etc_n - up
+  point[4].i = i  ; point[4].j = j; point[4].loc = DMSTAG_DOWN_LEFT; point[4].c = 0; // etc_n - down
+
+  ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 5, point, cx); CHKERRQ(ierr);
+
+  rhs      = cx[0];
+  etaLeft  = cx[1];
+  etaRight = cx[2];
+  etaUp    = cx[3];
+  etaDown  = cx[4];
 
   // Grid spacings - need to correct for missing values
   dx  = coordx[i  ][icenter]-coordx[i-1][icenter];
@@ -103,7 +116,6 @@ PetscErrorCode XMomentumResidual(DM dm, Vec xlocal,PetscScalar **coordx,PetscSca
   dVxdx = etaRight*(xx[4]-xx[0])/dx2 - etaLeft*(xx[0]-xx[3])/dx1;
   dVxdz = etaUp   *(xx[2]-xx[0])/dz2 - etaDown*(xx[0]-xx[1])/dz1;
   dVzdx = etaUp   *(xx[8]-xx[7])/dx  - etaDown*(xx[6]-xx[5])/dx;
-  rhs   = fux[i-sx+(j-sz)*nz];
 
   ffi   = -dPdx + 2.0*dVxdx/dx + dVxdz/dz + dVzdx/dz - rhs;
 
@@ -114,7 +126,7 @@ PetscErrorCode XMomentumResidual(DM dm, Vec xlocal,PetscScalar **coordx,PetscSca
 // ---------------------------------------
 // ZMomentumResidual
 // ---------------------------------------
-PetscErrorCode ZMomentumResidual(DM dm, Vec xlocal,PetscScalar **coordx,PetscScalar **coordz,PetscScalar *eta_n,PetscScalar *eta_c,PetscScalar *fuz,PetscInt i, PetscInt j,PetscInt n[],PetscScalar *ff)
+PetscErrorCode ZMomentumResidual(DM dm, Vec xlocal, DM dmcoeff, Vec coefflocal,PetscScalar **coordx,PetscScalar **coordz,PetscInt i, PetscInt j,PetscInt n[],PetscScalar *ff)
 {
   PetscScalar    dVxdz, dVzdx, dPdz, dVzdz, rhs, ffi;
   PetscInt       nEntries = 11, iprev, inext, icenter;
@@ -150,11 +162,21 @@ PetscErrorCode ZMomentumResidual(DM dm, Vec xlocal,PetscScalar **coordx,PetscSca
   // Get values
   ierr = DMStagVecGetValuesStencil(dm, xlocal, nEntries, point, xx); CHKERRQ(ierr);
 
-  // Viscosity
-  etaLeft  = eta_n[i  -sx+(j  -sz)*nz];
-  etaRight = eta_n[i+1-sx+(j  -sz)*nz];
-  etaUp    = eta_c[i  -sx+(j  -sz)*nz];
-  etaDown  = eta_c[i  -sx+(j-1-sz)*nz];
+  // Coefficients
+  PetscScalar  cx[5];
+  point[0].i = i  ; point[0].j = j  ; point[0].loc = DMSTAG_DOWN;       point[0].c = 0; // rhs
+  point[1].i = i  ; point[1].j = j  ; point[1].loc = DMSTAG_DOWN_LEFT;  point[1].c = 0; // etc_n - left
+  point[2].i = i  ; point[2].j = j  ; point[2].loc = DMSTAG_DOWN_RIGHT; point[2].c = 0; // etc_n - right
+  point[3].i = i  ; point[3].j = j  ; point[3].loc = DMSTAG_ELEMENT;    point[3].c = 1; // etc_c - up
+  point[4].i = i  ; point[4].j = j-1; point[4].loc = DMSTAG_ELEMENT;    point[4].c = 1; // etc_c - down
+
+  ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 5, point, cx); CHKERRQ(ierr);
+
+  rhs      = cx[0];
+  etaLeft  = cx[1];
+  etaRight = cx[2];
+  etaUp    = cx[3];
+  etaDown  = cx[4];
 
   // Grid spacings
   dx  = coordx[i  ][inext  ]-coordx[i  ][iprev  ];
@@ -179,7 +201,6 @@ PetscErrorCode ZMomentumResidual(DM dm, Vec xlocal,PetscScalar **coordx,PetscSca
   dVzdz = etaUp   *(xx[1]-xx[0])/dz2 - etaDown *(xx[0]-xx[2])/dz1;
   dVzdx = etaRight*(xx[4]-xx[0])/dx2 - etaLeft *(xx[0]-xx[3])/dx1;
   dVxdz = etaRight*(xx[6]-xx[8])/dz - etaLeft *(xx[5]-xx[7])/dz;
-  rhs   = fuz[i-sx+(j-sz)*nz];
 
   ffi   = -dPdz + 2.0*dVzdz/dz + dVzdx/dx + dVxdz/dx - rhs;
 

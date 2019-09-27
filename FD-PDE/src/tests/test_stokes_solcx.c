@@ -68,10 +68,10 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   UsrData     *usr = (UsrData*) ctx;
   FD           fd;
   BCList       *bclist;
-  DM           dmPV, dmCoeff;
-  Vec          x, coeff;
-  PetscInt     nx, nz, dofPV0, dofPV1, dofPV2;
-  PetscInt     nbc, dofCf0, dofCf1, dofCf2, stencilWidth;
+  DM           dmPV; //, dmCoeff;
+  Vec          x; //, coeff;
+  PetscInt     nx, nz; //, dofPV0, dofPV1, dofPV2;
+  PetscInt     nbc; //, dofCf0, dofCf1, dofCf2, stencilWidth;
   PetscScalar  xmin, zmin, xmax, zmax;
   PetscErrorCode ierr;
 
@@ -106,7 +106,7 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
     // Create boundary conditions list
   ierr = FDBCListCreate(dmPV,&bclist,&nbc);CHKERRQ(ierr);
   ierr = FDBCListPopulate(dmPV,bclist,nbc);CHKERRQ(ierr);
-  ierr = FDSetBC(fd,bclist,nbc);CHKERRQ(ierr);
+  ierr = FDSetBCList(fd,bclist,nbc);CHKERRQ(ierr);
   //ierr = FDSetOptionsPrefix(fd,"stk_"); CHKERRQ(ierr);
 
   // // Create DMStag object for Stokes unknowns: dmPV (P-element, v-vertex)
@@ -144,7 +144,7 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
 
   // FD SNES Solver
   ierr = FDSetSolveSNES(fd);CHKERRQ(ierr);
-  ierr = FDGetSolution(fd,&x);CHKERRQ(ierr); // output both the solution and coefficients (NULL if not needed)
+  ierr = FDGetSolution(fd,&x,NULL);CHKERRQ(ierr); // output both the solution and coefficients (NULL if not needed)
 
   //ierr = FDView();CHKERRQ(ierr); //standard ASCII view on screen
 
@@ -307,48 +307,88 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
   for (j = sz; j < sz+nz; ++j) {
     for (i = sx; i <sx+nx; ++i) {
 
-      DMStagStencil point[9];
-      PetscScalar   xp[9], zp[9], fval=0.0;
-      PetscInt      ii, idx;
-        
-      // Set stencil values
-      point[0].i = i; point[0].j = j; point[0].loc = LEFT;       point[0].c = 0; // rho
-      point[1].i = i; point[1].j = j; point[1].loc = RIGHT;      point[1].c = 0;
-      point[2].i = i; point[2].j = j; point[2].loc = DOWN;       point[2].c = 0;
-      point[3].i = i; point[3].j = j; point[3].loc = UP;         point[3].c = 0;
-      point[4].i = i; point[4].j = j; point[4].loc = ELEMENT;    point[4].c = 0; // eta center
-      point[5].i = i; point[5].j = j; point[5].loc = DOWN_LEFT;  point[5].c = 0; // eta corner
-      point[6].i = i; point[6].j = j; point[6].loc = DOWN_RIGHT; point[6].c = 0;
-      point[7].i = i; point[7].j = j; point[7].loc = UP_LEFT;    point[7].c = 0;
-      point[8].i = i; point[8].j = j; point[8].loc = UP_RIGHT;   point[8].c = 0;
+      { // fux = 0.0
+        DMStagStencil point[2];
+        PetscInt      ii, idx;
 
-      // Get coordinates
-      xp[0] = coordx[i][iprev  ]; zp[0] = coordz[j][icenter];
-      xp[1] = coordx[i][inext  ]; zp[1] = coordz[j][icenter];
-      xp[2] = coordx[i][icenter]; zp[2] = coordz[j][iprev  ];
-      xp[3] = coordx[i][icenter]; zp[3] = coordz[j][inext  ];
-      xp[4] = coordx[i][icenter]; zp[4] = coordz[j][icenter];
-      xp[5] = coordx[i][iprev  ]; zp[5] = coordz[j][iprev  ];
-      xp[6] = coordx[i][inext  ]; zp[6] = coordz[j][iprev  ];
-      xp[7] = coordx[i][iprev  ]; zp[7] = coordz[j][inext  ];
-      xp[8] = coordx[i][inext  ]; zp[8] = coordz[j][inext  ];
+        point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
+        point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
 
-      // Set densities
-      for (ii = 0; ii < 4; ++ii) {
-        fval = PetscSinScalar(PETSC_PI*zp[ii]) * PetscCosScalar(PETSC_PI*xp[ii]); 
-        ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
-        c[j][i][idx] = fval;
-        // PetscPrintf(PETSC_COMM_WORLD,"# BK1 [j=%d][i=%d][idx=%d][loc=%d] #\n",j,i,idx,point[ii].loc);
+        for (ii = 0; ii < 2; ++ii) {
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = 0.0;
+          // PetscPrintf(PETSC_COMM_WORLD,"# BK1 [j=%d][i=%d][idx=%d][loc=%d] #\n",j,i,idx,point[ii].loc);
+        }
       }
 
-      // Set eta center
-      for (ii = 4; ii < 9; ++ii) {
-        if (xp[ii] <= L2) fval = usr->par->eta0;
-        else              fval = usr->par->eta1;
+      { // fuz = rho*g
+        DMStagStencil point[2];
+        PetscScalar   xp[2], zp[2], fval = 0.0;
+        PetscInt      ii, idx;
 
-        ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
-        c[j][i][idx] = fval;
-        // PetscPrintf(PETSC_COMM_WORLD,"# BK2 [j=%d][i=%d][idx=%d][loc=%d] #\n",j,i,idx,point[ii].loc);
+        point[0].i = i; point[0].j = j; point[0].loc = DOWN; point[0].c = 0;
+        point[1].i = i; point[1].j = j; point[1].loc = UP;   point[1].c = 0;
+
+        xp[0] = coordx[i][icenter]; zp[0] = coordz[j][iprev  ];
+        xp[1] = coordx[i][icenter]; zp[1] = coordz[j][inext  ];
+
+        for (ii = 0; ii < 2; ++ii) {
+          fval = PetscSinScalar(PETSC_PI*zp[ii]) * PetscCosScalar(PETSC_PI*xp[ii]); 
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = fval;
+          // PetscPrintf(PETSC_COMM_WORLD,"# BK2 [j=%d][i=%d][idx=%d][loc=%d] #\n",j,i,idx,point[ii].loc);
+        }
+      }
+
+      { // fp = 0.0
+        DMStagStencil point;
+        PetscInt      idx;
+
+        point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 0;
+        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 0.0;
+        // PetscPrintf(PETSC_COMM_WORLD,"# BK3 [j=%d][i=%d][idx=%d][loc=%d] #\n",j,i,idx,point[ii].loc);
+      }
+
+      { // eta_c = eta0:eta1
+        DMStagStencil point;
+        PetscScalar   xp, fval = 0.0;
+        PetscInt      idx;
+
+        point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 1;
+        xp = coordx[i][icenter];
+
+        if (xp <= L2) fval = usr->par->eta0;
+        else          fval = usr->par->eta1;
+
+        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 0.0;
+        // PetscPrintf(PETSC_COMM_WORLD,"# BK4 [j=%d][i=%d][idx=%d][loc=%d] #\n",j,i,idx,point[ii].loc);
+      }
+
+      { // eta_n = eta0:eta1
+        DMStagStencil point[4];
+        PetscScalar   xp[4], fval = 0.0;
+        PetscInt      ii, idx;
+
+        point[0].i = i; point[0].j = j; point[0].loc = DOWN_LEFT;  point[0].c = 0;
+        point[1].i = i; point[1].j = j; point[1].loc = DOWN_RIGHT; point[1].c = 0;
+        point[2].i = i; point[2].j = j; point[2].loc = UP_LEFT;    point[2].c = 0;
+        point[3].i = i; point[3].j = j; point[3].loc = UP_RIGHT;   point[3].c = 0;
+
+        xp[0] = coordx[i][iprev]; 
+        xp[1] = coordx[i][inext];
+        xp[2] = coordx[i][iprev];
+        xp[3] = coordx[i][inext];
+
+        for (ii = 0; ii < 4; ++ii) {
+          if (xp[ii] <= L2) fval = usr->par->eta0;
+          else              fval = usr->par->eta1;
+
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = fval;
+          // PetscPrintf(PETSC_COMM_WORLD,"# BK5 [j=%d][i=%d][idx=%d][loc=%d] #\n",j,i,idx,point[ii].loc);
+        }
       }
     }
   }

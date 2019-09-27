@@ -7,7 +7,7 @@
 #include "prealloc_helper.h"
 #include "bc.h"
 #include "fd.h"
-#include "coefficient.h"
+// #include "coefficient.h"
 
 // typedef struct {
 //   Coefficient eta_c, eta_n;
@@ -20,8 +20,9 @@
 PetscErrorCode FDCreate_Stokes(FD);
 PetscErrorCode FDDestroy_Stokes(FD);
 PetscErrorCode FDView_Stokes(FD,PetscViewer);
-PetscErrorCode FDStokesGetCoefficients(FD,Coefficient*, Coefficient*,Coefficient*,Coefficient*,Coefficient*);
-PetscErrorCode FDStokesSetData(FD, DM, DM, BCList*, PetscInt);
+PetscErrorCode FDCreateCoefficient_Stokes(FD);
+// PetscErrorCode FDStokesGetCoefficients(FD,Coefficient*, Coefficient*,Coefficient*,Coefficient*,Coefficient*);
+// PetscErrorCode FDStokesSetData(FD, DM, DM, BCList*, PetscInt);
 PetscErrorCode FDJacobianPreallocator_Stokes(FD);
 
 // FD STOKES PREALLOCATOR STENCIL
@@ -30,11 +31,13 @@ PetscErrorCode XMomentumStencil(PetscInt,PetscInt,PetscInt,DMStagStencil*);
 PetscErrorCode ZMomentumStencil(PetscInt,PetscInt,PetscInt,DMStagStencil*);
 
 // FD STOKES PHYSICS
-PetscErrorCode ContinuityResidual(DM, Vec, PetscScalar**, PetscScalar**, PetscScalar*, PetscInt, PetscInt, PetscInt[],PetscScalar*);
-PetscErrorCode XMomentumResidual(DM, Vec,PetscScalar**,PetscScalar**,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt, PetscInt,PetscInt[],PetscScalar*);
-PetscErrorCode ZMomentumResidual(DM, Vec,PetscScalar**,PetscScalar**,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt, PetscInt,PetscInt[],PetscScalar*);
+PetscErrorCode ContinuityResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
+PetscErrorCode XMomentumResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
+PetscErrorCode ZMomentumResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
 
 // RESIDUAL
 PetscErrorCode FormFunction_Stokes(SNES, Vec, Vec, void*);
+PetscErrorCode FDBCApplyStokes(DM, Vec,DM, Vec, BCList*, PetscInt, PetscScalar**, PetscScalar**,PetscInt[], PetscScalar***);
+
 
 #endif

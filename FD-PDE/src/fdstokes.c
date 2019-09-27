@@ -10,11 +10,11 @@ const char stokes_description[] =
 "  [User notes] \n"
 "  * The function f(x) is defined in velocity points, and g(x) is defined \n" 
 "    in center points. For DMStag the following right-hand-side coefficients  \n" 
-"    need to be specified:
-        f(x) = [fux, fuz], fux in Vx-points, fuz in Vz-points 
-        g(x) = fp, in P-points (element) \n"
+"    need to be specified: \n" 
+"        f(x) = [fux, fuz], fux in Vx-points, fuz in Vz-points \n" 
+"        g(x) = fp, in P-points (element) \n"
 "  * The viscosity has to be specified:\n" 
-"       eta = [eta_c, eta_n], eta_c in center points, eta_n in corner points .";
+"       eta = [eta_c, eta_n], eta_c in center points, eta_n in corner points.\n";
 
 // ---------------------------------------
 // FDCreate_Stokes
@@ -26,6 +26,7 @@ PetscErrorCode FDCreate_Stokes(FD fd)
   // CoeffStokes    *cdata;
   DM             dmPV;//, dmCoeff;
   PetscScalar    pval = -0.00001;
+  PetscInt       dofPV0, dofPV1, dofPV2, stencilWidth;
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
@@ -35,7 +36,7 @@ PetscErrorCode FDCreate_Stokes(FD fd)
 
   // stencil dofs
   dofPV0 = 0; dofPV1 = 1; dofPV2 = 1; // dmstag: Vx, Vz (edges), P (element)
-  dofCf0 = 1; dofCf1 = 1; dofCf2 = 2; // dmcoeff: fux, fuz (edges), fp, eta_c (center), eta_n (corner)
+  // dofCf0 = 1; dofCf1 = 1; dofCf2 = 2; // dmcoeff: fux, fuz (edges), fp, eta_c (center), eta_n (corner)
   stencilWidth = 1;
 
   // Create DMStag object for Stokes unknowns: dmPV (P-element, v-vertex)
@@ -101,68 +102,40 @@ PetscErrorCode FDCreate_Stokes(FD fd)
 PetscErrorCode FDCreateCoefficient_Stokes(FD fd)
 {
   DM             dmCoeff;
+  PetscScalar    xmin, xmax, zmin, zmax;
+  PetscInt       dofCf0, dofCf1, dofCf2;
+  PetscInt       iprev, inext;
+  PetscScalar    **coordx,**coordz;
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
 
-  // stencil dofs
-  //dofPV0 = 0; dofPV1 = 1; dofPV2 = 1; // dmstag: Vx, Vz (edges), P (element)
+  // Stencil dofs
   dofCf0 = 1; dofCf1 = 1; dofCf2 = 2; // dmcoeff: fux, fuz (edges), fp, eta_c (center), eta_n (corner)
-  stencilWidth = 1;
-
-  // Create DMStag object for Stokes unknowns: dmPV (P-element, v-vertex)
-  // ierr = DMStagCreate2d(fd->comm, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, fd->Nx, fd->Nz, 
-  //           PETSC_DECIDE, PETSC_DECIDE, dofPV0, dofPV1, dofPV2, 
-  //           DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dmPV); CHKERRQ(ierr);
-  // ierr = DMSetFromOptions(dmPV); CHKERRQ(ierr);
-  // ierr = DMSetUp         (dmPV); CHKERRQ(ierr);
-  // ierr = DMStagSetUniformCoordinatesProduct(dmPV, xmin, xmax, zmin, zmax, 0.0, 0.0);CHKERRQ(ierr);
 
   // Create DMStag object for Stokes coefficients: dmCoeff 
-  ierr = DMStagCreateCompatibleDMStag(dmPV, dofCf0, dofCf1, dofCf2, 0, &dmCoeff); CHKERRQ(ierr);
+  ierr = DMStagCreateCompatibleDMStag(fd->dmstag, dofCf0, dofCf1, dofCf2, 0, &dmCoeff); CHKERRQ(ierr);
   ierr = DMSetUp(dmCoeff); CHKERRQ(ierr);
 
-  // Set coordinates - should mimic the same as dmstag
+  // Get start and end coordinates
+  ierr = DMStagGet1dCoordinateArraysDOFRead(fd->dmstag,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateLocationSlot(fd->dmstag,DMSTAG_LEFT,&iprev);CHKERRQ(ierr); 
+  ierr = DMStagGet1dCoordinateLocationSlot(fd->dmstag,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
+
+  xmin = coordx[0][iprev]; xmax = coordx[fd->Nx-1][inext];
+  zmin = coordz[0][iprev]; zmax = coordz[fd->Nz-1][inext];
+
+  // Restore arrays, local vectors
+  ierr = DMStagRestore1dCoordinateArraysDOFRead(fd->dmstag,&coordx,&coordz,NULL);CHKERRQ(ierr);
+
+  // Set coordinates - should mimic the same method as dmstag
   ierr = DMStagSetUniformCoordinatesProduct(dmCoeff, xmin, xmax, zmin, zmax, 0.0, 0.0);CHKERRQ(ierr);
 
   // Assign pointers
-  // fd->dmstag  = dmPV;
   fd->dmcoeff = dmCoeff;
 
   // Create global vectors
-  // ierr = DMCreateGlobalVector(fd->dmstag, &fd->x    ); CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(fd->dmcoeff,&fd->coeff); CHKERRQ(ierr);
-  // ierr = VecDuplicate(fd->x,&fd->r     ); CHKERRQ(ierr);
-  // ierr = VecDuplicate(fd->x,&fd->xguess); CHKERRQ(ierr);
-
-  // // Set initial values for xguess, coeff
-  // ierr = VecSet(fd->xguess,pval);CHKERRQ(ierr);
-
-  // // Create Jacobian
-  // ierr = DMCreateMatrix(fd->dmstag, &fd->J); CHKERRQ(ierr);
-
-  // // Coefficient structure
-  // ierr = PetscMalloc1(1,&cdata);CHKERRQ(ierr);
-  // cdata->eta_n = NULL;
-  // cdata->eta_c = NULL;
-  // cdata->fux   = NULL;
-  // cdata->fuz   = NULL;
-  // cdata->fp    = NULL;
-  // fd->coeff_context = cdata;
-
-  // // Evaluation functions
-  // fd->ops->form_function      = FormFunction_Stokes;
-  // fd->ops->view               = FDView_Stokes;
-  // fd->ops->destroy            = FDDestroy_Stokes;
-  // fd->ops->jacobian_prealloc  = FDJacobianPreallocator_Stokes;
-  // fd->ops->create_coefficient = FDCreateCoefficient_Stokes;
-
-  // // Create coefficients
-  // ierr = CoefficientCreate(fd->comm,&cdata->eta_n,DMSTAG_DOWN_RIGHT);CHKERRQ(ierr);
-  // ierr = CoefficientCreate(fd->comm,&cdata->eta_c,DMSTAG_ELEMENT);CHKERRQ(ierr);
-  // ierr = CoefficientCreate(fd->comm,&cdata->fux,DMSTAG_RIGHT);CHKERRQ(ierr);
-  // ierr = CoefficientCreate(fd->comm,&cdata->fuz,DMSTAG_DOWN);CHKERRQ(ierr);
-  // ierr = CoefficientCreate(fd->comm,&cdata->fp,DMSTAG_ELEMENT);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -174,19 +147,19 @@ PetscErrorCode FDCreateCoefficient_Stokes(FD fd)
 #define __FUNCT__ "FDDestroy_Stokes"
 PetscErrorCode FDDestroy_Stokes(FD fd)
 {
-  CoeffStokes    *cdata;
-  PetscErrorCode ierr;
+  // CoeffStokes    *cdata;
+  //PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  cdata = fd->coeff_context;
-  ierr = CoefficientDestroy(&cdata->eta_n); CHKERRQ(ierr);
-  ierr = CoefficientDestroy(&cdata->eta_c); CHKERRQ(ierr);
-  ierr = CoefficientDestroy(&cdata->fux); CHKERRQ(ierr);
-  ierr = CoefficientDestroy(&cdata->fuz); CHKERRQ(ierr);
-  ierr = CoefficientDestroy(&cdata->fp); CHKERRQ(ierr);
+  // cdata = fd->coeff_context;
+  // ierr = CoefficientDestroy(&cdata->eta_n); CHKERRQ(ierr);
+  // ierr = CoefficientDestroy(&cdata->eta_c); CHKERRQ(ierr);
+  // ierr = CoefficientDestroy(&cdata->fux); CHKERRQ(ierr);
+  // ierr = CoefficientDestroy(&cdata->fuz); CHKERRQ(ierr);
+  // ierr = CoefficientDestroy(&cdata->fp); CHKERRQ(ierr);
   
-  ierr = PetscFree(cdata);CHKERRQ(ierr);
-  fd->coeff_context = NULL;
+  // ierr = PetscFree(cdata);CHKERRQ(ierr);
+  // fd->coeff_context = NULL;
   PetscFunctionReturn(0);
 }
 
@@ -203,39 +176,39 @@ PetscErrorCode FDView_Stokes(FD fd, PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-// ---------------------------------------
-// FDStokesGetCoefficients
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDStokesGetCoefficients"
-PetscErrorCode FDStokesGetCoefficients(FD fd,Coefficient *eta_c, Coefficient *eta_n,Coefficient *fux,Coefficient *fuz,Coefficient *fp)
-{
-  CoeffStokes *cdata;
-  PetscFunctionBegin;
+// // ---------------------------------------
+// // FDStokesGetCoefficients
+// // ---------------------------------------
+// #undef __FUNCT__
+// #define __FUNCT__ "FDStokesGetCoefficients"
+// PetscErrorCode FDStokesGetCoefficients(FD fd,Coefficient *eta_c, Coefficient *eta_n,Coefficient *fux,Coefficient *fuz,Coefficient *fp)
+// {
+//   CoeffStokes *cdata;
+//   PetscFunctionBegin;
 
-  cdata = (CoeffStokes*)fd->coeff_context;
-  if (eta_c) { 
-    cdata->eta_c->type = COEFF_EVAL;
-    *eta_c = cdata->eta_c; 
-    }
-  if (eta_n) { 
-    cdata->eta_n->type = COEFF_EVAL;
-    *eta_n = cdata->eta_n; 
-    }
-  if (fux) { 
-    cdata->fux->type = COEFF_EVAL;
-    *fux = cdata->fux;
-    }
-  if (fuz) { 
-    cdata->fuz->type = COEFF_EVAL;
-    *fuz = cdata->fuz;
-    }
-  if (fp ) { 
-    cdata->fp->type = COEFF_EVAL;
-    *fp  = cdata->fp; 
-    }
-  PetscFunctionReturn(0);
-}
+//   cdata = (CoeffStokes*)fd->coeff_context;
+//   if (eta_c) { 
+//     cdata->eta_c->type = COEFF_EVAL;
+//     *eta_c = cdata->eta_c; 
+//     }
+//   if (eta_n) { 
+//     cdata->eta_n->type = COEFF_EVAL;
+//     *eta_n = cdata->eta_n; 
+//     }
+//   if (fux) { 
+//     cdata->fux->type = COEFF_EVAL;
+//     *fux = cdata->fux;
+//     }
+//   if (fuz) { 
+//     cdata->fuz->type = COEFF_EVAL;
+//     *fuz = cdata->fuz;
+//     }
+//   if (fp ) { 
+//     cdata->fp->type = COEFF_EVAL;
+//     *fp  = cdata->fp; 
+//     }
+//   PetscFunctionReturn(0);
+// }
 
 // // ---------------------------------------
 // // FDStokesSetData

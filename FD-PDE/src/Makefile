@@ -4,7 +4,7 @@ CPPFLAGS =
 FPPFLAGS =
 PROGDIR  = tests
 PROG     = ${PROGDIR}/test_stokes_solcx
-OBJECTS  = ${PROG}.o prealloc_helper.o utils.o bc.o fd.o coefficient.o fdstokes_physics.o fdstokes_residual.o fdstokes.o 
+OBJECTS  = ${PROG}.o prealloc_helper.o bc.o fd.o fdstokes_physics.o fdstokes_residual.o fdstokes.o 
 
 all: ${PROG}
 	@echo "# -------------------------------- #"
