@@ -48,7 +48,9 @@ PetscErrorCode Analytic_Solcx(DM,Vec*,void*);
 PetscErrorCode InputParameters(UsrData**);
 PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode FormCoefficient(DM, Vec, DM, Vec, void*);
-PetscErrorCode FDBCListPopulate(DM, BCList*, PetscInt);
+//PetscErrorCode FDBCListPopulate(DM, BCList*, PetscInt);
+//PetscErrorCode StokesBCListPopulate(DM, DMStagBC*, PetscInt);
+PetscErrorCode StokesBCListPopulateList(DM dm, DMStagBCList bclist);
 PetscErrorCode ComputeErrorNorms(DM,Vec,Vec,void*);
 PetscErrorCode DoOutput(DM,Vec,const char[]);
 
@@ -61,10 +63,10 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
   FD             fd;
-  BCList        *bclist;
+  DMStagBCList   bclist;
   DM             dmPV;
   Vec            x;
-  PetscInt       nx, nz, nbc;
+  PetscInt       nx, nz;
   PetscScalar    xmin, zmin, xmax, zmax;
   PetscErrorCode ierr;
 
@@ -89,10 +91,17 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   ierr = FDGetDM(fd, &dmPV); CHKERRQ(ierr);
   ierr = DMStagSetUniformCoordinatesProduct(dmPV, xmin, xmax, zmin, zmax, 0.0, 0.0);CHKERRQ(ierr);
 
-    // Create boundary conditions list
-  ierr = FDBCListCreate(dmPV,&bclist,&nbc);CHKERRQ(ierr);
-  ierr = FDBCListPopulate(dmPV,bclist,nbc);CHKERRQ(ierr);
-  ierr = FDSetBCList(fd,bclist,nbc);CHKERRQ(ierr);
+  // Create boundary conditions list
+  //ierr = FDBCListCreate(dmPV,&bclist,&nbc);CHKERRQ(ierr);
+  //ierr = FDBCListPopulate(dmPV,bclist,nbc);CHKERRQ(ierr);
+
+  // Create boundary conditions list
+  //ierr = DMStagBCCreateDefault(dmPV,&bclist,&nbc);CHKERRQ(ierr);
+  //ierr = StokesBCListPopulate(dmPV,bclist,nbc);CHKERRQ(ierr);
+
+  ierr = DMStagBCListCreate(dmPV,&bclist);CHKERRQ(ierr);
+  ierr = StokesBCListPopulateList(dmPV,bclist);CHKERRQ(ierr);
+  ierr = FDSetBCList(fd,bclist);CHKERRQ(ierr);
   //ierr = FDSetOptionsPrefix(fd,"stk_"); CHKERRQ(ierr);
 
   // Set coefficients evaluation function
@@ -109,7 +118,7 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   ierr = DoOutput(dmPV,x,"numerical_solution.vtr");CHKERRQ(ierr);
 
   // Destroy FD-PDE object
-  ierr = FDBCListDestroy(&bclist);CHKERRQ(ierr);
+  ierr = DMStagBCListDestroy(&bclist);CHKERRQ(ierr);
   ierr = FDDestroy(&fd);CHKERRQ(ierr);
 
   *_x  = x;
@@ -357,13 +366,13 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 }
 
 // ---------------------------------------
-// FDBCListPopulate(dmPV,&bclist,nbc)
+// StokesListPopulate(dmPV,&bclist,nbc)
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDBCListPopulate"
-PetscErrorCode FDBCListPopulate(DM dm, BCList *bclist, PetscInt ndof)
+#define __FUNCT__ "StokesBCListPopulate"
+PetscErrorCode StokesBCListPopulate(DM dm, DMStagBC *bclist, PetscInt ndof)
 {
-  BCList         *list;
+  DMStagBC         *list;
   PetscInt       i, j, idx, ibc, Nx, Nz;
   PetscInt       iright, ileft, idown, iup;
   PetscErrorCode ierr;
@@ -387,45 +396,130 @@ PetscErrorCode FDBCListPopulate(DM dm, BCList *bclist, PetscInt ndof)
 
     // Dirichlet BC Vx=0 on LEFT
     if ((i==0) && (idx==ileft)) {
-      list[ibc].type = DIRICHLET;
+      list[ibc].type = BC_DIRICHLET;
       list[ibc].val  = 0.0;
     }
 
     // Dirichlet BC Vx=0 on RIGHT
     if ((i==Nx-1) && (idx==iright)) {
-      list[ibc].type = DIRICHLET;
+      list[ibc].type = BC_DIRICHLET;
       list[ibc].val  = 0.0;
     }
 
     // Dirichlet BC Vz=0 on DOWN
     if ((j==0) && (idx==idown)) {
-      list[ibc].type = DIRICHLET;
+      list[ibc].type = BC_DIRICHLET;
       list[ibc].val  = 0.0;
     }
 
     // Dirichlet BC Vz=0 on UP
     if ((j==Nz-1) && (idx==iup)) {
-      list[ibc].type = DIRICHLET;
+      list[ibc].type = BC_DIRICHLET;
       list[ibc].val  = 0.0;
     }
 
     // Neumann BC dVz/dx = 0 on LEFT/RIGHT
     if (((i==0) || (i==Nx-1)) && (j>0) && (idx==idown)) {
-      list[ibc].type = NEUMANN;
+      list[ibc].type = BC_NEUMANN;
       list[ibc].val  = 0.0;
     }
 
     // Neumann BC dVx/dz = 0 on DOWN/UP - one missing defined as RIGHT (below)
     if (((j==0) || (j==Nz-1)) && (i>0) && (idx==ileft)) {
-      list[ibc].type = NEUMANN;
+      list[ibc].type = BC_NEUMANN;
       list[ibc].val  = 0.0;
     }
 
     if (((j==0) || (j==Nz-1)) && (i==Nx-2) && (idx==iright)) {
-      list[ibc].type = NEUMANN;
+      list[ibc].type = BC_NEUMANN;
       list[ibc].val  = 0.0;
     }
   }
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// StokesBCListPopulateList
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "StokesBCListPopulateList"
+PetscErrorCode StokesBCListPopulateList(DM dm, DMStagBCList bclist)
+{
+  DMStagBC       *list;
+  PetscInt    k,n_bc,*idx_bc;
+  PetscScalar *value_bc;
+  BCType      *type_bc;
+  PetscErrorCode ierr;
+  
+  PetscFunctionBegin;
+  
+  list = bclist->bc_f;
+  
+  ////
+  
+  ierr = DMStagBCListGetValues(bclist,'w','|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = 0.0;
+    type_bc[k] = BC_NEUMANN;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  
+  
+  ierr = DMStagBCListGetValues(bclist,'e','|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = 0.0;
+    type_bc[k] = BC_NEUMANN;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  
+  
+  ierr = DMStagBCListGetValues(bclist,'n','-',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = 0.0;
+    type_bc[k] = BC_NEUMANN;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  
+  
+  ierr = DMStagBCListGetValues(bclist,'s','-',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = 0.0;
+    type_bc[k] = BC_NEUMANN;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  
+  ///
+  ierr = DMStagBCListGetValues(bclist,'w','-',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = 0.0;
+    type_bc[k] = BC_DIRICHLET;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  
+  
+  ierr = DMStagBCListGetValues(bclist,'e','-',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = 0.0;
+    type_bc[k] = BC_DIRICHLET;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  
+  
+  ierr = DMStagBCListGetValues(bclist,'n','|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = 0.0;
+    type_bc[k] = BC_DIRICHLET;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  
+  
+  ierr = DMStagBCListGetValues(bclist,'s','|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = 0.0;
+    type_bc[k] = BC_DIRICHLET;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

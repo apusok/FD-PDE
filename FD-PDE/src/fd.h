@@ -33,7 +33,7 @@ struct _p_FD {
   DM              dmstag,dmcoeff;
   Mat             J;
   Vec             x,xguess,r,coeff;
-  BCList         *bc_list;
+  DMStagBCList    bc_list;
   PetscInt        nbc;
   void           *user_context;
   enum FDPDEType  type;
@@ -52,7 +52,7 @@ PetscErrorCode FDView(FD, PetscViewer);
 
 PetscErrorCode FDSetDimensions(FD, PetscInt, PetscInt);
 PetscErrorCode FDSetType(FD, enum FDPDEType);
-PetscErrorCode FDSetBCList(FD, BCList*, PetscInt);
+PetscErrorCode FDSetBCList(FD, DMStagBCList);
 PetscErrorCode FDSetFunctionCoefficient(FD, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), void*);
 
 PetscErrorCode FDGetDM(FD, DM*);

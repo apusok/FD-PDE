@@ -177,13 +177,12 @@ PetscErrorCode FDSetType(FD fd, enum FDPDEType type)
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDSetBCList"
-PetscErrorCode FDSetBCList(FD fd, BCList *bclist, PetscInt nbc)
+PetscErrorCode FDSetBCList(FD fd, DMStagBCList bclist)
 {
   PetscFunctionBegin;
 
   // Save pointers to bclist
   if (bclist) fd->bc_list = bclist;
-  if (nbc) fd->nbc = nbc;
 
   PetscFunctionReturn(0);
 }

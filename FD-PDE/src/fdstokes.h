@@ -27,7 +27,7 @@ PetscErrorCode ZMomentumResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,Petsc
 
 // RESIDUAL
 PetscErrorCode FormFunction_Stokes(SNES, Vec, Vec, void*);
-PetscErrorCode FDBCApplyStokes(DM, Vec,DM, Vec, BCList*, PetscInt, PetscScalar**, PetscScalar**,PetscInt[], PetscScalar***);
+PetscErrorCode FDBCApplyStokes(DM, Vec,DM, Vec, DMStagBC*, PetscInt, PetscScalar**, PetscScalar**,PetscInt[], PetscScalar***);
 
 
 #endif
