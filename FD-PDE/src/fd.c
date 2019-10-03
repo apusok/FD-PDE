@@ -216,10 +216,12 @@ PetscErrorCode FDView(FD fd)
   PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description);
 
   PetscPrintf(PETSC_COMM_WORLD,"  Coefficient description:\n");
-  PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description_coeff);
+  if (fd->description_coeff) PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description_coeff);
+  else PetscPrintf(PETSC_COMM_WORLD,"    NONE\n");
 
   PetscPrintf(PETSC_COMM_WORLD,"  BC description:\n");
-  PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description_bc);
+  if (fd->description_bc) PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description_bc);
+  else PetscPrintf(PETSC_COMM_WORLD,"    NONE\n");
 
   PetscPrintf(PETSC_COMM_WORLD,"  global size elements: %D (x-dir) %D (z-dir)\n",fd->Nx,fd->Nz);
 
