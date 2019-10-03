@@ -374,7 +374,7 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 #define __FUNCT__ "FormBCList"
 PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
-  DMStagBC       *list;
+  //DMStagBC       *list;
   PetscInt    k,n_bc,*idx_bc;
   PetscScalar *value_bc;
   BCType      *type_bc;
@@ -382,7 +382,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   
   PetscFunctionBegin;
   
-  list = bclist->bc_f;
+  //list = bclist->bc_f;
   
   // dVz/dx=0 on left boundary (w)
   ierr = DMStagBCListGetValues(bclist,'w','|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
