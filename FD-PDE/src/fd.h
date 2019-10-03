@@ -37,7 +37,7 @@ struct _p_FD {
   DMStagBCList    bclist;
   void           *user_context;
   FDPDEType       type;
-  char           *description;
+  char           *description, *description_bc, *description_coeff;
   SNES            snes;
   MPI_Comm        comm;
   PetscInt        Nx,Nz;
@@ -53,10 +53,10 @@ PetscErrorCode FDCreate(MPI_Comm, PetscInt, PetscInt,
                         FDPDEType, FD*);
 PetscErrorCode FDSetUp(FD);
 PetscErrorCode FDDestroy(FD*);
-PetscErrorCode FDView(FD, PetscViewer);
+PetscErrorCode FDView(FD);
 
-PetscErrorCode FDSetFunctionBCList(FD, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), void*);
-PetscErrorCode FDSetFunctionCoefficient(FD, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), void*);
+PetscErrorCode FDSetFunctionBCList(FD, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void*);
+PetscErrorCode FDSetFunctionCoefficient(FD, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), const char description[], void*);
 
 PetscErrorCode FDGetDM(FD, DM*);
 PetscErrorCode FDGetSolution(FD, Vec*);

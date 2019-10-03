@@ -53,6 +53,23 @@ PetscErrorCode ComputeErrorNorms(DM,Vec,Vec,void*);
 PetscErrorCode DoOutput(DM,Vec,const char[]);
 
 // ---------------------------------------
+// Some descriptions
+// ---------------------------------------
+const char coeff_description[] =
+"  << Stokes Coefficients >> \n"
+"  eta_n/eta_c = eta0 if x<0.5, eta1 if x>=0.5\n"
+"  fux = 0 \n" 
+"  fuz = rho*g \n" 
+"  fp = 0 (incompressible)\n";
+
+const char bc_description[] =
+"  << Stokes BCs >> \n"
+"  LEFT: Vx = 0, dVz/dx = 0\n"
+"  RIGHT: Vx = 0, dVz/dx = 0\n" 
+"  DOWN: Vz = 0, dVx/dz = 0\n" 
+"  UP: Vz = 0, dVx/dz = 0 \n";
+
+// ---------------------------------------
 // Application functions
 // ---------------------------------------
 #undef __FUNCT__
@@ -83,14 +100,15 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   ierr = FDCreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,STOKES,&fd);CHKERRQ(ierr);
   ierr = FDSetUp(fd);CHKERRQ(ierr);
   //ierr = FDSetOptionsPrefix(fd,"stk_"); CHKERRQ(ierr);
-
   // User can modify the dm coordinates anywhere between FDSetUp() and FDSolve()
 
   // Set BC evaluation function
-  ierr = FDSetFunctionBCList(fd,FormBCList,NULL); CHKERRQ(ierr);
+  ierr = FDSetFunctionBCList(fd,FormBCList,bc_description,NULL); CHKERRQ(ierr);
 
   // Set coefficients evaluation function
-  ierr = FDSetFunctionCoefficient(fd,FormCoefficient,usr); CHKERRQ(ierr);
+  ierr = FDSetFunctionCoefficient(fd,FormCoefficient,coeff_description,usr); CHKERRQ(ierr);
+
+  ierr = FDView(fd); CHKERRQ(ierr);
 
   // FD SNES Solver
   ierr = FDSolve(fd);CHKERRQ(ierr);
@@ -98,7 +116,6 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   // Get solution vector
   ierr = FDGetSolution(fd,&x);CHKERRQ(ierr); 
   ierr = FDGetDM(fd, &dmPV); CHKERRQ(ierr);
-  //ierr = FDView(fd,PETSC_COMM_WORLD); CHKERRQ(ierr);
 
   // Output solution to file
   ierr = DoOutput(dmPV,x,"numerical_solution.vtr");CHKERRQ(ierr);

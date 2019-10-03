@@ -2,7 +2,6 @@
 
 #include "fdstokes.h"
 
-
 const char stokes_description[] =
 "  << FD-PDE Stokes >> solves the PDEs: \n"
 "    div ( 2 A symgrad(u) ) - grad(p) = B \n"

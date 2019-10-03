@@ -2,6 +2,12 @@
 
 #include "fd.h"
 
+const char *FDPDETypeNames[] = {
+  "uninit",
+  "stokes",
+  "advdiff"
+};
+
 // ---------------------------------------
 // FDCreatePDEType declarations
 // ---------------------------------------
@@ -81,7 +87,7 @@ PetscErrorCode FDCreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   fd->comm  = comm;
   fd->setupcalled = PETSC_FALSE;
   fd->solvecalled = PETSC_FALSE;
-  
+
   *_fd = fd;
   
   PetscFunctionReturn(0);
@@ -178,6 +184,8 @@ PetscErrorCode FDDestroy(FD *_fd)
   fd->user_context = NULL;
 
   ierr = PetscFree(fd->description);CHKERRQ(ierr);
+  ierr = PetscFree(fd->description_bc);CHKERRQ(ierr);
+  ierr = PetscFree(fd->description_coeff);CHKERRQ(ierr);
   ierr = PetscFree(fd);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
@@ -189,21 +197,46 @@ FDView - ASCII print of FD info structure on PETSC_COMM_WORLD
 
 Input Parameter:
 fd - the FD object to view
-viewer - the viewer (PETSC_COMM_WORLD)
 
 Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDView"
-PetscErrorCode FDView(FD fd, PetscViewer viewer)
+PetscErrorCode FDView(FD fd)
 {
-  // PetscErrorCode ierr;
+  PetscInt       dof[3];
+  PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  // View FD object
+  PetscPrintf(PETSC_COMM_WORLD,"FDView\n");
+  PetscPrintf(PETSC_COMM_WORLD,"  FD-PDE Type: %s\n",FDPDETypeNames[(int)fd->type]);
+  
+  PetscPrintf(PETSC_COMM_WORLD,"  FD-PDE description:\n");
+  PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description);
 
+  PetscPrintf(PETSC_COMM_WORLD,"  Coefficient description:\n");
+  PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description_coeff);
 
+  PetscPrintf(PETSC_COMM_WORLD,"  BC description:\n");
+  PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description_bc);
+
+  PetscPrintf(PETSC_COMM_WORLD,"  global size elements: %D (x-dir) %D (z-dir)\n",fd->Nx,fd->Nz);
+
+  ierr = DMStagGetDOF(fd->dmstag,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"  dmstag: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
+
+  ierr = DMStagGetDOF(fd->dmcoeff,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"  dmcoeff: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
+
+  if (fd->setupcalled) PetscPrintf(PETSC_COMM_WORLD,"  FDSetUp: TRUE \n");
+  else PetscPrintf(PETSC_COMM_WORLD,"  FDSetUp: FALSE \n");
+  
+  if (fd->solvecalled) PetscPrintf(PETSC_COMM_WORLD,"  FDSolve: TRUE \n");
+  else PetscPrintf(PETSC_COMM_WORLD,"  FDSolve: FALSE \n");
+
+  // view BC list
+  //ierr = DMStagBCListView(fd->bclist);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -245,6 +278,7 @@ FDSetFunctionBCList - set an evaluation function for boundary conditions
 Input Parameter:
 fd - the FD object
 evaluate - name of the evaluation function for boundary conditions
+description - user can provide a description for BC
 data - user context to be passed for evaluation (can be NULL)
 
 Use: user
@@ -252,13 +286,16 @@ Use: user
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDSetFunctionBCList"
-PetscErrorCode FDSetFunctionBCList(FD fd, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), void *data)
+PetscErrorCode FDSetFunctionBCList(FD fd, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void *data)
 {
+  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (!evaluate) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No function is provided to calculate the BC List!");
   fd->bclist->evaluate = evaluate;
   fd->bclist->data = data;
+  
+  if(description) {ierr = PetscStrallocpy(description,&fd->description_bc); CHKERRQ(ierr);}
 
   PetscFunctionReturn(0);
 }
@@ -270,6 +307,7 @@ FDSetFunctionCoefficient - set an evaluation function for FD-PDE coefficients
 Input Parameter:
 fd - the FD object
 form_coefficient - name of the evaluation function for coefficients
+description - user can provide a description for coefficients
 data - user context to be passed for evaluation (can be NULL)
 
 Use: user
@@ -277,13 +315,16 @@ Use: user
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDSetFunctionCoefficient"
-PetscErrorCode FDSetFunctionCoefficient(FD fd, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), void *data)
+PetscErrorCode FDSetFunctionCoefficient(FD fd, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), const char description[], void *data)
 {
+  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (!form_coefficient) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No function is provided to calculate the coeffients!");
   fd->ops->form_coefficient = form_coefficient;
   fd->user_context = data;
+
+  if(description) {ierr = PetscStrallocpy(description,&fd->description_coeff); CHKERRQ(ierr);}
 
   PetscFunctionReturn(0);
 }
