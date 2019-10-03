@@ -1,229 +1,5 @@
 #include "bc.h"
 
-// static PetscErrorCode FDBCGetEntry(DM,PetscScalar**,PetscScalar**,DMStagStencilLocation,PetscInt,PetscInt,PetscInt,DMStagBC*);
-
-// // ---------------------------------------
-// // FDBCListCreate
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "DMStagBCCreateDefault"
-// PetscErrorCode DMStagBCCreateDefault(DM dm, DMStagBC **_list, PetscInt *_ndof)
-// {
-//   PetscInt Nx, Nz, sx, sz, nx, nz;
-//   PetscInt i, j, ii, idof, ndof, dof0, dof1, dof2;
-//   DMStagStencilLocation loc, loc1;
-//   DMStagBC *list = NULL;
-//   PetscScalar    **coordx,**coordz;
-
-//   PetscErrorCode ierr;
-//   PetscFunctionBegin;
-
-//   // Count local boundary dofs
-//   ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
-//   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-//   ierr = DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL);CHKERRQ(ierr);
-
-//   ndof = 0; 
-//   // Count boundary dofs
-//   for (j = sz; j<sz+nz; j++) {
-//     for (i = sx; i<sx+nx; i++) {
-//       if ((i==0) || (i==Nx-1)) {
-//         if (dof0) { ndof+=  dof0; }// corner
-//         if (dof1) { ndof+=2*dof1; }// left/right, down/up
-//         if (dof2) { ndof+=  dof2; }// element
-//         if (j==Nz-1) {
-//           if (dof0) { ndof+=dof0; }// extra corner
-//           if (dof1) { ndof+=dof1; }// left/right
-//         }
-//       } else {
-//         if ((j==0) || (j==Nz-1)) {
-//           if (dof0) { ndof+=  dof0; }// corner
-//           if (dof1) { ndof+=2*dof1; }// left/right, down/up
-//           if (dof2) { ndof+=  dof2; }// element
-//           if (i==Nx-2) {
-//             if (dof0) { ndof+=dof0; }// down-right
-//             if (dof1) { ndof+=dof1; }// left/right
-//           }
-//         } 
-//       }
-//     }
-//   }
-
-//   // Return empty list
-//   if (!ndof) {
-//     *_list = list;
-//     *_ndof = ndof;
-//     PetscFunctionReturn(0);
-//   }
-
-//   // Allocate memory to list
-//   ierr = PetscMalloc((size_t)ndof*sizeof(DMStagBC),&list);CHKERRQ(ierr);
-//   ierr = PetscMemzero(list,(size_t)ndof*sizeof(DMStagBC));CHKERRQ(ierr);
-
-//   // Get dm coordinates array
-//   ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-
-//   // Save grid info for BC dofs
-//   idof = 0;
-//   for (j = sz; j<sz+nz; j++) {
-//     for (i = sx; i<sx+nx; i++) {
-//       if ((i==0) || (i==Nx-1)) {
-//         if (dof0) {
-//           if (i==0) { loc = DMSTAG_DOWN_LEFT; }
-//           else      { loc = DMSTAG_DOWN_RIGHT;}
-//           for (ii = 0; ii<dof0; ii++) {
-//             ierr = FDBCGetEntry(dm,coordx,coordz,loc,ii,i,j,&list[idof]);CHKERRQ(ierr);
-//             idof++;
-//           }
-//         }
-//         if (dof1) { // 2 DOFs - LEFT, DOWN
-//           if (i==0) { loc = DMSTAG_LEFT; }
-//           else      { loc = DMSTAG_RIGHT;}
-//           loc1 = DMSTAG_DOWN;
-//           for (ii = 0; ii<dof1; ii++) {
-//             ierr = FDBCGetEntry(dm,coordx,coordz,loc,ii,i,j,&list[idof]);CHKERRQ(ierr); // Vx
-//             idof++;
-//             ierr = FDBCGetEntry(dm,coordx,coordz,loc1,ii,i,j,&list[idof]);CHKERRQ(ierr); // Vz
-//             idof++;
-//           }
-//         }
-//         if (dof2) {
-//           for (ii = 0; ii<dof2; ii++) {
-//             ierr = FDBCGetEntry(dm,coordx,coordz,DMSTAG_ELEMENT,ii,i,j,&list[idof]);CHKERRQ(ierr);
-//             idof++;
-//           }
-//         }
-//         if (j == Nz-1) {
-//           if (dof0) {
-//             if (i==0) { loc = DMSTAG_UP_LEFT; }
-//             else      { loc = DMSTAG_UP_RIGHT;}
-//             for (ii = 0; ii<dof0; ii++) {
-//               ierr = FDBCGetEntry(dm,coordx,coordz,loc,ii,i,j,&list[idof]);CHKERRQ(ierr);
-//               idof++;
-//             } 
-//           }
-//           if (dof1) {
-//             for (ii = 0; ii<dof1; ii++) {
-//               ierr = FDBCGetEntry(dm,coordx,coordz,DMSTAG_UP,ii,i,j,&list[idof]);CHKERRQ(ierr);
-//               idof++;
-//             } 
-//           }
-//         }
-//       } else {
-//         if ((j==0) || (j==Nz-1)) {
-//           if (dof0) {
-//             if (j==0) { loc = DMSTAG_DOWN_LEFT;}
-//             else      { loc = DMSTAG_UP_LEFT;  }
-//             for (ii = 0; ii<dof0; ii++) {
-//               ierr = FDBCGetEntry(dm,coordx,coordz,loc,ii,i,j,&list[idof]);CHKERRQ(ierr);
-//               idof++;
-//             }
-//           }
-//           if (dof1) { // 2 DOFs - LEFT, DOWN
-//             if (j==0) { loc = DMSTAG_DOWN;}
-//             else      { loc = DMSTAG_UP;  }
-//             loc1 = DMSTAG_LEFT;
-//             for (ii = 0; ii<dof1; ii++) {
-//               ierr = FDBCGetEntry(dm,coordx,coordz,loc,ii,i,j,&list[idof]);CHKERRQ(ierr); // Vz
-//               idof++;
-//               ierr = FDBCGetEntry(dm,coordx,coordz,loc1,ii,i,j,&list[idof]);CHKERRQ(ierr); // Vx
-//               idof++;
-//             }
-//           }
-//           if (dof2) {
-//             for (ii = 0; ii<dof2; ii++) {
-//               ierr = FDBCGetEntry(dm,coordx,coordz,DMSTAG_ELEMENT,ii,i,j,&list[idof]);CHKERRQ(ierr);
-//               idof++;
-//             }
-//           }
-//           if (i == Nx-2) {
-//             if (dof0) {
-//               if (j==0) { loc = DMSTAG_DOWN_RIGHT;}
-//               else      { loc = DMSTAG_UP_RIGHT;  }
-//               for (ii = 0; ii<dof0; ii++) {
-//                 ierr = FDBCGetEntry(dm,coordx,coordz,loc,ii,i,j,&list[idof]);CHKERRQ(ierr);
-//                 idof++;
-//               }
-//             }
-//             if (dof1) {
-//               for (ii = 0; ii<dof1; ii++) {
-//                 ierr = FDBCGetEntry(dm,coordx,coordz,DMSTAG_RIGHT,ii,i,j,&list[idof]);CHKERRQ(ierr);
-//                 idof++;
-//               } 
-//             }
-//           }
-//         } 
-//       }
-//     }
-//   }
-
-//   // Restore arrays, local vectors
-//   ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-
-//   // Initialize list type
-//   for (ii = 0; ii<ndof; ii++) {
-//     list[ii].type = BC_NULL;
-//     list[ii].val  = 0.0;
-//   }
-
-//   *_list = list;
-//   *_ndof = ndof;
-//   PetscFunctionReturn(0);
-// }
-
-// // ---------------------------------------
-// // FDBCListDestroy
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "DMStagBCDestroy"
-// PetscErrorCode DMStagBCDestroy(DMStagBC **_list)
-// {
-//   DMStagBC *list;
-//   PetscErrorCode ierr;
-//   PetscFunctionBegin;
-//   if (!_list) PetscFunctionReturn(0);
-//   list = *_list;
-//   ierr = PetscFree(list);CHKERRQ(ierr);
-//   *_list = NULL;
-//   PetscFunctionReturn(0);
-// }
-
-// // ---------------------------------------
-// // Get BC Entry details
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDBCGetEntry"
-// static PetscErrorCode FDBCGetEntry(DM dm,PetscScalar **cx,PetscScalar **cz, DMStagStencilLocation loc, PetscInt c, PetscInt i, PetscInt j, DMStagBC *list)
-// {
-//   PetscInt       ii = 0, jj = 0, iprev, inext, icenter;
-//   PetscErrorCode ierr;
-//   PetscFunctionBeginUser;
-  
-//   ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr);
-//   ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
-//   ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr);
-  
-//   list->point.i   = i;
-//   list->point.j   = j;
-//   list->point.c   = c;
-//   list->point.loc = loc;
-  
-//   ierr = DMStagGetLocationSlot(dm,loc,c,&list->idx); CHKERRQ(ierr);
-  
-//   if ((loc == DMSTAG_DOWN_LEFT)  || (loc == DMSTAG_UP_LEFT)  || (loc == DMSTAG_LEFT))  ii = iprev;
-//   if ((loc == DMSTAG_ELEMENT)    || (loc == DMSTAG_DOWN)     || (loc == DMSTAG_UP))    ii = icenter;
-//   if ((loc == DMSTAG_DOWN_RIGHT) || (loc == DMSTAG_UP_RIGHT) || (loc == DMSTAG_RIGHT)) ii = inext;
-  
-//   if ((loc == DMSTAG_DOWN_LEFT) || (loc == DMSTAG_DOWN) || (loc == DMSTAG_DOWN_RIGHT)) jj = iprev;
-//   if ((loc == DMSTAG_ELEMENT)   || (loc == DMSTAG_LEFT) || (loc == DMSTAG_RIGHT))      jj = icenter;
-//   if ((loc == DMSTAG_UP_LEFT)   || (loc == DMSTAG_UP)   || (loc == DMSTAG_UP_RIGHT))   jj = inext;
-  
-//   list->coord[0] = cx[i][ii];
-//   list->coord[1] = cz[j][jj];
-  
-//   PetscFunctionReturn(0);
-// }
-
 // ---------------------------------------
 /*@
 _DMStagBCFillIndices
@@ -306,15 +82,12 @@ static PetscErrorCode _DMStagBCListSetupIndices(DMStagBCList list)
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
       if ((i == 0) || (i == Nx-1)) {
-        //if (dof0) {
           if (i == 0) { loc = DMSTAG_DOWN_LEFT; }
           else        { loc = DMSTAG_DOWN_RIGHT; }
           loc = (i == 0) ? DMSTAG_DOWN_LEFT : DMSTAG_DOWN_RIGHT;
           for (ii = 0; ii<dof0; ii++) {
             ierr = _DMStagBCFillIndices(dm,loc,ii,i,j,&list->bc_v[ndof0++]);CHKERRQ(ierr);
           }
-        //}
-        //if (dof1) { // 2 DOFs - LEFT, DOWN
           if (i == 0) { loc = DMSTAG_LEFT; }
           else        { loc = DMSTAG_RIGHT; }
           loc = (i == 0) ? DMSTAG_LEFT : DMSTAG_RIGHT;
@@ -323,38 +96,28 @@ static PetscErrorCode _DMStagBCListSetupIndices(DMStagBCList list)
             ierr = _DMStagBCFillIndices(dm,loc, ii,i,j,&list->bc_f[ndof1++]);CHKERRQ(ierr);
             ierr = _DMStagBCFillIndices(dm,loc1,ii,i,j,&list->bc_f[ndof1++]);CHKERRQ(ierr);
           }
-        //}
-        //if (dof2) {
           for (ii = 0; ii<dof2; ii++) {
             ierr = _DMStagBCFillIndices(dm,DMSTAG_ELEMENT,ii,i,j,&list->bc_e[ndof2++]);CHKERRQ(ierr);
           }
-        //}
         if (j == Nz-1) {
-          //if (dof0) {
             if (i == 0) { loc = DMSTAG_UP_LEFT; }
             else        { loc = DMSTAG_UP_RIGHT; }
             loc = (i == 0) ? DMSTAG_UP_LEFT : DMSTAG_UP_RIGHT;
             for (ii = 0; ii<dof0; ii++) {
               ierr = _DMStagBCFillIndices(dm,loc,ii,i,j,&list->bc_v[ndof0++]);CHKERRQ(ierr);
             }
-          //}
-          //if (dof1) {
             for (ii = 0; ii<dof1; ii++) {
               ierr = _DMStagBCFillIndices(dm,DMSTAG_UP,ii,i,j,&list->bc_f[ndof1++]);CHKERRQ(ierr);
             }
-          //}
         }
       } else {
         if ((j == 0) || (j == Nz-1)) {
-          //if (dof0) {
             if (j == 0) { loc = DMSTAG_DOWN_LEFT; }
             else        { loc = DMSTAG_UP_LEFT; }
             loc = (j == 0) ? DMSTAG_DOWN_LEFT : DMSTAG_UP_LEFT;
             for (ii = 0; ii<dof0; ii++) {
               ierr = _DMStagBCFillIndices(dm,loc,ii,i,j,&list->bc_v[ndof0++]);CHKERRQ(ierr);
             }
-          //}
-          //if (dof1) { // 2 DOFs - LEFT, DOWN
             if (j == 0) { loc = DMSTAG_DOWN; }
             else        { loc = DMSTAG_UP; }
             loc = (j == 0) ? DMSTAG_DOWN : DMSTAG_UP;
@@ -363,26 +126,19 @@ static PetscErrorCode _DMStagBCListSetupIndices(DMStagBCList list)
               ierr = _DMStagBCFillIndices(dm,loc, ii,i,j,&list->bc_f[ndof1++]);CHKERRQ(ierr);
               ierr = _DMStagBCFillIndices(dm,loc1,ii,i,j,&list->bc_f[ndof1++]);CHKERRQ(ierr);
             }
-          //}
-          //if (dof2) {
             for (ii = 0; ii<dof2; ii++) {
               ierr = _DMStagBCFillIndices(dm,DMSTAG_ELEMENT,ii,i,j,&list->bc_e[ndof2++]);CHKERRQ(ierr);
             }
-          //}
           if (i == Nx-2) {
-            //if (dof0) {
               if (j == 0) { loc = DMSTAG_DOWN_RIGHT; }
               else        { loc = DMSTAG_UP_RIGHT; }
               loc = (j == 0) ? DMSTAG_DOWN_RIGHT : DMSTAG_UP_RIGHT;
               for (ii = 0; ii<dof0; ii++) {
                 ierr = _DMStagBCFillIndices(dm,loc,ii,i,j,&list->bc_v[ndof0++]);CHKERRQ(ierr);
               }
-            //}
-            //if (dof1) {
               for (ii = 0; ii<dof1; ii++) {
                 ierr = _DMStagBCFillIndices(dm,DMSTAG_RIGHT,ii,i,j,&list->bc_f[ndof1++]);CHKERRQ(ierr);
               }
-            //}
           }
         }
       }
@@ -666,48 +422,6 @@ PetscErrorCode DMStagBCListDestroy(DMStagBCList *list)
   *list = NULL;
   PetscFunctionReturn(0);
 }
-
-// #if 0
-// #undef __FUNCT__
-// #define __FUNCT__ "DMStagBCListTraverse"
-// PetscErrorCode DMStagBCListTraverse(DMStagBCList list,
-//                   PetscInt stratum_index,DMStagBCLocation domain_location,
-//                   PetscErrorCode (*f)(const DMStagStencil*,const PetscScalar*,PetscBool*,PetscScalar*,void*),void *context)
-// {
-//   PetscInt       k,n;
-//   DMStagBC       *bc;
-//   PetscScalar    val;
-//   PetscBool      constrained;
-//   PetscErrorCode ierr;
-  
-//   PetscFunctionBegin;
-//   switch (stratum_index) {
-//     case 0:
-//       ierr = DMStagBCListGetVertexBCs(list,&n,&bc);CHKERRQ(ierr);
-//       break;
-//     case 1:
-//       ierr = DMStagBCListGetFaceBCs(list,&n,&bc);CHKERRQ(ierr);
-//       break;
-//     case 2:
-//       ierr = DMStagBCListGetElementBCs(list,&n,&bc);CHKERRQ(ierr);
-//       break;
-//     default:
-//       SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Stratum index must be on of {0=vertex,1=face,2=element}");
-//       break;
-//   }
-  
-//   for (k=0; k<n; k++) {
-//     if (bc[k].location != domain_location) continue;
-//     constrained = PETSC_FALSE;
-//     val = 0.0;
-//     ierr = (*f)((const DMStagStencil*)&bc[k].point,(const PetscScalar*)&bc[k].coord,&constrained,&val,context);CHKERRQ(ierr);
-//     if (constrained) {
-//       bc[k].val = val;
-//     }
-//   }
-//   PetscFunctionReturn(0);
-// }
-// #endif
 
 // ---------------------------------------
 /*@

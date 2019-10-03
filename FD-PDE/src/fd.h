@@ -55,7 +55,6 @@ PetscErrorCode FDSetUp(FD);
 PetscErrorCode FDDestroy(FD*);
 PetscErrorCode FDView(FD, PetscViewer);
 
-// PetscErrorCode FDSetBCList(FD, DMStagBCList);
 PetscErrorCode FDSetFunctionBCList(FD, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), void*);
 PetscErrorCode FDSetFunctionCoefficient(FD, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), void*);
 

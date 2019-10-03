@@ -37,10 +37,7 @@ PetscErrorCode FDCreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   FD             fd;
   FDPDEOps       ops;
   PetscErrorCode ierr;
-
   PetscFunctionBegin;
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# Break 0 xmin %f xmax %f zmin %f zmax %f#\n",xs,fd->x1,fd->z0,fd->z1);
 
   // Allocate memory
   ierr = PetscMalloc1(1,&fd);CHKERRQ(ierr);
@@ -48,12 +45,6 @@ PetscErrorCode FDCreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   // Error checking
   if (!nx) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Dimension 1 not provided for FD-PDE dmstag");
   if (!nz) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Dimension 2 not provided for FD-PDE dmstag");
-
-  // if (!xs) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Minimum global coord value for x-dir not provided");
-  // if (!zs) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Minimum global coord value for z-dir not provided");
-
-  // if (!xe) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Maximum global coord value for x-dir not provided");
-  // if (!ze) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Maximum global coord value for z-dir not provided");
 
   if (xs>=xe) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Invalid minimum/maximum x-dir global coordinates");
   if (zs>=ze) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Invalid minimum/maximum z-dir global coordinates");
@@ -115,7 +106,6 @@ PetscErrorCode FDSetUp(FD fd)
   if (fd->setupcalled) PetscFunctionReturn(0);
 
   // Set up structures needed for FD-PDE type
-  // fd->type = type;
   switch (fd->type) {
     case FD_UNINIT:
       SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Un-initialized type for FD-PDE");
@@ -248,21 +238,6 @@ PetscErrorCode FDGetDM(FD fd, DM *dm)
   PetscFunctionReturn(0);
 }
 
-// // ---------------------------------------
-// // FDSetBC
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDSetBCList"
-// PetscErrorCode FDSetBCList(FD fd, DMStagBCList bclist)
-// {
-//   PetscFunctionBegin;
-
-//   // Save pointers to bclist
-//   if (bclist) fd->bc_list = bclist;
-
-//   PetscFunctionReturn(0);
-// }
-
 // ---------------------------------------
 /*@
 FDSetFunctionBCList - set an evaluation function for boundary conditions 
@@ -279,7 +254,6 @@ Use: user
 #define __FUNCT__ "FDSetFunctionBCList"
 PetscErrorCode FDSetFunctionBCList(FD fd, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), void *data)
 {
-  // PetscErrorCode ierr; 
   PetscFunctionBegin;
 
   if (!evaluate) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No function is provided to calculate the BC List!");
@@ -305,7 +279,6 @@ Use: user
 #define __FUNCT__ "FDSetFunctionCoefficient"
 PetscErrorCode FDSetFunctionCoefficient(FD fd, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), void *data)
 {
-  // PetscErrorCode ierr; 
   PetscFunctionBegin;
 
   if (!form_coefficient) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No function is provided to calculate the coeffients!");

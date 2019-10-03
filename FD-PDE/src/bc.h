@@ -4,9 +4,6 @@
 #define BC_H
 
 #include "petsc.h"
-// #include "petscvec.h"
-// #include "petscdm.h"
-// #include "petscdmstag.h"
 
 // BC type
 typedef enum { BC_NULL = 0, BC_DIRICHLET, BC_NEUMANN, BC_ROBIN } BCType;
@@ -37,13 +34,6 @@ struct _p_DMStagBCList {
 // ---------------------------------------
 // Function definitions
 // ---------------------------------------
-// PetscErrorCode FDBCListCreate(DM, BCList**, PetscInt*);
-// PetscErrorCode FDBCListDestroy(BCList**);
-// PetscErrorCode FDBCGetEntry(DM,PetscScalar**,PetscScalar**,DMStagStencilLocation, PetscInt, PetscInt, PetscInt, BCList*);
-
-// PetscErrorCode DMStagBCCreateDefault(DM, DMStagBC**, PetscInt*);
-// PetscErrorCode DMStagBCDestroy(DMStagBC**);
-
 PetscErrorCode DMStagBCListCreate(DM,DMStagBCList*);
 PetscErrorCode DMStagBCListDestroy(DMStagBCList*);
 
