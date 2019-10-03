@@ -5,25 +5,37 @@
 
 const char stokes_description[] =
 "  << FD-PDE Stokes >> solves the PDEs: \n"
-"    div ( 2 eta symgrad(u) ) - grad(p) = f(x) \n"
-"                              - div(u) = g(x) \n"
+"    div ( 2 A symgrad(u) ) - grad(p) = B \n"
+"                            - div(u) = C \n"
 "  [User notes] \n"
-"  * The function f(x) is defined in velocity points, and g(x) is defined \n" 
+"  * Unknowns: p - pressure, u - velocity. \n" 
+"  * The coefficients A,B,C need to be defined by the user. \n" 
+"        A - effective viscosity, \n" 
+"        B - right-hand side for the momentum equation, \n" 
+"        C - right-hand side for the continuity equation. \n" 
+"  * A,B,C are not colocated on DMStag! Effective viscosity (A) has to be specified:\n" 
+"        A = [eta_c, eta_n], with eta_c in center points, eta_n in corner points.\n"
+"  * The momentum rhs (B) is defined in velocity points, and the continuity rhs (C) is defined \n" 
 "    in center points. For DMStag the following right-hand-side coefficients  \n" 
 "    need to be specified: \n" 
-"        f(x) = [fux, fuz], fux in Vx-points, fuz in Vz-points \n" 
-"        g(x) = fp, in P-points (element) \n"
-"  * The viscosity has to be specified:\n" 
-"       eta = [eta_c, eta_n], eta_c in center points, eta_n in corner points.\n";
+"        B = [fux, fuz], with fux in Vx-points, fuz in Vz-points (edges)\n" 
+"        C = fp, in P-points (element). \n";
 
 // ---------------------------------------
-// FDCreate_Stokes
+/*@
+FDCreate_Stokes - creates the data structures for FDPDEType = STOKES
+
+Input Parameter:
+fd - the FD object to setup
+
+Use: internal
+@*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDCreate_Stokes"
 PetscErrorCode FDCreate_Stokes(FD fd)
 {
-  DM             dmPV;
+  DM             dmstag;
   PetscScalar    pval = -0.00001;
   PetscInt       dofPV0, dofPV1, dofPV2, stencilWidth;
   PetscErrorCode ierr;
@@ -37,23 +49,26 @@ PetscErrorCode FDCreate_Stokes(FD fd)
   dofPV0 = 0; dofPV1 = 1; dofPV2 = 1; // dmstag: Vx, Vz (edges), P (element)
   stencilWidth = 1;
 
-  // Create DMStag object for Stokes unknowns: dmPV (P-element, v-vertex)
+  // Create DMStag object for Stokes unknowns: dmstag (P-element, v-vertex)
   ierr = DMStagCreate2d(fd->comm, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, fd->Nx, fd->Nz, 
             PETSC_DECIDE, PETSC_DECIDE, dofPV0, dofPV1, dofPV2, 
-            DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dmPV); CHKERRQ(ierr);
-  ierr = DMSetFromOptions(dmPV); CHKERRQ(ierr);
-  ierr = DMSetUp         (dmPV); CHKERRQ(ierr);
+            DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dmstag); CHKERRQ(ierr);
+  ierr = DMSetFromOptions(dmstag); CHKERRQ(ierr);
+  ierr = DMSetUp         (dmstag); CHKERRQ(ierr);
+
+  // Create default coordinates (user can change them before calling FDSolve)
+  ierr = DMStagSetUniformCoordinatesProduct(dmstag,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
 
   // Assign pointers
-  fd->dmstag  = dmPV;
+  fd->dmstag  = dmstag;
 
   // Create global vectors
-  ierr = DMCreateGlobalVector(fd->dmstag, &fd->x    ); CHKERRQ(ierr);
-  ierr = VecDuplicate(fd->x,&fd->r     ); CHKERRQ(ierr);
-  ierr = VecDuplicate(fd->x,&fd->xguess); CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(fd->dmstag, &fd->x); CHKERRQ(ierr);
+  ierr = VecDuplicate(fd->x,&fd->r); CHKERRQ(ierr);
+  ierr = VecDuplicate(fd->x,&fd->xold); CHKERRQ(ierr);
 
   // Set initial values for xguess
-  ierr = VecSet(fd->xguess,pval);CHKERRQ(ierr);
+  ierr = VecSet(fd->xold,pval);CHKERRQ(ierr);
 
   // Create Jacobian
   ierr = DMCreateMatrix(fd->dmstag, &fd->J); CHKERRQ(ierr);
@@ -67,19 +82,22 @@ PetscErrorCode FDCreate_Stokes(FD fd)
 }
 
 // ---------------------------------------
-// FDCreateCoefficient_Stokes
+/*@
+FDCreateCoefficient_Stokes - creates the coefficient data (dmcoeff, coeff) for FDPDEType = STOKES
+
+Input Parameter:
+fd - the FD object to setup
+
+Use: internal
+@*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDCreateCoefficient_Stokes"
 PetscErrorCode FDCreateCoefficient_Stokes(FD fd)
 {
   DM             dmCoeff;
-  PetscScalar    xmin, xmax, zmin, zmax;
   PetscInt       dofCf0, dofCf1, dofCf2;
-  PetscInt       iprev, inext;
-  PetscScalar    **coordx,**coordz;
   PetscErrorCode ierr;
-  
   PetscFunctionBegin;
 
   // Stencil dofs
@@ -89,19 +107,8 @@ PetscErrorCode FDCreateCoefficient_Stokes(FD fd)
   ierr = DMStagCreateCompatibleDMStag(fd->dmstag, dofCf0, dofCf1, dofCf2, 0, &dmCoeff); CHKERRQ(ierr);
   ierr = DMSetUp(dmCoeff); CHKERRQ(ierr);
 
-  // Get start and end coordinates
-  ierr = DMStagGet1dCoordinateArraysDOFRead(fd->dmstag,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(fd->dmstag,DMSTAG_LEFT,&iprev);CHKERRQ(ierr); 
-  ierr = DMStagGet1dCoordinateLocationSlot(fd->dmstag,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
-
-  xmin = coordx[0][iprev]; xmax = coordx[fd->Nx-1][inext];
-  zmin = coordz[0][iprev]; zmax = coordz[fd->Nz-1][inext];
-
-  // Restore arrays, local vectors
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(fd->dmstag,&coordx,&coordz,NULL);CHKERRQ(ierr);
-
   // Set coordinates - should mimic the same method as dmstag
-  ierr = DMStagSetUniformCoordinatesProduct(dmCoeff, xmin, xmax, zmin, zmax, 0.0, 0.0);CHKERRQ(ierr);
+  ierr = DMStagSetUniformCoordinatesProduct(dmCoeff,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
 
   // Assign pointers
   fd->dmcoeff = dmCoeff;

@@ -4,8 +4,8 @@
 #define FDSTOKES_H
 
 #include "petsc.h"
-#include "prealloc_helper.h"
-#include "bc.h"
+// #include "prealloc_helper.h"
+// #include "bc.h"
 #include "fd.h"
 
 // ---------------------------------------

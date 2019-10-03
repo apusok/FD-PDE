@@ -1,13 +1,38 @@
-/* Finite Differences (FD) PDE object */
+/* Finite Differences PDE (FD-PDE) object */
 
 #include "fd.h"
 
 // ---------------------------------------
-// FDCreate
+// FDCreatePDEType declarations
+// ---------------------------------------
+PetscErrorCode FDCreate_Stokes(FD fd);
+//PetscErrorCode FDCreate_AdvDiff(FD fd);
+
+// ---------------------------------------
+/*@ FDCreate - creates an object that will manage the discretization of a PDE using 
+finite differences on a 2D DMStag object
+
+Input Parameters:
+comm - MPI communicator
+nx,nz - global number of elements in x,z directions
+xs,xe - start and end coordinate of domain (limits in x direction)
+zs,ze - start and end coordinate of domain (limits in z direction)
+type - FDPDEType type
+
+Output Parameters:
+_fd - the new FD-PDE object
+
+Notes:
+You must call FDSetUp() after this call, before using the FD-PDE object. Also, you must destroy the object with FDDestroy().
+
+Use: user
+@*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDCreate"
-PetscErrorCode FDCreate(MPI_Comm comm, FD *_fd)
+PetscErrorCode FDCreate(MPI_Comm comm, PetscInt nx, PetscInt nz, 
+                        PetscScalar xs, PetscScalar xe, PetscScalar zs, PetscScalar ze, 
+                        FDPDEType type, FD *_fd)
 {
   FD             fd;
   FDPDEOps       ops;
@@ -15,8 +40,35 @@ PetscErrorCode FDCreate(MPI_Comm comm, FD *_fd)
 
   PetscFunctionBegin;
 
+  // PetscPrintf(PETSC_COMM_WORLD,"# Break 0 xmin %f xmax %f zmin %f zmax %f#\n",xs,fd->x1,fd->z0,fd->z1);
+
   // Allocate memory
   ierr = PetscMalloc1(1,&fd);CHKERRQ(ierr);
+
+  // Error checking
+  if (!nx) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Dimension 1 not provided for FD-PDE dmstag");
+  if (!nz) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Dimension 2 not provided for FD-PDE dmstag");
+
+  // if (!xs) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Minimum global coord value for x-dir not provided");
+  // if (!zs) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Minimum global coord value for z-dir not provided");
+
+  // if (!xe) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Maximum global coord value for x-dir not provided");
+  // if (!ze) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Maximum global coord value for z-dir not provided");
+
+  if (xs>=xe) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Invalid minimum/maximum x-dir global coordinates");
+  if (zs>=ze) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Invalid minimum/maximum z-dir global coordinates");
+
+  // Save input variables
+  fd->Nx = nx;
+  fd->Nz = nz;
+  fd->x0 = xs;
+  fd->x1 = xe;
+  fd->z0 = zs;
+  fd->z1 = ze;
+
+  if (type) fd->type = type;
+  else      fd->type = FD_UNINIT;
+
   ierr = PetscMalloc1(1,&ops);CHKERRQ(ierr);
   ierr = PetscMemzero(ops, sizeof(struct _FDPDEOps)); CHKERRQ(ierr);
   fd->ops = ops;
@@ -24,23 +76,71 @@ PetscErrorCode FDCreate(MPI_Comm comm, FD *_fd)
   // Initialize struct
   fd->dmstag  = NULL;
   fd->dmcoeff = NULL;
-  fd->bc_list = NULL;
+  fd->bclist = NULL;
   fd->x     = NULL;
-  fd->xguess= NULL;
+  fd->xold  = NULL;
   fd->r     = NULL;
   fd->coeff = NULL;
   fd->J     = NULL;
   fd->snes  = NULL;
   fd->user_context = NULL;
-  fd->type  = FD_UNINIT;
   fd->comm  = comm;
-
-  fd->Nx = 0;
-  fd->Nz = 0;
-  fd->nbc= 0;
+  fd->setupcalled = PETSC_FALSE;
   
   *_fd = fd;
   
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+FDSetUp - sets up the data structures inside a FD object
+
+Input Parameter:
+fd - the FD object to setup
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDSetUp"
+PetscErrorCode FDSetUp(FD fd)
+{
+  PetscErrorCode ierr; 
+  PetscFunctionBegin;
+  if (fd->setupcalled) PetscFunctionReturn(0);
+
+  // Set up structures needed for FD-PDE type
+  // fd->type = type;
+  switch (fd->type) {
+    case FD_UNINIT:
+      SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Un-initialized type for FD-PDE");
+      break;
+    case STOKES:
+      fd->ops->create = FDCreate_Stokes;
+      break;
+    case ADVDIFF:
+      //fd->ops->create = FDCreate_AdvDiff;
+      break;
+    default:
+      SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Unknown type of FD-PDE specified");
+  }
+
+  // Create individual FD-PDE type
+  ierr = fd->ops->create(fd); CHKERRQ(ierr);
+
+  // Create coefficient dm and vector - specific to FD-PDE
+  ierr = fd->ops->create_coefficient(fd);CHKERRQ(ierr);
+
+  // Create BClist object
+  ierr = DMStagBCListCreate(fd->dmstag,&fd->bclist);CHKERRQ(ierr);
+
+  // Preallocator Jacobian
+  ierr = FDJacobianPreallocator(fd);CHKERRQ(ierr);
+
+  // Create SNES here ?
+
+  fd->setupcalled = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
 
@@ -61,18 +161,19 @@ PetscErrorCode FDDestroy(FD *_fd)
   if (!fd) PetscFunctionReturn(0);
 
   // Destroy objects
+  ierr = DMStagBCListDestroy(&fd->bclist);CHKERRQ(ierr);
   ierr = PetscFree(fd->ops);CHKERRQ(ierr);
   ierr = VecDestroy(&fd->x);CHKERRQ(ierr);
   ierr = VecDestroy(&fd->r);CHKERRQ(ierr);
-  ierr = VecDestroy(&fd->coeff );CHKERRQ(ierr);
-  ierr = VecDestroy(&fd->xguess);CHKERRQ(ierr);
+  ierr = VecDestroy(&fd->coeff);CHKERRQ(ierr);
+  ierr = VecDestroy(&fd->xold);CHKERRQ(ierr);
   ierr = MatDestroy(&fd->J);CHKERRQ(ierr);
   ierr = SNESDestroy(&fd->snes);CHKERRQ(ierr);
 
   ierr = DMDestroy(&fd->dmcoeff); CHKERRQ(ierr);
   ierr = DMDestroy(&fd->dmstag); CHKERRQ(ierr);
 
-  fd->bc_list = NULL;
+  fd->bclist = NULL;
   fd->user_context = NULL;
 
   ierr = PetscFree(fd->description);CHKERRQ(ierr);
@@ -99,25 +200,6 @@ PetscErrorCode FDView(FD fd, PetscViewer viewer)
 }
 
 // ---------------------------------------
-// FDSetDimensions
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDSetDimensions"
-PetscErrorCode FDSetDimensions(FD fd, PetscInt nx, PetscInt nz)
-{
-  //PetscErrorCode ierr;
-  PetscFunctionBegin;
-
-  if (!nx) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Dimension 1 not provided for FD-PDE dmstag");
-  if (!nz) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Dimension 2 not provided for FD-PDE dmstag");
-
-  fd->Nx = nx;
-  fd->Nz = nz;
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
 // FDGetDM
 // ---------------------------------------
 /*@ FDGetDM - Retrieves the dmstag from the fd object. User has to call DMDestroy() to free the space. @*/
@@ -135,54 +217,34 @@ PetscErrorCode FDGetDM(FD fd, DM *dm)
   PetscFunctionReturn(0);
 }
 
-// ---------------------------------------
-// FDSetType declarations
-// ---------------------------------------
-PetscErrorCode FDCreate_Stokes(FD fd);
-//PetscErrorCode FDCreate_AdvDiff(FD fd);
+// // ---------------------------------------
+// // FDSetBC
+// // ---------------------------------------
+// #undef __FUNCT__
+// #define __FUNCT__ "FDSetBCList"
+// PetscErrorCode FDSetBCList(FD fd, DMStagBCList bclist)
+// {
+//   PetscFunctionBegin;
+
+//   // Save pointers to bclist
+//   if (bclist) fd->bc_list = bclist;
+
+//   PetscFunctionReturn(0);
+// }
 
 // ---------------------------------------
-// FDSetType
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDSetType"
-PetscErrorCode FDSetType(FD fd, enum FDPDEType type)
-{
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
-
-  fd->type = type;
-  switch (type) {
-    case FD_UNINIT:
-      SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Un-initialized type for FD-PDE");
-      break;
-    case STOKES:
-      fd->ops->create = FDCreate_Stokes;
-      break;
-    case ADVDIFF:
-      //fd->ops->create = FDCreate_AdvDiff;
-      break;
-    default:
-      SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Unknown type of FD-PDE specified");
-  }
-
-  // Create individual types
-  ierr = fd->ops->create(fd); CHKERRQ(ierr);
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-// FDSetBC
+// FDSetFunctionBCList
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDSetBCList"
-PetscErrorCode FDSetBCList(FD fd, DMStagBCList bclist)
+#define __FUNCT__ "FDSetFunctionBCList"
+PetscErrorCode FDSetFunctionBCList(FD fd, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), void *data)
 {
+  // PetscErrorCode ierr; 
   PetscFunctionBegin;
 
-  // Save pointers to bclist
-  if (bclist) fd->bc_list = bclist;
+  if (!evaluate) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No function is provided to calculate the BC List!");
+  fd->bclist->evaluate = evaluate;
+  fd->bclist->data = data;
 
   PetscFunctionReturn(0);
 }
@@ -194,15 +256,12 @@ PetscErrorCode FDSetBCList(FD fd, DMStagBCList bclist)
 #define __FUNCT__ "FDSetFunctionCoefficient"
 PetscErrorCode FDSetFunctionCoefficient(FD fd, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), void *data)
 {
-  PetscErrorCode ierr; 
+  // PetscErrorCode ierr; 
   PetscFunctionBegin;
 
   if (!form_coefficient) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No function is provided to calculate the coeffients!");
   fd->ops->form_coefficient = form_coefficient;
   fd->user_context = data;
-
-  // Create coefficient dm and vector - specific to FD-PDE
-  ierr = fd->ops->create_coefficient(fd);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -327,7 +386,7 @@ PetscErrorCode FDSolveSNES(FD fd)
   PetscFunctionBegin;
 
   // Copy initial guess to solution
-  ierr = VecCopy(fd->xguess,fd->x);CHKERRQ(ierr);
+  ierr = VecCopy(fd->xold,fd->x);CHKERRQ(ierr);
 
   // Solve the non-linear system
   ierr = SNESSolve(fd->snes,0,fd->x);             CHKERRQ(ierr);
@@ -345,23 +404,22 @@ PetscErrorCode FDSolveSNES(FD fd)
     if (reason < 0) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_CONV_FAILED,"Nonlinear solve failed!"); CHKERRQ(ierr);
   } else {
     // converged - copy initial guess for next timestep
-    ierr = VecCopy(fd->x, fd->xguess); CHKERRQ(ierr);
+    ierr = VecCopy(fd->x, fd->xold); CHKERRQ(ierr);
   }
 
   PetscFunctionReturn(0);
 }
 
 // ---------------------------------------
-// FDSetSolveSNES
+// FDSolve
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDSetSolveSNES"
-PetscErrorCode FDSetSolveSNES(FD fd)
+#define __FUNCT__ "FDSolve"
+PetscErrorCode FDSolve(FD fd)
 {
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  ierr = FDJacobianPreallocator(fd);CHKERRQ(ierr);
   ierr = FDCreateSNES(fd->comm,fd);CHKERRQ(ierr);
   ierr = FDConfigureSNES(fd); CHKERRQ(ierr);
   ierr = FDSolveSNES(fd); CHKERRQ(ierr);

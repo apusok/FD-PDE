@@ -1,16 +1,15 @@
-/* <BC> contains generalized boundary conditions routines for FD-PDE */
+/* <BC> contains generalized boundary conditions routines for FD-PDE and DMStag*/
 
 #ifndef BC_H
 #define BC_H
 
 #include "petsc.h"
-#include "petscvec.h"
-#include "petscdm.h"
-#include "petscdmstag.h"
+// #include "petscvec.h"
+// #include "petscdm.h"
+// #include "petscdmstag.h"
 
 // BC type
 typedef enum { BC_NULL = 0, BC_DIRICHLET, BC_NEUMANN, BC_ROBIN } BCType;
-
 
 // ---------------------------------------
 // Struct definitions
@@ -27,12 +26,12 @@ typedef struct {
 typedef struct _p_DMStagBCList *DMStagBCList;
 
 struct _p_DMStagBCList {
-  PetscInt  nbc_vertex,nbc_face,nbc_element;
-  PetscInt  nbc;
-  DMStagBC  *bc_v,*bc_f,*bc_e;
-  DM        dm;
-  PetscErrorCode (*evaluate)(DMStagBCList,Vec,void*);
-  void           *context;
+  PetscInt         nbc_vertex,nbc_face,nbc_element;
+  PetscInt         nbc;
+  DMStagBC        *bc_v,*bc_f,*bc_e;
+  DM               dm;
+  PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*);
+  void            *data;
 };
 
 // ---------------------------------------
@@ -42,11 +41,12 @@ struct _p_DMStagBCList {
 // PetscErrorCode FDBCListDestroy(BCList**);
 // PetscErrorCode FDBCGetEntry(DM,PetscScalar**,PetscScalar**,DMStagStencilLocation, PetscInt, PetscInt, PetscInt, BCList*);
 
-PetscErrorCode DMStagBCCreateDefault(DM, DMStagBC**, PetscInt*);
-PetscErrorCode DMStagBCDestroy(DMStagBC**);
+// PetscErrorCode DMStagBCCreateDefault(DM, DMStagBC**, PetscInt*);
+// PetscErrorCode DMStagBCDestroy(DMStagBC**);
 
 PetscErrorCode DMStagBCListCreate(DM,DMStagBCList*);
 PetscErrorCode DMStagBCListDestroy(DMStagBCList*);
+
 PetscErrorCode DMStagBCListView(DMStagBCList);
 PetscErrorCode DMStagBCListSetupCoordinates(DMStagBCList);
 PetscErrorCode DMStagBCListGetVertexBCs(DMStagBCList,PetscInt*,DMStagBC**);

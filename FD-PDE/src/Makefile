@@ -3,7 +3,7 @@ FFLAGS	 =
 CPPFLAGS =
 FPPFLAGS =
 PROGDIR  = tests
-OBJECTS  = prealloc_helper.o bc.o fd.o fdstokes_physics.o fdstokes_residual.o fdstokes.o 
+OBJECTS  = bc.o prealloc_helper.o fd.o fdstokes_physics.o fdstokes_residual.o fdstokes.o 
 
 all: test_stokes_solcx
 	@echo "# -------------------------------- #"
