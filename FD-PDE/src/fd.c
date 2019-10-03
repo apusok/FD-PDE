@@ -88,6 +88,9 @@ PetscErrorCode FDCreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   fd->setupcalled = PETSC_FALSE;
   fd->solvecalled = PETSC_FALSE;
 
+  fd->description_bc = NULL;
+  fd->description_coeff = NULL;
+
   *_fd = fd;
   
   PetscFunctionReturn(0);
@@ -216,10 +219,12 @@ PetscErrorCode FDView(FD fd)
   PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description);
 
   PetscPrintf(PETSC_COMM_WORLD,"  Coefficient description:\n");
-  PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description_coeff);
+  if (fd->description_coeff) PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description_coeff);
+  else PetscPrintf(PETSC_COMM_WORLD,"    NONE\n");
 
   PetscPrintf(PETSC_COMM_WORLD,"  BC description:\n");
-  PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description_bc);
+  if (fd->description_bc) PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description_bc);
+  else PetscPrintf(PETSC_COMM_WORLD,"    NONE\n");
 
   PetscPrintf(PETSC_COMM_WORLD,"  global size elements: %D (x-dir) %D (z-dir)\n",fd->Nx,fd->Nz);
 
@@ -295,11 +300,7 @@ PetscErrorCode FDSetFunctionBCList(FD fd, PetscErrorCode (*evaluate)(DM,Vec,DMSt
   fd->bclist->evaluate = evaluate;
   fd->bclist->data = data;
   
-  if (description) {
-    ierr = PetscStrallocpy(description,&fd->description_bc); CHKERRQ(ierr);
-  } else {
-    ierr = PetscStrallocpy("NONE\n",&fd->description_bc); CHKERRQ(ierr);
-  }
+  if(description) {ierr = PetscStrallocpy(description,&fd->description_bc); CHKERRQ(ierr);}
 
   PetscFunctionReturn(0);
 }
@@ -328,11 +329,7 @@ PetscErrorCode FDSetFunctionCoefficient(FD fd, PetscErrorCode (*form_coefficient
   fd->ops->form_coefficient = form_coefficient;
   fd->user_context = data;
 
-  if (description) {
-    ierr = PetscStrallocpy(description,&fd->description_coeff); CHKERRQ(ierr);
-  } else {
-    ierr = PetscStrallocpy("NONE\n",&fd->description_coeff); CHKERRQ(ierr);
-  }
+  if(description) {ierr = PetscStrallocpy(description,&fd->description_coeff); CHKERRQ(ierr);}
 
   PetscFunctionReturn(0);
 }
