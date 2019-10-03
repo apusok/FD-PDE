@@ -1,7 +1,11 @@
 #include "fdstokes.h"
 
 // ---------------------------------------
-// FormFunction_Stokes
+/*@
+FormFunction_Stokes - (STOKES) Residual evaluation function
+
+Use: internal
+@*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FormFunction_Stokes"
@@ -105,7 +109,11 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
 }
 
 // ---------------------------------------
-// FDBCApplyStokes
+/*@
+FDBCApplyStokes - (STOKES) function to apply boundary conditions for Stokes equations
+
+Use: internal
+@*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDBCApplyStokes"

@@ -42,7 +42,7 @@ struct _p_FD {
   MPI_Comm        comm;
   PetscInt        Nx,Nz;
   PetscScalar     x0,x1,z0,z1;
-  PetscBool       setupcalled;
+  PetscBool       setupcalled, solvecalled;
 };
 
 // ---------------------------------------

@@ -1,7 +1,11 @@
 #include "fdstokes.h"
 
 // ---------------------------------------
-// ContinuityResidual
+/*@
+ContinuityResidual - (STOKES) calculates the continuity residual per dof
+
+Use: internal
+@*/
 // ---------------------------------------
 PetscErrorCode ContinuityResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, PetscInt n[],PetscScalar *ff)
 {
@@ -35,7 +39,11 @@ PetscErrorCode ContinuityResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, 
 }
 
 // ---------------------------------------
-// XMomentumResidual
+/*@
+XMomentumResidual - (STOKES) calculates the Vx momentum residual per dof
+
+Use: internal
+@*/
 // ---------------------------------------
 PetscErrorCode XMomentumResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx,PetscScalar **coordz,PetscInt i, PetscInt j,PetscInt n[],PetscScalar *ff)
 {
@@ -117,7 +125,11 @@ PetscErrorCode XMomentumResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, P
 }
 
 // ---------------------------------------
-// ZMomentumResidual
+/*@
+ZMomentumResidual - (STOKES) calculates the Vz momentum residual per dof
+
+Use: internal
+@*/
 // ---------------------------------------
 PetscErrorCode ZMomentumResidual(DM dm, Vec xlocal, DM dmcoeff, Vec coefflocal,PetscScalar **coordx,PetscScalar **coordz,PetscInt i, PetscInt j,PetscInt n[],PetscScalar *ff)
 {

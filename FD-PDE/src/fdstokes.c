@@ -25,9 +25,6 @@ const char stokes_description[] =
 /*@
 FDCreate_Stokes - creates the data structures for FDPDEType = STOKES
 
-Input Parameter:
-fd - the FD object to setup
-
 Use: internal
 @*/
 // ---------------------------------------
@@ -85,9 +82,6 @@ PetscErrorCode FDCreate_Stokes(FD fd)
 /*@
 FDCreateCoefficient_Stokes - creates the coefficient data (dmcoeff, coeff) for FDPDEType = STOKES
 
-Input Parameter:
-fd - the FD object to setup
-
 Use: internal
 @*/
 // ---------------------------------------
@@ -103,6 +97,8 @@ PetscErrorCode FDCreateCoefficient_Stokes(FD fd)
   // Stencil dofs
   dofCf0 = 1; dofCf1 = 1; dofCf2 = 2;
 
+  if (fd->dmstag == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"The DMStag for FD-PDE has not been set.");
+
   // Create DMStag object for Stokes coefficients: dmCoeff 
   ierr = DMStagCreateCompatibleDMStag(fd->dmstag, dofCf0, dofCf1, dofCf2, 0, &dmCoeff); CHKERRQ(ierr);
   ierr = DMSetUp(dmCoeff); CHKERRQ(ierr);
@@ -113,14 +109,18 @@ PetscErrorCode FDCreateCoefficient_Stokes(FD fd)
   // Assign pointers
   fd->dmcoeff = dmCoeff;
 
-  // Create global vectors
+  // Create global vector
   ierr = DMCreateGlobalVector(fd->dmcoeff,&fd->coeff); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
 
 // ---------------------------------------
-// FDJacobianPreallocator_Stokes
+/*@
+FDJacobianPreallocator_Stokes - preallocates the non-zero pattern into the Jacobian for FDPDEType = STOKES
+
+Use: internal
+@*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDJacobianPreallocator_Stokes"
@@ -148,7 +148,7 @@ PetscErrorCode FDJacobianPreallocator_Stokes(FD fd)
   DMStagStencil point[11];
   ierr = PetscMemzero(xx,sizeof(PetscScalar)*11); CHKERRQ(ierr);
 
-  // NOTE: Should take into account fd->bc_list for BC
+  // NOTE: Should take into account fd->bclist for BC
   // Get non-zero pattern for preallocator - Loop over all local elements 
   for (j = sz; j<sz+nz; ++j) {
     for (i = sx; i<sx+nx; ++i) {
@@ -209,12 +209,16 @@ PetscErrorCode FDJacobianPreallocator_Stokes(FD fd)
 }
 
 // ---------------------------------------
-// ContinuityStencil
+/*@
+ContinuityStencil - calculates the non-zero pattern for the continuity equation/dof for FDJacobianPreallocator_Stokes()
+
+Use: internal
+@*/
 // ---------------------------------------
 PetscErrorCode ContinuityStencil(PetscInt i,PetscInt j, DMStagStencil *point)
 {
   PetscFunctionBegin;
-  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0;
+  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0; // for P Dirichlet BC
   point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_LEFT;    point[1].c = 0;
   point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_RIGHT;   point[2].c = 0;
   point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_DOWN;    point[3].c = 0;
@@ -223,7 +227,11 @@ PetscErrorCode ContinuityStencil(PetscInt i,PetscInt j, DMStagStencil *point)
 }
 
 // ---------------------------------------
-// XMomentumStencil
+/*@
+XMomentumStencil - calculates the non-zero pattern for the X-momentum equation/dof for FDJacobianPreallocator_Stokes()
+
+Use: internal
+@*/
 // ---------------------------------------
 PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt N, DMStagStencil *point)
 {
@@ -247,8 +255,13 @@ PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt N, DMStagStencil 
   }
   PetscFunctionReturn(0);
 }
+
 // ---------------------------------------
-// ZMomentumStencil
+/*@
+ZMomentumStencil - calculates the non-zero pattern for the Z-momentum equation/dof for FDJacobianPreallocator_Stokes()
+
+Use: internal
+@*/
 // ---------------------------------------
 PetscErrorCode ZMomentumStencil(PetscInt i,PetscInt j,PetscInt N, DMStagStencil *point)
 {

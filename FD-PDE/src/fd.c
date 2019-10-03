@@ -58,6 +58,9 @@ PetscErrorCode FDCreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   if (xs>=xe) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Invalid minimum/maximum x-dir global coordinates");
   if (zs>=ze) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Invalid minimum/maximum z-dir global coordinates");
 
+  if (!type) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Un-initialized type for FD-PDE");
+  if (!_fd) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Must provide a valid (non-NULL) pointer for fd (arg 9)");
+
   // Save input variables
   fd->Nx = nx;
   fd->Nz = nz;
@@ -86,6 +89,7 @@ PetscErrorCode FDCreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   fd->user_context = NULL;
   fd->comm  = comm;
   fd->setupcalled = PETSC_FALSE;
+  fd->solvecalled = PETSC_FALSE;
   
   *_fd = fd;
   
@@ -138,14 +142,21 @@ PetscErrorCode FDSetUp(FD fd)
   // Preallocator Jacobian
   ierr = FDJacobianPreallocator(fd);CHKERRQ(ierr);
 
-  // Create SNES here ?
+  // Create SNES?
 
   fd->setupcalled = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
 
 // ---------------------------------------
-// FDDestroy
+/*@
+FDDestroy - destroy an FD object
+
+Input Parameter:
+fd - the FD object to destroy
+
+Use: user
+@*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDDestroy"
@@ -183,7 +194,15 @@ PetscErrorCode FDDestroy(FD *_fd)
 }
 
 // ---------------------------------------
-// FDView <INCOMPLETE>
+/*@
+FDView - ASCII print of FD info structure on PETSC_COMM_WORLD 
+
+Input Parameter:
+fd - the FD object to view
+viewer - the viewer (PETSC_COMM_WORLD)
+
+Use: user
+@*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDView"
@@ -200,9 +219,21 @@ PetscErrorCode FDView(FD fd, PetscViewer viewer)
 }
 
 // ---------------------------------------
-// FDGetDM
+/*@
+FDGetDM - retrieves the main DMStag (associated with the solution) from the FD object. 
+
+Input Parameter:
+fd - the FD object
+
+Output Parameter:
+dm - the DM object
+
+Notes:
+DM object not destroyed with FDDestroy(). User has to call DMDestroy() to free the space.
+
+Use: user
+@*/
 // ---------------------------------------
-/*@ FDGetDM - Retrieves the dmstag from the fd object. User has to call DMDestroy() to free the space. @*/
 #undef __FUNCT__
 #define __FUNCT__ "FDGetDM"
 PetscErrorCode FDGetDM(FD fd, DM *dm)
@@ -233,7 +264,16 @@ PetscErrorCode FDGetDM(FD fd, DM *dm)
 // }
 
 // ---------------------------------------
-// FDSetFunctionBCList
+/*@
+FDSetFunctionBCList - set an evaluation function for boundary conditions 
+
+Input Parameter:
+fd - the FD object
+evaluate - name of the evaluation function for boundary conditions
+data - user context to be passed for evaluation (can be NULL)
+
+Use: user
+@*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDSetFunctionBCList"
@@ -250,7 +290,16 @@ PetscErrorCode FDSetFunctionBCList(FD fd, PetscErrorCode (*evaluate)(DM,Vec,DMSt
 }
 
 // ---------------------------------------
-// FDSetFunctionCoefficient
+/*@
+FDSetFunctionCoefficient - set an evaluation function for FD-PDE coefficients
+
+Input Parameter:
+fd - the FD object
+form_coefficient - name of the evaluation function for coefficients
+data - user context to be passed for evaluation (can be NULL)
+
+Use: user
+@*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDSetFunctionCoefficient"
@@ -267,17 +316,28 @@ PetscErrorCode FDSetFunctionCoefficient(FD fd, PetscErrorCode (*form_coefficient
 }
 
 // ---------------------------------------
-// FDGetSolution
+/*@
+FDGetSolution - retrieves the solution vector from the FD object. 
+
+Input Parameter:
+fd - the FD object
+
+Output Parameter:
+_x - the solution vector
+
+Notes:
+Vector _x not destroyed with FDDestroy(). User has to call VecDestroy() separately to free the space.
+
+Use: user
+@*/
 // ---------------------------------------
-/*@ FDGetSolution - Retrieves the solution vector from the fd object. User has to call VecDestroy() to free the space. @*/
 #undef __FUNCT__
 #define __FUNCT__ "FDGetSolution"
 PetscErrorCode FDGetSolution(FD fd, Vec *_x)
 {
   PetscErrorCode ierr;
   PetscFunctionBegin;
-  if (fd->x == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Solution of FD-PDE not provided - Call FDSetSolution()");
-  if (fd->type == FD_UNINIT) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Type of FD-PDE has not been set.");
+  if (fd->x == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Solution of FD-PDE not provided - Call FDCreate()/FDSetUp()");
   if (_x) {
     *_x = fd->x;
     ierr = PetscObjectReference((PetscObject)fd->x);CHKERRQ(ierr);
@@ -287,7 +347,11 @@ PetscErrorCode FDGetSolution(FD fd, Vec *_x)
 }
 
 // ---------------------------------------
-// FDJacobianPreallocator
+/*@
+FDJacobianPreallocator - allocates the non-zero pattern into a preallocator. 
+
+Use: internal
+@*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDJacobianPreallocator"
@@ -297,16 +361,20 @@ PetscErrorCode FDJacobianPreallocator(FD fd)
   PetscFunctionBegin;
 
   if (fd->J == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Jacobian matrix for FD-PDE has not been set.");
-  if (fd->ops->jacobian_prealloc==NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No Jacobian preallocation method has not been set.");
+  if (fd->ops->jacobian_prealloc==NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No Jacobian preallocation method has been set.");
 
-  // Preallocate Jacobian including bclist
+  // Preallocate Jacobian
   ierr = fd->ops->jacobian_prealloc(fd); CHKERRQ(ierr);
 
     PetscFunctionReturn(0);
 }
 
 // ---------------------------------------
-// FDCreateSNES
+/*@
+FDCreateSNES - create the SNES object and associates the DM dmstag and Vec x to it. 
+
+Use: internal
+@*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDCreateSNES"
@@ -318,6 +386,8 @@ PetscErrorCode FDCreateSNES(MPI_Comm comm, FD fd)
   // Create nonlinear solver context
   ierr = SNESCreate(comm,&fd->snes); CHKERRQ(ierr);
 
+  if (fd->dmstag == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"DM object for FD-PDE has not been set.");
+
   // set dm to snes
   ierr = SNESSetDM(fd->snes, fd->dmstag); CHKERRQ(ierr);
 
@@ -328,7 +398,15 @@ PetscErrorCode FDCreateSNES(MPI_Comm comm, FD fd)
 }
 
 // ---------------------------------------
-// FDSetOptionsPrefix
+/*@
+FDSetOptionsPrefix - set a user-defined prefix for SNES options
+
+Input Parameters:
+fd - the FD object
+prefix - the prefix
+
+Use: user
+@*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDSetOptionsPrefix"
@@ -341,7 +419,11 @@ PetscErrorCode FDSetOptionsPrefix(FD fd,const char prefix[])
 }
 
 // ---------------------------------------
-// FDConfigureSNES
+/*@
+FDConfigureSNES - set SNES options including the residual and jacobian evaluation functions. The user sets them separately with FD wrapper functions.
+
+Use: internal
+@*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDConfigureSNES"
@@ -352,7 +434,7 @@ PetscErrorCode FDConfigureSNES(FD fd)
 
   if (fd->x == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Solution of FD-PDE not provided");
   if (fd->type == FD_UNINIT) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Type of FD-PDE has not been set");
-  
+
   // set function evaluation routine
   ierr = SNESSetFunction(fd->snes, fd->r, fd->ops->form_function, fd); CHKERRQ(ierr);
 
@@ -372,7 +454,11 @@ PetscErrorCode FDConfigureSNES(FD fd)
 }
 
 // ---------------------------------------
-// FDSolveSNES
+/*@
+FDSolveSNES - solve SNES contained in an FD object
+
+Use: internal
+@*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDSolveSNES"
@@ -411,7 +497,14 @@ PetscErrorCode FDSolveSNES(FD fd)
 }
 
 // ---------------------------------------
-// FDSolve
+/*@
+FDSolve - solve the associated system of equations contained in an FD object.
+
+Input Parameter:
+fd - the FD object
+
+Use: user
+@*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDSolve"
@@ -420,9 +513,14 @@ PetscErrorCode FDSolve(FD fd)
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
+  if (fd->solvecalled) PetscFunctionReturn(0);
+  if (!fd->setupcalled) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"User must call FDCreate()/FDSetUp() first!");
+
   ierr = FDCreateSNES(fd->comm,fd);CHKERRQ(ierr);
   ierr = FDConfigureSNES(fd); CHKERRQ(ierr);
   ierr = FDSolveSNES(fd); CHKERRQ(ierr);
+
+  fd->solvecalled = PETSC_TRUE;
 
   PetscFunctionReturn(0);
 }
