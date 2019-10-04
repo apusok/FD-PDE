@@ -682,11 +682,12 @@ PetscErrorCode FDRestoreCoordinatesArrayDMStag(FD fd,PetscScalar **cx, PetscScal
     }
   }
 
-  // update coords of BCs? yes.
-
   // Restore coordinates
   ierr = DMStagRestore1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
   ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&cx,&cz,NULL);CHKERRQ(ierr);
+
+  // update coords of BCs
+  ierr = DMStagBCListSetupCoordinates(fd->bclist);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
