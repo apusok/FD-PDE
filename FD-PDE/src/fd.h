@@ -61,7 +61,7 @@ PetscErrorCode FDSetFunctionCoefficient(FD, PetscErrorCode (*form_coefficient)(D
 PetscErrorCode FDGetDM(FD, DM*);
 PetscErrorCode FDGetSolution(FD, Vec*);
 
-PetscErrorCode FDGetCoordinatesArrayDMStag(FD,PetscScalar***, PetscScalar***, PetscInt[]);
+PetscErrorCode FDGetCoordinatesArrayDMStag(FD,PetscScalar***, PetscScalar***);
 PetscErrorCode FDRestoreCoordinatesArrayDMStag(FD,PetscScalar**,PetscScalar**);
 
 PetscErrorCode FDJacobianPreallocator(FD);

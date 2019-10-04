@@ -546,37 +546,28 @@ PetscErrorCode FDSolve(FD fd)
 
 // ---------------------------------------
 /*@
-FDGetCoordinatesArrayDMStag
+FDGetCoordinatesArrayDMStag - retrieve the 1D coordinate arrays of the DMStag (system of equations) inside an FD object
+
+Input parameter:
+fd - the FD object
+
+Output parameters:
+cx - 1D array containing x-coordinates
+cz - 1D array containing z-coordinates
 
 Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDGetCoordinatesArrayDMStag"
-PetscErrorCode FDGetCoordinatesArrayDMStag(FD fd,PetscScalar ***cx, PetscScalar ***cz, PetscInt pos[])
+PetscErrorCode FDGetCoordinatesArrayDMStag(FD fd,PetscScalar ***cx, PetscScalar ***cz)
 {
-  DM             dm;
-  PetscInt       dof0, dof1, dof2;
-  PetscInt       iprev=-1,inext=-1,icenter=-1;
   PetscScalar    **coordx,**coordz;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (fd->dmstag==NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"System of FD-PDE not provided. Call FDCreate()/FDSetUp() first!");
-  dm = fd->dmstag;
-  ierr = DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL);CHKERRQ(ierr);
-  // ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-
-  if (dof2) {ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr);} 
-  if (dof0 || dof1) { 
-    ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
-    ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr);
-  } 
-
-  pos[0] = iprev;
-  pos[1] = icenter;
-  pos[2] = inext;
+  ierr = DMStagGet1dCoordinateArraysDOFRead(fd->dmstag,&coordx,&coordz,NULL);CHKERRQ(ierr);
 
   *cx = coordx;
   *cz = coordz;
@@ -586,7 +577,15 @@ PetscErrorCode FDGetCoordinatesArrayDMStag(FD fd,PetscScalar ***cx, PetscScalar 
 
 // ---------------------------------------
 /*@
-FDRestoreCoordinatesArrayDMStag
+FDRestoreCoordinatesArrayDMStag - restore the 1D coordinate arrays of the DMStag (system of equations) inside an FD object
+
+Input parameter:
+fd - the FD object
+cx - 1D array containing x-coordinates
+cz - 1D array containing z-coordinates
+
+Notes:
+Must be called after FDGetCoordinatesArrayDMStag() and will update the coordinates of the dmcoeff and BCs.
 
 Use: user
 @*/
@@ -682,6 +681,8 @@ PetscErrorCode FDRestoreCoordinatesArrayDMStag(FD fd,PetscScalar **cx, PetscScal
       coordz[j][icenterc] = zcenter; 
     }
   }
+
+  // update coords of BCs? yes.
 
   // Restore coordinates
   ierr = DMStagRestore1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);

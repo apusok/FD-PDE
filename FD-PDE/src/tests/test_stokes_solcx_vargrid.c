@@ -80,7 +80,7 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   FD             fd;
   DM             dmPV;
   Vec            x;
-  PetscInt       i, j, sx, sz, nx, nz, pos[3];
+  PetscInt       i, j, sx, sz, nx, nz;
   PetscScalar    dx, dz, xmin, zmin, xmax, zmax;
   PetscInt       iprev, inext, icenter;
   PetscScalar    **coordx,**coordz;
@@ -107,7 +107,7 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   // Modify coordinates for irregular grid spacing
   ierr = FDGetDM(fd,&dmPV); CHKERRQ(ierr);
   ierr = DMStagGetCorners(dmPV, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = FDGetCoordinatesArrayDMStag(fd,&coordx,&coordz,pos);CHKERRQ(ierr);
+  ierr = FDGetCoordinatesArrayDMStag(fd,&coordx,&coordz);CHKERRQ(ierr);
 
   ierr = DMStagGet1dCoordinateLocationSlot(dmPV,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
   ierr = DMStagGet1dCoordinateLocationSlot(dmPV,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
