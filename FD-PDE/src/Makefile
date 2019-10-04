@@ -5,7 +5,7 @@ FPPFLAGS =
 PROGDIR  = tests
 OBJECTS  = bc.o prealloc_helper.o fd.o fdstokes_physics.o fdstokes_residual.o fdstokes.o 
 
-all: test_stokes_solcx test_bclist test_fd
+all: test_stokes_solcx test_stokes_solcx_vargrid test_bclist test_fd
 	@echo "# -------------------------------- #"
 	@echo "# Compiled Programs"
 	@echo "# -------------------------------- #"
@@ -17,6 +17,9 @@ include ${PETSC_DIR}/lib/petsc/conf/rules
 test_stokes_solcx: ${PROGDIR}/test_stokes_solcx.o ${OBJECTS} chkopts
 	-${CLINKER} -o ${PROGDIR}/test_stokes_solcx ${PROGDIR}/test_stokes_solcx.o ${OBJECTS} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
 
+test_stokes_solcx_vargrid: ${PROGDIR}/test_stokes_solcx_vargrid.o ${OBJECTS} chkopts
+	-${CLINKER} -o ${PROGDIR}/test_stokes_solcx_vargrid ${PROGDIR}/test_stokes_solcx_vargrid.o ${OBJECTS} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
+
 test_bclist: ${PROGDIR}/test_bclist.o ${OBJECTS} chkopts
 	-${CLINKER} -o ${PROGDIR}/test_bclist ${PROGDIR}/test_bclist.o ${OBJECTS} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
 
@@ -27,4 +30,4 @@ clean_all:
 	@echo "# -------------------------------- #"
 	@echo "#            Full clean            #"
 	@echo "# -------------------------------- #"
-	@rm -rf ${PROGDIR}/test_stokes_solcx ${PROGDIR}/test_bclist ${PROGDIR}/test_fd ${PROGDIR}/*.o ${PROGDIR}/*.dSYM
+	@rm -rf ${PROGDIR}/test_stokes_solcx ${PROGDIR}/test_stokes_solcx_vargrid ${PROGDIR}/test_bclist ${PROGDIR}/test_fd ${PROGDIR}/*.o ${PROGDIR}/*.dSYM

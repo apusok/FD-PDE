@@ -543,3 +543,149 @@ PetscErrorCode FDSolve(FD fd)
 
   PetscFunctionReturn(0);
 }
+
+// ---------------------------------------
+/*@
+FDGetCoordinatesArrayDMStag
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDGetCoordinatesArrayDMStag"
+PetscErrorCode FDGetCoordinatesArrayDMStag(FD fd,PetscScalar ***cx, PetscScalar ***cz, PetscInt pos[])
+{
+  DM             dm;
+  PetscInt       dof0, dof1, dof2;
+  PetscInt       iprev=-1,inext=-1,icenter=-1;
+  PetscScalar    **coordx,**coordz;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  if (fd->dmstag==NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"System of FD-PDE not provided. Call FDCreate()/FDSetUp() first!");
+  dm = fd->dmstag;
+  ierr = DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL);CHKERRQ(ierr);
+  // ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+
+  if (dof2) {ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr);} 
+  if (dof0 || dof1) { 
+    ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
+    ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr);
+  } 
+
+  pos[0] = iprev;
+  pos[1] = icenter;
+  pos[2] = inext;
+
+  *cx = coordx;
+  *cz = coordz;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+FDRestoreCoordinatesArrayDMStag
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDRestoreCoordinatesArrayDMStag"
+PetscErrorCode FDRestoreCoordinatesArrayDMStag(FD fd,PetscScalar **cx, PetscScalar **cz)
+{
+  DM             dm, dmcoeff;
+  PetscScalar    **coordx,**coordz;
+  PetscScalar    xprev, xnext, xcenter, zprev, znext, zcenter;
+  PetscInt       dof0, dof1, dof2, dofc0, dofc1, dofc2;
+  PetscInt       iprev=-1,inext=-1,icenter=-1,iprevc=-1,inextc=-1,icenterc=-1;
+  PetscInt       i, j, sx, sz, nx, nz;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  dm      = fd->dmstag;
+  dmcoeff = fd->dmcoeff;
+
+  // Update dmcoord coordinates
+  ierr = DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetDOF(dmcoeff,&dofc0,&dofc1,&dofc2,NULL);CHKERRQ(ierr);
+
+  ierr = DMStagGet1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+
+  if (dof2) {ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr);} 
+  if (dof0 || dof1) { 
+    ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
+    ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr);
+  } 
+
+  if (dofc2) {ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,DMSTAG_ELEMENT,&icenterc);CHKERRQ(ierr);} 
+  if (dofc0 || dofc1) { 
+    ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,DMSTAG_LEFT,&iprevc);CHKERRQ(ierr);
+    ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,DMSTAG_RIGHT,&inextc);CHKERRQ(ierr);
+  } 
+
+  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+
+  for (i = sx; i<sx+nx; i++) {
+    // dmstag
+    if ((dof0) && (!dof1) && (!dof2)) { // dmstag only vertex
+      xprev   = cx[i][iprev]; 
+      xnext   = cx[i][inext];
+      xcenter = (xprev+xnext)*0.5;
+    } else if ((!dof0) && (!dof1) && (dof2)) { // dmstag only element
+      xprev   = (cx[i][icenter]+cx[i-1][icenter])*0.5; 
+      xnext   = (cx[i][icenter]+cx[i+1][icenter])*0.5;
+      xcenter = cx[i][icenter];
+    } else { // dmstag all 
+      xprev   = cx[i][iprev]; 
+      xnext   = cx[i][inext];
+      xcenter = cx[i][icenter];
+    }
+    // dmcoeff
+    if ((dofc0) && (!dofc1) && (!dofc2)) { // only vertex
+      coordx[i][iprevc] = xprev;
+      coordx[i][inextc] = xnext; 
+    } else if ((!dofc0) && (!dofc1) && (dofc2)) { // only element
+      coordx[i][icenterc] = xcenter; 
+    } else { // all 
+      coordx[i][iprevc] = xprev;
+      coordx[i][inextc] = xnext; 
+      coordx[i][icenterc] = xcenter; 
+    }
+  }
+
+  for (j = sz; j<sz+nz; j++) {
+    // dmstag
+    if ((dof0) && (!dof1) && (!dof2)) { // dmstag only vertex
+      zprev   = cz[j][iprev]; 
+      znext   = cz[j][inext];
+      zcenter = (zprev+znext)*0.5;
+    } else if ((!dof0) && (!dof1) && (dof2)) { // dmstag only element
+      zprev   = (cz[j][icenter]+cz[j-1][icenter])*0.5; 
+      znext   = (cz[j][icenter]+cz[j+1][icenter])*0.5;
+      zcenter = cz[j][icenter];
+    } else { // dmstag all 
+      zprev   = cz[j][iprev]; 
+      znext   = cz[j][inext];
+      zcenter = cz[j][icenter];
+    }
+    // dmcoeff
+    if ((dofc0) && (!dofc1) && (!dofc2)) { // only vertex
+      coordz[j][iprevc] = zprev;
+      coordz[j][inextc] = znext; 
+    } else if ((!dofc0) && (!dofc1) && (dofc2)) { // only element
+      coordz[j][icenterc] = zcenter; 
+    } else { // all 
+      coordz[j][iprevc] = zprev;
+      coordz[j][inextc] = znext; 
+      coordz[j][icenterc] = zcenter; 
+    }
+  }
+
+  // Restore coordinates
+  ierr = DMStagRestore1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&cx,&cz,NULL);CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}

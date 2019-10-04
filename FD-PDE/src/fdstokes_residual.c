@@ -61,8 +61,8 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMStagVecGetArrayDOF(dmPV, flocal, &ff); CHKERRQ(ierr);
 
   // Loop over elements
-  for (j = sz; j<sz+nz; ++j) {
-    for (i = sx; i<sx+nx; ++i) {
+  for (j = sz; j<sz+nz; j++) {
+    for (i = sx; i<sx+nx; i++) {
       PetscScalar fval;
 
       // 1) Continuity equation

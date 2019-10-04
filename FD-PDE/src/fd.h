@@ -61,6 +61,9 @@ PetscErrorCode FDSetFunctionCoefficient(FD, PetscErrorCode (*form_coefficient)(D
 PetscErrorCode FDGetDM(FD, DM*);
 PetscErrorCode FDGetSolution(FD, Vec*);
 
+PetscErrorCode FDGetCoordinatesArrayDMStag(FD,PetscScalar***, PetscScalar***, PetscInt[]);
+PetscErrorCode FDRestoreCoordinatesArrayDMStag(FD,PetscScalar**,PetscScalar**);
+
 PetscErrorCode FDJacobianPreallocator(FD);
 PetscErrorCode FDCreateSNES(MPI_Comm, FD);
 PetscErrorCode FDSetOptionsPrefix(FD,const char[]);
