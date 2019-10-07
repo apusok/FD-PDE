@@ -85,7 +85,6 @@ PetscErrorCode FDCreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   fd->user_context = NULL;
   fd->comm  = comm;
   fd->setupcalled = PETSC_FALSE;
-  fd->solvecalled = PETSC_FALSE;
 
   fd->description_bc = NULL;
   fd->description_coeff = NULL;
@@ -101,6 +100,13 @@ FDSetUp - sets up the data structures inside a FD object
 
 Input Parameter:
 fd - the FD object to setup
+
+To change the snes prefix, one should call:
+  FDSetUp(fd);
+  FDGetSNES(fd,&snes);
+  SNESSetOptionsPrefix(snes);
+  SNESSetFromOptions(snes);
+  FDSolve(fd);
 
 Use: user
 @*/
@@ -132,15 +138,40 @@ PetscErrorCode FDSetUp(FD fd)
   ierr = fd->ops->create(fd); CHKERRQ(ierr);
 
   // Create coefficient dm and vector - specific to FD-PDE
+  if (fd->ops->create_coefficient==NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No method to create the coefficients has been set.");
   ierr = fd->ops->create_coefficient(fd);CHKERRQ(ierr);
 
   // Create BClist object
+  if (fd->dmstag == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"DM object for FD-PDE has not been set.");
   ierr = DMStagBCListCreate(fd->dmstag,&fd->bclist);CHKERRQ(ierr);
 
   // Preallocator Jacobian
-  ierr = FDJacobianPreallocator(fd);CHKERRQ(ierr);
+  if (fd->J == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Jacobian matrix for FD-PDE has not been set.");
+  if (fd->ops->jacobian_prealloc==NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No Jacobian preallocation method has been set.");
+  ierr = fd->ops->jacobian_prealloc(fd); CHKERRQ(ierr);
 
-  // Create SNES?
+  // Create SNES - nonlinear solver context
+  ierr = SNESCreate(fd->comm,&fd->snes); CHKERRQ(ierr);
+  ierr = SNESSetDM(fd->snes,fd->dmstag); CHKERRQ(ierr);
+
+  if (fd->x == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Solution vector for FD-PDE has not been set.");
+  ierr = SNESSetSolution(fd->snes,fd->x); CHKERRQ(ierr); // for FD colouring to function correctly
+
+  // Set function evaluation routine
+  if (fd->ops->form_function==NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No residual evaluation routine has been set.");
+  ierr = SNESSetFunction(fd->snes, fd->r, fd->ops->form_function, fd); CHKERRQ(ierr);
+
+  // Set Jacobian
+  ierr = SNESSetJacobian(fd->snes, fd->J, fd->J, SNESComputeJacobianDefaultColor, NULL); CHKERRQ(ierr);
+
+  // SNES Options - default info on convergence
+  ierr = PetscOptionsSetValue(NULL, "-snes_monitor",         ""); CHKERRQ(ierr);
+  ierr = PetscOptionsSetValue(NULL, "-ksp_monitor",          ""); CHKERRQ(ierr);
+  ierr = PetscOptionsSetValue(NULL, "-snes_converged_reason",""); CHKERRQ(ierr);
+  ierr = PetscOptionsSetValue(NULL, "-ksp_converged_reason", ""); CHKERRQ(ierr);
+
+  // overwrite default options from command line
+  ierr = SNESSetFromOptions(fd->snes); CHKERRQ(ierr);
 
   fd->setupcalled = PETSC_TRUE;
   PetscFunctionReturn(0);
@@ -235,9 +266,6 @@ PetscErrorCode FDView(FD fd)
 
   if (fd->setupcalled) PetscPrintf(PETSC_COMM_WORLD,"  # FDSetUp: TRUE \n");
   else PetscPrintf(PETSC_COMM_WORLD,"  # FDSetUp: FALSE \n");
-  
-  if (fd->solvecalled) PetscPrintf(PETSC_COMM_WORLD,"  # FDSolve: TRUE \n");
-  else PetscPrintf(PETSC_COMM_WORLD,"  # FDSolve: FALSE \n");
 
   PetscPrintf(PETSC_COMM_WORLD,"\n");
 
@@ -347,23 +375,23 @@ Input Parameter:
 fd - the FD object
 
 Output Parameter:
-_x - the solution vector
+x - the solution vector
 
 Notes:
-Vector _x not destroyed with FDDestroy(). User has to call VecDestroy() separately to free the space.
+Vector x not destroyed with FDDestroy(). User has to call VecDestroy() separately to free the space.
 
 Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDGetSolution"
-PetscErrorCode FDGetSolution(FD fd, Vec *_x)
+PetscErrorCode FDGetSolution(FD fd, Vec *x)
 {
   PetscErrorCode ierr;
   PetscFunctionBegin;
-  if (fd->x == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Solution of FD-PDE not provided - Call FDCreate()/FDSetUp()");
-  if (_x) {
-    *_x = fd->x;
+  if (fd->x == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Solution of FD-PDE not provided - Call FDSetUp() first");
+  if (x) {
+    *x = fd->x;
     ierr = PetscObjectReference((PetscObject)fd->x);CHKERRQ(ierr);
   }
 
@@ -372,128 +400,49 @@ PetscErrorCode FDGetSolution(FD fd, Vec *_x)
 
 // ---------------------------------------
 /*@
-FDJacobianPreallocator - allocates the non-zero pattern into a preallocator. 
+FDGetSNES - retrieves the SNES object from the FD object. 
 
-Use: internal
-@*/
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDJacobianPreallocator"
-PetscErrorCode FDJacobianPreallocator(FD fd)
-{
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
-
-  if (fd->J == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Jacobian matrix for FD-PDE has not been set.");
-  if (fd->ops->jacobian_prealloc==NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No Jacobian preallocation method has been set.");
-
-  // Preallocate Jacobian
-  ierr = fd->ops->jacobian_prealloc(fd); CHKERRQ(ierr);
-
-    PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-/*@
-FDCreateSNES - create the SNES object and associates the DM dmstag and Vec x to it. 
-
-Use: internal
-@*/
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDCreateSNES"
-PetscErrorCode FDCreateSNES(MPI_Comm comm, FD fd)
-{
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
-
-  // Create nonlinear solver context
-  ierr = SNESCreate(comm,&fd->snes); CHKERRQ(ierr);
-
-  if (fd->dmstag == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"DM object for FD-PDE has not been set.");
-
-  // set dm to snes
-  ierr = SNESSetDM(fd->snes, fd->dmstag); CHKERRQ(ierr);
-
-  // set solution - need to do this for FD colouring to function correctly
-  ierr = SNESSetSolution(fd->snes, fd->x); CHKERRQ(ierr);
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-/*@
-FDSetOptionsPrefix - set a user-defined prefix for SNES options
-
-Input Parameters:
+Input Parameter:
 fd - the FD object
-prefix - the prefix
+
+Output Parameter:
+snes - the snes object
 
 Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDSetOptionsPrefix"
-PetscErrorCode FDSetOptionsPrefix(FD fd,const char prefix[])
+#define __FUNCT__ "FDGetSNES"
+PetscErrorCode FDGetSNES(FD fd, SNES *snes)
 {
-  PetscErrorCode ierr;
   PetscFunctionBegin;
-  ierr = PetscObjectSetOptionsPrefix((PetscObject)fd,prefix);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-/*@
-FDConfigureSNES - set SNES options including the residual and jacobian evaluation functions. The user sets them separately with FD wrapper functions.
-
-Use: internal
-@*/
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDConfigureSNES"
-PetscErrorCode FDConfigureSNES(FD fd)
-{
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
-
-  if (fd->x == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Solution of FD-PDE not provided");
-  if (fd->type == FD_UNINIT) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Type of FD-PDE has not been set");
-
-  // set function evaluation routine
-  ierr = SNESSetFunction(fd->snes, fd->r, fd->ops->form_function, fd); CHKERRQ(ierr);
-
-  // set Jacobian
-  ierr = SNESSetJacobian(fd->snes, fd->J, fd->J, SNESComputeJacobianDefaultColor, NULL); CHKERRQ(ierr);
-
-  // SNES Options - default info on convergence
-  ierr = PetscOptionsSetValue(NULL, "-snes_monitor",          ""); CHKERRQ(ierr);
-  ierr = PetscOptionsSetValue(NULL, "-ksp_monitor",           ""); CHKERRQ(ierr);
-  ierr = PetscOptionsSetValue(NULL, "-snes_converged_reason", ""); CHKERRQ(ierr);
-  ierr = PetscOptionsSetValue(NULL, "-ksp_converged_reason",  ""); CHKERRQ(ierr);
-
-  // overwrite default options from command line
-  ierr = SNESSetFromOptions(fd->snes); CHKERRQ(ierr);
+  //if (fd->snes == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"The SNES object for FD-PDE not provided - Call FDSetUp() first");
+  if (snes) *snes = fd->snes;
 
   PetscFunctionReturn(0);
 }
 
 // ---------------------------------------
 /*@
-FDSolveSNES - solve SNES contained in an FD object
+FDSolve - solve the associated system of equations contained in an FD object.
 
-Use: internal
+Input Parameter:
+fd - the FD object
+
+Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDSolveSNES"
-PetscErrorCode FDSolveSNES(FD fd)
+#define __FUNCT__ "FDSolve"
+PetscErrorCode FDSolve(FD fd)
 {
   SNESConvergedReason reason;
   PetscInt       maxit, maxf, its;
   PetscReal      atol, rtol, stol;
   PetscErrorCode ierr;
-
   PetscFunctionBegin;
+
+  if (!fd->setupcalled) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"User must call FDSetUp() first!");
 
   // Copy initial guess to solution
   ierr = VecCopy(fd->xold,fd->x);CHKERRQ(ierr);
@@ -516,35 +465,6 @@ PetscErrorCode FDSolveSNES(FD fd)
     // converged - copy initial guess for next timestep
     ierr = VecCopy(fd->x, fd->xold); CHKERRQ(ierr);
   }
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-/*@
-FDSolve - solve the associated system of equations contained in an FD object.
-
-Input Parameter:
-fd - the FD object
-
-Use: user
-@*/
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDSolve"
-PetscErrorCode FDSolve(FD fd)
-{
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
-
-  if (fd->solvecalled) PetscFunctionReturn(0);
-  if (!fd->setupcalled) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"User must call FDCreate()/FDSetUp() first!");
-
-  ierr = FDCreateSNES(fd->comm,fd);CHKERRQ(ierr);
-  ierr = FDConfigureSNES(fd); CHKERRQ(ierr);
-  ierr = FDSolveSNES(fd); CHKERRQ(ierr);
-
-  fd->solvecalled = PETSC_TRUE;
 
   PetscFunctionReturn(0);
 }

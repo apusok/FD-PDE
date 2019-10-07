@@ -42,7 +42,7 @@ struct _p_FD {
   MPI_Comm        comm;
   PetscInt        Nx,Nz;
   PetscScalar     x0,x1,z0,z1;
-  PetscBool       setupcalled, solvecalled;
+  PetscBool       setupcalled;
 };
 
 // ---------------------------------------
@@ -54,21 +54,16 @@ PetscErrorCode FDCreate(MPI_Comm, PetscInt, PetscInt,
 PetscErrorCode FDSetUp(FD);
 PetscErrorCode FDDestroy(FD*);
 PetscErrorCode FDView(FD);
+PetscErrorCode FDSolve(FD);
 
 PetscErrorCode FDSetFunctionBCList(FD, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void*);
 PetscErrorCode FDSetFunctionCoefficient(FD, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), const char description[], void*);
 
-PetscErrorCode FDGetDM(FD, DM*);
-PetscErrorCode FDGetSolution(FD, Vec*);
+PetscErrorCode FDGetDM(FD,DM*);
+PetscErrorCode FDGetSolution(FD,Vec*);
+PetscErrorCode FDGetSNES(FD,SNES*);
 
-PetscErrorCode FDGetCoordinatesArrayDMStag(FD,PetscScalar***, PetscScalar***);
+PetscErrorCode FDGetCoordinatesArrayDMStag(FD,PetscScalar***,PetscScalar***);
 PetscErrorCode FDRestoreCoordinatesArrayDMStag(FD,PetscScalar**,PetscScalar**);
-
-PetscErrorCode FDJacobianPreallocator(FD);
-PetscErrorCode FDCreateSNES(MPI_Comm, FD);
-PetscErrorCode FDSetOptionsPrefix(FD,const char[]);
-PetscErrorCode FDConfigureSNES(FD);
-PetscErrorCode FDSolveSNES(FD);
-PetscErrorCode FDSolve(FD);
 
 #endif
