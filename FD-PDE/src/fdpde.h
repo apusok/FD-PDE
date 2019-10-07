@@ -63,6 +63,7 @@ PetscErrorCode FDPDEGetDM(FDPDE,DM*);
 PetscErrorCode FDPDEGetSolution(FDPDE,Vec*);
 PetscErrorCode FDPDEGetSNES(FDPDE,SNES*);
 PetscErrorCode FDPDEGetDMStagBCList(FDPDE,DMStagBCList*);
+PetscErrorCode FDPDEGetCoefficient(FDPDE,DM*,Vec*);
 
 PetscErrorCode FDPDEGetCoordinatesArrayDMStag(FDPDE,PetscScalar***,PetscScalar***);
 PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE,PetscScalar**,PetscScalar**);
