@@ -1,5 +1,6 @@
 /* Application to solve the SolCx benchmark with FD-PDE */
 static char help[] = "Application to solve the SolCx benchmark with FD-PDE - Irregular grid spacing \n\n";
+// run: ./tests/test_stokes_solcx_vargrid -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
 
 // define convenient names for DMStagStencilLocation
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
@@ -233,7 +234,7 @@ PetscErrorCode InputPrintData(UsrData *usr)
 
   // Print header and petsc options
   PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# Test_stokes_solcx: %s \n",&(date[0]));
+  PetscPrintf(usr->comm,"# Test_stokes_solcx_vargrid: %s \n",&(date[0]));
   PetscPrintf(usr->comm,"# --------------------------------------- #\n");
   PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
   PetscPrintf(usr->comm,"# --------------------------------------- #\n");

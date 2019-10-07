@@ -1,4 +1,5 @@
 static char help[] = "FD-PDE test \n\n";
+// run: ./tests/test_fd
 
 #include "petsc.h"
 #include "../fd.h"

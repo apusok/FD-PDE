@@ -212,33 +212,35 @@ PetscErrorCode FDView(FD fd)
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  PetscPrintf(PETSC_COMM_WORLD,"FDView\n");
-  PetscPrintf(PETSC_COMM_WORLD,"  FD-PDE Type: %s\n",FDPDETypeNames[(int)fd->type]);
+  PetscPrintf(PETSC_COMM_WORLD,"FDView:\n");
+  PetscPrintf(PETSC_COMM_WORLD,"  # FD-PDE type: %s\n",FDPDETypeNames[(int)fd->type]);
   
-  PetscPrintf(PETSC_COMM_WORLD,"  FD-PDE description:\n");
+  PetscPrintf(PETSC_COMM_WORLD,"  # FD-PDE description:\n");
   PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description);
 
-  PetscPrintf(PETSC_COMM_WORLD,"  Coefficient description:\n");
+  PetscPrintf(PETSC_COMM_WORLD,"  # Coefficient description:\n");
   if (fd->description_coeff) PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description_coeff);
   else PetscPrintf(PETSC_COMM_WORLD,"    NONE\n");
 
-  PetscPrintf(PETSC_COMM_WORLD,"  BC description:\n");
+  PetscPrintf(PETSC_COMM_WORLD,"  # BC description:\n");
   if (fd->description_bc) PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description_bc);
   else PetscPrintf(PETSC_COMM_WORLD,"    NONE\n");
 
-  PetscPrintf(PETSC_COMM_WORLD,"  global size elements: %D (x-dir) %D (z-dir)\n",fd->Nx,fd->Nz);
+  PetscPrintf(PETSC_COMM_WORLD,"  # global size elements: %D (x-dir) %D (z-dir)\n",fd->Nx,fd->Nz);
 
   ierr = DMStagGetDOF(fd->dmstag,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
-  PetscPrintf(PETSC_COMM_WORLD,"  dmstag: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
+  PetscPrintf(PETSC_COMM_WORLD,"  # dmstag: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
 
   ierr = DMStagGetDOF(fd->dmcoeff,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
-  PetscPrintf(PETSC_COMM_WORLD,"  dmcoeff: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
+  PetscPrintf(PETSC_COMM_WORLD,"  # dmcoeff: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
 
-  if (fd->setupcalled) PetscPrintf(PETSC_COMM_WORLD,"  FDSetUp: TRUE \n");
-  else PetscPrintf(PETSC_COMM_WORLD,"  FDSetUp: FALSE \n");
+  if (fd->setupcalled) PetscPrintf(PETSC_COMM_WORLD,"  # FDSetUp: TRUE \n");
+  else PetscPrintf(PETSC_COMM_WORLD,"  # FDSetUp: FALSE \n");
   
-  if (fd->solvecalled) PetscPrintf(PETSC_COMM_WORLD,"  FDSolve: TRUE \n");
-  else PetscPrintf(PETSC_COMM_WORLD,"  FDSolve: FALSE \n");
+  if (fd->solvecalled) PetscPrintf(PETSC_COMM_WORLD,"  # FDSolve: TRUE \n");
+  else PetscPrintf(PETSC_COMM_WORLD,"  # FDSolve: FALSE \n");
+
+  PetscPrintf(PETSC_COMM_WORLD,"\n");
 
   // view BC list
   //ierr = DMStagBCListView(fd->bclist);CHKERRQ(ierr);
@@ -299,8 +301,10 @@ PetscErrorCode FDSetFunctionBCList(FD fd, PetscErrorCode (*evaluate)(DM,Vec,DMSt
   if (!evaluate) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No function is provided to calculate the BC List!");
   fd->bclist->evaluate = evaluate;
   fd->bclist->data = data;
-  
-  if(description) {ierr = PetscStrallocpy(description,&fd->description_bc); CHKERRQ(ierr);}
+
+  /* free any existing name set by previous call */
+  if (fd->description_bc) { ierr = PetscFree(fd->description_bc); CHKERRQ(ierr); }
+  if (description) { ierr = PetscStrallocpy(description,&fd->description_bc); CHKERRQ(ierr); }
 
   PetscFunctionReturn(0);
 }
@@ -329,7 +333,9 @@ PetscErrorCode FDSetFunctionCoefficient(FD fd, PetscErrorCode (*form_coefficient
   fd->ops->form_coefficient = form_coefficient;
   fd->user_context = data;
 
-  if(description) {ierr = PetscStrallocpy(description,&fd->description_coeff); CHKERRQ(ierr);}
+  /* free any existing name set by previous call */
+  if (fd->description_coeff) { ierr = PetscFree(fd->description_coeff); CHKERRQ(ierr); }
+  if (description) { ierr = PetscStrallocpy(description,&fd->description_coeff); CHKERRQ(ierr); }
 
   PetscFunctionReturn(0);
 }
