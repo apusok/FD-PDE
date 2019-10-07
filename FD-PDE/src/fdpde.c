@@ -312,7 +312,7 @@ FDPDEGetCoefficient - retrieves the coefficient DMStag and Vector from the FD-PD
 Input Parameter:
 fd - the FD-PDE object
 
-Output Parameter:
+Output Parameters (optional):
 dmcoeff - the DM object
 coeff - the vector
 
@@ -325,11 +325,15 @@ PetscErrorCode FDPDEGetCoefficient(FDPDE fd, DM *dmcoeff, Vec *coeff)
 {
   PetscFunctionBegin;
 
-  if (!fd->dmcoeff) SETERRQ(fd->comm,PETSC_ERR_USER,"Coefficient DMStag for FD-PDE not provided - Call FDPDESetUp()");
-  *dmcoeff = fd->dmcoeff;
+  if (dmcoeff) {
+    if (!fd->dmcoeff) SETERRQ(fd->comm,PETSC_ERR_USER,"Coefficient DMStag for FD-PDE not provided - Call FDPDESetUp()");
+    *dmcoeff = fd->dmcoeff;
+  }
 
-  if (!fd->coeff) SETERRQ(fd->comm,PETSC_ERR_USER,"Coefficient vector for FD-PDE not provided - Call FDPDESetUp()");
-  *coeff = fd->coeff;
+  if (coeff) {
+    if (!fd->coeff) SETERRQ(fd->comm,PETSC_ERR_USER,"Coefficient vector for FD-PDE not provided - Call FDPDESetUp()");
+    *coeff = fd->coeff;
+  }
 
   PetscFunctionReturn(0);
 }
