@@ -49,11 +49,11 @@ PetscErrorCode FDCreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   ierr = PetscMalloc1(1,&fd);CHKERRQ(ierr);
 
   // Error checking
-  if (!nx) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Dimension 1 not provided for FD-PDE dmstag");
-  if (!nz) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Dimension 2 not provided for FD-PDE dmstag");
+  if (!nx) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Dimension 1 not provided for FD-PDE dmstag");
+  if (!nz) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Dimension 2 not provided for FD-PDE dmstag");
 
-  if (xs>=xe) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Invalid minimum/maximum x-dir global coordinates");
-  if (zs>=ze) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Invalid minimum/maximum z-dir global coordinates");
+  if (xs>=xe) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Invalid minimum/maximum x-dir global coordinates");
+  if (zs>=ze) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Invalid minimum/maximum z-dir global coordinates");
 
   if (!_fd) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Must provide a valid (non-NULL) pointer for fd (arg 9)");
 
@@ -122,43 +122,44 @@ PetscErrorCode FDSetUp(FD fd)
   // Set up structures needed for FD-PDE type
   switch (fd->type) {
     case FD_UNINIT:
-      SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Un-initialized type for FD-PDE");
+      SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Un-initialized type for FD-PDE");
       break;
     case STOKES:
       fd->ops->create = FDCreate_Stokes;
       break;
     case ADVDIFF:
       //fd->ops->create = FDCreate_AdvDiff;
+      SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"FD-PDE type ADVDIFF is not yet implemented.");
       break;
     default:
-      SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Unknown type of FD-PDE specified");
+      SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Unknown type of FD-PDE specified");
   }
 
   // Create individual FD-PDE type
   ierr = fd->ops->create(fd); CHKERRQ(ierr);
 
   // Create coefficient dm and vector - specific to FD-PDE
-  if (fd->ops->create_coefficient==NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No method to create the coefficients has been set.");
+  if (fd->ops->create_coefficient==NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"No method to create the coefficients has been set.");
   ierr = fd->ops->create_coefficient(fd);CHKERRQ(ierr);
 
   // Create BClist object
-  if (fd->dmstag == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"DM object for FD-PDE has not been set.");
+  if (fd->dmstag == NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"DM object for FD-PDE has not been set.");
   ierr = DMStagBCListCreate(fd->dmstag,&fd->bclist);CHKERRQ(ierr);
 
   // Preallocator Jacobian
-  if (fd->J == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Jacobian matrix for FD-PDE has not been set.");
-  if (fd->ops->jacobian_prealloc==NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No Jacobian preallocation method has been set.");
+  if (fd->J == NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Jacobian matrix for FD-PDE has not been set.");
+  if (fd->ops->jacobian_prealloc==NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"No Jacobian preallocation method has been set.");
   ierr = fd->ops->jacobian_prealloc(fd); CHKERRQ(ierr);
 
   // Create SNES - nonlinear solver context
   ierr = SNESCreate(fd->comm,&fd->snes); CHKERRQ(ierr);
   ierr = SNESSetDM(fd->snes,fd->dmstag); CHKERRQ(ierr);
 
-  if (fd->x == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Solution vector for FD-PDE has not been set.");
+  if (fd->x == NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Solution vector for FD-PDE has not been set.");
   ierr = SNESSetSolution(fd->snes,fd->x); CHKERRQ(ierr); // for FD colouring to function correctly
 
   // Set function evaluation routine
-  if (fd->ops->form_function==NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No residual evaluation routine has been set.");
+  if (fd->ops->form_function==NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"No residual evaluation routine has been set.");
   ierr = SNESSetFunction(fd->snes, fd->r, fd->ops->form_function, fd); CHKERRQ(ierr);
 
   // Set Jacobian
@@ -298,7 +299,7 @@ PetscErrorCode FDGetDM(FD fd, DM *dm)
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  if (!fd->dmstag) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"DMStag for FD-PDE not provided - Call FDCreate()");
+  if (!fd->dmstag) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"DMStag for FD-PDE not provided - Call FDCreate()");
   *dm = fd->dmstag;
   ierr = PetscObjectReference((PetscObject)fd->dmstag);CHKERRQ(ierr);
 
@@ -325,7 +326,7 @@ PetscErrorCode FDSetFunctionBCList(FD fd, PetscErrorCode (*evaluate)(DM,Vec,DMSt
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  if (!evaluate) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No function is provided to calculate the BC List!");
+  if (!evaluate) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"No function is provided to calculate the BC List!");
   fd->bclist->evaluate = evaluate;
   fd->bclist->data = data;
 
@@ -356,7 +357,7 @@ PetscErrorCode FDSetFunctionCoefficient(FD fd, PetscErrorCode (*form_coefficient
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  if (!form_coefficient) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"No function is provided to calculate the coeffients!");
+  if (!form_coefficient) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"No function is provided to calculate the coeffients!");
   fd->ops->form_coefficient = form_coefficient;
   fd->user_context = data;
 
@@ -389,7 +390,7 @@ PetscErrorCode FDGetSolution(FD fd, Vec *x)
 {
   PetscErrorCode ierr;
   PetscFunctionBegin;
-  if (fd->x == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"Solution of FD-PDE not provided - Call FDSetUp() first");
+  if (fd->x == NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Solution of FD-PDE not provided - Call FDSetUp() first");
   if (x) {
     *x = fd->x;
     ierr = PetscObjectReference((PetscObject)fd->x);CHKERRQ(ierr);
@@ -416,7 +417,7 @@ Use: user
 PetscErrorCode FDGetSNES(FD fd, SNES *snes)
 {
   PetscFunctionBegin;
-  //if (fd->snes == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"The SNES object for FD-PDE not provided - Call FDSetUp() first");
+  //if (fd->snes == NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"The SNES object for FD-PDE not provided - Call FDSetUp() first");
   if (snes) *snes = fd->snes;
 
   PetscFunctionReturn(0);
@@ -440,7 +441,7 @@ Use: user
 PetscErrorCode FDGetDMStagBCList(FD fd, DMStagBCList *list)
 {
   PetscFunctionBegin;
-  //if (fd->bclist == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"The DMStagBCList object for FD-PDE not provided - Call FDSetUp() first");
+  //if (fd->bclist == NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"The DMStagBCList object for FD-PDE not provided - Call FDSetUp() first");
   if (list) *list = fd->bclist;
 
   PetscFunctionReturn(0);
@@ -466,7 +467,7 @@ PetscErrorCode FDSolve(FD fd)
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  if (!fd->setupcalled) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"User must call FDSetUp() first!");
+  if (!fd->setupcalled) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"User must call FDSetUp() first!");
 
   // Copy initial guess to solution
   ierr = VecCopy(fd->xold,fd->x);CHKERRQ(ierr);
@@ -515,7 +516,7 @@ PetscErrorCode FDGetCoordinatesArrayDMStag(FD fd,PetscScalar ***cx, PetscScalar 
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  if (fd->dmstag==NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"System of FD-PDE not provided. Call FDCreate()/FDSetUp() first!");
+  if (fd->dmstag==NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"System of FD-PDE not provided. Call FDCreate()/FDSetUp() first!");
   ierr = DMStagGet1dCoordinateArraysDOFRead(fd->dmstag,&coordx,&coordz,NULL);CHKERRQ(ierr);
 
   *cx = coordx;
