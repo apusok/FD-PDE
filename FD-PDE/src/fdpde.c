@@ -1,6 +1,6 @@
 /* Finite Differences PDE (FD-PDE) object */
 
-#include "fd.h"
+#include "fdpde.h"
 
 const char *FDPDETypeNames[] = {
   "uninit",
@@ -9,13 +9,13 @@ const char *FDPDETypeNames[] = {
 };
 
 // ---------------------------------------
-// FDCreatePDEType declarations
+// FDPDECreatePDEType declarations
 // ---------------------------------------
-PetscErrorCode FDCreate_Stokes(FD fd);
-//PetscErrorCode FDCreate_AdvDiff(FD fd);
+PetscErrorCode FDPDECreate_Stokes(FDPDE fd);
+//PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd);
 
 // ---------------------------------------
-/*@ FDCreate - creates an object that will manage the discretization of a PDE using 
+/*@ FDPDECreate - creates an object that will manage the discretization of a PDE using 
 finite differences on a 2D DMStag object
 
 Input Parameters:
@@ -29,18 +29,18 @@ Output Parameters:
 _fd - the new FD-PDE object
 
 Notes:
-You must call FDSetUp() after this call, before using the FD-PDE object. Also, you must destroy the object with FDDestroy().
+You must call FDPDESetUp() after this call, before using the FD-PDE object. Also, you must destroy the object with FDPDEDestroy().
 
 Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDCreate"
-PetscErrorCode FDCreate(MPI_Comm comm, PetscInt nx, PetscInt nz, 
+#define __FUNCT__ "FDPDECreate"
+PetscErrorCode FDPDECreate(MPI_Comm comm, PetscInt nx, PetscInt nz, 
                         PetscScalar xs, PetscScalar xe, PetscScalar zs, PetscScalar ze, 
-                        FDPDEType type, FD *_fd)
+                        FDPDEType type, FDPDE *_fd)
 {
-  FD             fd;
+  FDPDE          fd;
   FDPDEOps       ops;
   PetscErrorCode ierr;
   PetscFunctionBegin;
@@ -66,7 +66,7 @@ PetscErrorCode FDCreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   fd->z1 = ze;
 
   if (type) fd->type = type;
-  else      fd->type = FD_UNINIT;
+  else      fd->type = FDPDE_UNINIT;
 
   ierr = PetscMalloc1(1,&ops);CHKERRQ(ierr);
   ierr = PetscMemzero(ops, sizeof(struct _FDPDEOps)); CHKERRQ(ierr);
@@ -96,24 +96,24 @@ PetscErrorCode FDCreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
 
 // ---------------------------------------
 /*@
-FDSetUp - sets up the data structures inside a FD object
+FDPDESetUp - sets up the data structures inside a FD-PDE object
 
 Input Parameter:
-fd - the FD object to setup
+fd - the FD-PDE object to setup
 
 To change the snes prefix, one should call:
-  FDSetUp(fd);
-  FDGetSNES(fd,&snes);
+  FDPDESetUp(fd);
+  FDPDEGetSNES(fd,&snes);
   SNESSetOptionsPrefix(snes);
   SNESSetFromOptions(snes);
-  FDSolve(fd);
+  FDPDESolve(fd);
 
 Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDSetUp"
-PetscErrorCode FDSetUp(FD fd)
+#define __FUNCT__ "FDPDESetUp"
+PetscErrorCode FDPDESetUp(FDPDE fd)
 {
   PetscErrorCode ierr; 
   PetscFunctionBegin;
@@ -121,15 +121,15 @@ PetscErrorCode FDSetUp(FD fd)
 
   // Set up structures needed for FD-PDE type
   switch (fd->type) {
-    case FD_UNINIT:
+    case FDPDE_UNINIT:
       SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Un-initialized type for FD-PDE");
       break;
-    case STOKES:
-      fd->ops->create = FDCreate_Stokes;
+    case FDPDE_STOKES:
+      fd->ops->create = FDPDECreate_Stokes;
       break;
-    case ADVDIFF:
-      //fd->ops->create = FDCreate_AdvDiff;
-      SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"FD-PDE type ADVDIFF is not yet implemented.");
+    case FDPDE_ADVDIFF:
+      //fd->ops->create = FDPDECreate_AdvDiff;
+      SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"FD-PDE type FDPDE_ADVDIFF is not yet implemented.");
       break;
     default:
       SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Unknown type of FD-PDE specified");
@@ -180,19 +180,19 @@ PetscErrorCode FDSetUp(FD fd)
 
 // ---------------------------------------
 /*@
-FDDestroy - destroy an FD object
+FDPDEDestroy - destroy an FD-PDE object
 
 Input Parameter:
-fd - the FD object to destroy
+fd - the FD-PDE object to destroy
 
 Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDDestroy"
-PetscErrorCode FDDestroy(FD *_fd)
+#define __FUNCT__ "FDPDEDestroy"
+PetscErrorCode FDPDEDestroy(FDPDE *_fd)
 {
-  FD fd;
+  FDPDE fd;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
@@ -227,23 +227,23 @@ PetscErrorCode FDDestroy(FD *_fd)
 
 // ---------------------------------------
 /*@
-FDView - ASCII print of FD info structure on PETSC_COMM_WORLD 
+FDPDEView - ASCII print of FD-PDE info structure on PETSC_COMM_WORLD 
 
 Input Parameter:
-fd - the FD object to view
+fd - the FD-PDE object to view
 
 Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDView"
-PetscErrorCode FDView(FD fd)
+#define __FUNCT__ "FDPDEView"
+PetscErrorCode FDPDEView(FDPDE fd)
 {
   PetscInt       dof[3];
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  PetscPrintf(PETSC_COMM_WORLD,"FDView:\n");
+  PetscPrintf(PETSC_COMM_WORLD,"FDPDEView:\n");
   PetscPrintf(PETSC_COMM_WORLD,"  # FD-PDE type: %s\n",FDPDETypeNames[(int)fd->type]);
   
   PetscPrintf(PETSC_COMM_WORLD,"  # FD-PDE description:\n");
@@ -265,8 +265,8 @@ PetscErrorCode FDView(FD fd)
   ierr = DMStagGetDOF(fd->dmcoeff,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
   PetscPrintf(PETSC_COMM_WORLD,"  # dmcoeff: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
 
-  if (fd->setupcalled) PetscPrintf(PETSC_COMM_WORLD,"  # FDSetUp: TRUE \n");
-  else PetscPrintf(PETSC_COMM_WORLD,"  # FDSetUp: FALSE \n");
+  if (fd->setupcalled) PetscPrintf(PETSC_COMM_WORLD,"  # FDPDESetUp: TRUE \n");
+  else PetscPrintf(PETSC_COMM_WORLD,"  # FDPDESetUp: FALSE \n");
 
   PetscPrintf(PETSC_COMM_WORLD,"\n");
 
@@ -278,28 +278,28 @@ PetscErrorCode FDView(FD fd)
 
 // ---------------------------------------
 /*@
-FDGetDM - retrieves the main DMStag (associated with the solution) from the FD object. 
+FDPDEGetDM - retrieves the main DMStag (associated with the solution) from the FD-PDE object. 
 
 Input Parameter:
-fd - the FD object
+fd - the FD-PDE object
 
 Output Parameter:
 dm - the DM object
 
 Notes:
-DM object not destroyed with FDDestroy(). User has to call DMDestroy() to free the space.
+DM object not destroyed with FDPDEDestroy(). User has to call DMDestroy() to free the space.
 
 Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDGetDM"
-PetscErrorCode FDGetDM(FD fd, DM *dm)
+#define __FUNCT__ "FDPDEGetDM"
+PetscErrorCode FDPDEGetDM(FDPDE fd, DM *dm)
 {
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  if (!fd->dmstag) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"DMStag for FD-PDE not provided - Call FDCreate()");
+  if (!fd->dmstag) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"DMStag for FD-PDE not provided - Call FDPDECreate()");
   *dm = fd->dmstag;
   ierr = PetscObjectReference((PetscObject)fd->dmstag);CHKERRQ(ierr);
 
@@ -308,10 +308,10 @@ PetscErrorCode FDGetDM(FD fd, DM *dm)
 
 // ---------------------------------------
 /*@
-FDSetFunctionBCList - set an evaluation function for boundary conditions 
+FDPDESetFunctionBCList - set an evaluation function for boundary conditions 
 
 Input Parameter:
-fd - the FD object
+fd - the FD-PDE object
 evaluate - name of the evaluation function for boundary conditions
 description - user can provide a description for BC
 data - user context to be passed for evaluation (can be NULL)
@@ -320,8 +320,8 @@ Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDSetFunctionBCList"
-PetscErrorCode FDSetFunctionBCList(FD fd, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void *data)
+#define __FUNCT__ "FDPDESetFunctionBCList"
+PetscErrorCode FDPDESetFunctionBCList(FDPDE fd, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void *data)
 {
   PetscErrorCode ierr;
   PetscFunctionBegin;
@@ -339,10 +339,10 @@ PetscErrorCode FDSetFunctionBCList(FD fd, PetscErrorCode (*evaluate)(DM,Vec,DMSt
 
 // ---------------------------------------
 /*@
-FDSetFunctionCoefficient - set an evaluation function for FD-PDE coefficients
+FDPDESetFunctionCoefficient - set an evaluation function for FD-PDE coefficients
 
 Input Parameter:
-fd - the FD object
+fd - the FD-PDE object
 form_coefficient - name of the evaluation function for coefficients
 description - user can provide a description for coefficients
 data - user context to be passed for evaluation (can be NULL)
@@ -351,8 +351,8 @@ Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDSetFunctionCoefficient"
-PetscErrorCode FDSetFunctionCoefficient(FD fd, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), const char description[], void *data)
+#define __FUNCT__ "FDPDESetFunctionCoefficient"
+PetscErrorCode FDPDESetFunctionCoefficient(FDPDE fd, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), const char description[], void *data)
 {
   PetscErrorCode ierr;
   PetscFunctionBegin;
@@ -370,27 +370,27 @@ PetscErrorCode FDSetFunctionCoefficient(FD fd, PetscErrorCode (*form_coefficient
 
 // ---------------------------------------
 /*@
-FDGetSolution - retrieves the solution vector from the FD object. 
+FDPDEGetSolution - retrieves the solution vector from the FD-PDE object. 
 
 Input Parameter:
-fd - the FD object
+fd - the FD-PDE object
 
 Output Parameter:
 x - the solution vector
 
 Notes:
-Vector x not destroyed with FDDestroy(). User has to call VecDestroy() separately to free the space.
+Vector x not destroyed with FDPDEDestroy(). User has to call VecDestroy() separately to free the space.
 
 Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDGetSolution"
-PetscErrorCode FDGetSolution(FD fd, Vec *x)
+#define __FUNCT__ "FDPDEGetSolution"
+PetscErrorCode FDPDEGetSolution(FDPDE fd, Vec *x)
 {
   PetscErrorCode ierr;
   PetscFunctionBegin;
-  if (fd->x == NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Solution of FD-PDE not provided - Call FDSetUp() first");
+  if (fd->x == NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Solution of FD-PDE not provided - Call FDPDESetUp() first");
   if (x) {
     *x = fd->x;
     ierr = PetscObjectReference((PetscObject)fd->x);CHKERRQ(ierr);
@@ -401,10 +401,10 @@ PetscErrorCode FDGetSolution(FD fd, Vec *x)
 
 // ---------------------------------------
 /*@
-FDGetSNES - retrieves the SNES object from the FD object. 
+FDPDEGetSNES - retrieves the SNES object from the FD-PDE object. 
 
 Input Parameter:
-fd - the FD object
+fd - the FD-PDE object
 
 Output Parameter:
 snes - the snes object
@@ -413,11 +413,11 @@ Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDGetSNES"
-PetscErrorCode FDGetSNES(FD fd, SNES *snes)
+#define __FUNCT__ "FDPDEGetSNES"
+PetscErrorCode FDPDEGetSNES(FDPDE fd, SNES *snes)
 {
   PetscFunctionBegin;
-  //if (fd->snes == NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"The SNES object for FD-PDE not provided - Call FDSetUp() first");
+  //if (fd->snes == NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"The SNES object for FD-PDE not provided - Call FDPDESetUp() first");
   if (snes) *snes = fd->snes;
 
   PetscFunctionReturn(0);
@@ -425,10 +425,10 @@ PetscErrorCode FDGetSNES(FD fd, SNES *snes)
 
 // ---------------------------------------
 /*@
-FDGetDMStagBCList() - retrieves the DMStagBCList object from the FD object. 
+FDPDEGetDMStagBCList() - retrieves the DMStagBCList object from the FD-PDE object. 
 
 Input Parameter:
-fd - the FD object
+fd - the FD-PDE object
 
 Output Parameter:
 list - the DMStagBCList object
@@ -437,11 +437,11 @@ Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDGetDMStagBCList"
-PetscErrorCode FDGetDMStagBCList(FD fd, DMStagBCList *list)
+#define __FUNCT__ "FDPDEGetDMStagBCList"
+PetscErrorCode FDPDEGetDMStagBCList(FDPDE fd, DMStagBCList *list)
 {
   PetscFunctionBegin;
-  //if (fd->bclist == NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"The DMStagBCList object for FD-PDE not provided - Call FDSetUp() first");
+  //if (fd->bclist == NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"The DMStagBCList object for FD-PDE not provided - Call FDPDESetUp() first");
   if (list) *list = fd->bclist;
 
   PetscFunctionReturn(0);
@@ -449,17 +449,17 @@ PetscErrorCode FDGetDMStagBCList(FD fd, DMStagBCList *list)
 
 // ---------------------------------------
 /*@
-FDSolve - solve the associated system of equations contained in an FD object.
+FDPDESolve - solve the associated system of equations contained in an FD-PDE object.
 
 Input Parameter:
-fd - the FD object
+fd - the FD-PDE object
 
 Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDSolve"
-PetscErrorCode FDSolve(FD fd)
+#define __FUNCT__ "FDPDESolve"
+PetscErrorCode FDPDESolve(FDPDE fd)
 {
   SNESConvergedReason reason;
   PetscInt       maxit, maxf, its;
@@ -467,7 +467,7 @@ PetscErrorCode FDSolve(FD fd)
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  if (!fd->setupcalled) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"User must call FDSetUp() first!");
+  if (!fd->setupcalled) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"User must call FDPDESetUp() first!");
 
   // Copy initial guess to solution
   ierr = VecCopy(fd->xold,fd->x);CHKERRQ(ierr);
@@ -496,10 +496,10 @@ PetscErrorCode FDSolve(FD fd)
 
 // ---------------------------------------
 /*@
-FDGetCoordinatesArrayDMStag - retrieve the 1D coordinate arrays of the DMStag (system of equations) inside an FD object
+FDPDEGetCoordinatesArrayDMStag - retrieve the 1D coordinate arrays of the DMStag (system of equations) inside an FD-PDE object
 
 Input parameter:
-fd - the FD object
+fd - the FD-PDE object
 
 Output parameters:
 cx - 1D array containing x-coordinates
@@ -509,14 +509,14 @@ Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDGetCoordinatesArrayDMStag"
-PetscErrorCode FDGetCoordinatesArrayDMStag(FD fd,PetscScalar ***cx, PetscScalar ***cz)
+#define __FUNCT__ "FDPDEGetCoordinatesArrayDMStag"
+PetscErrorCode FDPDEGetCoordinatesArrayDMStag(FDPDE fd,PetscScalar ***cx, PetscScalar ***cz)
 {
   PetscScalar    **coordx,**coordz;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  if (fd->dmstag==NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"System of FD-PDE not provided. Call FDCreate()/FDSetUp() first!");
+  if (fd->dmstag==NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"System of FD-PDE not provided. Call FDPDESetUp() first!");
   ierr = DMStagGet1dCoordinateArraysDOFRead(fd->dmstag,&coordx,&coordz,NULL);CHKERRQ(ierr);
 
   *cx = coordx;
@@ -527,22 +527,22 @@ PetscErrorCode FDGetCoordinatesArrayDMStag(FD fd,PetscScalar ***cx, PetscScalar 
 
 // ---------------------------------------
 /*@
-FDRestoreCoordinatesArrayDMStag - restore the 1D coordinate arrays of the DMStag (system of equations) inside an FD object
+FDPDERestoreCoordinatesArrayDMStag - restore the 1D coordinate arrays of the DMStag (system of equations) inside an FD-PDE object
 
 Input parameter:
-fd - the FD object
+fd - the FD-PDE object
 cx - 1D array containing x-coordinates
 cz - 1D array containing z-coordinates
 
 Notes:
-Must be called after FDGetCoordinatesArrayDMStag() and will update the coordinates of the dmcoeff and BCs.
+Must be called after FDPDEGetCoordinatesArrayDMStag() and will update the coordinates of the dmcoeff and BCs.
 
 Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDRestoreCoordinatesArrayDMStag"
-PetscErrorCode FDRestoreCoordinatesArrayDMStag(FD fd,PetscScalar **cx, PetscScalar **cz)
+#define __FUNCT__ "FDPDERestoreCoordinatesArrayDMStag"
+PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE fd,PetscScalar **cx, PetscScalar **cz)
 {
   DM             dm, dmcoeff;
   PetscScalar    **coordx,**coordz;

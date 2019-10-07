@@ -3,9 +3,9 @@ FFLAGS	 =
 CPPFLAGS =
 FPPFLAGS =
 PROGDIR  = tests
-OBJECTS  = bc.o prealloc_helper.o fd.o fdstokes_physics.o fdstokes_residual.o fdstokes.o 
+OBJECTS  = dmstagbclist.o prealloc_helper.o fdpde.o fdpde_stokes_physics.o fdpde_stokes_residual.o fdpde_stokes.o 
 
-all: test_stokes_solcx test_stokes_solcx_vargrid test_bclist test_fd
+all: test_stokes_solcx test_stokes_solcx_vargrid test_dmstagbclist test_fdpde
 	@echo "# -------------------------------- #"
 	@echo "# Compiled Programs"
 	@echo "# -------------------------------- #"
@@ -20,14 +20,14 @@ test_stokes_solcx: ${PROGDIR}/test_stokes_solcx.o ${OBJECTS} chkopts
 test_stokes_solcx_vargrid: ${PROGDIR}/test_stokes_solcx_vargrid.o ${OBJECTS} chkopts
 	-${CLINKER} -o ${PROGDIR}/test_stokes_solcx_vargrid ${PROGDIR}/test_stokes_solcx_vargrid.o ${OBJECTS} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
 
-test_bclist: ${PROGDIR}/test_bclist.o ${OBJECTS} chkopts
-	-${CLINKER} -o ${PROGDIR}/test_bclist ${PROGDIR}/test_bclist.o ${OBJECTS} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
+test_dmstagbclist: ${PROGDIR}/test_dmstagbclist.o ${OBJECTS} chkopts
+	-${CLINKER} -o ${PROGDIR}/test_dmstagbclist ${PROGDIR}/test_dmstagbclist.o ${OBJECTS} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
 
-test_fd: ${PROGDIR}/test_fd.o ${OBJECTS} chkopts
-	-${CLINKER} -o ${PROGDIR}/test_fd ${PROGDIR}/test_fd.o ${OBJECTS} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
+test_fdpde: ${PROGDIR}/test_fdpde.o ${OBJECTS} chkopts
+	-${CLINKER} -o ${PROGDIR}/test_fdpde ${PROGDIR}/test_fdpde.o ${OBJECTS} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
 
 clean_all:
 	@echo "# -------------------------------- #"
 	@echo "#            Full clean            #"
 	@echo "# -------------------------------- #"
-	@rm -rf ${PROGDIR}/test_stokes_solcx ${PROGDIR}/test_stokes_solcx_vargrid ${PROGDIR}/test_bclist ${PROGDIR}/test_fd ${PROGDIR}/*.o ${PROGDIR}/*.dSYM
+	@rm -rf ${PROGDIR}/test_stokes_solcx ${PROGDIR}/test_stokes_solcx_vargrid ${PROGDIR}/test_dmstagbclist ${PROGDIR}/test_fdpde ${PROGDIR}/*.o ${PROGDIR}/*.dSYM

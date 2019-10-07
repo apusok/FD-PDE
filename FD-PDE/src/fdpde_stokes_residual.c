@@ -1,4 +1,4 @@
-#include "fdstokes.h"
+#include "fdpde_stokes.h"
 
 // ---------------------------------------
 /*@
@@ -11,7 +11,7 @@ Use: internal
 #define __FUNCT__ "FormFunction_Stokes"
 PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
 {
-  FD             fd = (FD)ctx;
+  FDPDE          fd = (FDPDE)ctx;
   DM             dmPV, dmCoeff;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
   Vec            xlocal, flocal, coefflocal;
@@ -87,7 +87,7 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   }
 
   // Boundary conditions
-  ierr = FDBCApplyStokes(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,ff);CHKERRQ(ierr);
+  ierr = DMStagBCListApply_Stokes(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,ff);CHKERRQ(ierr);
 
   // Restore arrays, local vectors
   ierr = DMStagRestore1dCoordinateArraysDOFRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -110,14 +110,14 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
 
 // ---------------------------------------
 /*@
-FDBCApplyStokes - (STOKES) function to apply boundary conditions for Stokes equations
+DMStagBCListApply_Stokes - (STOKES) function to apply boundary conditions for Stokes equations
 
 Use: internal
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDBCApplyStokes"
-PetscErrorCode FDBCApplyStokes(DM dm, Vec xlocal,DM dmcoeff, Vec coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscScalar ***ff)
+#define __FUNCT__ "DMStagBCListApply_Stokes"
+PetscErrorCode DMStagBCListApply_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscScalar ***ff)
 {
   PetscScalar    xx, dx, dz;
   PetscScalar    etaLeft, etaRight, etaUp, etaDown;

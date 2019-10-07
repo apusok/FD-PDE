@@ -1,6 +1,6 @@
 /* Finite differences staggered grid context for STOKES equations */
 
-#include "fdstokes.h"
+#include "fdpde_stokes.h"
 
 const char stokes_description[] =
 "  << FD-PDE Stokes >> solves the PDEs: \n"
@@ -22,14 +22,14 @@ const char stokes_description[] =
 
 // ---------------------------------------
 /*@
-FDCreate_Stokes - creates the data structures for FDPDEType = STOKES
+FDPDECreate_Stokes - creates the data structures for FDPDEType = STOKES
 
 Use: internal
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDCreate_Stokes"
-PetscErrorCode FDCreate_Stokes(FD fd)
+#define __FUNCT__ "FDPDECreate_Stokes"
+PetscErrorCode FDPDECreate_Stokes(FDPDE fd)
 {
   DM             dmstag;
   PetscScalar    pval = -0.00001;
@@ -71,22 +71,22 @@ PetscErrorCode FDCreate_Stokes(FD fd)
 
   // Evaluation functions
   fd->ops->form_function      = FormFunction_Stokes;
-  fd->ops->jacobian_prealloc  = FDJacobianPreallocator_Stokes;
-  fd->ops->create_coefficient = FDCreateCoefficient_Stokes;
+  fd->ops->jacobian_prealloc  = JacobianPreallocator_Stokes;
+  fd->ops->create_coefficient = CreateCoefficient_Stokes;
 
   PetscFunctionReturn(0);
 }
 
 // ---------------------------------------
 /*@
-FDCreateCoefficient_Stokes - creates the coefficient data (dmcoeff, coeff) for FDPDEType = STOKES
+CreateCoefficient_Stokes - creates the coefficient data (dmcoeff, coeff) for FDPDEType = FDPDE_STOKES
 
 Use: internal
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDCreateCoefficient_Stokes"
-PetscErrorCode FDCreateCoefficient_Stokes(FD fd)
+#define __FUNCT__ "CreateCoefficient_Stokes"
+PetscErrorCode CreateCoefficient_Stokes(FDPDE fd)
 {
   DM             dmCoeff;
   PetscInt       dofCf0, dofCf1, dofCf2;
@@ -116,14 +116,14 @@ PetscErrorCode FDCreateCoefficient_Stokes(FD fd)
 
 // ---------------------------------------
 /*@
-FDJacobianPreallocator_Stokes - preallocates the non-zero pattern into the Jacobian for FDPDEType = STOKES
+JacobianPreallocator_Stokes - preallocates the non-zero pattern into the Jacobian for FDPDEType = FDPDE_STOKES
 
 Use: internal
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDJacobianPreallocator_Stokes"
-PetscErrorCode FDJacobianPreallocator_Stokes(FD fd)
+#define __FUNCT__ "JacobianPreallocator_Stokes"
+PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd)
 {
   PetscInt       Nx, Nz;               // global variables
   PetscInt       i, j, sx, sz, nx, nz; // local variables
@@ -209,7 +209,7 @@ PetscErrorCode FDJacobianPreallocator_Stokes(FD fd)
 
 // ---------------------------------------
 /*@
-ContinuityStencil - calculates the non-zero pattern for the continuity equation/dof for FDJacobianPreallocator_Stokes()
+ContinuityStencil - calculates the non-zero pattern for the continuity equation/dof for JacobianPreallocator_Stokes()
 
 Use: internal
 @*/
@@ -227,7 +227,7 @@ PetscErrorCode ContinuityStencil(PetscInt i,PetscInt j, DMStagStencil *point)
 
 // ---------------------------------------
 /*@
-XMomentumStencil - calculates the non-zero pattern for the X-momentum equation/dof for FDJacobianPreallocator_Stokes()
+XMomentumStencil - calculates the non-zero pattern for the X-momentum equation/dof for JacobianPreallocator_Stokes()
 
 Use: internal
 @*/
@@ -257,7 +257,7 @@ PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt N, DMStagStencil 
 
 // ---------------------------------------
 /*@
-ZMomentumStencil - calculates the non-zero pattern for the Z-momentum equation/dof for FDJacobianPreallocator_Stokes()
+ZMomentumStencil - calculates the non-zero pattern for the Z-momentum equation/dof for JacobianPreallocator_Stokes()
 
 Use: internal
 @*/

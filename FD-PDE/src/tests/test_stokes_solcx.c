@@ -14,8 +14,8 @@ static char help[] = "Application to solve the SolCx benchmark with FD-PDE \n\n"
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../fdstokes.h"
-#include "../ex43-solcx.h"
+#include "../fdpde_stokes.h"
+#include "../benchmark_solcx.h"
 
 // ---------------------------------------
 // Application Context
@@ -78,7 +78,7 @@ const char bc_description[] =
 PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
-  FD             fd;
+  FDPDE          fd;
   DM             dmPV;
   Vec            x;
   PetscInt       nx, nz;
@@ -98,31 +98,30 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   zmax = usr->par->zmin+usr->par->H;
 
   // Create the FD-pde object
-  ierr = FDCreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,STOKES,&fd);CHKERRQ(ierr);
-  ierr = FDSetUp(fd);CHKERRQ(ierr);
-  //ierr = FDSetOptionsPrefix(fd,"stk_"); CHKERRQ(ierr);
-  // User can modify the dm coordinates anywhere between FDSetUp() and FDSolve()
+  ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKES,&fd);CHKERRQ(ierr);
+  ierr = FDPDESetUp(fd);CHKERRQ(ierr);
+  // User can modify the dm coordinates anywhere between FDPDESetUp() and FDPDESolve()
 
   // Set BC evaluation function
-  ierr = FDSetFunctionBCList(fd,FormBCList,bc_description,NULL); CHKERRQ(ierr);
+  ierr = FDPDESetFunctionBCList(fd,FormBCList,bc_description,NULL); CHKERRQ(ierr);
 
   // Set coefficients evaluation function
-  ierr = FDSetFunctionCoefficient(fd,FormCoefficient,coeff_description,usr); CHKERRQ(ierr);
+  ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient,coeff_description,usr); CHKERRQ(ierr);
 
-  ierr = FDView(fd); CHKERRQ(ierr);
+  ierr = FDPDEView(fd); CHKERRQ(ierr);
 
   // FD SNES Solver
-  ierr = FDSolve(fd);CHKERRQ(ierr);
+  ierr = FDPDESolve(fd);CHKERRQ(ierr);
 
   // Get solution vector
-  ierr = FDGetSolution(fd,&x);CHKERRQ(ierr); 
-  ierr = FDGetDM(fd, &dmPV); CHKERRQ(ierr);
+  ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr); 
+  ierr = FDPDEGetDM(fd, &dmPV); CHKERRQ(ierr);
 
   // Output solution to file
   ierr = DoOutput(dmPV,x,"numerical_solution.vtr");CHKERRQ(ierr);
 
   // Destroy FD-PDE object
-  ierr = FDDestroy(&fd);CHKERRQ(ierr);
+  ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
 
   *_x  = x;
   *_dm = dmPV;

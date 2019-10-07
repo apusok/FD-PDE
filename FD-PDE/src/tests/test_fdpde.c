@@ -2,18 +2,18 @@ static char help[] = "FD-PDE test \n\n";
 // run: ./tests/test_fd
 
 #include "petsc.h"
-#include "../fd.h"
+#include "../fdpde.h"
 
 // test0 - create/destroy
 PetscErrorCode test0(PetscInt nx,PetscInt nz)
 {
-  FD             fd;
+  FDPDE           fd;
   PetscErrorCode  ierr;
   
-  ierr = FDCreate(PETSC_COMM_WORLD,nx,nz,0.0,1.0,0.0,1.0,STOKES,&fd);CHKERRQ(ierr);
-  ierr = FDSetUp(fd);CHKERRQ(ierr);
-  ierr = FDView(fd); CHKERRQ(ierr);
-  ierr = FDDestroy(&fd);CHKERRQ(ierr);
+  ierr = FDPDECreate(PETSC_COMM_WORLD,nx,nz,0.0,1.0,0.0,1.0,FDPDE_STOKES,&fd);CHKERRQ(ierr);
+  ierr = FDPDESetUp(fd);CHKERRQ(ierr);
+  ierr = FDPDEView(fd); CHKERRQ(ierr);
+  ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
   
   PetscFunctionReturn(0);
 }

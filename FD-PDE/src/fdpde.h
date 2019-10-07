@@ -1,35 +1,35 @@
-/* <FD> contains Finite Differences PDE (FD-PDE) object */
+/* <FDPDE> contains Finite Differences PDE (FD-PDE) object */
 
-#ifndef FD_H
-#define FD_H
+#ifndef FDPDE_H
+#define FDPDE_H
 
 #include "petsc.h"
 #include "prealloc_helper.h"
-#include "bc.h"
+#include "dmstagbclist.h"
 
 // ---------------------------------------
 // Enum definitions
 // ---------------------------------------
-// PDE type
-typedef enum { FD_UNINIT = 0, STOKES, ADVDIFF } FDPDEType;
+// FD-PDE type
+typedef enum { FDPDE_UNINIT = 0, FDPDE_STOKES, FDPDE_ADVDIFF } FDPDEType;
 
 // ---------------------------------------
 // Struct definitions
 // ---------------------------------------
-// PDE Options - Functions
+// FD-PDE Options - Functions
 typedef struct _FDPDEOps *FDPDEOps;
-typedef struct _p_FD *FD;
+typedef struct _p_FDPDE *FDPDE;
 
 struct _FDPDEOps {
   PetscErrorCode (*form_function)(SNES,Vec,Vec,void*);
   PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*);
-  PetscErrorCode (*create_coefficient)(FD);
-  PetscErrorCode (*create)(FD);
-  PetscErrorCode (*jacobian_prealloc)(FD);
+  PetscErrorCode (*create_coefficient)(FDPDE);
+  PetscErrorCode (*create)(FDPDE);
+  PetscErrorCode (*jacobian_prealloc)(FDPDE);
 };
 
-// FD struct
-struct _p_FD {
+// FD-PDE struct
+struct _p_FDPDE {
   FDPDEOps        ops;
   DM              dmstag,dmcoeff;
   Mat             J;
@@ -48,23 +48,23 @@ struct _p_FD {
 // ---------------------------------------
 // Function definitions
 // ---------------------------------------
-PetscErrorCode FDCreate(MPI_Comm, PetscInt, PetscInt, 
+PetscErrorCode FDPDECreate(MPI_Comm, PetscInt, PetscInt, 
                         PetscScalar, PetscScalar, PetscScalar, PetscScalar, 
-                        FDPDEType, FD*);
-PetscErrorCode FDSetUp(FD);
-PetscErrorCode FDDestroy(FD*);
-PetscErrorCode FDView(FD);
-PetscErrorCode FDSolve(FD);
+                        FDPDEType, FDPDE*);
+PetscErrorCode FDPDESetUp(FDPDE);
+PetscErrorCode FDPDEDestroy(FDPDE*);
+PetscErrorCode FDPDEView(FDPDE);
+PetscErrorCode FDPDESolve(FDPDE);
 
-PetscErrorCode FDSetFunctionBCList(FD, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void*);
-PetscErrorCode FDSetFunctionCoefficient(FD, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), const char description[], void*);
+PetscErrorCode FDPDESetFunctionBCList(FDPDE, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void*);
+PetscErrorCode FDPDESetFunctionCoefficient(FDPDE, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), const char description[], void*);
 
-PetscErrorCode FDGetDM(FD,DM*);
-PetscErrorCode FDGetSolution(FD,Vec*);
-PetscErrorCode FDGetSNES(FD,SNES*);
-PetscErrorCode FDGetDMStagBCList(FD,DMStagBCList*);
+PetscErrorCode FDPDEGetDM(FDPDE,DM*);
+PetscErrorCode FDPDEGetSolution(FDPDE,Vec*);
+PetscErrorCode FDPDEGetSNES(FDPDE,SNES*);
+PetscErrorCode FDPDEGetDMStagBCList(FDPDE,DMStagBCList*);
 
-PetscErrorCode FDGetCoordinatesArrayDMStag(FD,PetscScalar***,PetscScalar***);
-PetscErrorCode FDRestoreCoordinatesArrayDMStag(FD,PetscScalar**,PetscScalar**);
+PetscErrorCode FDPDEGetCoordinatesArrayDMStag(FDPDE,PetscScalar***,PetscScalar***);
+PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE,PetscScalar**,PetscScalar**);
 
 #endif

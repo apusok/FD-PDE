@@ -1,7 +1,7 @@
-/* <BC> contains generalized boundary conditions routines for FD-PDE and DMStag*/
+/* <DMSTAGBCLIST> contains generalized boundary conditions routines for FD-PDE and DMStag*/
 
-#ifndef BC_H
-#define BC_H
+#ifndef DMSTAGBCLIST_H
+#define DMSTAGBCLIST_H
 
 #include "petsc.h"
 
