@@ -424,6 +424,30 @@ PetscErrorCode FDGetSNES(FD fd, SNES *snes)
 
 // ---------------------------------------
 /*@
+FDGetDMStagBCList() - retrieves the DMStagBCList object from the FD object. 
+
+Input Parameter:
+fd - the FD object
+
+Output Parameter:
+list - the DMStagBCList object
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDGetDMStagBCList"
+PetscErrorCode FDGetDMStagBCList(FD fd, DMStagBCList *list)
+{
+  PetscFunctionBegin;
+  //if (fd->bclist == NULL) SETERRQ(PetscObjectComm((PetscObject)fd),PETSC_ERR_USER,"The DMStagBCList object for FD-PDE not provided - Call FDSetUp() first");
+  if (list) *list = fd->bclist;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
 FDSolve - solve the associated system of equations contained in an FD object.
 
 Input Parameter:
