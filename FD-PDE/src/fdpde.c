@@ -137,13 +137,13 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
 
   // Create individual FD-PDE type
   ierr = fd->ops->create(fd); CHKERRQ(ierr);
-  if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"DM object for FD-PDE has not been set. The FD-PDE implementation constructor is required to create a valid DM of type DMSTAG");
+  if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"DM object for FD-PDE is NULL. The FD-PDE implementation constructor is required to create a valid DM of type DMSTAG");
   {
     PetscBool isStag;
     ierr = PetscObjectTypeCompare((PetscObject)fd->dmstag,DMSTAG,&isStag);CHKERRQ(ierr);
     if (!isStag) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONGSTATE,"FD-PDE requires that the discretisation DM is of type DMSTAG");
   }
-  if (!fd->J) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Jacobian matrix for FD-PDE has not been set. The FD-PDE implementation constructor is required to create a valid Mat");
+  if (!fd->J) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Jacobian matrix for FD-PDE is NULL. The FD-PDE implementation constructor is required to create a valid Mat");
 
   // Create coefficient dm and vector - specific to FD-PDE
   if (fd->ops->create_coefficient) {
@@ -161,7 +161,7 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
   ierr = SNESCreate(fd->comm,&fd->snes); CHKERRQ(ierr);
   ierr = SNESSetDM(fd->snes,fd->dmstag); CHKERRQ(ierr);
 
-  if (!fd->x) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Solution vector for FD-PDE has not been set.");
+  if (!fd->x) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Solution vector for FD-PDE is NULL.");
   ierr = SNESSetSolution(fd->snes,fd->x); CHKERRQ(ierr); // for FD colouring to function correctly
 
   // Set function evaluation routine

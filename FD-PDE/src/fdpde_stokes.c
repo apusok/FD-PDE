@@ -96,7 +96,7 @@ PetscErrorCode CreateCoefficient_Stokes(FDPDE fd)
   // Stencil dofs
   dofCf0 = 1; dofCf1 = 1; dofCf2 = 2;
 
-  if (fd->dmstag == NULL) SETERRQ(fd->comm,PETSC_ERR_USER,"The DMStag for FD-PDE has not been set.");
+  if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"DM object for FD-PDE is NULL. The constructor for FDPDE-STOKES is required to create a valid DM of type DMSTAG");
 
   // Create DMStag object for Stokes coefficients: dmCoeff 
   ierr = DMStagCreateCompatibleDMStag(fd->dmstag, dofCf0, dofCf1, dofCf2, 0, &dmCoeff); CHKERRQ(ierr);
