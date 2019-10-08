@@ -144,6 +144,11 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
     if (!isStag) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONGSTATE,"FD-PDE requires that the discretisation DM is of type DMSTAG");
   }
 
+  // Create global vectors
+  ierr = DMCreateGlobalVector(fd->dmstag,&fd->x);CHKERRQ(ierr);
+  ierr = VecDuplicate(fd->x,&fd->r);CHKERRQ(ierr);
+  ierr = VecDuplicate(fd->x,&fd->xold);CHKERRQ(ierr);
+  
   // Create coefficient dm and vector - specific to FD-PDE
   if (fd->ops->create_coefficient) {
     ierr = fd->ops->create_coefficient(fd);CHKERRQ(ierr);

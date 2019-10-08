@@ -32,7 +32,6 @@ Use: internal
 PetscErrorCode FDPDECreate_Stokes(FDPDE fd)
 {
   DM             dmstag;
-  PetscScalar    pval = -0.00001;
   PetscInt       dofPV0, dofPV1, dofPV2, stencilWidth;
   PetscErrorCode ierr;
   
@@ -57,14 +56,6 @@ PetscErrorCode FDPDECreate_Stokes(FDPDE fd)
 
   // Assign pointers
   fd->dmstag  = dmstag;
-
-  // Create global vectors
-  ierr = DMCreateGlobalVector(fd->dmstag, &fd->x); CHKERRQ(ierr);
-  ierr = VecDuplicate(fd->x,&fd->r); CHKERRQ(ierr);
-  ierr = VecDuplicate(fd->x,&fd->xold); CHKERRQ(ierr);
-
-  // Set initial values for xguess
-  ierr = VecSet(fd->xold,pval);CHKERRQ(ierr);
 
   // Evaluation functions
   fd->ops->form_function      = FormFunction_Stokes;
