@@ -143,6 +143,7 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
     ierr = PetscObjectTypeCompare((PetscObject)fd->dmstag,DMSTAG,&isStag);CHKERRQ(ierr);
     if (!isStag) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONGSTATE,"FD-PDE requires that the discretisation DM is of type DMSTAG");
   }
+  if (!fd->J) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Jacobian matrix for FD-PDE has not been set. The FD-PDE implementation constructor is required to create a valid Mat");
 
   // Create coefficient dm and vector - specific to FD-PDE
   if (fd->ops->create_coefficient) {
@@ -153,7 +154,6 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
   ierr = DMStagBCListCreate(fd->dmstag,&fd->bclist);CHKERRQ(ierr);
 
   // Preallocator Jacobian
-  if (!fd->J) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Jacobian matrix for FD-PDE has not been set.");
   if (!fd->ops->jacobian_prealloc) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"No Jacobian preallocation method has been set.");
   ierr = fd->ops->jacobian_prealloc(fd); CHKERRQ(ierr);
 
