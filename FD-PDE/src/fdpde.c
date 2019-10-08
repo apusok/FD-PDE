@@ -139,27 +139,27 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
   ierr = fd->ops->create(fd); CHKERRQ(ierr);
 
   // Create coefficient dm and vector - specific to FD-PDE
-  if (fd->ops->create_coefficient==NULL) SETERRQ(fd->comm,PETSC_ERR_USER,"No method to create the coefficients has been set.");
+  if (!fd->ops->create_coefficient) SETERRQ(fd->comm,PETSC_ERR_USER,"No method to create the coefficients has been set.");
   ierr = fd->ops->create_coefficient(fd);CHKERRQ(ierr);
 
   // Create BClist object
-  if (fd->dmstag == NULL) SETERRQ(fd->comm,PETSC_ERR_USER,"DM object for FD-PDE has not been set.");
+  if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_USER,"DM object for FD-PDE has not been set.");
   ierr = DMStagBCListCreate(fd->dmstag,&fd->bclist);CHKERRQ(ierr);
 
   // Preallocator Jacobian
-  if (fd->J == NULL) SETERRQ(fd->comm,PETSC_ERR_USER,"Jacobian matrix for FD-PDE has not been set.");
-  if (fd->ops->jacobian_prealloc==NULL) SETERRQ(fd->comm,PETSC_ERR_USER,"No Jacobian preallocation method has been set.");
+  if (!fd->J) SETERRQ(fd->comm,PETSC_ERR_USER,"Jacobian matrix for FD-PDE has not been set.");
+  if (!fd->ops->jacobian_prealloc) SETERRQ(fd->comm,PETSC_ERR_USER,"No Jacobian preallocation method has been set.");
   ierr = fd->ops->jacobian_prealloc(fd); CHKERRQ(ierr);
 
   // Create SNES - nonlinear solver context
   ierr = SNESCreate(fd->comm,&fd->snes); CHKERRQ(ierr);
   ierr = SNESSetDM(fd->snes,fd->dmstag); CHKERRQ(ierr);
 
-  if (fd->x == NULL) SETERRQ(fd->comm,PETSC_ERR_USER,"Solution vector for FD-PDE has not been set.");
+  if (!fd->x) SETERRQ(fd->comm,PETSC_ERR_USER,"Solution vector for FD-PDE has not been set.");
   ierr = SNESSetSolution(fd->snes,fd->x); CHKERRQ(ierr); // for FD colouring to function correctly
 
   // Set function evaluation routine
-  if (fd->ops->form_function==NULL) SETERRQ(fd->comm,PETSC_ERR_USER,"No residual evaluation routine has been set.");
+  if (!fd->ops->form_function) SETERRQ(fd->comm,PETSC_ERR_USER,"No residual evaluation routine has been set.");
   ierr = SNESSetFunction(fd->snes, fd->r, fd->ops->form_function, fd); CHKERRQ(ierr);
 
   // Set Jacobian
