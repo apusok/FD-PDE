@@ -414,6 +414,7 @@ PetscErrorCode DMStagBCListDestroy(DMStagBCList *list)
   DMStagBCList   l;
   PetscFunctionBegin;
   if (!list) PetscFunctionReturn(0);
+  if (!*list) PetscFunctionReturn(0);
   l = *list;
   ierr = PetscFree(l->bc_v);CHKERRQ(ierr);
   ierr = PetscFree(l->bc_f);CHKERRQ(ierr);
