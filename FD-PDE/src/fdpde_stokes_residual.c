@@ -23,7 +23,8 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-
+  if (!fd->ops->form_coefficient) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Form coefficient function pointer is NULL. Must call FDPDESetFunctionCoefficient() and provide a non-NULL function pointer.")
+  
   // Assign pointers and other variables
   dmPV    = fd->dmstag;
   dmCoeff = fd->dmcoeff;
