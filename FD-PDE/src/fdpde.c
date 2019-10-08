@@ -132,11 +132,17 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
       SETERRQ(fd->comm,PETSC_ERR_SUP,"FD-PDE type FDPDE_ADVDIFF is not yet implemented.");
       break;
     default:
-      SETERRQ(fd->comm,PETSC_ERR_SUP,"Unknown type of FD-PDE specified");
+      SETERRQ(fd->comm,PETSC_ERR_ARG_UNKNOWN_TYPE,"Unknown type of FD-PDE specified");
   }
 
   // Create individual FD-PDE type
   ierr = fd->ops->create(fd); CHKERRQ(ierr);
+  if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"DM object for FD-PDE has not been set. The FD-PDE implementation constructor is required to create a valid DM of type DMSTAG");
+  {
+    PetscBool isStag;
+    ierr = PetscObjectTypeCompare((PetscObject)fd->dmstag,DMSTAG,&isStag);CHKERRQ(ierr);
+    if (!isStag) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONGSTATE,"FD-PDE requires that the discretisation DM is of type DMSTAG");
+  }
 
   // Create coefficient dm and vector - specific to FD-PDE
   if (fd->ops->create_coefficient) {
@@ -144,7 +150,6 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
   }
 
   // Create BClist object
-  if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"DM object for FD-PDE has not been set.");
   ierr = DMStagBCListCreate(fd->dmstag,&fd->bclist);CHKERRQ(ierr);
 
   // Preallocator Jacobian
