@@ -59,6 +59,7 @@ PetscErrorCode FDPDECreate_Stokes(FDPDE fd)
 
   // Evaluation functions
   fd->ops->form_function      = FormFunction_Stokes;
+  fd->ops->form_jacobian      = NULL;
   fd->ops->create_jacobian    = JacobianCreate_Stokes;
   fd->ops->create_coefficient = CreateCoefficient_Stokes;
 

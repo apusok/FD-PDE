@@ -22,6 +22,7 @@ typedef struct _p_FDPDE *FDPDE;
 
 struct _FDPDEOps {
   PetscErrorCode (*form_function)(SNES,Vec,Vec,void*);
+  PetscErrorCode (*form_jacobian)(SNES,Vec,Mat,Mat,void*);
   PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*);
   PetscErrorCode (*create_coefficient)(FDPDE);
   PetscErrorCode (*create)(FDPDE);
