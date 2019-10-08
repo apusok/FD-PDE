@@ -13,7 +13,8 @@ PetscErrorCode FDPDECreate_Stokes(FDPDE);
 
 // Function pointers
 PetscErrorCode CreateCoefficient_Stokes(FDPDE);
-PetscErrorCode JacobianPreallocator_Stokes(FDPDE);
+PetscErrorCode JacobianPreallocator_Stokes(FDPDE,Mat);
+PetscErrorCode JacobianCreate_Stokes(FDPDE,Mat*);
 
 // PREALLOCATOR STENCIL
 PetscErrorCode ContinuityStencil(PetscInt,PetscInt,DMStagStencil*);

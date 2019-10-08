@@ -66,12 +66,9 @@ PetscErrorCode FDPDECreate_Stokes(FDPDE fd)
   // Set initial values for xguess
   ierr = VecSet(fd->xold,pval);CHKERRQ(ierr);
 
-  // Create Jacobian
-  ierr = DMCreateMatrix(fd->dmstag, &fd->J); CHKERRQ(ierr);
-
   // Evaluation functions
   fd->ops->form_function      = FormFunction_Stokes;
-  fd->ops->jacobian_prealloc  = JacobianPreallocator_Stokes;
+  fd->ops->create_jacobian    = JacobianCreate_Stokes;
   fd->ops->create_coefficient = CreateCoefficient_Stokes;
 
   PetscFunctionReturn(0);
@@ -123,7 +120,7 @@ Use: internal
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "JacobianPreallocator_Stokes"
-PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd)
+PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd,Mat J)
 {
   PetscInt       Nx, Nz;               // global variables
   PetscInt       i, j, sx, sz, nx, nz; // local variables
@@ -137,7 +134,7 @@ PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd)
   Nz = fd->Nz;
 
   // MatPreallocate begin
-  ierr = MatPreallocatePhaseBegin(fd->J, &preallocator); CHKERRQ(ierr);
+  ierr = MatPreallocatePhaseBegin(J, &preallocator); CHKERRQ(ierr);
   
   // Get local domain
   ierr = DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -195,15 +192,33 @@ PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd)
   }
   
   // Push the non-zero pattern defined within preallocator into the Jacobian
-  ierr = MatPreallocatePhaseEnd(fd->J); CHKERRQ(ierr);
+  ierr = MatPreallocatePhaseEnd(J); CHKERRQ(ierr);
   
   // View preallocated struct of the Jacobian
-  //ierr = MatView(fd->J,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+  //ierr = MatView(J,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
 
   // Matrix assembly
-  ierr = MatAssemblyBegin(fd->J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-  ierr = MatAssemblyEnd  (fd->J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+  ierr = MatAssemblyEnd  (J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
 
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+ JacobianCreate_Stokes - creates and preallocates the non-zero pattern into the Jacobian for FDPDEType = FDPDE_STOKES
+ 
+ Use: internal
+ @*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "JacobianCreate_Stokes"
+PetscErrorCode JacobianCreate_Stokes(FDPDE fd,Mat *J)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  ierr = DMCreateMatrix(fd->dmstag,J); CHKERRQ(ierr);
+  ierr = JacobianPreallocator_Stokes(fd,*J);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

@@ -143,7 +143,6 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
     ierr = PetscObjectTypeCompare((PetscObject)fd->dmstag,DMSTAG,&isStag);CHKERRQ(ierr);
     if (!isStag) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONGSTATE,"FD-PDE requires that the discretisation DM is of type DMSTAG");
   }
-  if (!fd->J) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Jacobian matrix for FD-PDE is NULL. The FD-PDE implementation constructor is required to create a valid Mat");
 
   // Create coefficient dm and vector - specific to FD-PDE
   if (fd->ops->create_coefficient) {
@@ -153,9 +152,10 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
   // Create BClist object
   ierr = DMStagBCListCreate(fd->dmstag,&fd->bclist);CHKERRQ(ierr);
 
-  // Preallocator Jacobian
-  if (!fd->ops->jacobian_prealloc) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"No Jacobian preallocation method has been set.");
-  ierr = fd->ops->jacobian_prealloc(fd); CHKERRQ(ierr);
+  // Create Jacobian
+  if (!fd->ops->create_jacobian) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"No method to create the Jacobian was provided. The FD-PDE implementation constructor is expected to set this function pointer");
+  ierr = fd->ops->create_jacobian(fd,&fd->J); CHKERRQ(ierr);
+  if (!fd->J) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Jacobian matrix for FD-PDE is NULL. The FD-PDE implementation for create_jacobian is required to create a valid Mat");
 
   // Create SNES - nonlinear solver context
   ierr = SNESCreate(fd->comm,&fd->snes); CHKERRQ(ierr);
