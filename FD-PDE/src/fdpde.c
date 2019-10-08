@@ -139,7 +139,7 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
   ierr = fd->ops->create(fd); CHKERRQ(ierr);
 
   // Create coefficient dm and vector - specific to FD-PDE
-  if (!fd->ops->create_coefficient) {
+  if (fd->ops->create_coefficient) {
     ierr = fd->ops->create_coefficient(fd);CHKERRQ(ierr);
   }
 
@@ -199,6 +199,7 @@ PetscErrorCode FDPDEDestroy(FDPDE *_fd)
 
   // Return if no object
   if (!_fd) PetscFunctionReturn(0);
+  if (!*_fd) PetscFunctionReturn(0);
   fd = *_fd;
 
   // Destroy objects
@@ -249,21 +250,25 @@ PetscErrorCode FDPDEView(FDPDE fd)
   PetscPrintf(fd->comm,"    %s\n",fd->description);
 
   PetscPrintf(fd->comm,"  # Coefficient description:\n");
-  if (fd->description_coeff) PetscPrintf(fd->comm,"    %s\n",fd->description_coeff);
-  else PetscPrintf(fd->comm,"    NONE\n");
+  PetscPrintf(fd->comm,"    %s\n",fd->description_coeff);
 
   PetscPrintf(fd->comm,"  # BC description:\n");
-  if (fd->description_bc) PetscPrintf(fd->comm,"    %s\n",fd->description_bc);
-  else PetscPrintf(fd->comm,"    NONE\n");
+  PetscPrintf(fd->comm,"    %s\n",fd->description_bc);
 
   PetscPrintf(fd->comm,"  # global size elements: %D (x-dir) %D (z-dir)\n",fd->Nx,fd->Nz);
 
-  ierr = DMStagGetDOF(fd->dmstag,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
-  PetscPrintf(fd->comm,"  # dmstag: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
-
-  ierr = DMStagGetDOF(fd->dmcoeff,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
-  PetscPrintf(fd->comm,"  # dmcoeff: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
-
+  if (fd->dmstag) {
+    ierr = DMStagGetDOF(fd->dmstag,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
+    PetscPrintf(fd->comm,"  # dmstag: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
+  } else {
+    PetscPrintf(fd->comm,"  # dmstag: not available\n");
+  }
+  if (fd->dmcoeff) {
+    ierr = DMStagGetDOF(fd->dmcoeff,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
+    PetscPrintf(fd->comm,"  # dmcoeff: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
+  } else {
+    PetscPrintf(fd->comm,"  # dmcoeff: not available\n");
+  }
   if (fd->setupcalled) PetscPrintf(fd->comm,"  # FDPDESetUp: TRUE \n");
   else PetscPrintf(fd->comm,"  # FDPDESetUp: FALSE \n");
 
@@ -284,7 +289,7 @@ Output Parameter:
 dm - the DM object
 
 Notes:
-Refernce count on dm is incremented. User must call DMDestroy() on dm to free the space.
+Reference count on dm is incremented. User must call DMDestroy() on dm to free the space.
 
 Use: user
 @*/
