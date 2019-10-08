@@ -530,6 +530,7 @@ Use: user
 #define __FUNCT__ "FDPDEGetCoordinatesArrayDMStag"
 PetscErrorCode FDPDEGetCoordinatesArrayDMStag(FDPDE fd,PetscScalar ***cx, PetscScalar ***cz)
 {
+  DM             dmCoord;
   PetscScalar    **coordx,**coordz;
   PetscErrorCode ierr;
   PetscFunctionBegin;
@@ -538,6 +539,15 @@ PetscErrorCode FDPDEGetCoordinatesArrayDMStag(FDPDE fd,PetscScalar ***cx, PetscS
   if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"System of FD-PDE not provided. Call FDPDESetUp() first!");
   if (!cx) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Arg 2 (cx) cannot be NULL");
   if (!cz) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Arg 3 (cz) cannot be NULL");
+  ierr = DMGetCoordinateDM(fd->dmstag,&dmCoord);CHKERRQ(ierr);
+  if (!dmCoord) SETERRQ(PetscObjectComm((PetscObject)fd->dmstag),PETSC_ERR_ARG_WRONGSTATE,"DMStag does not have a coordinate DM");
+  {
+    PetscBool isProduct;
+    DMType    dmType;
+    ierr = DMGetType(dmCoord,&dmType);CHKERRQ(ierr);
+    ierr = PetscStrcmp(DMPRODUCT,dmType,&isProduct);CHKERRQ(ierr);
+    if (!isProduct) SETERRQ(PetscObjectComm((PetscObject)fd->dmstag),PETSC_ERR_SUP,"Implementation requires coordinate DM is of type DMPRODUCT");
+  }
   ierr = DMStagGet1dCoordinateArraysDOFRead(fd->dmstag,&coordx,&coordz,NULL);CHKERRQ(ierr);
   *cx = coordx;
   *cz = coordz;
