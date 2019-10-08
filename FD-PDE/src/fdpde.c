@@ -43,20 +43,21 @@ PetscErrorCode FDPDECreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   FDPDE          fd;
   FDPDEOps       ops;
   PetscErrorCode ierr;
+
+  
   PetscFunctionBegin;
-
-  // Allocate memory
-  ierr = PetscMalloc1(1,&fd);CHKERRQ(ierr);
-  fd->comm = comm;
-
   // Error checking
-  if (!nx) SETERRQ(fd->comm,PETSC_ERR_USER,"Dimension 1 not provided for FD-PDE dmstag");
-  if (!nz) SETERRQ(fd->comm,PETSC_ERR_USER,"Dimension 2 not provided for FD-PDE dmstag");
-
-  if (xs>=xe) SETERRQ(fd->comm,PETSC_ERR_USER,"Invalid minimum/maximum x-dir global coordinates");
-  if (zs>=ze) SETERRQ(fd->comm,PETSC_ERR_USER,"Invalid minimum/maximum z-dir global coordinates");
-
-  if (!_fd) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONGSTATE,"Must provide a valid (non-NULL) pointer for fd (arg 9)");
+  if (!_fd) SETERRQ(comm,PETSC_ERR_ARG_WRONGSTATE,"Must provide a valid (non-NULL) pointer for fd (arg 9)");
+  
+  if (nx <= 0) SETERRQ1(comm,PETSC_ERR_USER,"Dimension 1 (arg 2) provided for FD-PDE dmstag must be > 0. Found %D",nx);
+  if (nz <= 0) SETERRQ1(comm,PETSC_ERR_USER,"Dimension 2 (arg 3) provided for FD-PDE dmstag must be > 0. Found %D",nz);
+  
+  if (xs >= xe) SETERRQ(comm,PETSC_ERR_USER,"Invalid x-maximum (arg 5) provided. xe > xs.");
+  if (zs >= ze) SETERRQ(comm,PETSC_ERR_USER,"Invalid y-maximum (arg 7) provided. ze > zs");
+  
+  // Allocate memory
+  ierr = PetscCalloc1(1,&fd);CHKERRQ(ierr);
+  fd->comm = comm;
 
   // Save input variables
   fd->Nx = nx;
