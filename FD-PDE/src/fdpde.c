@@ -197,7 +197,7 @@ PetscErrorCode FDPDEDestroy(FDPDE *_fd)
   PetscFunctionBegin;
 
   // Return if no object
-  if (!fd) PetscFunctionReturn(0);
+  if (!_fd) PetscFunctionReturn(0);
   fd = *_fd;
 
   // Destroy objects
@@ -241,32 +241,30 @@ PetscErrorCode FDPDEView(FDPDE fd)
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  PetscPrintf(PETSC_COMM_WORLD,"FDPDEView:\n");
-  PetscPrintf(PETSC_COMM_WORLD,"  # FD-PDE type: %s\n",FDPDETypeNames[(int)fd->type]);
+  PetscPrintf(fd->comm,"FDPDEView:\n");
+  PetscPrintf(fd->comm,"  # FD-PDE type: %s\n",FDPDETypeNames[(int)fd->type]);
   
-  PetscPrintf(PETSC_COMM_WORLD,"  # FD-PDE description:\n");
-  PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description);
+  PetscPrintf(fd->comm,"  # FD-PDE description:\n");
+  PetscPrintf(fd->comm,"    %s\n",fd->description);
 
-  PetscPrintf(PETSC_COMM_WORLD,"  # Coefficient description:\n");
-  if (fd->description_coeff) PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description_coeff);
-  else PetscPrintf(PETSC_COMM_WORLD,"    NONE\n");
+  PetscPrintf(fd->comm,"  # Coefficient description:\n");
+  if (fd->description_coeff) PetscPrintf(fd->comm,"    %s\n",fd->description_coeff);
+  else PetscPrintf(fd->comm,"    NONE\n");
 
-  PetscPrintf(PETSC_COMM_WORLD,"  # BC description:\n");
-  if (fd->description_bc) PetscPrintf(PETSC_COMM_WORLD,"    %s\n",fd->description_bc);
-  else PetscPrintf(PETSC_COMM_WORLD,"    NONE\n");
+  PetscPrintf(fd->comm,"  # BC description:\n");
+  if (fd->description_bc) PetscPrintf(fd->comm,"    %s\n",fd->description_bc);
+  else PetscPrintf(fd->comm,"    NONE\n");
 
-  PetscPrintf(PETSC_COMM_WORLD,"  # global size elements: %D (x-dir) %D (z-dir)\n",fd->Nx,fd->Nz);
+  PetscPrintf(fd->comm,"  # global size elements: %D (x-dir) %D (z-dir)\n",fd->Nx,fd->Nz);
 
   ierr = DMStagGetDOF(fd->dmstag,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
-  PetscPrintf(PETSC_COMM_WORLD,"  # dmstag: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
+  PetscPrintf(fd->comm,"  # dmstag: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
 
   ierr = DMStagGetDOF(fd->dmcoeff,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
-  PetscPrintf(PETSC_COMM_WORLD,"  # dmcoeff: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
+  PetscPrintf(fd->comm,"  # dmcoeff: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
 
-  if (fd->setupcalled) PetscPrintf(PETSC_COMM_WORLD,"  # FDPDESetUp: TRUE \n");
-  else PetscPrintf(PETSC_COMM_WORLD,"  # FDPDESetUp: FALSE \n");
-
-  PetscPrintf(PETSC_COMM_WORLD,"\n");
+  if (fd->setupcalled) PetscPrintf(fd->comm,"  # FDPDESetUp: TRUE \n");
+  else PetscPrintf(fd->comm,"  # FDPDESetUp: FALSE \n");
 
   // view BC list
   //ierr = DMStagBCListView(fd->bclist);CHKERRQ(ierr);
@@ -285,7 +283,7 @@ Output Parameter:
 dm - the DM object
 
 Notes:
-DM object not destroyed with FDPDEDestroy(). User has to call DMDestroy() to free the space.
+Refernce count on dm is incremented. User must call DMDestroy() on dm to free the space.
 
 Use: user
 @*/
@@ -323,17 +321,8 @@ Use: user
 PetscErrorCode FDPDEGetCoefficient(FDPDE fd, DM *dmcoeff, Vec *coeff)
 {
   PetscFunctionBegin;
-
-  if (dmcoeff) {
-    if (!fd->dmcoeff) SETERRQ(fd->comm,PETSC_ERR_USER,"Coefficient DMStag for FD-PDE not provided - Call FDPDESetUp()");
-    *dmcoeff = fd->dmcoeff;
-  }
-
-  if (coeff) {
-    if (!fd->coeff) SETERRQ(fd->comm,PETSC_ERR_USER,"Coefficient vector for FD-PDE not provided - Call FDPDESetUp()");
-    *coeff = fd->coeff;
-  }
-
+  if (dmcoeff) *dmcoeff = fd->dmcoeff;
+  if (coeff) *coeff = fd->coeff;
   PetscFunctionReturn(0);
 }
 
@@ -410,7 +399,7 @@ Output Parameter:
 x - the solution vector
 
 Notes:
-Vector x not destroyed with FDPDEDestroy(). User has to call VecDestroy() separately to free the space.
+Reference count on x is incremeneted. User myst call VecDestroy() on x.
 
 Use: user
 @*/
@@ -421,12 +410,10 @@ PetscErrorCode FDPDEGetSolution(FDPDE fd, Vec *x)
 {
   PetscErrorCode ierr;
   PetscFunctionBegin;
-  if (fd->x == NULL) SETERRQ(fd->comm,PETSC_ERR_USER,"Solution of FD-PDE not provided - Call FDPDESetUp() first");
   if (x) {
     *x = fd->x;
     ierr = PetscObjectReference((PetscObject)fd->x);CHKERRQ(ierr);
   }
-
   PetscFunctionReturn(0);
 }
 
@@ -448,9 +435,7 @@ Use: user
 PetscErrorCode FDPDEGetSNES(FDPDE fd, SNES *snes)
 {
   PetscFunctionBegin;
-  //if (fd->snes == NULL) SETERRQ(fd->comm,PETSC_ERR_USER,"The SNES object for FD-PDE not provided - Call FDPDESetUp() first");
   if (snes) *snes = fd->snes;
-
   PetscFunctionReturn(0);
 }
 
@@ -472,9 +457,7 @@ Use: user
 PetscErrorCode FDPDEGetDMStagBCList(FDPDE fd, DMStagBCList *list)
 {
   PetscFunctionBegin;
-  //if (fd->bclist == NULL) SETERRQ(fd->comm,PETSC_ERR_USER,"The DMStagBCList object for FD-PDE not provided - Call FDPDESetUp() first");
   if (list) *list = fd->bclist;
-
   PetscFunctionReturn(0);
 }
 
@@ -514,7 +497,7 @@ PetscErrorCode FDPDESolve(FDPDE fd)
   ierr = PetscPrintf(fd->comm,"SNES: atol = %g, rtol = %g, stol = %g, maxit = %D, maxf = %D\n",(double)atol,(double)rtol,(double)stol,maxit,maxf); CHKERRQ(ierr);
 
   // Analyze convergence
-  if (reason<0) {
+  if (reason < 0) {
     // NOT converged
     if (reason < 0) SETERRQ(fd->comm,PETSC_ERR_CONV_FAILED,"Nonlinear solve failed!"); CHKERRQ(ierr);
   } else {
@@ -547,12 +530,12 @@ PetscErrorCode FDPDEGetCoordinatesArrayDMStag(FDPDE fd,PetscScalar ***cx, PetscS
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  if (fd->dmstag==NULL) SETERRQ(fd->comm,PETSC_ERR_USER,"System of FD-PDE not provided. Call FDPDESetUp() first!");
+  if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_USER,"System of FD-PDE not provided. Call FDPDESetUp() first!");
+  if (!cx) SETERRQ(fd->comm,PETSC_ERR_USER,"Arg 2 (cx) cannot be NULL");
+  if (!cz) SETERRQ(fd->comm,PETSC_ERR_USER,"Arg 3 (cz) cannot be NULL");
   ierr = DMStagGet1dCoordinateArraysDOFRead(fd->dmstag,&coordx,&coordz,NULL);CHKERRQ(ierr);
-
   *cx = coordx;
   *cz = coordz;
-
   PetscFunctionReturn(0);
 }
 
@@ -583,6 +566,10 @@ PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE fd,PetscScalar **cx, Pet
   PetscInt       i, j, sx, sz, nx, nz;
   PetscErrorCode ierr;
   PetscFunctionBegin;
+
+  if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_USER,"System of FD-PDE not provided. Call FDPDESetUp() first!");
+  if (!cx) SETERRQ(fd->comm,PETSC_ERR_USER,"Arg 2 (cx) cannot be NULL");
+  if (!cz) SETERRQ(fd->comm,PETSC_ERR_USER,"Arg 3 (cz) cannot be NULL");
 
   dm      = fd->dmstag;
   dmcoeff = fd->dmcoeff;
