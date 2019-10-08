@@ -196,10 +196,9 @@ PetscErrorCode FDPDEDestroy(FDPDE *_fd)
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  fd = *_fd;
-
   // Return if no object
   if (!fd) PetscFunctionReturn(0);
+  fd = *_fd;
 
   // Destroy objects
   ierr = DMStagBCListDestroy(&fd->bclist);CHKERRQ(ierr);
@@ -214,14 +213,13 @@ PetscErrorCode FDPDEDestroy(FDPDE *_fd)
   ierr = DMDestroy(&fd->dmcoeff); CHKERRQ(ierr);
   ierr = DMDestroy(&fd->dmstag); CHKERRQ(ierr);
 
-  fd->bclist = NULL;
   fd->user_context = NULL;
 
   ierr = PetscFree(fd->description);CHKERRQ(ierr);
   ierr = PetscFree(fd->description_bc);CHKERRQ(ierr);
   ierr = PetscFree(fd->description_coeff);CHKERRQ(ierr);
   ierr = PetscFree(fd);CHKERRQ(ierr);
-
+  *_fd = NULL;
   PetscFunctionReturn(0);
 }
 
