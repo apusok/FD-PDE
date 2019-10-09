@@ -34,7 +34,7 @@ struct _p_FDPDE {
   FDPDEOps        ops;
   DM              dmstag,dmcoeff;
   Mat             J;
-  Vec             x,xold,r,coeff;
+  Vec             x,xguess,r,coeff;
   DMStagBCList    bclist;
   void           *user_context;
   FDPDEType       type;
@@ -55,7 +55,7 @@ PetscErrorCode FDPDECreate(MPI_Comm, PetscInt, PetscInt,
 PetscErrorCode FDPDESetUp(FDPDE);
 PetscErrorCode FDPDEDestroy(FDPDE*);
 PetscErrorCode FDPDEView(FDPDE);
-PetscErrorCode FDPDESolve(FDPDE);
+PetscErrorCode FDPDESolve(FDPDE,PetscBool*);
 
 PetscErrorCode FDPDESetFunctionBCList(FDPDE, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void*);
 PetscErrorCode FDPDESetFunctionCoefficient(FDPDE, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), const char description[], void*);
@@ -65,6 +65,7 @@ PetscErrorCode FDPDEGetSolution(FDPDE,Vec*);
 PetscErrorCode FDPDEGetSNES(FDPDE,SNES*);
 PetscErrorCode FDPDEGetDMStagBCList(FDPDE,DMStagBCList*);
 PetscErrorCode FDPDEGetCoefficient(FDPDE,DM*,Vec*);
+PetscErrorCode FDPDEGetSolutionGuess(FDPDE,Vec*);
 
 PetscErrorCode FDPDEGetCoordinatesArrayDMStag(FDPDE,PetscScalar***,PetscScalar***);
 PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE,PetscScalar**,PetscScalar**);

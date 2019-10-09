@@ -49,4 +49,4 @@ clean_all:
 	@rm -rf $(OBJ)
 	@rm -rf $(TEST_OBJ)
 	@rm -rf $(TEST_APP)
-	@rm -rf *.dSYM
+	@rm -rf *.dSYM ./tests/*.dSYM

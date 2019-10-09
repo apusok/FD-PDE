@@ -78,7 +78,7 @@ PetscErrorCode FDPDECreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   fd->dmcoeff = NULL;
   fd->bclist = NULL;
   fd->x     = NULL;
-  fd->xold  = NULL;
+  fd->xguess= NULL;
   fd->r     = NULL;
   fd->coeff = NULL;
   fd->J     = NULL;
@@ -147,7 +147,7 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
   // Create global vectors
   ierr = DMCreateGlobalVector(fd->dmstag,&fd->x);CHKERRQ(ierr);
   ierr = VecDuplicate(fd->x,&fd->r);CHKERRQ(ierr);
-  ierr = VecDuplicate(fd->x,&fd->xold);CHKERRQ(ierr);
+  ierr = VecDuplicate(fd->x,&fd->xguess);CHKERRQ(ierr);
   
   // Create coefficient dm and vector - specific to FD-PDE
   if (fd->ops->create_coefficient) {
@@ -179,15 +179,6 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
   } else {
     ierr = SNESSetJacobian(fd->snes, fd->J, fd->J, SNESComputeJacobianDefaultColor, NULL); CHKERRQ(ierr);
   }
-
-  // SNES Options - default info on convergence
-  ierr = PetscOptionsSetValue(NULL, "-snes_monitor",         ""); CHKERRQ(ierr);
-  ierr = PetscOptionsSetValue(NULL, "-ksp_monitor",          ""); CHKERRQ(ierr);
-  ierr = PetscOptionsSetValue(NULL, "-snes_converged_reason",""); CHKERRQ(ierr);
-  ierr = PetscOptionsSetValue(NULL, "-ksp_converged_reason", ""); CHKERRQ(ierr);
-
-  // overwrite default options from command line
-  ierr = SNESSetFromOptions(fd->snes); CHKERRQ(ierr);
 
   fd->setupcalled = PETSC_TRUE;
   PetscFunctionReturn(0);
@@ -222,7 +213,7 @@ PetscErrorCode FDPDEDestroy(FDPDE *_fd)
   ierr = VecDestroy(&fd->x);CHKERRQ(ierr);
   ierr = VecDestroy(&fd->r);CHKERRQ(ierr);
   ierr = VecDestroy(&fd->coeff);CHKERRQ(ierr);
-  ierr = VecDestroy(&fd->xold);CHKERRQ(ierr);
+  ierr = VecDestroy(&fd->xguess);CHKERRQ(ierr);
   ierr = MatDestroy(&fd->J);CHKERRQ(ierr);
   ierr = SNESDestroy(&fd->snes);CHKERRQ(ierr);
 
@@ -481,46 +472,75 @@ PetscErrorCode FDPDEGetDMStagBCList(FDPDE fd, DMStagBCList *list)
 
 // ---------------------------------------
 /*@
+FDPDEGetSolutionGuess() - retrieves the xguess vector from the FD-PDE object. 
+
+Input Parameter:
+fd - the FD-PDE object
+
+Output Parameter:
+xguess - the solution guess vector
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEGetSolutionGuess"
+PetscErrorCode FDPDEGetSolutionGuess(FDPDE fd, Vec *xguess)
+{
+  PetscFunctionBegin;
+  if (xguess) *xguess = fd->xguess;
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
 FDPDESolve - solve the associated system of equations contained in an FD-PDE object.
 
 Input Parameter:
 fd - the FD-PDE object
+
+Output Parameter:
+converged - if not NULL tells if solver converged or not (PetscBool)
+
+Functionality:
+- calls SNESSetFromOptions() so any Petsc SNES options should be set before
+- forms initial guess (copy xguess->x). xguess can be solution from previous time step or it can be specifically set 
+by user by calling FDPDEGetSolutionGuess(fd,&xguess)
+- solve and return converged reason
+- if converged, copy new solution to xguess
 
 Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDPDESolve"
-PetscErrorCode FDPDESolve(FDPDE fd)
+PetscErrorCode FDPDESolve(FDPDE fd, PetscBool *converged)
 {
   SNESConvergedReason reason;
-  PetscInt       maxit, maxf, its;
-  PetscReal      atol, rtol, stol;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (!fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"User must call FDPDESetUp() first!");
 
+  // Overwrite default options from command line
+  ierr = SNESSetFromOptions(fd->snes); CHKERRQ(ierr);
+
   // Copy initial guess to solution
-  ierr = VecCopy(fd->xold,fd->x);CHKERRQ(ierr);
+  ierr = VecCopy(fd->xguess,fd->x);CHKERRQ(ierr);
 
   // Solve the non-linear system
   ierr = SNESSolve(fd->snes,0,fd->x);             CHKERRQ(ierr);
   ierr = SNESGetConvergedReason(fd->snes,&reason); CHKERRQ(ierr);
-  ierr = SNESGetIterationNumber(fd->snes,&its);    CHKERRQ(ierr);
-  ierr = SNESGetTolerances(fd->snes, &atol, &rtol, &stol, &maxit, &maxf); CHKERRQ(ierr);
-  
-  // Print some diagnostics
-  ierr = PetscPrintf(fd->comm,"Number of SNES iterations = %d\n",its);
-  ierr = PetscPrintf(fd->comm,"SNES: atol = %g, rtol = %g, stol = %g, maxit = %D, maxf = %D\n",(double)atol,(double)rtol,(double)stol,maxit,maxf); CHKERRQ(ierr);
 
   // Analyze convergence
-  if (reason < 0) {
-    // NOT converged
-    SETERRQ(fd->comm,PETSC_ERR_CONV_FAILED,"Nonlinear solve failed!"); CHKERRQ(ierr);
-  } else {
+  if (reason > 0) { // reason = 0 implies SNES_CONVERGED_ITERATING (which can never be true after SNESSolve executes)
     // converged - copy initial guess for next timestep
-    ierr = VecCopy(fd->x, fd->xold); CHKERRQ(ierr);
+    ierr = VecCopy(fd->x, fd->xguess); CHKERRQ(ierr);
+  }
+
+  if (converged) {
+    *converged = PETSC_TRUE;
+    if (reason < 0) *converged = PETSC_FALSE;
   }
 
   PetscFunctionReturn(0);

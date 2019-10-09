@@ -134,7 +134,7 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   ierr = FDPDEView(fd); CHKERRQ(ierr);
 
   // FD SNES Solver
-  ierr = FDPDESolve(fd);CHKERRQ(ierr);
+  ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
 
   // Get solution vector
   ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr); 

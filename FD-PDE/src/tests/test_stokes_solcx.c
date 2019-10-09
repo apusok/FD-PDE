@@ -110,8 +110,29 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
 
   ierr = FDPDEView(fd); CHKERRQ(ierr);
 
+  // Some SNES options
+  PetscInt  maxit, maxf, its;
+  PetscReal atol, rtol, stol;
+  SNES      snes;
+
+  ierr = FDPDEGetSNES(fd,&snes);CHKERRQ(ierr);
+
+  // SNES Options - default info on convergence
+  ierr = PetscOptionsSetValue(NULL, "-snes_monitor",         ""); CHKERRQ(ierr);
+  ierr = PetscOptionsSetValue(NULL, "-ksp_monitor",          ""); CHKERRQ(ierr);
+  ierr = PetscOptionsSetValue(NULL, "-snes_converged_reason",""); CHKERRQ(ierr);
+  ierr = PetscOptionsSetValue(NULL, "-ksp_converged_reason", ""); CHKERRQ(ierr);
+  //ierr = SNESSetOptionsPrefix(snes,"stk_");CHKERRQ(ierr);
+
   // FD SNES Solver
-  ierr = FDPDESolve(fd);CHKERRQ(ierr);
+  ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
+
+  ierr = SNESGetIterationNumber(fd->snes,&its);    CHKERRQ(ierr);
+  ierr = SNESGetTolerances(fd->snes, &atol, &rtol, &stol, &maxit, &maxf); CHKERRQ(ierr);
+  
+  // Print some SNES diagnostics
+  ierr = PetscPrintf(fd->comm,"Number of SNES iterations = %d\n",its);
+  ierr = PetscPrintf(fd->comm,"SNES: atol = %g, rtol = %g, stol = %g, maxit = %D, maxf = %D\n",(double)atol,(double)rtol,(double)stol,maxit,maxf); CHKERRQ(ierr);
 
   // Get solution vector
   ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr); 
