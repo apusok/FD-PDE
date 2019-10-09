@@ -408,7 +408,7 @@ Output Parameter:
 x - the solution vector
 
 Notes:
-Reference count on x is incremeneted. User myst call VecDestroy() on x.
+Reference count on x is incremented. User must call VecDestroy() on x.
 
 Use: user
 @*/
@@ -480,6 +480,9 @@ fd - the FD-PDE object
 Output Parameter:
 xguess - the solution guess vector
 
+Notes:
+Reference count on xguess is incremented. User must call VecDestroy() on xguess.
+
 Use: user
 @*/
 // ---------------------------------------
@@ -487,8 +490,12 @@ Use: user
 #define __FUNCT__ "FDPDEGetSolutionGuess"
 PetscErrorCode FDPDEGetSolutionGuess(FDPDE fd, Vec *xguess)
 {
+  PetscErrorCode ierr;
   PetscFunctionBegin;
-  if (xguess) *xguess = fd->xguess;
+  if (xguess) {
+    *xguess = fd->xguess;
+    ierr = PetscObjectReference((PetscObject)fd->xguess);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
@@ -506,7 +513,7 @@ Functionality:
 - calls SNESSetFromOptions() so any Petsc SNES options should be set before
 - forms initial guess (copy xguess->x). xguess can be solution from previous time step or it can be specifically set 
 by user by calling FDPDEGetSolutionGuess(fd,&xguess)
-- solve and return converged reason
+- solves and returns converged reason
 - if converged, copy new solution to xguess
 
 Use: user
