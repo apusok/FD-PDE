@@ -507,13 +507,13 @@ Input Parameter:
 fd - the FD-PDE object
 
 Output Parameter:
-converged - if not NULL tells if solver converged or not (PetscBool)
+converged - value is PETSC_TRUE if SNESSolve converged (optional)
 
 Functionality:
-- calls SNESSetFromOptions() so any Petsc SNES options should be set before
+- calls SNESSetFromOptions() so any PETSc SNES options should be set before
 - forms initial guess (copy xguess->x). xguess can be solution from previous time step or it can be specifically set 
 by user by calling FDPDEGetSolutionGuess(fd,&xguess)
-- solves and returns converged reason
+- solves and returns a boolean if converged/not converged
 - if converged, copy new solution to xguess
 
 Use: user
