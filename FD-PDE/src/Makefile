@@ -8,6 +8,7 @@ SRC := 	dmstagbclist.c \
 	fdpde_stokes_physics.c fdpde_stokes_residual.c fdpde_stokes.c
 
 HDR := 	benchmark_solcx.h \
+	benchmark_cornerflow.h \
 	dmstagbclist.h \
 	prealloc_helper.h \
 	fdpde.h \
@@ -18,6 +19,7 @@ OBJ := $(patsubst %.c,%.o,$(SRC))
 
 TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_stokes_solcx_vargrid.c \
+		tests/test_stokes_mor.c \
 		tests/test_dmstagbclist.c \
 		tests/test_fdpde.c \
 
