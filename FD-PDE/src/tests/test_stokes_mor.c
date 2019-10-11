@@ -600,11 +600,12 @@ PetscErrorCode DoOutput_Stokes(DM dm,Vec x,const char fname[])
   ierr = DMStagOutputGetLabels(dm,&labels); CHKERRQ(ierr);
 
   // add labels to output
-  ierr = DMStagOutputAddLabel(dm,labels,"Velocity [-]",0,LEFT   ); // faces (vector)
-  ierr = DMStagOutputAddLabel(dm,labels,"Pressure [-]",0,ELEMENT); // element (scalar)
+  ierr = DMStagOutputAddLabel(dm,labels,"Velocity []",0,LEFT   ); // faces (vector)
+  ierr = DMStagOutputAddLabel(dm,labels,"Pressure []",0,ELEMENT); // element (scalar)
 
   // output - may choose different types
-  ierr = DMStagOutputVTKBinary(dm,x,labels,fname);CHKERRQ(ierr);
+  // ierr = DMStagOutputVTKBinary(dm,x,labels,VTK_CENTER,fname);CHKERRQ(ierr);
+  ierr = DMStagOutputVTKBinary(dm,x,labels,VTK_CORNER,fname);CHKERRQ(ierr);
 
   // Free labels
   ierr = PetscFree(labels);CHKERRQ(ierr);
@@ -626,7 +627,7 @@ PetscErrorCode DoOutput(DM dm,Vec x,const char fname[])
   // Create a new DM and Vec for velocity
   ierr = DMStagCreateCompatibleDMStag(dm,0,0,2,0,&dmVel); CHKERRQ(ierr);
   ierr = DMSetUp(dmVel); CHKERRQ(ierr);
-  ierr = DMStagSetUniformCoordinatesExplicit(dmVel,0.0,1.0,0.0,1.0,0.0,0.0); CHKERRQ(ierr);
+  ierr = DMStagSetUniformCoordinatesExplicit(dmVel,0.0,1.0,-1.0,0.0,0.0,0.0); CHKERRQ(ierr);
 
   // Create global vectors
   ierr = DMCreateGlobalVector(dmVel,&vecVel); CHKERRQ(ierr);

@@ -8,6 +8,7 @@
 #define OUTPUT_NAME_LENGTH 200
 
 typedef enum { OUT_VERTEX = 0, OUT_FACE, OUT_ELEMENT } OutputType;
+typedef enum { VTK_CENTER = 0, VTK_CORNER} OutputVTKType;
 
 // ---------------------------------------
 // Struct definitions
@@ -31,6 +32,6 @@ typedef struct {
 // ---------------------------------------
 PetscErrorCode DMStagOutputGetLabels(DM,DMStagOutputLabel**);
 PetscErrorCode DMStagOutputAddLabel(DM,DMStagOutputLabel*, const char[],PetscInt, DMStagStencilLocation);
-PetscErrorCode DMStagOutputVTKBinary(DM,Vec,DMStagOutputLabel*, const char[]);
+PetscErrorCode DMStagOutputVTKBinary(DM,Vec,DMStagOutputLabel*,OutputVTKType,const char[]);
 
 #endif
