@@ -3,12 +3,14 @@ include $(PETSC_DIR)/lib/petsc/conf/variables
 include $(PETSC_DIR)/lib/petsc/conf/rules
 
 SRC := 	dmstagbclist.c \
+	dmstagoutput.c \
 	prealloc_helper.c \
 	fdpde.c \
 	fdpde_stokes_physics.c fdpde_stokes_residual.c fdpde_stokes.c
 
 HDR := 	benchmark_solcx.h \
 	benchmark_cornerflow.h \
+	dmstagoutput.h \
 	dmstagbclist.h \
 	prealloc_helper.h \
 	fdpde.h \

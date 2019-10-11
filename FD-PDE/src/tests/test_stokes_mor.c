@@ -16,6 +16,7 @@ static char help[] = "Application to solve the 2D corner flow (mid-ocean ridges)
 #include "petsc.h"
 #include "../fdpde_stokes.h"
 #include "../benchmark_cornerflow.h"
+#include "../dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -51,6 +52,7 @@ PetscErrorCode InputParameters(UsrData**);
 PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode FormCoefficient(DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList_MOR(DM, Vec, DMStagBCList, void*);
+PetscErrorCode DoOutput_Stokes(DM,Vec,const char[]);
 PetscErrorCode DoOutput(DM,Vec,const char[]);
 
 // ---------------------------------------
@@ -119,7 +121,8 @@ PetscErrorCode SNESStokes_MOR(DM *_dm, Vec *_x, void *ctx)
   ierr = FDPDEGetDM(fd, &dmPV); CHKERRQ(ierr);
 
   // Output solution to file
-  ierr = DoOutput(dmPV,x,"numerical_solution_mor.vtr");CHKERRQ(ierr);
+  // ierr = DoOutput(dmPV,x,"numerical_solution_mor.vtr");CHKERRQ(ierr);
+  ierr = DoOutput_Stokes(dmPV,x,"numerical_solution_mor.vtr");CHKERRQ(ierr);
 
   // Destroy FD-PDE object
   ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
@@ -581,6 +584,31 @@ PetscErrorCode Analytic_MOR(DM dm,Vec *_x, void *ctx)
   // Assign pointers
   *_x  = x;
   
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// DoOutput_Stokes
+// ---------------------------------------
+PetscErrorCode DoOutput_Stokes(DM dm,Vec x,const char fname[])
+{
+  DMStagOutputLabel *labels;
+  PetscErrorCode ierr;
+  PetscFunctionBeginUser;
+
+  // get labels list - reflects the structure of DMStag (dofs)
+  ierr = DMStagOutputGetLabels(dm,&labels); CHKERRQ(ierr);
+
+  // add labels to output
+  ierr = DMStagOutputAddLabel(dm,labels,"Velocity [-]",0,LEFT   ); // faces (vector)
+  ierr = DMStagOutputAddLabel(dm,labels,"Pressure [-]",0,ELEMENT); // element (scalar)
+
+  // output - may choose different types
+  ierr = DMStagOutputVTKBinary(dm,x,labels,fname);CHKERRQ(ierr);
+
+  // Free labels
+  ierr = PetscFree(labels);CHKERRQ(ierr);
+
   PetscFunctionReturn(0);
 }
 
