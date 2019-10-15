@@ -89,7 +89,7 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
     }
   }
 
-  // Boundary conditions
+  // Boundary conditions - edges and element
   ierr = DMStagBCListApply_Stokes(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,ff);CHKERRQ(ierr);
   ierr = DMStagBCListApply_Stokes(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,n,ff);CHKERRQ(ierr);
 

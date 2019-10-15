@@ -6,7 +6,8 @@ SRC := 	dmstagbclist.c \
 	dmstagoutput.c \
 	prealloc_helper.c \
 	fdpde.c \
-	fdpde_stokes_physics.c fdpde_stokes_residual.c fdpde_stokes.c
+	fdpde_stokes_physics.c fdpde_stokes_residual.c fdpde_stokes.c \
+	fdpde_advdiff_residual.c fdpde_advdiff.c
 
 HDR := 	benchmark_solcx.h \
 	benchmark_cornerflow.h \
@@ -14,7 +15,8 @@ HDR := 	benchmark_solcx.h \
 	dmstagbclist.h \
 	prealloc_helper.h \
 	fdpde.h \
-	fdpde_stokes.h
+	fdpde_stokes.h \
+	fdpde_advdiff.h
 
 
 OBJ := $(patsubst %.c,%.o,$(SRC))
@@ -22,6 +24,7 @@ OBJ := $(patsubst %.c,%.o,$(SRC))
 TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_stokes_solcx_vargrid.c \
 		tests/test_stokes_mor.c \
+		tests/test_advdiff_laplace.c \
 		tests/test_dmstagbclist.c \
 		tests/test_fdpde.c \
 

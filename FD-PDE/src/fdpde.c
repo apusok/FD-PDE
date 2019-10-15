@@ -12,7 +12,7 @@ const char *FDPDETypeNames[] = {
 // FDPDECreatePDEType declarations
 // ---------------------------------------
 PetscErrorCode FDPDECreate_Stokes(FDPDE fd);
-//PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd);
+PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd);
 
 // ---------------------------------------
 /*@ FDPDECreate - creates an object that will manage the discretization of a PDE using 
@@ -128,8 +128,8 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
       fd->ops->create = FDPDECreate_Stokes;
       break;
     case FDPDE_ADVDIFF:
-      //fd->ops->create = FDPDECreate_AdvDiff;
-      SETERRQ(fd->comm,PETSC_ERR_SUP,"FD-PDE type FDPDE_ADVDIFF is not yet implemented.");
+      fd->ops->create = FDPDECreate_AdvDiff;
+      // SETERRQ(fd->comm,PETSC_ERR_SUP,"FD-PDE type FDPDE_ADVDIFF is not yet implemented.");
       break;
     default:
       SETERRQ(fd->comm,PETSC_ERR_ARG_UNKNOWN_TYPE,"Unknown type of FD-PDE specified");
