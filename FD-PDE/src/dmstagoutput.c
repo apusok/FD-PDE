@@ -904,10 +904,11 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char fname[])
   if (!fp) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot open file %s",string);
   
   pythonemit(fp,"import PetscBinaryIO as pio\n");
-  pythonemit(fp,"import numpy as np\n");
-  pythonemit(fp,"io = pio.PetscBinaryIO()\n");
+  pythonemit(fp,"import numpy as np\n\n");
+
   pythonemit(fp,"def _PETScBinaryLoad():\n");
-  
+  pythonemit(fp,"  io = pio.PetscBinaryIO()\n");
+
   PetscSNPrintf(string,PETSC_MAX_PATH_LEN-1,"  filename = \"%s\"\n",fname);
   pythonemit(fp,string);
   pythonemit(fp,"  data = dict()\n");
@@ -1003,10 +1004,11 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char fname[])
   pythonemit(fp,string);
   pythonemit(fp,"  print('Contents:')\n");
   pythonemit(fp,"  for key in data:\n");
-  pythonemit(fp,"    print('  textual name registered:',key)\n");
+  pythonemit(fp,"    print('  textual name registered:',key)\n\n");
   
-  pythonemit(fp,"data = _PETScBinaryLoad()\n");
-  pythonemit(fp,"_PETScBinaryLoadReportNames(data)\n");
+  pythonemit(fp,"def demo_load_report():\n");
+  pythonemit(fp," data = _PETScBinaryLoad()\n");
+  pythonemit(fp," _PETScBinaryLoadReportNames(data)\n");
   
   ierr = PetscViewerDestroy(&v);CHKERRQ(ierr);
   fclose(fp);
