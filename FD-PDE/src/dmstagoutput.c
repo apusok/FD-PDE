@@ -1108,7 +1108,7 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char prefix[])
     }
   }
   
-  pythonemit(fp,"    return data\n\n");
+  pythonemit(fp,"  return data\n\n");
   
   pythonemit(fp,"def _PETScBinaryLoadReportNames(data):\n");
   ierr = PetscSNPrintf(string,PETSC_MAX_PATH_LEN-1,"  print('Filename: %s')\n",fname);CHKERRQ(ierr);
