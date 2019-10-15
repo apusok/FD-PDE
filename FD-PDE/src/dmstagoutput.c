@@ -867,12 +867,15 @@ void pythonemitvec(FILE *fp,const char name[])
  Writes a petsc binary file describing the DMStag object, and the data from the vector X.
  The binary output pulls apart X and writes out seperate Vec objects for DOFs defined on the DMStag stratum.
  Data living on an edge/face is decomposed into 2 (2D) or 3 (3D) face-wise Vec's.
+ The binary file created is named {prefix}.pbin.
  
- The function also emits a python script named {fname}.py which will load all binary data in the file.
+ The function also emits a python script named {prefix}.py which will load all binary data in the file.
  The python script shoves all data written into a dict() to allow easy access / discovery of the data.
  The named fields are:
-   "x1d" - 1D array of x-coordinates
-   "y1d" - 1D array of y-coordinates
+   "x1d_vertex" - 1D array of x-coordinates associated with vertices
+   "x1d_cell" - 1D array of x-coordinates associated with cells
+   "y1d_vertex" - 1D array of y-coordinates associated with vertices
+   "y1d_cell" - 1D array of y-coordinates associated with cells
    "X_vertex" - entries from X with correspond to DOFs on vertices
    "X_face_x" - entries from X with correspond to DOFs on faces with normals pointing in {+,-}x direction
    "X_face_y" - entries from X with correspond to DOFs on faces with normals pointing in {+,-}y direction
@@ -884,13 +887,13 @@ void pythonemitvec(FILE *fp,const char name[])
 */
 #undef __FUNCT__
 #define __FUNCT__ "DMStagViewBinaryPython_SEQ"
-PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char fname[])
+PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char prefix[])
 {
   PetscErrorCode ierr;
   PetscViewer v;
   PetscInt M,N,P,dim;
   FILE *fp = NULL;
-  char string[PETSC_MAX_PATH_LEN];
+  char fname[PETSC_MAX_PATH_LEN],string[PETSC_MAX_PATH_LEN];
   MPI_Comm comm;
   PetscMPIInt size;
   PetscBool view_coords = PETSC_TRUE; /* ultimately this would be an input arg */
@@ -898,9 +901,18 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char fname[])
   comm = PetscObjectComm((PetscObject)dm);
   ierr = MPI_Comm_size(comm,&size); CHKERRQ(ierr);
   if (size != 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sequential only");
+
+  /* check for instances of "." in the file name so that the file can be imported */
+  {
+    size_t k,len;
+    ierr = PetscStrlen(prefix,&len);CHKERRQ(ierr);
+    for (k=0; k<len; k++) if (prefix[k] == '.') PetscPrintf(comm,"[DMStagViewBinaryPython_SEQ] Warning: prefix %s contains the symbol '.'. Hence you will not be able to import the emiited python script. Consider change the prefix\n",prefix);
+  }
   
+  ierr = PetscSNPrintf(fname,PETSC_MAX_PATH_LEN-1,"%s.pbin",prefix);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(comm,fname,FILE_MODE_WRITE,&v);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(string,PETSC_MAX_PATH_LEN-1,"%s.py",fname);CHKERRQ(ierr);
+  
+  ierr = PetscSNPrintf(string,PETSC_MAX_PATH_LEN-1,"%s.py",prefix);CHKERRQ(ierr);
   
   fp = fopen(string,"w");
   if (!fp) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot open file %s",string);
@@ -931,6 +943,9 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char fname[])
     DM cdm,subDM;
     PetscBool isProduct;
     Vec coor;
+    DM pda;
+    Vec subX;
+    PetscInt dof[4];
     
     ierr = DMGetCoordinateDM(dm,&cdm);CHKERRQ(ierr);
     ierr = PetscObjectTypeCompare((PetscObject)cdm,DMPRODUCT,&isProduct);CHKERRQ(ierr);
@@ -940,18 +955,67 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char fname[])
         ierr = DMGetCoordinates(subDM,&coor);CHKERRQ(ierr);
         ierr = VecView(coor,v);CHKERRQ(ierr);
         pythonemitvec(fp,"x1d");
+        
+        ierr = DMStagGetDOF(subDM,&dof[0],&dof[1],&dof[2],&dof[3]);CHKERRQ(ierr);
+        if (dof[0] != 0) {
+          ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_LEFT,-dof[0],&pda,&subX);CHKERRQ(ierr);
+          ierr = VecView(subX,v);CHKERRQ(ierr);
+          pythonemitvec(fp,"x1d_vertex");
+          ierr = VecDestroy(&subX);CHKERRQ(ierr);
+          ierr = DMDestroy(&pda);CHKERRQ(ierr);
+        }
+        if (dof[1] != 0) {
+          ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_ELEMENT,-dof[1],&pda,&subX);CHKERRQ(ierr);
+          ierr = VecView(subX,v);CHKERRQ(ierr);
+          pythonemitvec(fp,"x1d_cell");
+          ierr = VecDestroy(&subX);CHKERRQ(ierr);
+          ierr = DMDestroy(&pda);CHKERRQ(ierr);
+        }
       }
       if (dim >= 2) {
         ierr = DMProductGetDM(cdm,1,&subDM);CHKERRQ(ierr);
         ierr = DMGetCoordinates(subDM,&coor);CHKERRQ(ierr);
         ierr = VecView(coor,v);CHKERRQ(ierr);
         pythonemitvec(fp,"y1d");
+        
+        ierr = DMStagGetDOF(subDM,&dof[0],&dof[1],&dof[2],&dof[3]);CHKERRQ(ierr);
+        if (dof[0] != 0) {
+          ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_LEFT,-dof[0],&pda,&subX);CHKERRQ(ierr);
+          ierr = VecView(subX,v);CHKERRQ(ierr);
+          pythonemitvec(fp,"y1d_vertex");
+          ierr = VecDestroy(&subX);CHKERRQ(ierr);
+          ierr = DMDestroy(&pda);CHKERRQ(ierr);
+        }
+        if (dof[1] != 0) {
+          ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_ELEMENT,-dof[1],&pda,&subX);CHKERRQ(ierr);
+          ierr = VecView(subX,v);CHKERRQ(ierr);
+          pythonemitvec(fp,"y1d_cell");
+          ierr = VecDestroy(&subX);CHKERRQ(ierr);
+          ierr = DMDestroy(&pda);CHKERRQ(ierr);
+        }
       }
       if (dim == 3) {
         ierr = DMProductGetDM(cdm,2,&subDM);CHKERRQ(ierr);
         ierr = DMGetCoordinates(subDM,&coor);CHKERRQ(ierr);
         ierr = VecView(coor,v);CHKERRQ(ierr);
         pythonemitvec(fp,"z1d");
+        
+        ierr = DMStagGetDOF(subDM,&dof[0],&dof[1],&dof[2],&dof[3]);CHKERRQ(ierr);
+        if (dof[0] != 0) {
+          ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_LEFT,-dof[0],&pda,&subX);CHKERRQ(ierr);
+          ierr = VecView(subX,v);CHKERRQ(ierr);
+          pythonemitvec(fp,"z1d_vertex");
+          ierr = VecDestroy(&subX);CHKERRQ(ierr);
+          ierr = DMDestroy(&pda);CHKERRQ(ierr);
+        }
+        if (dof[1] != 0) {
+          ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_ELEMENT,-dof[1],&pda,&subX);CHKERRQ(ierr);
+          ierr = VecView(subX,v);CHKERRQ(ierr);
+          pythonemitvec(fp,"z1d_cell");
+          ierr = VecDestroy(&subX);CHKERRQ(ierr);
+          ierr = DMDestroy(&pda);CHKERRQ(ierr);
+        }
+        
       }
     } else SETERRQ(comm,PETSC_ERR_SUP,"Only supports coordinated defined via DMPRODUCT");
   }
