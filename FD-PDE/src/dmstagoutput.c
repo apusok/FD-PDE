@@ -962,38 +962,86 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char fname[])
     PetscInt dof[4];
     
     ierr = DMStagGetDOF(dm,&dof[0],&dof[1],&dof[2],&dof[3]);CHKERRQ(ierr);
-    
-    if (dof[0] != 0) {
-      ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_DOWN_LEFT,-dof[0],&pda,&subX);CHKERRQ(ierr);
-      ierr = VecView(subX,v);CHKERRQ(ierr);
-      pythonemitvec(fp,"X_vertex");
-      ierr = VecDestroy(&subX);CHKERRQ(ierr);
-      ierr = DMDestroy(&pda);CHKERRQ(ierr);
+
+    if (dim == 1) {
+      if (dof[0] != 0) {
+        ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_DOWN_LEFT,-dof[0],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecView(subX,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"X_vertex");
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+      }
+      if (dof[1] != 0) {
+        ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_ELEMENT,-dof[1],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecView(subX,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"X_cell");
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+      }
+    } else if (dim == 2) {
+      if (dof[0] != 0) {
+        ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_DOWN_LEFT,-dof[0],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecView(subX,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"X_vertex");
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+      }
+      if (dof[1] != 0) {
+        ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_LEFT,-dof[1],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecView(subX,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"X_face_x");
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+        
+        ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_DOWN,-dof[1],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecView(subX,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"X_face_y");
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+      }
+      if (dof[2] != 0) {
+        ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_ELEMENT,-dof[2],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecView(subX,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"X_cell");
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+      }
+    } else if (dim == 3) {
+      if (dof[0] != 0) {
+        ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_DOWN_LEFT,-dof[0],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecView(subX,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"X_vertex");
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+      }
+      if (dof[1] != 0) SETERRQ(comm,PETSC_ERR_SUP,"No support for edge data (3D)");
+      if (dof[2] != 0) {
+        ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_LEFT,-dof[2],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecView(subX,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"X_face_x");
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+        
+        ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_DOWN,-dof[2],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecView(subX,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"X_face_y");
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+        
+        ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_BACK,-dof[2],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecView(subX,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"X_face_z");
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+      }
+      if (dof[3] != 0) {
+        ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_ELEMENT,-dof[3],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecView(subX,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"X_cell");
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+      }
     }
-    
-    if (dof[1] != 0) {
-      ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_LEFT,-dof[1],&pda,&subX);CHKERRQ(ierr);
-      ierr = VecView(subX,v);CHKERRQ(ierr);
-      pythonemitvec(fp,"X_face_x");
-      ierr = VecDestroy(&subX);CHKERRQ(ierr);
-      ierr = DMDestroy(&pda);CHKERRQ(ierr);
-      
-      ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_DOWN,-dof[1],&pda,&subX);CHKERRQ(ierr);
-      ierr = VecView(subX,v);CHKERRQ(ierr);
-      pythonemitvec(fp,"X_face_y");
-      ierr = VecDestroy(&subX);CHKERRQ(ierr);
-      ierr = DMDestroy(&pda);CHKERRQ(ierr);
-    }
-    
-    if (dof[2] != 0) {
-      ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_ELEMENT,-dof[2],&pda,&subX);CHKERRQ(ierr);
-      ierr = VecView(subX,v);CHKERRQ(ierr);
-      pythonemitvec(fp,"X_cell");
-      ierr = VecDestroy(&subX);CHKERRQ(ierr);
-      ierr = DMDestroy(&pda);CHKERRQ(ierr);
-    }
-    
-    if (dof[3] != 0) SETERRQ(comm,PETSC_ERR_SUP,"Only support for 2D");
   }
   
   pythonemit(fp,"    return data\n\n");

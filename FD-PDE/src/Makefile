@@ -23,6 +23,7 @@ TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_stokes_solcx_vargrid.c \
 		tests/test_stokes_mor.c \
 		tests/test_dmstagbclist.c \
+		tests/test_dmstagoutput.c \
 		tests/test_fdpde.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,$(TEST_SRC))
