@@ -893,6 +893,7 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char fname[])
   char string[PETSC_MAX_PATH_LEN];
   MPI_Comm comm;
   PetscMPIInt size;
+  PetscBool view_coords = PETSC_TRUE; /* ultimately this would be an input arg */
   
   comm = PetscObjectComm((PetscObject)dm);
   ierr = MPI_Comm_size(comm,&size); CHKERRQ(ierr);
@@ -926,7 +927,7 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char fname[])
   pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['Ny'] = v\n");
   pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['Nz'] = v\n");
   
-  {
+  if (view_coords) {
     DM cdm,subDM;
     PetscBool isProduct;
     Vec coor;
@@ -952,14 +953,9 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char fname[])
         ierr = VecView(coor,v);CHKERRQ(ierr);
         pythonemitvec(fp,"z1d");
       }
-    } else SETERRQ(comm,PETSC_ERR_SUP,"Only know how to write out DMPRODUCT");
+    } else SETERRQ(comm,PETSC_ERR_SUP,"Only supports coordinated defined via DMPRODUCT");
   }
   
-  /*
-  ierr = VecView(X,v);CHKERRQ(ierr);
-  pythonemitvec(fp,"X");
-  */
-   
   {
     DM pda;
     Vec subX;
