@@ -847,3 +847,170 @@ PetscErrorCode DMStagOutputVTKBinary(DM dm, Vec x, DMStagOutputLabel *labels, Ou
 
   PetscFunctionReturn(0);
 }
+
+
+void pythonemit(FILE *fp,const char str[])
+{
+  fprintf(fp,"%s",str);
+}
+
+void pythonemitvec(FILE *fp,const char name[])
+{
+  char pline[PETSC_MAX_PATH_LEN];
+  pythonemit(fp,"    objecttype = io.readObjectType(fp)\n");
+  pythonemit(fp,"    v = io.readVec(fp)\n");
+  PetscSNPrintf(pline,PETSC_MAX_PATH_LEN-1,"    data['%s'] = v\n",name);
+  pythonemit(fp,pline);
+}
+
+/*
+ Writes a petsc binary file describing the DMStag object, and the solution vector X.
+
+ The function also emits a python script named {fname}.py which will load all binary data in the file.
+ The python script shoves all data written into a dict() to allow easy access / discovery of the data.
+ The named fields are:
+   x1d - 1D array of x-coordinates
+   y1d - 1D array of y-coordinates
+   X - the entire solution vector
+   X_vertex - entries of X with correspond to DOFS on vertices
+   X_face_x - entries of X with correspond to DOFS on faces with normals pointing in x
+   X_face_y - entries of X with correspond to DOFS on faces with normals pointing in x
+   X_cell - entries of X with correspond to DOFS on elements
+ 
+ Limitations:
+   Supports sequential MPI jobs.
+   Supports DMPRODUCT coordinates.
+*/
+#undef __FUNCT__
+#define __FUNCT__ "DMStagViewBinaryPython_SEQ"
+PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char fname[])
+{
+  PetscErrorCode ierr;
+  PetscViewer v;
+  PetscInt M,N,P,dim;
+  FILE *fp = NULL;
+  char string[PETSC_MAX_PATH_LEN];
+  MPI_Comm comm;
+  PetscMPIInt size;
+  
+  comm = PetscObjectComm((PetscObject)dm);
+  ierr = MPI_Comm_size(comm,&size); CHKERRQ(ierr);
+  if (size != 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sequential only");
+  
+  ierr = PetscViewerBinaryOpen(comm,fname,FILE_MODE_WRITE,&v);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(string,PETSC_MAX_PATH_LEN-1,"%s.py",fname);CHKERRQ(ierr);
+  
+  fp = fopen(string,"w");
+  if (!fp) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot open file %s",string);
+  
+  pythonemit(fp,"import PetscBinaryIO as pio\n");
+  pythonemit(fp,"import numpy as np\n");
+  pythonemit(fp,"io = pio.PetscBinaryIO()\n");
+  pythonemit(fp,"def _PETScBinaryLoad():\n");
+  
+  PetscSNPrintf(string,PETSC_MAX_PATH_LEN-1,"  filename = \"%s\"\n",fname);
+  pythonemit(fp,string);
+  pythonemit(fp,"  data = dict()\n");
+  pythonemit(fp,"  with open(filename) as fp:\n");
+  
+  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
+  ierr = DMStagGetGlobalSizes(dm,&M,&N,&P);CHKERRQ(ierr);
+  
+  ierr = PetscViewerBinaryWrite(v,(void*)&M,1,PETSC_INT,PETSC_FALSE);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryWrite(v,(void*)&N,1,PETSC_INT,PETSC_FALSE);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryWrite(v,(void*)&P,1,PETSC_INT,PETSC_FALSE);CHKERRQ(ierr);
+  
+  pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['Nx'] = v\n");
+  pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['Ny'] = v\n");
+  pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['Nz'] = v\n");
+  
+  {
+    DM cdm,subDM;
+    PetscBool isProduct;
+    Vec coor;
+    
+    ierr = DMGetCoordinateDM(dm,&cdm);CHKERRQ(ierr);
+    ierr = PetscObjectTypeCompare((PetscObject)cdm,DMPRODUCT,&isProduct);CHKERRQ(ierr);
+    if (isProduct) {
+      if (dim >= 1) {
+        ierr = DMProductGetDM(cdm,0,&subDM);CHKERRQ(ierr);
+        ierr = DMGetCoordinates(subDM,&coor);CHKERRQ(ierr);
+        ierr = VecView(coor,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"x1d");
+      }
+      if (dim >= 2) {
+        ierr = DMProductGetDM(cdm,1,&subDM);CHKERRQ(ierr);
+        ierr = DMGetCoordinates(subDM,&coor);CHKERRQ(ierr);
+        ierr = VecView(coor,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"y1d");
+      }
+      if (dim == 3) {
+        ierr = DMProductGetDM(cdm,2,&subDM);CHKERRQ(ierr);
+        ierr = DMGetCoordinates(subDM,&coor);CHKERRQ(ierr);
+        ierr = VecView(coor,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"z1d");
+      }
+    } else SETERRQ(comm,PETSC_ERR_SUP,"Only know how to write out DMPRODUCT");
+  }
+  
+  ierr = VecView(X,v);CHKERRQ(ierr);
+  pythonemitvec(fp,"X");
+  
+  {
+    DM pda;
+    Vec subX;
+    PetscInt dof[4];
+    
+    ierr = DMStagGetDOF(dm,&dof[0],&dof[1],&dof[2],&dof[3]);CHKERRQ(ierr);
+    
+    if (dof[0] != 0) {
+      ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_DOWN_LEFT,-dof[0],&pda,&subX);CHKERRQ(ierr);
+      ierr = VecView(subX,v);CHKERRQ(ierr);
+      pythonemitvec(fp,"X_vertex");
+      ierr = VecDestroy(&subX);CHKERRQ(ierr);
+      ierr = DMDestroy(&pda);CHKERRQ(ierr);
+    }
+    
+    if (dof[1] != 0) {
+      ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_LEFT,-dof[1],&pda,&subX);CHKERRQ(ierr);
+      ierr = VecView(subX,v);CHKERRQ(ierr);
+      pythonemitvec(fp,"X_face_x");
+      ierr = VecDestroy(&subX);CHKERRQ(ierr);
+      ierr = DMDestroy(&pda);CHKERRQ(ierr);
+      
+      ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_DOWN,-dof[1],&pda,&subX);CHKERRQ(ierr);
+      ierr = VecView(subX,v);CHKERRQ(ierr);
+      pythonemitvec(fp,"X_face_y");
+      ierr = VecDestroy(&subX);CHKERRQ(ierr);
+      ierr = DMDestroy(&pda);CHKERRQ(ierr);
+    }
+    
+    if (dof[2] != 0) {
+      ierr = DMStagVecSplitToDMDA(dm,X,DMSTAG_ELEMENT,-dof[2],&pda,&subX);CHKERRQ(ierr);
+      ierr = VecView(subX,v);CHKERRQ(ierr);
+      pythonemitvec(fp,"X_cell");
+      ierr = VecDestroy(&subX);CHKERRQ(ierr);
+      ierr = DMDestroy(&pda);CHKERRQ(ierr);
+    }
+    
+    if (dof[3] != 0) SETERRQ(comm,PETSC_ERR_SUP,"Only support for 2D");
+  }
+  
+  pythonemit(fp,"    return data\n\n");
+  
+  pythonemit(fp,"def _PETScBinaryLoadReportNames(data):\n");
+  ierr = PetscSNPrintf(string,PETSC_MAX_PATH_LEN-1,"  print('Filename: %s')\n",fname);CHKERRQ(ierr);
+  pythonemit(fp,string);
+  pythonemit(fp,"  print('Contents:')\n");
+  pythonemit(fp,"  for key in data:\n");
+  pythonemit(fp,"    print('  textual name registered:',key)\n");
+  
+  pythonemit(fp,"data = _PETScBinaryLoad()\n");
+  pythonemit(fp,"_PETScBinaryLoadReportNames(data)\n");
+  
+  ierr = PetscViewerDestroy(&v);CHKERRQ(ierr);
+  fclose(fp);
+  
+  PetscFunctionReturn(0);
+}
+
