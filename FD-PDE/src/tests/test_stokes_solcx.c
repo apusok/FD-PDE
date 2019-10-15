@@ -15,6 +15,7 @@ static char help[] = "Application to solve the SolCx benchmark with FD-PDE \n\n"
 
 #include "petsc.h"
 #include "../fdpde_stokes.h"
+#include "../dmstagoutput.h"
 #include "../benchmark_solcx.h"
 
 // ---------------------------------------
