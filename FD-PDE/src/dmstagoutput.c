@@ -864,18 +864,19 @@ void pythonemitvec(FILE *fp,const char name[])
 }
 
 /*
- Writes a petsc binary file describing the DMStag object, and the solution vector X.
-
+ Writes a petsc binary file describing the DMStag object, and the data from the vector X.
+ The binary output pulls apart X and writes out seperate Vec objects for DOFs defined on the DMStag stratum.
+ Data living on an edge/face is decomposed into 2 (2D) or 3 (3D) face-wise Vec's.
+ 
  The function also emits a python script named {fname}.py which will load all binary data in the file.
  The python script shoves all data written into a dict() to allow easy access / discovery of the data.
  The named fields are:
-   x1d - 1D array of x-coordinates
-   y1d - 1D array of y-coordinates
-   X - the entire solution vector
-   X_vertex - entries of X with correspond to DOFS on vertices
-   X_face_x - entries of X with correspond to DOFS on faces with normals pointing in x
-   X_face_y - entries of X with correspond to DOFS on faces with normals pointing in x
-   X_cell - entries of X with correspond to DOFS on elements
+   "x1d" - 1D array of x-coordinates
+   "y1d" - 1D array of y-coordinates
+   "X_vertex" - entries from X with correspond to DOFs on vertices
+   "X_face_x" - entries from X with correspond to DOFs on faces with normals pointing in {+,-}x direction
+   "X_face_y" - entries from X with correspond to DOFs on faces with normals pointing in {+,-}y direction
+   "X_cell" - entries from X with correspond to DOFs on elements
  
  Limitations:
    Supports sequential MPI jobs.
@@ -892,6 +893,7 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char fname[])
   char string[PETSC_MAX_PATH_LEN];
   MPI_Comm comm;
   PetscMPIInt size;
+  PetscBool view_coords = PETSC_TRUE; /* ultimately this would be an input arg */
   
   comm = PetscObjectComm((PetscObject)dm);
   ierr = MPI_Comm_size(comm,&size); CHKERRQ(ierr);
@@ -925,7 +927,7 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char fname[])
   pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['Ny'] = v\n");
   pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['Nz'] = v\n");
   
-  {
+  if (view_coords) {
     DM cdm,subDM;
     PetscBool isProduct;
     Vec coor;
@@ -951,11 +953,8 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char fname[])
         ierr = VecView(coor,v);CHKERRQ(ierr);
         pythonemitvec(fp,"z1d");
       }
-    } else SETERRQ(comm,PETSC_ERR_SUP,"Only know how to write out DMPRODUCT");
+    } else SETERRQ(comm,PETSC_ERR_SUP,"Only supports coordinated defined via DMPRODUCT");
   }
-  
-  ierr = VecView(X,v);CHKERRQ(ierr);
-  pythonemitvec(fp,"X");
   
   {
     DM pda;
