@@ -21,13 +21,14 @@ PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscIn
 
   // Create data
   ierr = DMCreateGlobalVector(dm,&x);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dm, &xlocal); CHKERRQ(ierr);
 
   // Get local domain
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
   // Map global vectors to local domain
-  ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  // ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
+  // ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArrayDOF(dm, xlocal, &xx); CHKERRQ(ierr);
 
   // Get dm coordinates array
@@ -78,7 +79,7 @@ PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscIn
     PetscInt icenter=-1;
     ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr);
 
-    for (ii = 0; ii<dof1; ii++) {
+    for (ii = 0; ii<dof2; ii++) {
       for (j = sz; j<sz+nz; j++) {
         for (i = sx; i<sx+nx; i++) {
           ierr = DMStagGetLocationSlot(dm, DMSTAG_ELEMENT,ii, &idx); CHKERRQ(ierr);
@@ -91,10 +92,18 @@ PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscIn
   // Restore arrays, local vectors
   ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&cx,&cz,NULL);CHKERRQ(ierr);
   ierr = DMStagVecRestoreArrayDOF(dm,xlocal,&xx); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
+  // ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
+
+  // Local to global
+  ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  
+  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
 
   // Output data
   ierr = DMStagViewBinaryPython_SEQ(dm,x,fname);CHKERRQ(ierr);
+
+  // ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
  // Destroy
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
@@ -112,7 +121,12 @@ int main (int argc,char **argv)
   
   n = 10;
   ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return(ierr);
+
   ierr = test0(n-1,n,2,2,2,"test0");CHKERRQ(ierr);
+  ierr = test0(n,n,2,1,0,"test1");CHKERRQ(ierr); // can use imshow()
+  ierr = test0(n+1,n,1,0,0,"test2");CHKERRQ(ierr);
+  ierr = test0(n,n+1,0,1,0,"test3");CHKERRQ(ierr);
+  ierr = test0(n+2,n,0,0,1,"test4");CHKERRQ(ierr);
 
   ierr = PetscFinalize();
   return(ierr);
