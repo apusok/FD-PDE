@@ -5,9 +5,14 @@ Magma-Assisted Tectonics: two-phase dynamics of oceanic and continental rifts
 
 Goal: create analytical and numerical tools to understand how magmatism promotes and shapes rifts in continental and oceanic lithosphere.
 
-## Installation
+### FD-PDE Framework
+In `FD-PDE/src/`:
+- Clean executables: `make clean_all`
+- Make tests: `make tests`
+- Run tests: 
+- Visualization: using python modules and examples in /utils/
 
-### Code executables
+### StagRidge code executables
 In `StagRidge/src/`:
 
 - Clean executables: `make clean_all`
@@ -18,6 +23,7 @@ In `StagRidge/src/`:
 ### Documentation
 Compile LateX documentation in `/docs/` with: `make docs`
 
+## Installation
 ### PETSc
 
 The current Petsc version should be obtained from [petsc-bitbucket](https://bitbucket.org/petsc/petsc/src/master/):
@@ -55,3 +61,4 @@ If you need to check install options for a specific environment, the default vir
 
 ### Inkscape 
 Create illustrations (.svg) and then compile images during `make docs` to include in LaTeX documents. Install through macports: `sudo port install inkscape`
+

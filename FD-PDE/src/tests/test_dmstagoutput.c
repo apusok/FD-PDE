@@ -122,11 +122,11 @@ int main (int argc,char **argv)
   n = 10;
   ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return(ierr);
 
-  ierr = test0(n-1,n,2,2,2,"test0");CHKERRQ(ierr);
-  ierr = test0(n,n,2,1,0,"test1");CHKERRQ(ierr); // can use imshow()
-  ierr = test0(n+1,n,1,0,0,"test2");CHKERRQ(ierr);
-  ierr = test0(n,n+1,0,1,0,"test3");CHKERRQ(ierr);
-  ierr = test0(n+2,n,0,0,1,"test4");CHKERRQ(ierr);
+  ierr = test0(n-1,n,2,2,2,"out_test_dmstagoutput0");CHKERRQ(ierr);
+  ierr = test0(n,n,2,1,0,"out_test_dmstagoutput1");CHKERRQ(ierr); // can use imshow()
+  ierr = test0(n+1,n,1,0,0,"out_test_dmstagoutput2");CHKERRQ(ierr);
+  ierr = test0(n,n+1,0,1,0,"out_test_dmstagoutput3");CHKERRQ(ierr);
+  ierr = test0(n+2,n,0,0,1,"out_test_dmstagoutput4");CHKERRQ(ierr);
 
   ierr = PetscFinalize();
   return(ierr);
