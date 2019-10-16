@@ -24,7 +24,6 @@ struct _FDPDEOps {
   PetscErrorCode (*form_function)(SNES,Vec,Vec,void*);
   PetscErrorCode (*form_jacobian)(SNES,Vec,Mat,Mat,void*);
   PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*);
-  PetscErrorCode (*create_coefficient)(FDPDE);
   PetscErrorCode (*create)(FDPDE);
   PetscErrorCode (*create_jacobian)(FDPDE,Mat*);
 };
@@ -42,6 +41,8 @@ struct _p_FDPDE {
   SNES            snes;
   MPI_Comm        comm;
   PetscInt        Nx,Nz;
+  PetscInt        dof0,dof1,dof2;
+  PetscInt        dofc0,dofc1,dofc2;
   PetscScalar     x0,x1,z0,z1;
   PetscBool       setupcalled;
 };

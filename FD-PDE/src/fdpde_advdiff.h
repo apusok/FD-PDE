@@ -10,7 +10,6 @@
 // Function definitions
 // ---------------------------------------
 PetscErrorCode FDPDECreate_AdvDiff(FDPDE);
-PetscErrorCode CreateCoefficient_AdvDiff(FDPDE);
 PetscErrorCode JacobianCreate_AdvDiff(FDPDE,Mat*);
 PetscErrorCode JacobianPreallocator_AdvDiff(FDPDE,Mat);
 

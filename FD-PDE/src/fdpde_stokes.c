@@ -31,74 +31,20 @@ Use: internal
 #define __FUNCT__ "FDPDECreate_Stokes"
 PetscErrorCode FDPDECreate_Stokes(FDPDE fd)
 {
-  DM             dmstag;
-  PetscInt       dofPV0, dofPV1, dofPV2, stencilWidth;
   PetscErrorCode ierr;
-  
   PetscFunctionBegin;
 
   // Initialize data
   ierr = PetscStrallocpy(stokes_description,&fd->description); CHKERRQ(ierr);
 
-  // stencil dofs
-  dofPV0 = 0; dofPV1 = 1; dofPV2 = 1; // dmstag: Vx, Vz (edges), P (element)
-  stencilWidth = 1;
-
-  // Create DMStag object for Stokes unknowns: dmstag (P-element, v-vertex)
-  ierr = DMStagCreate2d(fd->comm, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, fd->Nx, fd->Nz, 
-            PETSC_DECIDE, PETSC_DECIDE, dofPV0, dofPV1, dofPV2, 
-            DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dmstag); CHKERRQ(ierr);
-  ierr = DMSetFromOptions(dmstag); CHKERRQ(ierr);
-  ierr = DMSetUp         (dmstag); CHKERRQ(ierr);
-
-  // Create default coordinates (user can change them before calling FDSolve)
-  ierr = DMStagSetUniformCoordinatesProduct(dmstag,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
-
-  // Assign pointers
-  fd->dmstag  = dmstag;
+  // STOKES Stencil dofs: dmstag - Vx, Vz (edges), P (element)
+  fd->dof0  = 0; fd->dof1  = 1; fd->dof2  = 1; 
+  fd->dofc0 = 1; fd->dofc1 = 1; fd->dofc2 = 2;
 
   // Evaluation functions
   fd->ops->form_function      = FormFunction_Stokes;
   fd->ops->form_jacobian      = NULL;
   fd->ops->create_jacobian    = JacobianCreate_Stokes;
-  fd->ops->create_coefficient = CreateCoefficient_Stokes;
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-/*@
-CreateCoefficient_Stokes - creates the coefficient data (dmcoeff, coeff) for FDPDEType = FDPDE_STOKES
-
-Use: internal
-@*/
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "CreateCoefficient_Stokes"
-PetscErrorCode CreateCoefficient_Stokes(FDPDE fd)
-{
-  DM             dmCoeff;
-  PetscInt       dofCf0, dofCf1, dofCf2;
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
-
-  // Stencil dofs
-  dofCf0 = 1; dofCf1 = 1; dofCf2 = 2;
-
-  if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"DM object for FD-PDE is NULL. The constructor for FDPDE-STOKES is required to create a valid DM of type DMSTAG");
-
-  // Create DMStag object for Stokes coefficients: dmCoeff 
-  ierr = DMStagCreateCompatibleDMStag(fd->dmstag, dofCf0, dofCf1, dofCf2, 0, &dmCoeff); CHKERRQ(ierr);
-  ierr = DMSetUp(dmCoeff); CHKERRQ(ierr);
-
-  // Set coordinates - should mimic the same method as dmstag
-  ierr = DMStagSetUniformCoordinatesProduct(dmCoeff,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
-
-  // Assign pointers
-  fd->dmcoeff = dmCoeff;
-
-  // Create global vector
-  ierr = DMCreateGlobalVector(fd->dmcoeff,&fd->coeff); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

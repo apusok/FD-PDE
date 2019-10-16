@@ -27,74 +27,20 @@ Use: internal
 #define __FUNCT__ "FDPDECreate_AdvDiff"
 PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd)
 {
-  DM             dmstag;
-  PetscInt       dof0, dof1, dof2, stencilWidth;
   PetscErrorCode ierr;
-  
   PetscFunctionBegin;
 
   // Initialize data
   ierr = PetscStrallocpy(advdiff_description,&fd->description); CHKERRQ(ierr);
 
-  // stencil dofs
-  dof0 = 0; dof1 = 0; dof2 = 1; // dmstag: Q (element)
-  stencilWidth = 1;
-
-  // Create DMStag object for Stokes unknowns: dmstag (P-element, v-vertex)
-  ierr = DMStagCreate2d(fd->comm, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, fd->Nx, fd->Nz, 
-            PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2, 
-            DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dmstag); CHKERRQ(ierr);
-  ierr = DMSetFromOptions(dmstag); CHKERRQ(ierr);
-  ierr = DMSetUp         (dmstag); CHKERRQ(ierr);
-
-  // Create default coordinates (user can change them before calling FDSolve)
-  ierr = DMStagSetUniformCoordinatesProduct(dmstag,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
-
-  // Assign pointers
-  fd->dmstag  = dmstag;
+  // ADVDIFF Stencil dofs: dmstag - Q (element)
+  fd->dof0  = 0; fd->dof1  = 0; fd->dof2  = 1; 
+  fd->dofc0 = 0; fd->dofc1 = 2; fd->dofc2 = 2;
 
   // Evaluation functions
   fd->ops->form_function      = FormFunction_AdvDiff;
   fd->ops->form_jacobian      = NULL;
   fd->ops->create_jacobian    = JacobianCreate_AdvDiff;
-  fd->ops->create_coefficient = CreateCoefficient_AdvDiff;
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-/*@
-CreateCoefficient_AdvDiff - creates the coefficient data (dmcoeff, coeff) for FDPDEType = FDPDE_ADVDIFF
-
-Use: internal
-@*/
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "CreateCoefficient_AdvDiff"
-PetscErrorCode CreateCoefficient_AdvDiff(FDPDE fd)
-{
-  DM             dmCoeff;
-  PetscInt       dofCf0, dofCf1, dofCf2;
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
-
-  // Stencil dofs
-  dofCf0 = 0; dofCf1 = 2; dofCf2 = 2;
-
-  if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"DM object for FD-PDE is NULL. The constructor for FDPDE-ADVDIFF is required to create a valid DM of type DMSTAG");
-
-  // Create DMStag object for Stokes coefficients: dmCoeff 
-  ierr = DMStagCreateCompatibleDMStag(fd->dmstag, dofCf0, dofCf1, dofCf2, 0, &dmCoeff); CHKERRQ(ierr);
-  ierr = DMSetUp(dmCoeff); CHKERRQ(ierr);
-
-  // Set coordinates - should mimic the same method as dmstag
-  ierr = DMStagSetUniformCoordinatesProduct(dmCoeff,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
-
-  // Assign pointers
-  fd->dmcoeff = dmCoeff;
-
-  // Create global vector
-  ierr = DMCreateGlobalVector(fd->dmcoeff,&fd->coeff); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

@@ -129,30 +129,40 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
       break;
     case FDPDE_ADVDIFF:
       fd->ops->create = FDPDECreate_AdvDiff;
-      // SETERRQ(fd->comm,PETSC_ERR_SUP,"FD-PDE type FDPDE_ADVDIFF is not yet implemented.");
       break;
     default:
       SETERRQ(fd->comm,PETSC_ERR_ARG_UNKNOWN_TYPE,"Unknown type of FD-PDE specified");
   }
 
-  // Create individual FD-PDE type
+  // Set individual FD-PDE type options
   ierr = fd->ops->create(fd); CHKERRQ(ierr);
-  if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"DM object for FD-PDE is NULL. The FD-PDE implementation constructor is required to create a valid DM of type DMSTAG");
-  {
-    PetscBool isStag;
-    ierr = PetscObjectTypeCompare((PetscObject)fd->dmstag,DMSTAG,&isStag);CHKERRQ(ierr);
-    if (!isStag) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONGSTATE,"FD-PDE requires that the discretisation DM is of type DMSTAG");
+
+  if ((!fd->dof0) && (!fd->dof1) && (!fd->dof2)) {
+    SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"All FD-PDE dmstag DOFs are zero! Cannot create DMStag object required for FD-PDE.");
   }
+
+  if ((!fd->dofc0) && (!fd->dofc1) && (!fd->dofc2)) {
+    SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"All FD-PDE dmcoeff DOFs are zero! Cannot create DMStag coefficient object required for FD-PDE.");
+  }
+
+  // Create dms and vector - specific to FD-PDE
+  ierr = DMStagCreate2d(fd->comm, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, fd->Nx, fd->Nz, 
+            PETSC_DECIDE, PETSC_DECIDE, fd->dof0, fd->dof1, fd->dof2, 
+            DMSTAG_STENCIL_BOX, 1, NULL,NULL, &fd->dmstag); CHKERRQ(ierr);
+  ierr = DMSetFromOptions(fd->dmstag); CHKERRQ(ierr);
+  ierr = DMSetUp         (fd->dmstag); CHKERRQ(ierr);
+  ierr = DMStagSetUniformCoordinatesProduct(fd->dmstag,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
+
+  // Create DMStag object for coefficients
+  ierr = DMStagCreateCompatibleDMStag(fd->dmstag, fd->dofc0, fd->dofc1, fd->dofc2, 0, &fd->dmcoeff); CHKERRQ(ierr);
+  ierr = DMSetUp(fd->dmcoeff); CHKERRQ(ierr);
+  ierr = DMStagSetUniformCoordinatesProduct(fd->dmcoeff,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
 
   // Create global vectors
   ierr = DMCreateGlobalVector(fd->dmstag,&fd->x);CHKERRQ(ierr);
   ierr = VecDuplicate(fd->x,&fd->r);CHKERRQ(ierr);
   ierr = VecDuplicate(fd->x,&fd->xguess);CHKERRQ(ierr);
-  
-  // Create coefficient dm and vector - specific to FD-PDE
-  if (fd->ops->create_coefficient) {
-    ierr = fd->ops->create_coefficient(fd);CHKERRQ(ierr);
-  }
+  ierr = DMCreateGlobalVector(fd->dmcoeff,&fd->coeff); CHKERRQ(ierr);
 
   // Create BClist object
   ierr = DMStagBCListCreate(fd->dmstag,&fd->bclist);CHKERRQ(ierr);
