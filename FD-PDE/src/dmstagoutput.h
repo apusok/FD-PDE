@@ -33,5 +33,6 @@ typedef struct {
 PetscErrorCode DMStagOutputGetLabels(DM,DMStagOutputLabel**);
 PetscErrorCode DMStagOutputAddLabel(DM,DMStagOutputLabel*, const char[],PetscInt, DMStagStencilLocation);
 PetscErrorCode DMStagOutputVTKBinary(DM,Vec,DMStagOutputLabel*,OutputVTKType,const char[]);
+PetscErrorCode DMStagViewBinaryPython(DM,Vec,const char*);
 
 #endif

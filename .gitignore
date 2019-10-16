@@ -6,9 +6,13 @@
 /petsc_examples/stokes_snes/stokes_snes
 /StagRidge/src/stagridge
 /StagRidge/src/stagridge_advdiff
+*.app
 
 # OUTPUT
 *.vtr
+*.pbin
+*.info
+__pycache__
 
 # Logfiles
 *.out
