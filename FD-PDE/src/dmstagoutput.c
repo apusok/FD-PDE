@@ -920,6 +920,11 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char prefix[])
   pythonemit(fp,"import PetscBinaryIO as pio\n");
   pythonemit(fp,"import numpy as np\n\n");
 
+  pythonemit(fp,"def _PETScBinaryFilePrefix():\n");
+  PetscSNPrintf(string,PETSC_MAX_PATH_LEN-1,"  return \"%s\"\n",prefix);
+  pythonemit(fp,string);
+  pythonemit(fp,"\n");
+
   pythonemit(fp,"def _PETScBinaryLoad():\n");
   pythonemit(fp,"  io = pio.PetscBinaryIO()\n");
 
