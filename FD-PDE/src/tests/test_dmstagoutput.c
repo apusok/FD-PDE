@@ -101,7 +101,7 @@ PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscIn
   ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
 
   // Output data
-  ierr = DMStagViewBinaryPython_SEQ(dm,x,fname);CHKERRQ(ierr);
+  ierr = DMStagViewBinaryPython(dm,x,fname);CHKERRQ(ierr);
 
   // ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 

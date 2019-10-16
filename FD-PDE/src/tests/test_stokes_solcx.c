@@ -142,8 +142,14 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   // Output solution to file
   ierr = DoOutput(dmPV,x,"numerical_solution.vtr");CHKERRQ(ierr);
 
-  ierr = DMStagViewBinaryPython_SEQ(dmPV,x,"numerical_solution");CHKERRQ(ierr);
-
+  ierr = DMStagViewBinaryPython(dmPV,x,"numerical_solution");CHKERRQ(ierr);
+  {
+    DM dmcoeff;
+    Vec coeff;
+    ierr = FDPDEGetCoefficient(fd,&dmcoeff,&coeff);CHKERRQ(ierr);
+    ierr = DMStagViewBinaryPython(dmcoeff,coeff,"coefficients");CHKERRQ(ierr);
+  }
+  
   
   // Destroy FD-PDE object
   ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);

@@ -12,7 +12,7 @@ print('# Running test: '+test0)
 print('# --------------------------------------- #')
 
 # Run test
-os.system('../test_dmstagoutput.app')
+os.system('mpiexec -n 2 ../test_dmstagoutput.app')
 
 # Visualize data
 dmout.general_output_pcolormesh('test0','RdBu')
