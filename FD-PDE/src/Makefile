@@ -57,4 +57,5 @@ clean_all:
 	@rm -rf $(OBJ)
 	@rm -rf $(TEST_OBJ)
 	@rm -rf $(TEST_APP)
-	@rm -rf *.dSYM ./tests/*.dSYM
+	@rm -rf *.dSYM ./tests/*.dSYM *.py *.vtr *.pbin *.info
+	@rm -rf ./tests/python/out_* ./tests/python/__pycache__
