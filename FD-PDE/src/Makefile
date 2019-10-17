@@ -7,7 +7,7 @@ SRC := 	dmstagbclist.c \
 	prealloc_helper.c \
 	fdpde.c \
 	fdpde_stokes_residual.c fdpde_stokes.c \
-	fdpde_advdiff_residual.c fdpde_advdiff.c
+	fdpde_advdiff_advect.c fdpde_advdiff_residual.c fdpde_advdiff.c
 
 HDR := 	benchmark_solcx.h \
 	benchmark_cornerflow.h \
@@ -25,6 +25,7 @@ TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_stokes_solcx_vargrid.c \
 		tests/test_stokes_mor.c \
 		tests/test_advdiff_laplace.c \
+		tests/test_advdiff_elman.c \
 		tests/test_dmstagbclist.c \
 		tests/test_dmstagoutput.c \
 		tests/test_fdpde.c \

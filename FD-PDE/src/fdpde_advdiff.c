@@ -42,6 +42,9 @@ PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd)
   fd->ops->form_jacobian      = NULL;
   fd->ops->create_jacobian    = JacobianCreate_AdvDiff;
 
+  // overwrite default advection method
+  fd->advtype = ADV_UPWIND;
+
   PetscFunctionReturn(0);
 }
 

@@ -495,7 +495,7 @@ int main (int argc,char **argv)
   // Destroy objects
   ierr = DMDestroy(&dmLaplace); CHKERRQ(ierr);
   ierr = VecDestroy(&xLaplace); CHKERRQ(ierr);
-  // ierr = VecDestroy(&xAnalytic); CHKERRQ(ierr);
+  ierr = VecDestroy(&xAnalytic); CHKERRQ(ierr);
 
   ierr = PetscBagDestroy(&usr->bag); CHKERRQ(ierr);
   ierr = PetscFree(usr);             CHKERRQ(ierr);

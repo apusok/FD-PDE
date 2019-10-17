@@ -18,7 +18,12 @@ PetscErrorCode EnergyStencil(PetscInt,PetscInt,PetscInt,PetscInt,DMStagStencil*)
 
 // RESIDUAL
 PetscErrorCode FormFunction_AdvDiff(SNES,Vec,Vec,void*);
-PetscErrorCode EnergyResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
-PetscErrorCode DMStagBCListApply_AdvDiff(DM,Vec,DM,Vec,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,PetscInt[],PetscScalar***);
+PetscErrorCode EnergyResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,AdvectType,PetscScalar*);
+PetscErrorCode DMStagBCListApply_AdvDiff(DM,Vec,DM,Vec,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,PetscScalar***);
+
+// ADVECTION
+PetscErrorCode AdvectionResidual(PetscScalar[],PetscScalar[],PetscScalar[],PetscScalar[],AdvectType,PetscScalar*);
+PetscScalar UpwindAdvection(PetscScalar[], PetscScalar[], PetscScalar[], PetscScalar[]);
+PetscScalar FrommAdvection(PetscScalar[], PetscScalar[], PetscScalar[], PetscScalar[]);
 
 #endif

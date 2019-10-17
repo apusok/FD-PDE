@@ -13,6 +13,9 @@
 // FD-PDE type
 typedef enum { FDPDE_UNINIT = 0, FDPDE_STOKES, FDPDE_ADVDIFF } FDPDEType;
 
+// Advection type
+typedef enum { ADV_UNINIT = 0, ADV_UPWIND, ADV_FROMM } AdvectType;
+
 // ---------------------------------------
 // Struct definitions
 // ---------------------------------------
@@ -37,6 +40,7 @@ struct _p_FDPDE {
   DMStagBCList    bclist;
   void           *user_context;
   FDPDEType       type;
+  AdvectType      advtype;
   char           *description, *description_bc, *description_coeff;
   SNES            snes;
   MPI_Comm        comm;
@@ -58,6 +62,7 @@ PetscErrorCode FDPDEDestroy(FDPDE*);
 PetscErrorCode FDPDEView(FDPDE);
 PetscErrorCode FDPDESolve(FDPDE,PetscBool*);
 
+PetscErrorCode FDPDESetAdvectType(FDPDE, AdvectType);
 PetscErrorCode FDPDESetFunctionBCList(FDPDE, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void*);
 PetscErrorCode FDPDESetFunctionCoefficient(FDPDE, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), const char description[], void*);
 
