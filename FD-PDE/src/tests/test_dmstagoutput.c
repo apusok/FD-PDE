@@ -27,8 +27,6 @@ PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscIn
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
   // Map global vectors to local domain
-  // ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  // ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArrayDOF(dm, xlocal, &xx); CHKERRQ(ierr);
 
   // Get dm coordinates array
@@ -92,7 +90,6 @@ PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscIn
   // Restore arrays, local vectors
   ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&cx,&cz,NULL);CHKERRQ(ierr);
   ierr = DMStagVecRestoreArrayDOF(dm,xlocal,&xx); CHKERRQ(ierr);
-  // ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
 
   // Local to global
   ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);

@@ -1,5 +1,5 @@
 static char help[] = "FD-PDE test \n\n";
-// run: ./tests/test_fd
+// run: ./tests/test_fd.app
 
 #include "petsc.h"
 #include "../fdpde.h"
@@ -17,8 +17,6 @@ PetscErrorCode test0(PetscInt nx,PetscInt nz)
   
   PetscFunctionReturn(0);
 }
-
-// test1 - 
 
 #undef __FUNCT__
 #define __FUNCT__ "main"
