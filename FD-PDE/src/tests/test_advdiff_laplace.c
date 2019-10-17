@@ -1,4 +1,8 @@
-/* Application to solve the Laplace equation (ADVDIFF) with FD-PDE */
+// ---------------------------------------
+// LAPLACE (ADVDIFF) benchmark \nabla^2 T = 0
+// run: ./tests/test_advdiff_laplace.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// python test: ./tests/python/test_advdiff_laplace.py
+// ---------------------------------------
 static char help[] = "Application to solve the Laplace equation (ADVDIFF) with FD-PDE \n\n";
 
 // define convenient names for DMStagStencilLocation
@@ -48,8 +52,6 @@ PetscErrorCode Analytic_Laplace(DM,Vec*,void*);
 PetscErrorCode Numerical_Laplace(DM*,Vec*,void*);
 PetscErrorCode FormCoefficient_Laplace(DM,Vec,DM,Vec,void*);
 PetscErrorCode FormBCList_Laplace(DM,Vec,DMStagBCList,void*);
-PetscErrorCode DoOutput_Laplace(DM,Vec,const char[]);
-PetscErrorCode DoOutput(DM,Vec,const char[]);
 
 // ---------------------------------------
 // Some descriptions
@@ -80,7 +82,7 @@ PetscErrorCode Numerical_Laplace(DM *_dm, Vec *_x, void *ctx)
   DM             dm;
   Vec            x;
   PetscInt       nx, nz;
-  PetscScalar    xmin, zmin, xmax, zmax;
+  PetscScalar    dx, dz,xmin, zmin, xmax, zmax;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -90,10 +92,14 @@ PetscErrorCode Numerical_Laplace(DM *_dm, Vec *_x, void *ctx)
   nz = usr->par->nz;
 
   // Domain coords
-  xmin = usr->par->xmin;
-  zmin = usr->par->zmin;
-  xmax = usr->par->xmin+usr->par->L;
-  zmax = usr->par->zmin+usr->par->H;
+  dx = usr->par->L/(2*nx-2);
+  dz = usr->par->H/(2*nz-2);
+
+  // modify coord of dm such that unknowns are located on the boundaries limits (0,1)
+  xmin = usr->par->xmin-dx;
+  zmin = usr->par->zmin-dz;
+  xmax = usr->par->xmin+usr->par->L+dx;
+  zmax = usr->par->zmin+usr->par->H+dz;
 
   // Create the FD-pde object
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ADVDIFF,&fd);CHKERRQ(ierr);
@@ -118,8 +124,7 @@ PetscErrorCode Numerical_Laplace(DM *_dm, Vec *_x, void *ctx)
   ierr = FDPDEGetDM(fd, &dm); CHKERRQ(ierr);
 
   // Output solution to file
-  ierr = DoOutput_Laplace(dm,x,"num_solution_laplace.vtr");CHKERRQ(ierr);
-  ierr = DoOutput(dm,x,"num_solution_laplace2.vtr");CHKERRQ(ierr);
+  ierr = DMStagViewBinaryPython(dm,x,usr->par->fname_out);CHKERRQ(ierr);
 
   // Destroy FD-PDE object
   ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
@@ -334,8 +339,7 @@ PetscErrorCode Analytic_Laplace(DM dm,Vec *_x, void *ctx)
 
   ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
 
-  ierr = DoOutput_Laplace(dm,x,"analytic_solution_laplace.vtr");CHKERRQ(ierr);
-  ierr = DoOutput(dm,x,"analytic_solution_laplace2.vtr");CHKERRQ(ierr);
+  ierr = DMStagViewBinaryPython(dm,x,"out_analytic_solution_laplace");CHKERRQ(ierr);
 
   // Assign pointers
   *_x  = x;
@@ -391,68 +395,13 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->uz, 0.0, "uz", "Vertical velocity"); CHKERRQ(ierr);
 
   // Input/output 
-  ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"output","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_num_solution_laplace","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
 
   // Other variables
   par->fname_in[0] = '\0';
 
   // return pointer
   *_usr = usr;
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-// DoOutput_Laplace
-// ---------------------------------------
-PetscErrorCode DoOutput_Laplace(DM dm,Vec x,const char fname[])
-{
-  DMStagOutputLabel *labels;
-  PetscErrorCode ierr;
-  PetscFunctionBeginUser;
-
-  // get labels list - reflects the structure of DMStag (dofs)
-  ierr = DMStagOutputGetLabels(dm,&labels); CHKERRQ(ierr);
-
-  // add labels to output
-  ierr = DMStagOutputAddLabel(dm,labels,"Temperature []",0,ELEMENT);
-
-  // output - may choose different types
-  ierr = DMStagOutputVTKBinary(dm,x,labels,VTK_CENTER,fname);CHKERRQ(ierr);
-  // ierr = DMStagOutputVTKBinary(dm,x,labels,VTK_CORNER,fname);CHKERRQ(ierr);
-
-  // Free labels
-  ierr = PetscFree(labels);CHKERRQ(ierr);
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-// DoOutput
-// ---------------------------------------
-PetscErrorCode DoOutput(DM dm,Vec x,const char fname[])
-{
-  DM             dmT;
-  Vec            vecT;
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-
-  // Create individual DMDAs for sub-grids of our DMStag objects
-  ierr = DMStagVecSplitToDMDA(dm,x,ELEMENT,0,&dmT,&vecT); CHKERRQ(ierr);
-  ierr = PetscObjectSetName  ((PetscObject)vecT,"Temperature");         CHKERRQ(ierr);
-
-  // Dump element-based fields to a .vtr file
-  {
-    PetscViewer viewer;
-    ierr = PetscViewerVTKOpen(PetscObjectComm((PetscObject)dmT),fname,FILE_MODE_WRITE,&viewer); CHKERRQ(ierr);
-    ierr = VecView(vecT,     viewer); CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
-  }
-
-  // Destroy DMDAs and Vecs
-  ierr = VecDestroy(&vecT  ); CHKERRQ(ierr);
-  ierr = DMDestroy(&dmT    ); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
