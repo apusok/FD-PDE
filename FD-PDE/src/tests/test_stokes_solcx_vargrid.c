@@ -1,6 +1,9 @@
-/* Application to solve the SolCx benchmark with FD-PDE */
+// ---------------------------------------
+// SOLCX benchmark - Irregular grid spacing
+// run: ./tests/test_stokes_solcx_vargrid.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// viz: with Paraview (example VTK output)
+// ---------------------------------------
 static char help[] = "Application to solve the SolCx benchmark with FD-PDE - Irregular grid spacing \n\n";
-// run: ./tests/test_stokes_solcx_vargrid -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
 
 // define convenient names for DMStagStencilLocation
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
@@ -35,7 +38,6 @@ typedef struct {
 typedef struct {
   Params        *par;
   PetscBag       bag;
-  PetscInt       dofV, dofP;
   MPI_Comm       comm;
   PetscMPIInt    rank;
 } UsrData;
@@ -201,10 +203,6 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   // Other variables
   par->fname_in[0] = '\0';
-
-  // dofs
-  usr->dofV = (par->nx+1)*par->nz + par->nx*(par->nz+1);
-  usr->dofP = par->nx*par->nz;
 
   // return pointer
   *_usr = usr;
