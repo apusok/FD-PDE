@@ -54,7 +54,6 @@ PetscErrorCode InputParameters(UsrData**);
 PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode FormCoefficient(DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList_MOR(DM, Vec, DMStagBCList, void*);
-PetscErrorCode DoOutput_Stokes(DM,Vec,const char[]);
 
 // ---------------------------------------
 // Some descriptions
@@ -122,7 +121,6 @@ PetscErrorCode SNESStokes_MOR(DM *_dm, Vec *_x, void *ctx)
   ierr = FDPDEGetDM(fd, &dmPV); CHKERRQ(ierr);
 
   // Output solution to file
-  // ierr = DoOutput_Stokes(dmPV,x,"num_solution_mor.vtr");CHKERRQ(ierr);
   ierr = DMStagViewBinaryPython(dmPV,x,usr->par->fname_out);CHKERRQ(ierr);
 
   // Destroy FD-PDE object
@@ -576,38 +574,11 @@ PetscErrorCode Analytic_MOR(DM dm,Vec *_x, void *ctx)
 
   ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
 
-  // ierr = DoOutput(dm,x,"analytic_solution_mor.vtr");CHKERRQ(ierr);
   ierr = DMStagViewBinaryPython(dm,x,"out_analytic_solution_mor");CHKERRQ(ierr);
 
   // Assign pointers
   *_x  = x;
   
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-// DoOutput_Stokes
-// ---------------------------------------
-PetscErrorCode DoOutput_Stokes(DM dm,Vec x,const char fname[])
-{
-  DMStagOutputLabel *labels;
-  PetscErrorCode ierr;
-  PetscFunctionBeginUser;
-
-  // get labels list - reflects the structure of DMStag (dofs)
-  ierr = DMStagOutputGetLabels(dm,&labels); CHKERRQ(ierr);
-
-  // add labels to output
-  ierr = DMStagOutputAddLabel(dm,labels,"Velocity []",0,LEFT   ); // faces (vector)
-  ierr = DMStagOutputAddLabel(dm,labels,"Pressure []",0,ELEMENT); // element (scalar)
-
-  // output - may choose different types
-  // ierr = DMStagOutputVTKBinary(dm,x,labels,VTK_CENTER,fname);CHKERRQ(ierr);
-  ierr = DMStagOutputVTKBinary(dm,x,labels,VTK_CORNER,fname);CHKERRQ(ierr);
-
-  // Free labels
-  ierr = PetscFree(labels);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
