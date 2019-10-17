@@ -6,7 +6,7 @@ SRC := 	dmstagbclist.c \
 	dmstagoutput.c \
 	prealloc_helper.c \
 	fdpde.c \
-	fdpde_stokes_physics.c fdpde_stokes_residual.c fdpde_stokes.c \
+	fdpde_stokes_residual.c fdpde_stokes.c \
 	fdpde_advdiff_residual.c fdpde_advdiff.c
 
 HDR := 	benchmark_solcx.h \

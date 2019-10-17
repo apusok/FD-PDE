@@ -1,9 +1,9 @@
 // ---------------------------------------
 // SOLCX benchmark - constant grid spacing
-// ---------------------------------------
-static char help[] = "Application to solve the SolCx benchmark with FD-PDE \n\n";
 // run: ./tests/test_stokes_solcx.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
 // python test: ./tests/python/test_stokes_solcx.py
+// ---------------------------------------
+static char help[] = "Application to solve the SolCx benchmark with FD-PDE \n\n";
 
 // define convenient names for DMStagStencilLocation
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
