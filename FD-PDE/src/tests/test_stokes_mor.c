@@ -1,6 +1,9 @@
-/* Application to solve the Corner flow (mid-ocean ridges) benchmark with FD-PDE */
-static char help[] = "Application to solve the 2D corner flow (mid-ocean ridges) benchmark with FD-PDE \n\n";
+// ---------------------------------------
+// Corner flow (mid-ocean ridges) benchmark
 // run: ./tests/test_stokes_mor.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// python test: ./tests/python/test_stokes_mor.py
+// ---------------------------------------
+static char help[] = "Application to solve the 2D corner flow (mid-ocean ridges) benchmark with FD-PDE \n\n";
 
 // define convenient names for DMStagStencilLocation
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
@@ -38,7 +41,6 @@ typedef struct {
 typedef struct {
   Params        *par;
   PetscBag       bag;
-  PetscInt       dofV, dofP;
   MPI_Comm       comm;
   PetscMPIInt    rank;
 } UsrData;
@@ -53,7 +55,6 @@ PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode FormCoefficient(DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList_MOR(DM, Vec, DMStagBCList, void*);
 PetscErrorCode DoOutput_Stokes(DM,Vec,const char[]);
-PetscErrorCode DoOutput(DM,Vec,const char[]);
 
 // ---------------------------------------
 // Some descriptions
@@ -121,9 +122,8 @@ PetscErrorCode SNESStokes_MOR(DM *_dm, Vec *_x, void *ctx)
   ierr = FDPDEGetDM(fd, &dmPV); CHKERRQ(ierr);
 
   // Output solution to file
-  // ierr = DoOutput(dmPV,x,"numerical_solution_mor.vtr");CHKERRQ(ierr);
-  // ierr = DoOutput_Stokes(dmPV,x,"numerical_solution_mor.vtr");CHKERRQ(ierr);
-  ierr = DMStagViewBinaryPython(dmPV,x,"numerical_solution_mor");CHKERRQ(ierr);
+  // ierr = DoOutput_Stokes(dmPV,x,"num_solution_mor.vtr");CHKERRQ(ierr);
+  ierr = DMStagViewBinaryPython(dmPV,x,usr->par->fname_out);CHKERRQ(ierr);
 
   // Destroy FD-PDE object
   ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
@@ -183,7 +183,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   if (par->rangle>0.0) SETERRQ(usr->comm,PETSC_ERR_SUP,"Internal boundary conditions not implemented for rangle>0!");
 
   // Input/output 
-  ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"output","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_num_solution_mor","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
 
   // Other variables
   par->fname_in[0] = '\0';
@@ -192,10 +192,6 @@ PetscErrorCode InputParameters(UsrData **_usr)
   par->sina = PetscSinScalar(par->radalpha);
   par->C1 = 2*par->sina*par->sina/(PETSC_PI-2*par->radalpha-PetscSinScalar(2*par->radalpha));
   par->C4 = -2/(PETSC_PI-2*par->radalpha-PetscSinScalar(2*par->radalpha));
-
-  // dofs
-  usr->dofV = (par->nx+1)*par->nz + par->nx*(par->nz+1);
-  usr->dofP = par->nx*par->nz;
 
   // return pointer
   *_usr = usr;
@@ -581,7 +577,7 @@ PetscErrorCode Analytic_MOR(DM dm,Vec *_x, void *ctx)
   ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
 
   // ierr = DoOutput(dm,x,"analytic_solution_mor.vtr");CHKERRQ(ierr);
-  ierr = DMStagViewBinaryPython(dm,x,"analytic_solution_mor");CHKERRQ(ierr);
+  ierr = DMStagViewBinaryPython(dm,x,"out_analytic_solution_mor");CHKERRQ(ierr);
 
   // Assign pointers
   *_x  = x;
@@ -611,100 +607,6 @@ PetscErrorCode DoOutput_Stokes(DM dm,Vec x,const char fname[])
 
   // Free labels
   ierr = PetscFree(labels);CHKERRQ(ierr);
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-// DoOutput
-// ---------------------------------------
-PetscErrorCode DoOutput(DM dm,Vec x,const char fname[])
-{
-  DM             dmVel,  daVel, daP;
-  Vec            vecVel, vaVel, vecP;
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-
-  // Create a new DM and Vec for velocity
-  ierr = DMStagCreateCompatibleDMStag(dm,0,0,2,0,&dmVel); CHKERRQ(ierr);
-  ierr = DMSetUp(dmVel); CHKERRQ(ierr);
-  ierr = DMStagSetUniformCoordinatesExplicit(dmVel,0.0,1.0,-1.0,0.0,0.0,0.0); CHKERRQ(ierr);
-
-  // Create global vectors
-  ierr = DMCreateGlobalVector(dmVel,&vecVel); CHKERRQ(ierr);
-  
-  // Loop over elements
-  {
-    PetscInt     i, j, sx, sz, nx, nz;
-    Vec          xlocal;
-    
-    // Access local vector
-    ierr = DMGetLocalVector(dm,&xlocal); CHKERRQ(ierr);
-    ierr = DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal); CHKERRQ(ierr);
-    
-    // Get corners
-    ierr = DMStagGetCorners(dmVel,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL); CHKERRQ(ierr);
-    
-    // Loop
-    for (j = sz; j < sz+nz; ++j) {
-      for (i = sx; i < sx+nx; ++i) {
-        DMStagStencil from[4], to[2];
-        PetscScalar   valFrom[4], valTo[2];
-        
-        from[0].i = i; from[0].j = j; from[0].loc = UP;    from[0].c = 0;
-        from[1].i = i; from[1].j = j; from[1].loc = DOWN;  from[1].c = 0;
-        from[2].i = i; from[2].j = j; from[2].loc = LEFT;  from[2].c = 0;
-        from[3].i = i; from[3].j = j; from[3].loc = RIGHT; from[3].c = 0;
-        
-        // Get values from stencil locations
-        ierr = DMStagVecGetValuesStencil(dm,xlocal,4,from,valFrom); CHKERRQ(ierr);
-        
-        // Average edge values to obtain ELEMENT values
-        to[0].i = i; to[0].j = j; to[0].loc = ELEMENT; to[0].c = 0; valTo[0] = 0.5 * (valFrom[2] + valFrom[3]);
-        to[1].i = i; to[1].j = j; to[1].loc = ELEMENT; to[1].c = 1; valTo[1] = 0.5 * (valFrom[0] + valFrom[1]);
-        
-        // Return values in new dm - averaged velocities
-        ierr = DMStagVecSetValuesStencil(dmVel,vecVel,2,to,valTo,INSERT_VALUES); CHKERRQ(ierr);
-      }
-    }
-    
-    // Vector assembly
-    ierr = VecAssemblyBegin(vecVel); CHKERRQ(ierr);
-    ierr = VecAssemblyEnd  (vecVel); CHKERRQ(ierr);
-    
-    // Restore vector
-    ierr = DMRestoreLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  }
-
-  // Create individual DMDAs for sub-grids of our DMStag objects
-  ierr = DMStagVecSplitToDMDA(dm,x,ELEMENT,0,&daP,&vecP); CHKERRQ(ierr);
-  ierr = PetscObjectSetName  ((PetscObject)vecP,"Pressure");         CHKERRQ(ierr);
-  
-  ierr = DMStagVecSplitToDMDA(dmVel,vecVel,ELEMENT,-3,&daVel,&vaVel); CHKERRQ(ierr); // note -3 : output 2 DOFs
-  ierr = PetscObjectSetName  ((PetscObject)vaVel,"Velocity");          CHKERRQ(ierr);
-
-  // Dump element-based fields to a .vtr file
-  {
-    PetscViewer viewer;
-
-    // Warning: is being output as Point Data instead of Cell Data - the grid is shifted to be in the center points.
-    ierr = PetscViewerVTKOpen(PetscObjectComm((PetscObject)daVel),fname,FILE_MODE_WRITE,&viewer); CHKERRQ(ierr);
-    ierr = VecView(vaVel,    viewer); CHKERRQ(ierr);
-    ierr = VecView(vecP,     viewer); CHKERRQ(ierr);
-    
-    // Free memory
-    ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
-  }
-
-  // Destroy DMDAs and Vecs
-  ierr = VecDestroy(&vecVel); CHKERRQ(ierr);
-  ierr = VecDestroy(&vaVel ); CHKERRQ(ierr);
-  ierr = VecDestroy(&vecP  ); CHKERRQ(ierr);
-  
-  ierr = DMDestroy(&dmVel  ); CHKERRQ(ierr);
-  ierr = DMDestroy(&daVel  ); CHKERRQ(ierr);
-  ierr = DMDestroy(&daP    ); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

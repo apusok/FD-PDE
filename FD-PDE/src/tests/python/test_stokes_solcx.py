@@ -1,5 +1,7 @@
 # ---------------------------------------
 # SOLCX benchmark - constant grid spacing (convergence test)
+# 1. Convergence test
+# 2. Plot solution for isoviscous, variable viscosity
 # ---------------------------------------
 
 # Import libraries
@@ -26,7 +28,7 @@ for nx in n:
     fout1 = f1+'_'+str(nx)+'.out'
     fout2 = f2+'_'+str(nx)+'.out'
 
-    # Run Stagridge with different resolutions
+    # Run with different resolutions
     str1 = '../test_stokes_solcx.app -pc_type lu -pc_factor_mat_solver_type umfpack -output_file '+f1+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
     print(str1)
     os.system(str1)
