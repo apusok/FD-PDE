@@ -123,7 +123,7 @@ PetscErrorCode SNESStokes_MOR(DM *_dm, Vec *_x, void *ctx)
   // Output solution to file
   // ierr = DoOutput(dmPV,x,"numerical_solution_mor.vtr");CHKERRQ(ierr);
   // ierr = DoOutput_Stokes(dmPV,x,"numerical_solution_mor.vtr");CHKERRQ(ierr);
-  ierr = DMStagViewBinaryPython(dmPV,x,"numerical_solution_mor.vtr");CHKERRQ(ierr);
+  ierr = DMStagViewBinaryPython(dmPV,x,"numerical_solution_mor");CHKERRQ(ierr);
 
   // Destroy FD-PDE object
   ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
@@ -581,7 +581,7 @@ PetscErrorCode Analytic_MOR(DM dm,Vec *_x, void *ctx)
   ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
 
   // ierr = DoOutput(dm,x,"analytic_solution_mor.vtr");CHKERRQ(ierr);
-  ierr = DMStagViewBinaryPython(dm,x,"analytic_solution_mor.vtr");CHKERRQ(ierr);
+  ierr = DMStagViewBinaryPython(dm,x,"analytic_solution_mor");CHKERRQ(ierr);
 
   // Assign pointers
   *_x  = x;

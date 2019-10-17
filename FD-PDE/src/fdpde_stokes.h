@@ -20,13 +20,14 @@ PetscErrorCode ContinuityStencil(PetscInt,PetscInt,DMStagStencil*);
 PetscErrorCode XMomentumStencil(PetscInt,PetscInt,PetscInt,DMStagStencil*);
 PetscErrorCode ZMomentumStencil(PetscInt,PetscInt,PetscInt,DMStagStencil*);
 
-// PHYSICS
+// RESIDUAL STENCILS
 PetscErrorCode ContinuityResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
 PetscErrorCode XMomentumResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
 PetscErrorCode ZMomentumResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
 
 // RESIDUAL
 PetscErrorCode FormFunction_Stokes(SNES, Vec, Vec, void*);
-PetscErrorCode DMStagBCListApply_Stokes(DM, Vec,DM, Vec, DMStagBC*, PetscInt, PetscScalar**, PetscScalar**,PetscInt[], PetscScalar***);
+PetscErrorCode DMStagBCListApplyFace_Stokes(DM, Vec,DM, Vec, DMStagBC*, PetscInt, PetscScalar**, PetscScalar**,PetscInt[], PetscScalar***);
+PetscErrorCode DMStagBCListApplyElement_Stokes(DM, Vec,DM, Vec, DMStagBC*, PetscInt, PetscScalar**, PetscScalar**,PetscInt[], PetscScalar***);
 
 #endif

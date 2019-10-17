@@ -90,8 +90,8 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   }
 
   // Boundary conditions - edges and element
-  ierr = DMStagBCListApply_Stokes(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,ff);CHKERRQ(ierr);
-  ierr = DMStagBCListApply_Stokes(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,n,ff);CHKERRQ(ierr);
+  ierr = DMStagBCListApplyFace_Stokes(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,ff);CHKERRQ(ierr);
+  ierr = DMStagBCListApplyElement_Stokes(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,n,ff);CHKERRQ(ierr);
 
   // Restore arrays, local vectors
   ierr = DMStagRestore1dCoordinateArraysDOFRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -325,14 +325,14 @@ PetscErrorCode ZMomentumResidual(DM dm, Vec xlocal, DM dmcoeff, Vec coefflocal,P
 
 // ---------------------------------------
 /*@
-DMStagBCListApply_Stokes - (STOKES) function to apply boundary conditions for Stokes equations
+DMStagBCListApplyFace_Stokes - (STOKES) function to apply boundary conditions for Stokes equations [flux terms to boundary conditions]
 
 Use: internal
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "DMStagBCListApply_Stokes"
-PetscErrorCode DMStagBCListApply_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscScalar ***ff)
+#define __FUNCT__ "DMStagBCListApplyFace_Stokes"
+PetscErrorCode DMStagBCListApplyFace_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscScalar ***ff)
 {
   PetscScalar    xx, dx, dz;
   PetscScalar    etaLeft, etaRight, etaUp, etaDown;
@@ -403,6 +403,41 @@ PetscErrorCode DMStagBCListApply_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec coeffl
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] += 2.0*etaRight*bclist[ibc].val/dx;
       }
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+DMStagBCListApplyElement_Stokes - (STOKES) function to apply boundary conditions for Stokes equations [flux terms to boundary conditions]
+
+Use: internal
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "DMStagBCListApplyElement_Stokes"
+PetscErrorCode DMStagBCListApplyElement_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscScalar ***ff)
+{
+  PetscScalar    xx;
+  PetscInt       i, j, ibc, idx;
+  PetscErrorCode ierr;
+  PetscFunctionBeginUser;
+
+  // Loop over all boundaries
+  for (ibc = 0; ibc<nbc; ibc++) {
+    if (bclist[ibc].type == BC_DIRICHLET) {
+      i   = bclist[ibc].point.i;
+      j   = bclist[ibc].point.j;
+      idx = bclist[ibc].idx;
+
+      // Get residual value
+      ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
+      ff[j][i][idx] = xx - bclist[ibc].val;
+    }
+
+    if (bclist[ibc].type == BC_NEUMANN) {
+      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"BC type NEUMANN for FDPDE_STOKES [ELEMENT] is not yet implemented.");
     }
   }
   PetscFunctionReturn(0);
