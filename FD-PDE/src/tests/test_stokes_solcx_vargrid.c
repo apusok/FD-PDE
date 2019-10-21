@@ -502,10 +502,10 @@ PetscErrorCode DoOutput(DM dm,Vec x,const char fname[])
   ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr);
   ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr);
 
-  xmin = cx[0 ][iprev];
-  xmax = cx[Nx][inext];
-  zmin = cz[0 ][iprev];
-  zmax = cz[Nz][inext];
+  xmin = cx[0   ][iprev];
+  xmax = cx[Nx-1][inext];
+  zmin = cz[0   ][iprev];
+  zmax = cz[Nz-1][inext];
 
   ierr = DMStagSetUniformCoordinatesProduct(dmVel,xmin,xmax,zmin,zmax,0.0,0.0);CHKERRQ(ierr);
   ierr = DMStagGet1dCoordinateLocationSlot(dmVel,DMSTAG_ELEMENT,&icenterc);CHKERRQ(ierr);
