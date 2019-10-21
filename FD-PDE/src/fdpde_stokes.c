@@ -131,9 +131,6 @@ PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd,Mat J)
   
   // Push the non-zero pattern defined within preallocator into the Jacobian
   ierr = MatPreallocatePhaseEnd(J); CHKERRQ(ierr);
-  
-  // View preallocated struct of the Jacobian
-  //ierr = MatView(J,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
 
   // Matrix assembly
   ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);

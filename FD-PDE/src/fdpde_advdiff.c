@@ -4,10 +4,10 @@
 
 const char advdiff_description[] =
 "  << FD-PDE ADVDIFF >> solves the PDEs: \n"
-"    A(dQ/dt + div (uT)) - div(B grad Q) + C = 0 \n"
+"    A(dQ/dt + div (uQ)) - div(B grad Q) + C = 0 \n"
 "    OR \n"
 "    dQ/dt + 1/A SD(Q) = 0, where \n"
-"    SD(Q) = A(div (uT)) - div(B grad Q) + C, is the steady state solution. \n"
+"    SD(Q) = A(div (uQ)) - div(B grad Q) + C, is the steady state solution. \n"
 "  Notes: \n"
 "  * Unknowns: Q - can be temperature. \n" 
 "  * The coefficients A,B,C,u need to be defined by the user. \n" 
@@ -111,9 +111,6 @@ PetscErrorCode JacobianPreallocator_AdvDiff(FDPDE fd,Mat J)
   
   // Push the non-zero pattern defined within preallocator into the Jacobian
   ierr = MatPreallocatePhaseEnd(J); CHKERRQ(ierr);
-  
-  // View preallocated struct of the Jacobian
-  //ierr = MatView(J,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
 
   // Matrix assembly
   ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);

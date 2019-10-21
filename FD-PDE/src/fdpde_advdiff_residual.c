@@ -85,10 +85,6 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMLocalToGlobalEnd  (dm,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
 
   ierr = VecDestroy(&flocal); CHKERRQ(ierr);
-
-  // // View vectors
-  // ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-  // ierr = VecView(f,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
   
   PetscFunctionReturn(0);
 }
