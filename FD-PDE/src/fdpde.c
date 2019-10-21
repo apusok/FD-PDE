@@ -351,30 +351,6 @@ PetscErrorCode FDPDEGetCoefficient(FDPDE fd, DM *dmcoeff, Vec *coeff)
   PetscFunctionReturn(0);
 }
 
-// // ---------------------------------------
-// /*@
-// FDPDESetAdvectType - set a method for advection (ADVDIFF)
-
-// Input Parameter:
-// fd - the FD-PDE object
-// advtype - advection scheme type 
-
-// Use: user
-// @*/
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDPDESetAdvectType"
-// PetscErrorCode FDPDESetAdvectType(FDPDE fd, AdvectType advtype)
-// {
-//   PetscErrorCode ierr;
-//   PetscFunctionBegin;
-
-//   if (fd->type != FDPDE_ADVDIFF) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"The Advection Type should be set only for FD-PDE Type = ADVDIFF!");
-//   fd->advtype = advtype;
-
-//   PetscFunctionReturn(0);
-// }
-
 // ---------------------------------------
 /*@
 FDPDESetFunctionBCList - set an evaluation function for boundary conditions 

@@ -24,6 +24,8 @@ PetscErrorCode AdvectionResidual(PetscScalar v[], PetscScalar x[], PetscScalar d
   
   // Choose between different advection schemes
   switch (advtype) {
+    case ADV_NONE:
+      break;
     case ADV_UPWIND:
       fval = UpwindAdvection(v,x,dx,dz);
       break;

@@ -10,10 +10,10 @@
 // Struct definitions
 // ---------------------------------------
 // Advection type
-typedef enum { ADV_UNINIT = 0, ADV_UPWIND, ADV_FROMM } AdvectSchemeType;
+typedef enum { ADV_UNINIT = 0, ADV_NONE, ADV_UPWIND, ADV_FROMM } AdvectSchemeType;
 
 // Time-stepping type
-typedef enum { TS_UNINIT = 0, TS_FORWARD_EULER, TS_BACKWARD_EULER, TS_CRANK_NICHOLSON } TimeStepSchemeType;
+typedef enum { TS_UNINIT = 0, TS_NONE, TS_FORWARD_EULER, TS_BACKWARD_EULER, TS_CRANK_NICHOLSON } TimeStepSchemeType;
 
 // user defined and model-dependent variables
 typedef struct {

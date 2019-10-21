@@ -102,10 +102,10 @@ PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Pets
 {
   PetscScalar    ffi;
   PetscInt       Nx, Nz, icenter;
-  PetscScalar    xx[9], cx[10], v[5];
+  PetscScalar    xx[9], cx[10], u[5];
   PetscScalar    dx[3], dz[3];
-  PetscScalar    kLeft, kRight, kUp, kDown, Qsource;
-  PetscScalar    dTdx, dTdz, diff, adv, rhocp;
+  PetscScalar    A, B_Left, B_Right, B_Up, B_Down, C;
+  PetscScalar    dQ2dx, dQ2dz, diff, adv;
   DMStagStencil  point[10];
   PetscErrorCode ierr;
 
@@ -118,10 +118,10 @@ PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Pets
   // Coefficients
   point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0; // A = rho*cp
   point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_ELEMENT; point[1].c = 1; // C = heat production/sink
-  point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_LEFT;    point[2].c = 0; // k_left
-  point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_RIGHT;   point[3].c = 0; // k_right
-  point[4].i = i; point[4].j = j; point[4].loc = DMSTAG_DOWN;    point[4].c = 0; // k_down
-  point[5].i = i; point[5].j = j; point[5].loc = DMSTAG_UP;      point[5].c = 0; // k_up
+  point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_LEFT;    point[2].c = 0; // B_left = k
+  point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_RIGHT;   point[3].c = 0; // B_right
+  point[4].i = i; point[4].j = j; point[4].loc = DMSTAG_DOWN;    point[4].c = 0; // B_down
+  point[5].i = i; point[5].j = j; point[5].loc = DMSTAG_UP;      point[5].c = 0; // B_up
   point[6].i = i; point[6].j = j; point[6].loc = DMSTAG_LEFT;    point[6].c = 1; // u_left
   point[7].i = i; point[7].j = j; point[7].loc = DMSTAG_RIGHT;   point[7].c = 1; // u_right
   point[8].i = i; point[8].j = j; point[8].loc = DMSTAG_DOWN;    point[8].c = 1; // u_down
@@ -130,19 +130,19 @@ PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Pets
   ierr = DMStagVecGetValuesStencil(dmcoeff,coefflocal,10,point,cx); CHKERRQ(ierr);
 
   // Assign variables
-  rhocp   = cx[0];
-  Qsource = cx[1];
+  A = cx[0];
+  C = cx[1];
 
-  kLeft  = cx[2];
-  kRight = cx[3];
-  kDown  = cx[4];
-  kUp    = cx[5];
+  B_Left  = cx[2];
+  B_Right = cx[3];
+  B_Down  = cx[4];
+  B_Up    = cx[5];
 
-  v[0] = 0.0; //
-  v[1] = cx[6]; //vW
-  v[2] = cx[7]; //vE
-  v[3] = cx[8]; //vS
-  v[4] = cx[9]; //vN
+  u[0] = 0.0; //
+  u[1] = cx[6]; // u_left
+  u[2] = cx[7]; // u_right
+  u[3] = cx[8]; // u_down
+  u[4] = cx[9]; // u_up
 
   // Grid spacings
   dx[0] = coordx[i+1][icenter]-coordx[i  ][icenter];
@@ -154,17 +154,17 @@ PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Pets
   dz[2] = (dz[0]+dz[1])*0.5;
 
   // Get stencil values - diffusion
-  point[0].i = i  ; point[0].j = j  ; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0; // Ti,j -C
-  point[1].i = i-1; point[1].j = j  ; point[1].loc = DMSTAG_ELEMENT; point[1].c = 0; // Ti-1,j -W
-  point[2].i = i+1; point[2].j = j  ; point[2].loc = DMSTAG_ELEMENT; point[2].c = 0; // Ti+1,j -E
-  point[3].i = i  ; point[3].j = j-1; point[3].loc = DMSTAG_ELEMENT; point[3].c = 0; // Ti,j-1 -S
-  point[4].i = i  ; point[4].j = j+1; point[4].loc = DMSTAG_ELEMENT; point[4].c = 0; // Ti,j+1 -N
+  point[0].i = i  ; point[0].j = j  ; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0; // Qi,j -C
+  point[1].i = i-1; point[1].j = j  ; point[1].loc = DMSTAG_ELEMENT; point[1].c = 0; // Qi-1,j -W
+  point[2].i = i+1; point[2].j = j  ; point[2].loc = DMSTAG_ELEMENT; point[2].c = 0; // Qi+1,j -E
+  point[3].i = i  ; point[3].j = j-1; point[3].loc = DMSTAG_ELEMENT; point[3].c = 0; // Qi,j-1 -S
+  point[4].i = i  ; point[4].j = j+1; point[4].loc = DMSTAG_ELEMENT; point[4].c = 0; // Qi,j+1 -N
 
   // Get stencil values - advection (need to take into account outside boundaries)
-  point[5].i = i-2; point[5].j = j  ; point[5].loc = DMSTAG_ELEMENT; point[5].c = 0; // Ti-2,j -WW
-  point[6].i = i+2; point[6].j = j  ; point[6].loc = DMSTAG_ELEMENT; point[6].c = 0; // Ti+2,j -EE
-  point[7].i = i  ; point[7].j = j-2; point[7].loc = DMSTAG_ELEMENT; point[7].c = 0; // Ti,j-2 -SS
-  point[8].i = i  ; point[8].j = j+2; point[8].loc = DMSTAG_ELEMENT; point[8].c = 0; // Ti,j+2 -NN
+  point[5].i = i-2; point[5].j = j  ; point[5].loc = DMSTAG_ELEMENT; point[5].c = 0; // Qi-2,j -WW
+  point[6].i = i+2; point[6].j = j  ; point[6].loc = DMSTAG_ELEMENT; point[6].c = 0; // Qi+2,j -EE
+  point[7].i = i  ; point[7].j = j-2; point[7].loc = DMSTAG_ELEMENT; point[7].c = 0; // Qi,j-2 -SS
+  point[8].i = i  ; point[8].j = j+2; point[8].loc = DMSTAG_ELEMENT; point[8].c = 0; // Qi,j+2 -NN
 
   if (i == 1) point[5] = point[1];
   if (j == 1) point[7] = point[3];
@@ -174,13 +174,13 @@ PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Pets
   ierr = DMStagVecGetValuesStencil(dm,xlocal,9,point,xx); CHKERRQ(ierr);
 
   // Calculate diff residual
-  dTdx = kRight*(xx[2]-xx[0])/dx[0] - kLeft*(xx[0]-xx[1])/dx[1];
-  dTdz = kUp   *(xx[4]-xx[0])/dz[0] - kDown*(xx[0]-xx[3])/dz[1];
-  diff = dTdx/dx[2] + dTdz/dz[2];
+  dQ2dx = B_Right*(xx[2]-xx[0])/dx[0] - B_Left*(xx[0]-xx[1])/dx[1];
+  dQ2dz = B_Up   *(xx[4]-xx[0])/dz[0] - B_Down*(xx[0]-xx[3])/dz[1];
+  diff = dQ2dx/dx[2] + dQ2dz/dz[2];
 
   // Calculate diffadv residual
-  ierr = AdvectionResidual(v,xx,dx,dz,advtype,&adv); CHKERRQ(ierr);
-  ffi  = diff - adv*rhocp;
+  ierr = AdvectionResidual(u,xx,dx,dz,advtype,&adv); CHKERRQ(ierr);
+  ffi  = adv*A - diff + C;
 
   *ff = ffi;
   PetscFunctionReturn(0);

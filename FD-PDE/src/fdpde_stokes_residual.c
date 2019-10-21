@@ -117,7 +117,7 @@ Use: internal
 // ---------------------------------------
 PetscErrorCode ContinuityResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, PetscInt n[],PetscScalar *ff)
 {
-  PetscScalar    ffi, xx[4], rhs, dx, dz;
+  PetscScalar    ffi, xx[4], C, dx, dz;
   PetscInt       iprev, inext, nEntries = 4;
   DMStagStencil  point[4];
   PetscErrorCode ierr;
@@ -135,12 +135,12 @@ PetscErrorCode ContinuityResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, 
   
   // Coefficients
   point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT;  point[0].c = 0;
-  ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, point, &rhs); CHKERRQ(ierr);
+  ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, point, &C); CHKERRQ(ierr);
 
   // Calculate residual
   dx = coordx[i][inext]-coordx[i][iprev];
   dz = coordz[j][inext]-coordz[j][iprev];
-  ffi = (xx[1]-xx[0])/dx + (xx[3]-xx[2])/dz - rhs;
+  ffi = (xx[1]-xx[0])/dx + (xx[3]-xx[2])/dz - C;
 
   *ff = ffi;
   PetscFunctionReturn(0);
@@ -155,10 +155,10 @@ Use: internal
 // ---------------------------------------
 PetscErrorCode XMomentumResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx,PetscScalar **coordz,PetscInt i, PetscInt j,PetscInt n[],PetscScalar *ff)
 {
-  PetscScalar    dVxdz, dVzdx, dPdx, dVxdx, rhs, ffi;
+  PetscScalar    dVx2dz, dVz2dx, dPdx, dVx2dx, ffi;
   PetscInt       nEntries = 11, Nz, iprev, inext, icenter;
   PetscScalar    xx[11], dx, dx1, dx2, dz, dz1, dz2;
-  PetscScalar    etaLeft, etaRight, etaUp, etaDown;
+  PetscScalar    A_Left, A_Right, A_Up, A_Down, Bx;
   DMStagStencil  point[11];
   PetscErrorCode ierr;
 
@@ -196,11 +196,11 @@ PetscErrorCode XMomentumResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, P
 
   ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 5, point, cx); CHKERRQ(ierr);
 
-  rhs      = cx[0];
-  etaLeft  = cx[1];
-  etaRight = cx[2];
-  etaUp    = cx[3];
-  etaDown  = cx[4];
+  Bx      = cx[0];
+  A_Left  = cx[1];
+  A_Right = cx[2];
+  A_Up    = cx[3];
+  A_Down  = cx[4];
 
   // Grid spacings - need to correct for missing values
   dx  = coordx[i  ][icenter]-coordx[i-1][icenter];
@@ -222,11 +222,11 @@ PetscErrorCode XMomentumResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, P
 
   // Calculate new residual
   dPdx  = (xx[10]-xx[9])/dx;
-  dVxdx = etaRight*(xx[4]-xx[0])/dx2 - etaLeft*(xx[0]-xx[3])/dx1;
-  dVxdz = etaUp   *(xx[2]-xx[0])/dz2 - etaDown*(xx[0]-xx[1])/dz1;
-  dVzdx = etaUp   *(xx[8]-xx[7])/dx  - etaDown*(xx[6]-xx[5])/dx;
+  dVx2dx = A_Right*(xx[4]-xx[0])/dx2 - A_Left*(xx[0]-xx[3])/dx1;
+  dVx2dz = A_Up   *(xx[2]-xx[0])/dz2 - A_Down*(xx[0]-xx[1])/dz1;
+  dVz2dx = A_Up   *(xx[8]-xx[7])/dx  - A_Down*(xx[6]-xx[5])/dx;
 
-  ffi   = -dPdx + 2.0*dVxdx/dx + dVxdz/dz + dVzdx/dz - rhs;
+  ffi   = -dPdx + 2.0*dVx2dx/dx + dVx2dz/dz + dVz2dx/dz - Bx;
 
   *ff = ffi;
   PetscFunctionReturn(0);
@@ -241,10 +241,10 @@ Use: internal
 // ---------------------------------------
 PetscErrorCode ZMomentumResidual(DM dm, Vec xlocal, DM dmcoeff, Vec coefflocal,PetscScalar **coordx,PetscScalar **coordz,PetscInt i, PetscInt j,PetscInt n[],PetscScalar *ff)
 {
-  PetscScalar    dVxdz, dVzdx, dPdz, dVzdz, rhs, ffi;
+  PetscScalar    dVx2dz, dVz2dx, dPdz, dVz2dz, ffi;
   PetscInt       nEntries = 11, Nx, iprev, inext, icenter;
   PetscScalar    xx[11], dx, dz, dx1, dx2, dz1, dz2;
-  PetscScalar    etaLeft, etaRight, etaUp, etaDown;
+  PetscScalar    A_Left, A_Right, A_Up, A_Down, Bz;
   DMStagStencil  point[11];
   PetscErrorCode ierr;
 
@@ -282,11 +282,11 @@ PetscErrorCode ZMomentumResidual(DM dm, Vec xlocal, DM dmcoeff, Vec coefflocal,P
 
   ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 5, point, cx); CHKERRQ(ierr);
 
-  rhs      = cx[0];
-  etaLeft  = cx[1];
-  etaRight = cx[2];
-  etaUp    = cx[3];
-  etaDown  = cx[4];
+  Bz      = cx[0];
+  A_Left  = cx[1];
+  A_Right = cx[2];
+  A_Up    = cx[3];
+  A_Down  = cx[4];
 
   // Grid spacings
   dx  = coordx[i  ][inext  ]-coordx[i  ][iprev  ];
@@ -308,11 +308,11 @@ PetscErrorCode ZMomentumResidual(DM dm, Vec xlocal, DM dmcoeff, Vec coefflocal,P
 
   // Calculate residual
   dPdz  = (xx[10]-xx[9])/dz;
-  dVzdz = etaUp   *(xx[1]-xx[0])/dz2 - etaDown *(xx[0]-xx[2])/dz1;
-  dVzdx = etaRight*(xx[4]-xx[0])/dx2 - etaLeft *(xx[0]-xx[3])/dx1;
-  dVxdz = etaRight*(xx[6]-xx[8])/dz - etaLeft *(xx[5]-xx[7])/dz;
+  dVz2dz = A_Up   *(xx[1]-xx[0])/dz2 - A_Down *(xx[0]-xx[2])/dz1;
+  dVz2dx = A_Right*(xx[4]-xx[0])/dx2 - A_Left *(xx[0]-xx[3])/dx1;
+  dVx2dz = A_Right*(xx[6]-xx[8])/dz  - A_Left *(xx[5]-xx[7])/dz;
 
-  ffi   = -dPdz + 2.0*dVzdz/dz + dVzdx/dx + dVxdz/dx - rhs;
+  ffi   = -dPdz + 2.0*dVz2dz/dz + dVz2dx/dx + dVx2dz/dx - Bz;
 
   *ff = ffi;
 
@@ -331,7 +331,7 @@ Use: internal
 PetscErrorCode DMStagBCListApplyFace_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscScalar ***ff)
 {
   PetscScalar    xx, dx, dz;
-  PetscScalar    etaLeft, etaRight, etaUp, etaDown;
+  PetscScalar    A_Left, A_Right, A_Up, A_Down;
   PetscInt       i, j, ibc, idx, iprev, inext, Nx, Nz;
   DMStagStencil  point;
   PetscErrorCode ierr;
@@ -360,44 +360,44 @@ PetscErrorCode DMStagBCListApplyFace_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec co
       // Stokes flow - add flux terms
       if ((j == 0) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx down
         point.i = i; point.j = j; point.loc = DMSTAG_DOWN_LEFT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &etaDown); CHKERRQ(ierr);
+        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Down); CHKERRQ(ierr);
         dz = coordz[j][inext]-coordz[j][iprev];
-        ff[j][i][idx] += -2.0*etaDown*bclist[ibc].val/dz;
+        ff[j][i][idx] += -2.0*A_Down*bclist[ibc].val/dz;
       }
 
       if ((j == 0) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx down-special case
         point.i = i; point.j = j; point.loc = DMSTAG_DOWN_RIGHT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &etaDown); CHKERRQ(ierr);
+        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Down); CHKERRQ(ierr);
         dz = coordz[j][inext]-coordz[j][iprev];
-        ff[j][i][idx] += -2.0*etaDown*bclist[ibc].val/dz;
+        ff[j][i][idx] += -2.0*A_Down*bclist[ibc].val/dz;
       }
 
       if ((j == Nz-1) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx up
         point.i = i; point.j = j; point.loc = DMSTAG_UP_LEFT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &etaUp); CHKERRQ(ierr);
+        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Up); CHKERRQ(ierr);
         dz = coordz[j][inext]-coordz[j][iprev];
-        ff[j][i][idx] += 2.0*etaUp*bclist[ibc].val/dz;
+        ff[j][i][idx] += 2.0*A_Up*bclist[ibc].val/dz;
       }
 
       if ((j == Nz-1) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx up - special case
         point.i = i; point.j = j; point.loc = DMSTAG_UP_RIGHT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &etaUp); CHKERRQ(ierr);
+        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Up); CHKERRQ(ierr);
         dz = coordz[j][inext]-coordz[j][iprev];
-        ff[j][i][idx] += 2.0*etaUp*bclist[ibc].val/dz;
+        ff[j][i][idx] += 2.0*A_Up*bclist[ibc].val/dz;
       }
 
       if ((i == 0) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz left
         point.i = i; point.j = j; point.loc = DMSTAG_DOWN_LEFT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &etaLeft); CHKERRQ(ierr);
+        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Left); CHKERRQ(ierr);
         dx = coordx[i][inext]-coordx[i][iprev];
-        ff[j][i][idx] += -2.0*etaLeft*bclist[ibc].val/dx;
+        ff[j][i][idx] += -2.0*A_Left*bclist[ibc].val/dx;
       }
 
       if ((i == Nx-1) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz right
         point.i = i; point.j = j; point.loc = DMSTAG_DOWN_RIGHT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &etaRight); CHKERRQ(ierr);
+        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Right); CHKERRQ(ierr);
         dx = coordx[i][inext]-coordx[i][iprev];
-        ff[j][i][idx] += 2.0*etaRight*bclist[ibc].val/dx;
+        ff[j][i][idx] += 2.0*A_Right*bclist[ibc].val/dx;
       }
     }
   }
