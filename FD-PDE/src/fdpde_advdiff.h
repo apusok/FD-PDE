@@ -7,6 +7,21 @@
 #include "fdpde.h"
 
 // ---------------------------------------
+// Struct definitions
+// ---------------------------------------
+// Advection type
+typedef enum { ADV_UNINIT = 0, ADV_UPWIND, ADV_FROMM } AdvectSchemeType;
+
+// Time-stepping type
+typedef enum { TS_UNINIT = 0, TS_FORWARD_EULER, TS_BACKWARD_EULER, TS_CRANK_NICHOLSON } TimeStepSchemeType;
+
+// user defined and model-dependent variables
+typedef struct {
+  AdvectSchemeType   advtype;
+  TimeStepSchemeType timesteptype;
+} AdvDiffData;
+
+// ---------------------------------------
 // Function definitions
 // ---------------------------------------
 PetscErrorCode FDPDECreate_AdvDiff(FDPDE);
@@ -18,12 +33,15 @@ PetscErrorCode EnergyStencil(PetscInt,PetscInt,PetscInt,PetscInt,DMStagStencil*)
 
 // RESIDUAL
 PetscErrorCode FormFunction_AdvDiff(SNES,Vec,Vec,void*);
-PetscErrorCode EnergyResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,AdvectType,PetscScalar*);
+PetscErrorCode EnergyResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,AdvectSchemeType,PetscScalar*);
 PetscErrorCode DMStagBCListApply_AdvDiff(DM,Vec,DM,Vec,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,PetscScalar***);
 
 // ADVECTION
-PetscErrorCode AdvectionResidual(PetscScalar[],PetscScalar[],PetscScalar[],PetscScalar[],AdvectType,PetscScalar*);
+PetscErrorCode AdvectionResidual(PetscScalar[],PetscScalar[],PetscScalar[],PetscScalar[],AdvectSchemeType,PetscScalar*);
 PetscScalar UpwindAdvection(PetscScalar[], PetscScalar[], PetscScalar[], PetscScalar[]);
 PetscScalar FrommAdvection(PetscScalar[], PetscScalar[], PetscScalar[], PetscScalar[]);
+
+// Set Functions
+PetscErrorCode FDPDEAdvDiffSetAdvectSchemeType(FDPDE, AdvectSchemeType);
 
 #endif

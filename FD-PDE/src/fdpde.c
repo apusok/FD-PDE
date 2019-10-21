@@ -83,9 +83,10 @@ PetscErrorCode FDPDECreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   fd->coeff = NULL;
   fd->J     = NULL;
   fd->snes  = NULL;
+  fd->data  = NULL;
   fd->user_context = NULL;
   fd->setupcalled = PETSC_FALSE;
-  fd->advtype = ADV_UNINIT;
+  // fd->advtype = ADV_UNINIT;
 
   fd->description_bc = NULL;
   fd->description_coeff = NULL;
@@ -232,6 +233,8 @@ PetscErrorCode FDPDEDestroy(FDPDE *_fd)
   ierr = DMDestroy(&fd->dmstag); CHKERRQ(ierr);
 
   fd->user_context = NULL;
+  
+  if (fd->data) PetscFree(fd->data);
 
   ierr = PetscFree(fd->description);CHKERRQ(ierr);
   ierr = PetscFree(fd->description_bc);CHKERRQ(ierr);
@@ -348,29 +351,29 @@ PetscErrorCode FDPDEGetCoefficient(FDPDE fd, DM *dmcoeff, Vec *coeff)
   PetscFunctionReturn(0);
 }
 
-// ---------------------------------------
-/*@
-FDPDESetAdvectType - set a method for advection (ADVDIFF)
+// // ---------------------------------------
+// /*@
+// FDPDESetAdvectType - set a method for advection (ADVDIFF)
 
-Input Parameter:
-fd - the FD-PDE object
-advtype - advection scheme type 
+// Input Parameter:
+// fd - the FD-PDE object
+// advtype - advection scheme type 
 
-Use: user
-@*/
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDPDESetAdvectType"
-PetscErrorCode FDPDESetAdvectType(FDPDE fd, AdvectType advtype)
-{
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
+// Use: user
+// @*/
+// // ---------------------------------------
+// #undef __FUNCT__
+// #define __FUNCT__ "FDPDESetAdvectType"
+// PetscErrorCode FDPDESetAdvectType(FDPDE fd, AdvectType advtype)
+// {
+//   PetscErrorCode ierr;
+//   PetscFunctionBegin;
 
-  if (fd->type != FDPDE_ADVDIFF) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"The Advection Type should be set only for FD-PDE Type = ADVDIFF!");
-  fd->advtype = advtype;
+//   if (fd->type != FDPDE_ADVDIFF) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"The Advection Type should be set only for FD-PDE Type = ADVDIFF!");
+//   fd->advtype = advtype;
 
-  PetscFunctionReturn(0);
-}
+//   PetscFunctionReturn(0);
+// }
 
 // ---------------------------------------
 /*@

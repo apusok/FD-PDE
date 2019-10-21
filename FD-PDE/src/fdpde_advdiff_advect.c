@@ -17,7 +17,7 @@ AdvectionResidual - returns the residual value for the advection term for FDPDET
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode AdvectionResidual(PetscScalar v[], PetscScalar x[], PetscScalar dx[], PetscScalar dz[], AdvectType advtype, PetscScalar *val)
+PetscErrorCode AdvectionResidual(PetscScalar v[], PetscScalar x[], PetscScalar dx[], PetscScalar dz[], AdvectSchemeType advtype, PetscScalar *val)
 {
   PetscScalar    fval = 0.0;
   PetscFunctionBegin;
@@ -31,7 +31,7 @@ PetscErrorCode AdvectionResidual(PetscScalar v[], PetscScalar x[], PetscScalar d
       fval = FrommAdvection(v,x,dx,dz);
       break;
     default:
-      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"Unknown advection type! Set with FDPDESetAdvectType()");
+      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"Unknown advection scheme type! Set with FDPDEAdvDiffSetAdvectSchemeType()");
   }
 
   *val = fval;

@@ -27,6 +27,7 @@ Use: internal
 #define __FUNCT__ "FDPDECreate_AdvDiff"
 PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd)
 {
+  AdvDiffData    *ad;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
@@ -42,8 +43,41 @@ PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd)
   fd->ops->form_jacobian      = NULL;
   fd->ops->create_jacobian    = JacobianCreate_AdvDiff;
 
+  // allocate memory to fd-pde context data
+  ierr = PetscCalloc1(1,&ad);CHKERRQ(ierr);
+
   // overwrite default advection method
-  fd->advtype = ADV_UPWIND;
+  // ad->advtype      = ADV_UNINIT;
+  // ad->timesteptype = TS_UNINIT;
+
+  // fd-pde context data
+  fd->data = ad;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+FDPDEAdvDiffSetAdvectSchemeType - set a method for the advection operator (ADVDIFF)
+
+Input Parameter:
+fd - the FD-PDE object
+advtype - advection scheme type 
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEAdvDiffSetAdvectSchemeType"
+PetscErrorCode FDPDEAdvDiffSetAdvectSchemeType(FDPDE fd, AdvectSchemeType advtype)
+{
+  AdvDiffData    *ad;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  if (fd->type != FDPDE_ADVDIFF) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"The Advection Type should be set only for FD-PDE Type = ADVDIFF!");
+  ad = fd->data;
+  ad->advtype = advtype;
 
   PetscFunctionReturn(0);
 }

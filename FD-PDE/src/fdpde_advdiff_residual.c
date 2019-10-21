@@ -12,6 +12,7 @@ Use: internal
 PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
 {
   FDPDE          fd = (FDPDE)ctx;
+  AdvDiffData    *ad;
   DM             dm, dmcoeff;
   Vec            xlocal, coefflocal, flocal;
   PetscInt       Nx, Nz, sx, sz, nx, nz;
@@ -28,6 +29,7 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
   // Assign pointers and other variables
   dm    = fd->dmstag;
   dmcoeff = fd->dmcoeff;
+  ad = fd->data;
 
   Nx = fd->Nx;
   Nz = fd->Nz;
@@ -64,7 +66,7 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
       PetscScalar fval = 0.0;
 
       if ((i > 0) && (i < Nx-1) && (j > 0) && (j < Nz-1)) {
-        ierr = EnergyResidual(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,fd->advtype,&fval); CHKERRQ(ierr);
+        ierr = EnergyResidual(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,&fval); CHKERRQ(ierr);
         ierr = DMStagGetLocationSlot(dm, DMSTAG_ELEMENT, 0, &idx); CHKERRQ(ierr);
         ff[j][i][idx] = fval;
       }
@@ -96,7 +98,7 @@ EnergyResidual - (ADVDIFF) calculates the steady state advdiff residual per dof
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, AdvectType advtype,PetscScalar *ff)
+PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, AdvectSchemeType advtype,PetscScalar *ff)
 {
   PetscScalar    ffi;
   PetscInt       Nx, Nz, icenter;

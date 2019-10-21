@@ -143,8 +143,8 @@ PetscErrorCode Numerical_Elman311(DM *_dm, Vec *_x, void *ctx)
   ierr = FDPDESetUp(fd);CHKERRQ(ierr);
 
   // Set advection type
-  if (usr->par->advtype==0) { ierr = FDPDESetAdvectType(fd,ADV_UPWIND);CHKERRQ(ierr); }
-  if (usr->par->advtype==1) { ierr = FDPDESetAdvectType(fd,ADV_FROMM);CHKERRQ(ierr); }
+  if (usr->par->advtype==0) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_UPWIND);CHKERRQ(ierr); }
+  if (usr->par->advtype==1) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_FROMM);CHKERRQ(ierr); }
 
   // Set BC evaluation function
   ierr = FDPDESetFunctionBCList(fd,FormBCList_Elman311,bc_description311,NULL); CHKERRQ(ierr);
@@ -207,7 +207,7 @@ PetscErrorCode Numerical_Elman313(DM *_dm, Vec *_x, void *ctx)
   // Create the FD-pde object
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ADVDIFF,&fd);CHKERRQ(ierr);
   ierr = FDPDESetUp(fd);CHKERRQ(ierr);
-  ierr = FDPDESetAdvectType(fd,ADV_UPWIND);CHKERRQ(ierr);
+  ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_UPWIND);CHKERRQ(ierr);
 
   // Set BC evaluation function
   ierr = FDPDESetFunctionBCList(fd,FormBCList_Elman313,bc_description313,NULL); CHKERRQ(ierr);
@@ -270,7 +270,7 @@ PetscErrorCode Numerical_Elman314(DM *_dm, Vec *_x, void *ctx)
   // Create the FD-pde object
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ADVDIFF,&fd);CHKERRQ(ierr);
   ierr = FDPDESetUp(fd);CHKERRQ(ierr);
-  ierr = FDPDESetAdvectType(fd,ADV_UPWIND);CHKERRQ(ierr);
+  ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_UPWIND);CHKERRQ(ierr);
 
   // Set BC evaluation function
   ierr = FDPDESetFunctionBCList(fd,FormBCList_Elman314,bc_description314,NULL); CHKERRQ(ierr);
