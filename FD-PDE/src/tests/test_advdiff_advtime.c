@@ -27,10 +27,12 @@ static char help[] = "Application to solve advection of a Gaussian pulse in time
 // parameters (bag)
 typedef struct {
   PetscInt       nx, nz, tstep;
+  PetscInt       ts_scheme,adv_scheme,tout;
   PetscScalar    L, H;
   PetscScalar    xmin, zmin;
   PetscScalar    k, rho, cp, ux, uz;
   PetscScalar    t, dt;
+  PetscScalar    A, x0, z0, taox, taoz;
   char           fname_out[FNAME_LENGTH]; 
   char           fname_in [FNAME_LENGTH];  
 } Params;
@@ -50,8 +52,9 @@ PetscErrorCode Numerical_solution(void*,PetscInt);
 PetscErrorCode InputParameters(UsrData**);
 PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode FormCoefficient(DM,Vec,DM,Vec,void*);
-PetscErrorCode FormBCList(DM,Vec,DMStagBCList,void*);
-PetscErrorCode SetGaussianInitialGuess(DM,Vec);
+PetscErrorCode FormBCList_Dirichlet(DM,Vec,DMStagBCList,void*);
+PetscErrorCode SetGaussianInitialGuess(DM,Vec,void*);
+PetscErrorCode Analytic_AdvTime(DM,void*,PetscInt);
 
 // ---------------------------------------
 // Some descriptions
@@ -65,10 +68,8 @@ const char coeff_description[] =
 
 const char bc_description[] =
 "  << Advection Time BCs >> \n"
-"  LEFT: periodic \n"
-"  RIGHT: periodic \n" 
-"  DOWN: periodic \n" 
-"  UP: periodic \n";
+"  1) Dirichlet \n"
+"  2) Periodic \n";
 
 // ---------------------------------------
 // Application functions
@@ -79,7 +80,7 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
 {
   UsrData       *usr = (UsrData*) ctx;
   DM             dm;
-  Vec            x, xprev;
+  Vec            x, xprev, xguess;
   FDPDE          fd;
   PetscInt       nx, nz, istep, tstep;
   PetscScalar    dx, dz,xmin, zmin, xmax, zmax, dt;
@@ -108,14 +109,17 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
   // Create the FD-pde object
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ADVDIFF,&fd);CHKERRQ(ierr);
   ierr = FDPDESetUp(fd);CHKERRQ(ierr);
-  ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_UPWIND);CHKERRQ(ierr);
+  
+  if (usr->par->adv_scheme == 0) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_UPWIND);CHKERRQ(ierr); }
+  if (usr->par->adv_scheme == 1) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_FROMM);CHKERRQ(ierr); }
 
   if (ts_scheme == 0) { ierr = FDPDEAdvDiffSetTimeStepSchemeType(fd,TS_FORWARD_EULER);CHKERRQ(ierr); }
   if (ts_scheme == 1) { ierr = FDPDEAdvDiffSetTimeStepSchemeType(fd,TS_BACKWARD_EULER);CHKERRQ(ierr); }
   if (ts_scheme == 2) { ierr = FDPDEAdvDiffSetTimeStepSchemeType(fd,TS_CRANK_NICHOLSON );CHKERRQ(ierr); }
 
   // Set BC evaluation function
-  ierr = FDPDESetFunctionBCList(fd,FormBCList,bc_description,NULL); CHKERRQ(ierr);
+  ierr = FDPDESetFunctionBCList(fd,FormBCList_Dirichlet,bc_description,NULL); CHKERRQ(ierr);
+  // ierr = FDPDESetFunctionBCList(fd,FormBCList_Periodic,bc_description,NULL); CHKERRQ(ierr);
 
   // Set coefficients evaluation function
   ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient,coeff_description,usr); CHKERRQ(ierr);
@@ -126,13 +130,14 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
 
   // Set initial distribution - xguess
   ierr = FDPDEGetDM(fd, &dm); CHKERRQ(ierr);
-  // ierr = FDPDEGetSolutionGuess(fd, &xguess);CHKERRQ(ierr);
-  // ierr = VecSet(xguess,0.0);CHKERRQ(ierr);
+
+  ierr = FDPDEGetSolutionGuess(fd, &xguess);CHKERRQ(ierr);
+  ierr = SetGaussianInitialGuess(dm,xguess,usr);CHKERRQ(ierr);
 
   ierr = FDPDEAdvDiffGetPrevSolution(fd,&xprev);CHKERRQ(ierr);
-  ierr = SetGaussianInitialGuess(dm,xprev);CHKERRQ(ierr);
+  ierr = VecCopy(xguess,xprev);CHKERRQ(ierr);
   
-  // ierr = VecDestroy(&xguess);CHKERRQ(ierr);
+  ierr = VecDestroy(&xguess);CHKERRQ(ierr);
   ierr = VecDestroy(&xprev);CHKERRQ(ierr);
 
   // Time loop
@@ -143,23 +148,28 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
     ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
     ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr); 
 
-    // Output solution
-    if (istep % 5 == 0 ) {
-      ierr = PetscSNPrintf(fout,sizeof(fout),"%s_ts%1.3d",usr->par->fname_out,istep);
-      ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
-    }
+    // increment time
+    ierr = FDPDEAdvDiffGetTimestep(fd,&dt);CHKERRQ(ierr);
+    usr->par->t += dt;
 
     // Copy old solution to new
     ierr = FDPDEAdvDiffGetPrevSolution(fd,&xprev);CHKERRQ(ierr);
     ierr = VecCopy(x,xprev);CHKERRQ(ierr);
+    ierr = VecDestroy(&xprev);CHKERRQ(ierr);
+
+    // Output solution
+    if (istep % usr->par->tout == 0 ) {
+      ierr = PetscSNPrintf(fout,sizeof(fout),"%s_m%d_ts%1.3d",usr->par->fname_out,ts_scheme,istep);
+      ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
+
+      // Calculate analytical solution and output
+      ierr = Analytic_AdvTime(dm,usr,istep); CHKERRQ(ierr); 
+    }
 
     // Destroy objects
     ierr = VecDestroy(&x);CHKERRQ(ierr);
-    ierr = VecDestroy(&xprev);CHKERRQ(ierr);
 
-    // increment time and timestep
-    ierr = FDPDEAdvDiffGetTimestep(fd,&dt);CHKERRQ(ierr);
-    usr->par->t += dt;
+    // increment timestep
     istep++;
   }
 
@@ -205,9 +215,7 @@ int main (int argc,char **argv)
   ierr = InputPrintData(usr); CHKERRQ(ierr);
 
   // Numerical solution
-  ierr = Numerical_solution(usr,0); CHKERRQ(ierr); // forward euler
-  // ierr = Numerical_solution(usr,1); CHKERRQ(ierr); // backward euler
-  // ierr = Numerical_solution(usr,2); CHKERRQ(ierr); // crank-nicholson
+  ierr = Numerical_solution(usr,usr->par->ts_scheme); CHKERRQ(ierr); // 0-forward euler, 1-backward euler, 2-crank-nicholson
 
   ierr = PetscBagDestroy(&usr->bag); CHKERRQ(ierr);
   ierr = PetscFree(usr);             CHKERRQ(ierr);
@@ -255,22 +263,33 @@ PetscErrorCode InputParameters(UsrData **_usr)
   // Initialize domain variables
   ierr = PetscBagRegisterInt(bag, &par->nx, 4, "nx", "Element count in the x-dir"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->nz, 5, "nz", "Element count in the z-dir"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->tstep, 51, "tstep", "Number of time steps"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->tstep, 1, "tstep", "Number of time steps"); CHKERRQ(ierr);
+
+  ierr = PetscBagRegisterInt(bag, &par->ts_scheme,0, "ts_scheme", "Time stepping scheme"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->adv_scheme,0, "adv_scheme", "Advection scheme 0-upwind, 1-fromm"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->tout,5,"tout", "Output every <tout> time steps"); CHKERRQ(ierr);
 
   ierr = PetscBagRegisterScalar(bag, &par->xmin, 0.0, "xmin", "Start coordinate of domain in x-dir"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->zmin, 0.0, "zmin", "Start coordinate of domain in z-dir"); CHKERRQ(ierr);
 
-  ierr = PetscBagRegisterScalar(bag, &par->L, 10.0, "L", "Length of domain in x-dir"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->H, 10.0, "H", "Height of domain in z-dir"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->L, 20.0, "L", "Length of domain in x-dir"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->H, 20.0, "H", "Height of domain in z-dir"); CHKERRQ(ierr);
 
   // Physical and material parameters
   ierr = PetscBagRegisterScalar(bag, &par->k, 0.0, "k", "Thermal conductivity"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->rho, 1.0, "rho", "Density"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->cp, 1.0, "cp", "Heat capacity"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->ux, 2.0, "ux", "Horizontal velocity"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->uz, 2.0, "uz", "Vertical velocity"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->uz, 0.0, "uz", "Vertical velocity"); CHKERRQ(ierr);
 
   ierr = PetscBagRegisterScalar(bag, &par->dt, 1.0e-2, "dt", "Time step size"); CHKERRQ(ierr);
+
+  // Gaussian-shape initial guess
+  ierr = PetscBagRegisterScalar(bag, &par->A, 10.0, "A", "Amplitude gaussian"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->x0,5.0, "x0", "Offset x-dir"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->z0,5.0, "z0", "Offset z-dir"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->taox,1.0, "taox", "tao parameter x-dir"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->taoz,1.0, "taoz", "tao parameter z-dir"); CHKERRQ(ierr);
 
   // Input/output 
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_num_advtime","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
@@ -334,8 +353,9 @@ PetscErrorCode InputPrintData(UsrData *usr)
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "SetGaussianInitialGuess"
-PetscErrorCode SetGaussianInitialGuess(DM dm, Vec xguess)
+PetscErrorCode SetGaussianInitialGuess(DM dm, Vec xguess, void *ctx)
 {
+  UsrData       *usr = (UsrData*) ctx;
   Vec            xglocal;
   PetscInt       i,j, sx, sz, nx, nz, icenter;
   PetscScalar    A, x0, z0, taox, taoz;
@@ -345,11 +365,11 @@ PetscErrorCode SetGaussianInitialGuess(DM dm, Vec xguess)
   PetscFunctionBegin;
 
   // Gaussian function parameters
-  A    = 10.0;
-  x0   = 5;
-  z0   = 5;
-  taox = 1.0;
-  taoz = 1.0;
+  A    = usr->par->A;
+  x0   = usr->par->x0;
+  z0   = usr->par->z0;
+  taox = usr->par->taox;
+  taoz = usr->par->taoz;
 
   // Get domain corners
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -374,7 +394,8 @@ PetscErrorCode SetGaussianInitialGuess(DM dm, Vec xguess)
       xp = coordx[i][icenter]; 
       zp = coordz[j][icenter];
 
-      fval = A*PetscExpReal(-( (xp-x0)*(xp-x0)/taox/taox + (zp-z0)*(zp-z0)/taoz/taoz )); 
+      // fval = A*PetscExpReal(-( (xp-x0)*(xp-x0)/taox/taox + (zp-z0)*(zp-z0)/taoz/taoz )); 
+      fval = A*PetscExpReal(-(xp-x0)*(xp-x0)/taox/taox ); 
       ierr = DMStagGetLocationSlot(dm, point.loc, point.c, &idx); CHKERRQ(ierr);
       xg[j][i][idx] = fval;
     }
@@ -494,11 +515,11 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 }
 
 // ---------------------------------------
-// FormBCList - periodic BC on Left/Down
+// FormBCList_Dirichlet
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FormBCList"
-PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
+#define __FUNCT__ "FormBCList_Dirichlet"
+PetscErrorCode FormBCList_Dirichlet(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
   Vec            xlocal;
   PetscInt       Nx, Nz, sx, sz, nx, nz;
@@ -580,5 +601,78 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
  
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// Create analytical solution
+// ---------------------------------------
+PetscErrorCode Analytic_AdvTime(DM dm,void *ctx, PetscInt istep)
+{
+  UsrData       *usr = (UsrData*) ctx;
+  PetscInt       i, j, sx, sz, nx, nz, idx,icenter;
+  PetscScalar    A, x0, z0, taox, taoz, t, ux, uz;
+  PetscScalar    ***xx;
+  PetscScalar    **coordx,**coordz;
+  char           fout[FNAME_LENGTH];
+  Vec            x, xlocal;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  // Gaussian function parameters
+  A    = usr->par->A;
+  x0   = usr->par->x0;
+  z0   = usr->par->z0;
+  taox = usr->par->taox;
+  taoz = usr->par->taoz;
+  t    = usr->par->t;
+  ux   = usr->par->ux;
+  uz   = usr->par->uz;
+
+  // Create local and global vector associated with DM
+  ierr = DMCreateGlobalVector(dm, &x     ); CHKERRQ(ierr);
+  ierr = DMCreateLocalVector (dm, &xlocal); CHKERRQ(ierr);
+
+  // Get array associated with vector
+  ierr = DMStagVecGetArrayDOF(dm,xlocal,&xx); CHKERRQ(ierr);
+
+  // Get domain corners
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  
+// Get dm coordinates array
+  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
+
+  // Loop over local domain to calculate the SolCx analytical solution
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      PetscScalar  xp,zp, fval=0.0;
+
+      xp = coordx[i][icenter];
+      zp = coordz[j][icenter];
+      
+      fval = A*PetscExpReal(-(xp-x0-ux*t)*(xp-x0-ux*t)/taox/taox ); 
+      ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &idx); CHKERRQ(ierr);
+      xx[j][i][idx] = fval;
+    }
+  }
+
+  // Restore arrays
+  ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArrayDOF(dm,xlocal,&xx); CHKERRQ(ierr);
+
+  // Map local to global
+  ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+
+  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
+
+  // output
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_ts%1.3d","out_analytic_solution",istep);
+  ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
+
+  ierr = VecDestroy(&x); CHKERRQ(ierr);
+  
   PetscFunctionReturn(0);
 }

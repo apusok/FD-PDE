@@ -57,16 +57,11 @@ PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd)
   fd->ops->form_function      = FormFunction_AdvDiff;
   fd->ops->form_jacobian      = NULL;
   fd->ops->create_jacobian    = JacobianCreate_AdvDiff;
-  // fd->ops->setup              = FDPDESetUp_AdvDiff;
   fd->ops->view               = FDPDEView_AdvDiff;
   fd->ops->destroy            = FDPDEDestroy_AdvDiff;
 
   // allocate memory to fd-pde context data
   ierr = PetscCalloc1(1,&ad);CHKERRQ(ierr);
-
-  // overwrite default advection method
-  // ad->advtype      = ADV_UNINIT;
-  // ad->timesteptype = TS_UNINIT;
 
   // time stepping
   ad->CFL = 0.5;
@@ -80,53 +75,6 @@ PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd)
 
   PetscFunctionReturn(0);
 }
-
-// // ---------------------------------------
-// /*@
-// FDPDESetUp_AdvDiff - setups the data structures for FDPDEType = ADVDIFF
-
-// Use: internal
-// @*/
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDPDESetUp_AdvDiff"
-// PetscErrorCode FDPDESetUp_AdvDiff(FDPDE fd)
-// {
-//   AdvDiffData    *ad;
-//   PetscErrorCode ierr;
-//   PetscFunctionBegin;
-
-//   ad = fd->data;
-
-//   // Assign timestepping algorithm -> separate routine + update time step (depending on the coeff given - u)
-//   switch (ad->timesteptype) {
-//     case TS_UNINIT:
-//       SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"Time stepping scheme for the FD-PDE ADVDIFF was not set! Set with FDPDEAdvDiffSetTimeStepSchemeType()");
-//     case TS_NONE:
-//       break;
-//     case TS_FORWARD_EULER:
-//       ad->theta = 0.0;
-//       break;
-//     case TS_BACKWARD_EULER:
-//       ad->theta = 1.0;
-//       break;
-//     case TS_CRANK_NICHOLSON:
-//       ad->theta = 0.5;
-//       break;
-//     default:
-//       SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"Unknown time stepping scheme for the FD-PDE ADVDIFF! Set with FDPDEAdvDiffSetTimeStepSchemeType()");
-//   }
-
-//   if (ad->timesteptype == TS_NONE) {
-//     // no need
-//   } else {
-//     // Create vectors for time-stepping if required
-//     ierr = VecDuplicate(fd->x,&ad->xprev);CHKERRQ(ierr);
-//     ierr = VecDuplicate(fd->coeff,&ad->coeffprev);CHKERRQ(ierr);
-//   }
-
-//   PetscFunctionReturn(0);
-// }
 
 // ---------------------------------------
 /*@
@@ -262,6 +210,8 @@ PetscErrorCode FDPDEAdvDiffSetTimeStepSchemeType(FDPDE fd, TimeStepSchemeType ti
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ADVDIFF) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"The TimeStepSchemeType should be set only for FD-PDE Type = ADVDIFF!");
+  if (!fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"User must call FDPDESetUp() first!");
+  
   ad = fd->data;
   ad->timesteptype = timesteptype;
 
@@ -284,9 +234,7 @@ PetscErrorCode FDPDEAdvDiffSetTimeStepSchemeType(FDPDE fd, TimeStepSchemeType ti
       SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"Unknown time stepping scheme for the FD-PDE ADVDIFF! Set with FDPDEAdvDiffSetTimeStepSchemeType()");
   }
 
-  if (ad->timesteptype == TS_NONE) {
-    // no need
-  } else {
+  if (ad->timesteptype != TS_NONE) {
     // Create vectors for time-stepping if required
     ierr = VecDuplicate(fd->x,&ad->xprev);CHKERRQ(ierr);
     ierr = VecDuplicate(fd->coeff,&ad->coeffprev);CHKERRQ(ierr);

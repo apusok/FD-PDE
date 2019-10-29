@@ -86,7 +86,6 @@ PetscErrorCode FDPDECreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   fd->data  = NULL;
   fd->user_context = NULL;
   fd->setupcalled = PETSC_FALSE;
-  // fd->advtype = ADV_UNINIT;
 
   fd->description_bc = NULL;
   fd->description_coeff = NULL;
@@ -191,11 +190,6 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
   } else {
     ierr = SNESSetJacobian(fd->snes, fd->J, fd->J, SNESComputeJacobianDefaultColor, NULL); CHKERRQ(ierr);
   }
-
-  // // Set FD-PDE specific structures
-  // if (fd->ops->setup) { 
-  //   ierr = fd->ops->setup(fd); CHKERRQ(ierr); 
-  // }
 
   fd->setupcalled = PETSC_TRUE;
   PetscFunctionReturn(0);

@@ -26,7 +26,6 @@ struct _FDPDEOps {
   PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*);
   PetscErrorCode (*create_jacobian)(FDPDE,Mat*);
   PetscErrorCode (*create)(FDPDE);
-  // PetscErrorCode (*setup)(FDPDE);
   PetscErrorCode (*view)(FDPDE);
   PetscErrorCode (*destroy)(FDPDE);
 };

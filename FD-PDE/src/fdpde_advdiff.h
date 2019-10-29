@@ -27,7 +27,6 @@ typedef struct {
 // Function definitions
 // ---------------------------------------
 PetscErrorCode FDPDECreate_AdvDiff(FDPDE);
-// PetscErrorCode FDPDESetUp_AdvDiff(FDPDE);
 PetscErrorCode FDPDEView_AdvDiff(FDPDE);
 PetscErrorCode FDPDEDestroy_AdvDiff(FDPDE);
 PetscErrorCode JacobianCreate_AdvDiff(FDPDE,Mat*);

@@ -59,12 +59,10 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
 
   // Map the previous time step vectors
   if (ad->timesteptype != TS_NONE) {
-    // ierr = VecView(ad->xprev,PETSC_VIEWER_STDOUT_WORLD);
     ierr = DMGetLocalVector(dm, &xprevlocal); CHKERRQ(ierr);
     ierr = DMGlobalToLocal (dm, ad->xprev, INSERT_VALUES, xprevlocal); CHKERRQ(ierr);
 
     ierr = fd->ops->form_coefficient(dm,ad->xprev,dmcoeff,ad->coeffprev,fd->user_context);CHKERRQ(ierr);
-    // ierr = VecView(ad->coeffprev,PETSC_VIEWER_STDOUT_WORLD);
     ierr = DMGetLocalVector(dmcoeff, &coeffprevlocal); CHKERRQ(ierr);
     ierr = DMGlobalToLocal (dmcoeff, ad->coeffprev, INSERT_VALUES, coeffprevlocal); CHKERRQ(ierr);
   }
@@ -81,13 +79,13 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
     for (i = sx; i<sx+nx; i++) {
       PetscScalar   xx, xxprev;
       PetscScalar   fval=0.0, fval0=0.0, fval1=0.0;
-      PetscScalar   A0, A1;
+      PetscScalar   A, A0, A1;
       DMStagStencil point;
 
       if ((i > 0) && (i < Nx-1) && (j > 0) && (j < Nz-1)) {
         if (ad->timesteptype == TS_NONE) {
           // steady-state solution
-          ierr = EnergyResidual(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,&fval,NULL); CHKERRQ(ierr);
+          ierr = EnergyResidual(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,&fval,&A); CHKERRQ(ierr);
         } else { 
           // time-dependent solution - provided the valid flags pass the error check above
           ierr = EnergyResidual(dm,xprevlocal,dmcoeff,coeffprevlocal,coordx,coordz,i,j,ad->advtype,&fval0,&A0); CHKERRQ(ierr);
@@ -115,8 +113,10 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmcoeff,&coefflocal); CHKERRQ(ierr);
 
-  if (ad->xprev) { ierr = DMRestoreLocalVector(dm, &xprevlocal); CHKERRQ(ierr); }
-  if (ad->coeffprev) { ierr = DMRestoreLocalVector(dmcoeff, &coeffprevlocal); CHKERRQ(ierr);}
+  if (ad->timesteptype != TS_NONE) {
+    ierr = DMRestoreLocalVector(dm, &xprevlocal); CHKERRQ(ierr);
+    ierr = DMRestoreLocalVector(dmcoeff, &coeffprevlocal); CHKERRQ(ierr);
+  }
 
   // Map local to global
   ierr = DMLocalToGlobalBegin(dm,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
@@ -216,7 +216,6 @@ PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Pets
 
   // Calculate diffadv residual
   ierr = AdvectionResidual(u,xx,dx,dz,advtype,&adv); CHKERRQ(ierr);
-  // ffi  = adv - diff/A + C/A;
   ffi  = A*adv - diff + C;
 
   *ff = ffi;
