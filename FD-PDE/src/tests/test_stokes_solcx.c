@@ -295,8 +295,8 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
   ierr = DMStagVecGetArrayDOF(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
   
   // Loop over local domain - set initial density and viscosity
-  for (j = sz; j < sz+nz; ++j) {
-    for (i = sx; i <sx+nx; ++i) {
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
 
       { // fux = 0.0
         DMStagStencil point[2];

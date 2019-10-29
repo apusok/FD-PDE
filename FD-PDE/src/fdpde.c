@@ -192,6 +192,11 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
     ierr = SNESSetJacobian(fd->snes, fd->J, fd->J, SNESComputeJacobianDefaultColor, NULL); CHKERRQ(ierr);
   }
 
+  // // Set FD-PDE specific structures
+  // if (fd->ops->setup) { 
+  //   ierr = fd->ops->setup(fd); CHKERRQ(ierr); 
+  // }
+
   fd->setupcalled = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
@@ -219,7 +224,10 @@ PetscErrorCode FDPDEDestroy(FDPDE *_fd)
   if (!*_fd) PetscFunctionReturn(0);
   fd = *_fd;
 
-  // Destroy objects
+  // Destroy FD-PDE specific objects
+  if (fd->ops->destroy) { ierr = fd->ops->destroy(fd); CHKERRQ(ierr); }
+
+  // Destroy FD-PDE objects
   ierr = DMStagBCListDestroy(&fd->bclist);CHKERRQ(ierr);
   ierr = PetscFree(fd->ops);CHKERRQ(ierr);
   ierr = VecDestroy(&fd->x);CHKERRQ(ierr);
@@ -233,8 +241,7 @@ PetscErrorCode FDPDEDestroy(FDPDE *_fd)
   ierr = DMDestroy(&fd->dmstag); CHKERRQ(ierr);
 
   fd->user_context = NULL;
-  
-  if (fd->data) PetscFree(fd->data);
+  fd->data = NULL;
 
   ierr = PetscFree(fd->description);CHKERRQ(ierr);
   ierr = PetscFree(fd->description_bc);CHKERRQ(ierr);
@@ -288,8 +295,11 @@ PetscErrorCode FDPDEView(FDPDE fd)
   } else {
     PetscPrintf(fd->comm,"  # dmcoeff: not available\n");
   }
-  if (fd->setupcalled) PetscPrintf(fd->comm,"  # FDPDESetUp: TRUE \n");
-  else PetscPrintf(fd->comm,"  # FDPDESetUp: FALSE \n");
+  if (fd->setupcalled) PetscPrintf(fd->comm,"  # FDPDESetUp: TRUE \n\n");
+  else PetscPrintf(fd->comm,"  # FDPDESetUp: FALSE \n\n");
+
+  // view FD-PDE specific info
+  if (fd->ops->view) { ierr = fd->ops->view(fd); CHKERRQ(ierr); }
 
   // view BC list
   //ierr = DMStagBCListView(fd->bclist);CHKERRQ(ierr);

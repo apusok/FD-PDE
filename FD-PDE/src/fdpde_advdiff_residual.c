@@ -15,6 +15,7 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
   AdvDiffData    *ad;
   DM             dm, dmcoeff;
   Vec            xlocal, coefflocal, flocal;
+  Vec            xprevlocal, coeffprevlocal;
   PetscInt       Nx, Nz, sx, sz, nx, nz;
   PetscInt       i,j, idx,icenter;
   DMStagBCList   bclist;
@@ -53,6 +54,21 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMGetLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
 
+  // Update timestep - after form coefficient
+  ierr = UpdateTimeStep_AdvDiff(ad,dmcoeff,coefflocal);CHKERRQ(ierr);
+
+  // Map the previous time step vectors
+  if (ad->timesteptype != TS_NONE) {
+    // ierr = VecView(ad->xprev,PETSC_VIEWER_STDOUT_WORLD);
+    ierr = DMGetLocalVector(dm, &xprevlocal); CHKERRQ(ierr);
+    ierr = DMGlobalToLocal (dm, ad->xprev, INSERT_VALUES, xprevlocal); CHKERRQ(ierr);
+
+    ierr = fd->ops->form_coefficient(dm,ad->xprev,dmcoeff,ad->coeffprev,fd->user_context);CHKERRQ(ierr);
+    // ierr = VecView(ad->coeffprev,PETSC_VIEWER_STDOUT_WORLD);
+    ierr = DMGetLocalVector(dmcoeff, &coeffprevlocal); CHKERRQ(ierr);
+    ierr = DMGlobalToLocal (dmcoeff, ad->coeffprev, INSERT_VALUES, coeffprevlocal); CHKERRQ(ierr);
+  }
+
   // Get dm coordinates array
   ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
 
@@ -63,10 +79,27 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
   // Loop over elements
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
-      PetscScalar fval = 0.0;
+      PetscScalar   xx, xxprev;
+      PetscScalar   fval=0.0, fval0=0.0, fval1=0.0;
+      PetscScalar   A0, A1;
+      DMStagStencil point;
 
       if ((i > 0) && (i < Nx-1) && (j > 0) && (j < Nz-1)) {
-        ierr = EnergyResidual(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,&fval); CHKERRQ(ierr);
+        if (ad->timesteptype == TS_NONE) {
+          // steady-state solution
+          ierr = EnergyResidual(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,&fval,NULL); CHKERRQ(ierr);
+        } else { 
+          // time-dependent solution - provided the valid flags pass the error check above
+          ierr = EnergyResidual(dm,xprevlocal,dmcoeff,coeffprevlocal,coordx,coordz,i,j,ad->advtype,&fval0,&A0); CHKERRQ(ierr);
+          ierr = EnergyResidual(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,&fval1,&A1); CHKERRQ(ierr);
+
+          point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
+          ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&point,&xx); CHKERRQ(ierr);
+          ierr = DMStagVecGetValuesStencil(dm,xprevlocal,1,&point,&xxprev); CHKERRQ(ierr);
+
+          fval = xx - xxprev + ad->dt*(ad->theta*fval1/A1 + (1-ad->theta)*fval0/A0 );
+        }
+
         ierr = DMStagGetLocationSlot(dm, DMSTAG_ELEMENT, 0, &idx); CHKERRQ(ierr);
         ff[j][i][idx] = fval;
       }
@@ -81,6 +114,9 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMStagVecRestoreArrayDOF(dm,flocal,&ff); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmcoeff,&coefflocal); CHKERRQ(ierr);
+
+  if (ad->xprev) { ierr = DMRestoreLocalVector(dm, &xprevlocal); CHKERRQ(ierr); }
+  if (ad->coeffprev) { ierr = DMRestoreLocalVector(dmcoeff, &coeffprevlocal); CHKERRQ(ierr);}
 
   // Map local to global
   ierr = DMLocalToGlobalBegin(dm,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
@@ -98,7 +134,7 @@ EnergyResidual - (ADVDIFF) calculates the steady state advdiff residual per dof
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, AdvectSchemeType advtype,PetscScalar *ff)
+PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, AdvectSchemeType advtype,PetscScalar *ff,PetscScalar *_A)
 {
   PetscScalar    ffi;
   PetscInt       Nx, Nz, icenter;
@@ -180,9 +216,12 @@ PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Pets
 
   // Calculate diffadv residual
   ierr = AdvectionResidual(u,xx,dx,dz,advtype,&adv); CHKERRQ(ierr);
-  ffi  = adv*A - diff + C;
+  // ffi  = adv - diff/A + C/A;
+  ffi  = A*adv - diff + C;
 
   *ff = ffi;
+  *_A = A;
+
   PetscFunctionReturn(0);
 }
 
@@ -217,6 +256,88 @@ PetscErrorCode DMStagBCListApply_AdvDiff(DM dm, Vec xlocal,DM dmcoeff, Vec coeff
     if (bclist[ibc].type == BC_NEUMANN) {
       SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"BC type NEUMANN for FDPDE_ADVDIFF is not yet implemented.");
     }
+  }
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+UpdateTimeStep_AdvDiff - function to update time step size for ADVDIFF equations
+
+Use: internal
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "UpdateTimeStep_AdvDiff"
+PetscErrorCode UpdateTimeStep_AdvDiff(AdvDiffData *ad, DM dmcoeff, Vec coefflocal)
+{
+  PetscScalar    vmax[2], gvmax[2], dh[2], gdh[2],dtCFL;
+  PetscInt       iprev=-1, inext=-1;
+  PetscInt       i, j, sx, sz, nx, nz;
+  PetscScalar    **coordx, **coordz;
+  PetscErrorCode ierr;
+  PetscFunctionBeginUser;
+
+  // check time-step scheme
+  if (ad->timesteptype == TS_UNINIT) {
+    SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"Time stepping scheme for the FD-PDE ADVDIFF was not set! Set with FDPDEAdvDiffSetTimeStepSchemeType()");
+  }
+
+  // return if not required
+  if (ad->timesteptype == TS_NONE) PetscFunctionReturn(0);
+
+  vmax[0] = 0.0;
+  vmax[1] = 0.0;
+
+  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+
+  ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,DMSTAG_LEFT,&iprev);CHKERRQ(ierr); 
+  ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
+
+  // Loop over elements - velocity is located on edge and c=1
+  for (j = sz; j<sz+nz; j++) {
+    for (i = sx; i<sx+nx; i++) {
+      DMStagStencil point[4];
+      PetscScalar   xx[4];
+
+      point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_LEFT;  point[0].c = 1;
+      point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_RIGHT; point[1].c = 1;
+      point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_DOWN;  point[2].c = 1;
+      point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_UP;    point[3].c = 1;
+
+      ierr = DMStagVecGetValuesStencil(dmcoeff,coefflocal,4,point,xx); CHKERRQ(ierr);
+
+      vmax[0] = PetscMax(vmax[0],PetscMax(PetscAbsScalar(xx[0]),PetscAbsScalar(xx[1])));
+      vmax[1] = PetscMax(vmax[1],PetscMax(PetscAbsScalar(xx[2]),PetscAbsScalar(xx[3])));
+    }
+  }
+
+  // Find smallest grid size
+  dh[0] = coordx[0][inext]-coordx[0][iprev];
+  for (i = sx; i<sx+nx; i++) {
+    dh[0] = PetscMin(dh[0],(coordx[i][inext]-coordx[i][iprev]));
+  }
+
+  dh[1] = coordz[0][inext]-coordz[0][iprev];
+  for (j = sz; j<sz+nz; j++) {
+    dh[1] = PetscMin(dh[1],(coordz[j][inext]-coordz[j][iprev]));
+  }
+
+  // MPI exchange global min/max
+  ierr = MPI_Allreduce(&vmax,&gvmax,2,MPI_DOUBLE,MPI_MAX,PETSC_COMM_WORLD);CHKERRQ(ierr);
+  ierr = MPI_Allreduce(&dh,&gdh,2,MPI_DOUBLE,MPI_MIN,PETSC_COMM_WORLD);CHKERRQ(ierr);
+
+  ierr = DMStagRestore1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+
+  // CFL criterion
+  dtCFL = ad->CFL*PetscMin(gdh[0]/gvmax[0],gdh[1]/gvmax[1]);
+
+  if (ad->dt_user) {
+    ad->dt = PetscMin(ad->dt_user,dtCFL);
+  } else {
+    ad->dt = dtCFL;
   }
 
   PetscFunctionReturn(0);

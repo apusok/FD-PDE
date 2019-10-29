@@ -45,6 +45,9 @@ PetscErrorCode FDPDECreate_Stokes(FDPDE fd)
   fd->ops->form_function      = FormFunction_Stokes;
   fd->ops->form_jacobian      = NULL;
   fd->ops->create_jacobian    = JacobianCreate_Stokes;
+  // fd->ops->setup              = NULL;
+  fd->ops->view               = NULL;
+  fd->ops->destroy            = NULL;
 
   PetscFunctionReturn(0);
 }
@@ -84,8 +87,8 @@ PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd,Mat J)
 
   // NOTE: Should take into account fd->bclist for BC
   // Get non-zero pattern for preallocator - Loop over all local elements 
-  for (j = sz; j<sz+nz; ++j) {
-    for (i = sx; i<sx+nx; ++i) {
+  for (j = sz; j<sz+nz; j++) {
+    for (i = sx; i<sx+nx; i++) {
 
       // Top boundary velocity Dirichlet
       if (j == Nz-1) {

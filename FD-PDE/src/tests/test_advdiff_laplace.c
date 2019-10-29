@@ -105,6 +105,7 @@ PetscErrorCode Numerical_Laplace(DM *_dm, Vec *_x, void *ctx)
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ADVDIFF,&fd);CHKERRQ(ierr);
   ierr = FDPDESetUp(fd);CHKERRQ(ierr);
   ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_NONE);CHKERRQ(ierr);
+  ierr = FDPDEAdvDiffSetTimeStepSchemeType(fd,TS_NONE);CHKERRQ(ierr);
   // User can modify the dm coordinates anywhere between FDPDESetUp() and FDPDESolve()
 
   // Set BC evaluation function
