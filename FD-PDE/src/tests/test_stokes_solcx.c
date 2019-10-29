@@ -305,7 +305,7 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
         point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
         point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
 
-        for (ii = 0; ii < 2; ++ii) {
+        for (ii = 0; ii < 2; ii++) {
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           c[j][i][idx] = 0.0;
         }
@@ -322,7 +322,7 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
         xp[0] = coordx[i][icenter]; zp[0] = coordz[j][iprev  ];
         xp[1] = coordx[i][icenter]; zp[1] = coordz[j][inext  ];
 
-        for (ii = 0; ii < 2; ++ii) {
+        for (ii = 0; ii < 2; ii++) {
           fval = g*PetscSinScalar(PETSC_PI*zp[ii]) * PetscCosScalar(PETSC_PI*xp[ii]); 
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           c[j][i][idx] = fval;
@@ -368,7 +368,7 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
         xp[2] = coordx[i][iprev];
         xp[3] = coordx[i][inext];
 
-        for (ii = 0; ii < 4; ++ii) {
+        for (ii = 0; ii < 4; ii++) {
           if (xp[ii] <= L2) fval = usr->par->eta0;
           else              fval = usr->par->eta1;
 
@@ -511,8 +511,8 @@ PetscErrorCode Analytic_Solcx(DM dm,Vec *_x, void *ctx)
   ierr = DMStagGet1dCoordinateLocationSlot(dm,RIGHT,&inext);CHKERRQ(ierr); 
 
   // Loop over local domain to calculate the SolCx analytical solution
-  for (j = sz; j < sz+nz; ++j) {
-    for (i = sx; i <sx+nx; ++i) {
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
       PetscScalar    xp[2];
       PetscReal      pressure, vel[2], total_stress[3], strain_rate[3];
       
@@ -601,8 +601,8 @@ PetscErrorCode ComputeErrorNorms(DM dm,Vec x,Vec xanalytic, void *ctx)
 
   // Loop over local domain to calculate average pressure
   totp = 0.0; avgp = 0.0;
-  for (j = sz; j < sz+nz; ++j) {
-    for (i = sx; i <sx+nx; ++i) {
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
       PetscScalar    p;
       DMStagStencil  point;
       
@@ -625,8 +625,8 @@ PetscErrorCode ComputeErrorNorms(DM dm,Vec x,Vec xanalytic, void *ctx)
   dv = dx*dz;
 
   // Loop over local domain to calculate ELEMENT errors
-  for (j = sz; j < sz+nz; ++j) {
-    for (i = sx; i <sx+nx; ++i) {
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
       
       PetscScalar    ve[4], pe;
       DMStagStencil  point[5];

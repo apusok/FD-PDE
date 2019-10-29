@@ -114,12 +114,12 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   dx = usr->par->L/nx/1.2;
   dz = usr->par->H/nz/1.2;
 
-  for (i = sx; i<sx+nx-1; ++i) {
+  for (i = sx; i<sx+nx-1; i++) {
     coordx[i  ][inext  ] -= dx/(i+1);
     coordx[i  ][icenter]  = (coordx[i][iprev]+coordx[i][inext])*0.5;
   }
 
-  for (j = sz; j<sz+nz-1; ++j) {
+  for (j = sz; j<sz+nz-1; j++) {
     coordz[j  ][inext  ] -= dz/(j+1);
     coordz[j  ][icenter]  = (coordz[j][iprev]+coordz[j][inext])*0.5;
   }
@@ -292,8 +292,8 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
   ierr = DMStagVecGetArrayDOF(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
   
   // Loop over local domain - set initial density and viscosity
-  for (j = sz; j < sz+nz; ++j) {
-    for (i = sx; i <sx+nx; ++i) {
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
 
       { // fux = 0.0
         DMStagStencil point[2];
@@ -302,7 +302,7 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
         point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
         point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
 
-        for (ii = 0; ii < 2; ++ii) {
+        for (ii = 0; ii < 2; ii++) {
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           c[j][i][idx] = 0.0;
         }
@@ -319,7 +319,7 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
         xp[0] = coordx[i][icenter]; zp[0] = coordz[j][iprev  ];
         xp[1] = coordx[i][icenter]; zp[1] = coordz[j][inext  ];
 
-        for (ii = 0; ii < 2; ++ii) {
+        for (ii = 0; ii < 2; ii++) {
           fval = g*PetscSinScalar(PETSC_PI*zp[ii]) * PetscCosScalar(PETSC_PI*xp[ii]); 
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           c[j][i][idx] = fval;
@@ -365,7 +365,7 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
         xp[2] = coordx[i][iprev];
         xp[3] = coordx[i][inext];
 
-        for (ii = 0; ii < 4; ++ii) {
+        for (ii = 0; ii < 4; ii++) {
           if (xp[ii] <= L2) fval = usr->par->eta0;
           else              fval = usr->par->eta1;
 
@@ -535,8 +535,8 @@ PetscErrorCode DoOutput(DM dm,Vec x,const char fname[])
     ierr = DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal); CHKERRQ(ierr);
 
     // Loop
-    for (j = sz; j < sz+nz; ++j) {
-      for (i = sx; i < sx+nx; ++i) {
+    for (j = sz; j < sz+nz; j++) {
+      for (i = sx; i < sx+nx; i++) {
         DMStagStencil from[4], to[2];
         PetscScalar   valFrom[4], valTo[2];
         

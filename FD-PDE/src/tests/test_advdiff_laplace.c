@@ -317,8 +317,8 @@ PetscErrorCode Analytic_Laplace(DM dm,Vec *_x, void *ctx)
   ierr = DMStagGet1dCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
 
   // Loop over local domain to calculate the SolCx analytical solution
-  for (j = sz; j < sz+nz; ++j) {
-    for (i = sx; i <sx+nx; ++i) {
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
       DMStagStencil  point;
       PetscScalar    xp, zp;
 

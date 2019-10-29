@@ -268,8 +268,8 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
   ierr = DMStagVecGetArrayDOF(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
   
   // Loop over local domain - set initial density and viscosity
-  for (j = sz; j < sz+nz; ++j) {
-    for (i = sx; i <sx+nx; ++i) {
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
 
       { // fux = 0.0
         DMStagStencil point[2];
@@ -278,7 +278,7 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
         point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
         point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
 
-        for (ii = 0; ii < 2; ++ii) {
+        for (ii = 0; ii < 2; ii++) {
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           c[j][i][idx] = 0.0;
         }
@@ -292,7 +292,7 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
         point[0].i = i; point[0].j = j; point[0].loc = DOWN; point[0].c = 0;
         point[1].i = i; point[1].j = j; point[1].loc = UP;   point[1].c = 0;
 
-        for (ii = 0; ii < 2; ++ii) {
+        for (ii = 0; ii < 2; ii++) {
           fval = g*rho; 
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           c[j][i][idx] = fval;
@@ -330,7 +330,7 @@ PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
         point[2].i = i; point[2].j = j; point[2].loc = UP_LEFT;    point[2].c = 0;
         point[3].i = i; point[3].j = j; point[3].loc = UP_RIGHT;   point[3].c = 0;
 
-        for (ii = 0; ii < 4; ++ii) {
+        for (ii = 0; ii < 4; ii++) {
           fval = usr->par->eta0;
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           c[j][i][idx] = fval;
@@ -521,8 +521,8 @@ PetscErrorCode Analytic_MOR(DM dm,Vec *_x, void *ctx)
   ierr = DMStagGet1dCoordinateLocationSlot(dm,RIGHT,&inext);CHKERRQ(ierr); 
 
   // Loop over local domain to calculate the SolCx analytical solution
-  for (j = sz; j < sz+nz; ++j) {
-    for (i = sx; i <sx+nx; ++i) {
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
       PetscScalar xp, zp, v[2], p;
 
       // Vx

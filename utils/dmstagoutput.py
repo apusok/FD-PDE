@@ -15,7 +15,7 @@ The standard usage of this module should look like:
   >>> dmout.general_output_imshow(fname,'RdBu','bilinear') 
   >>> dmout.general_output_imshow('test1',None,None)
 
-  >>> dmout.general_output_pcolor(fname,'RdBu') 
+  >>> dmout.general_output_pcolormesh(fname,'RdBu') 
 
   where:
   fname - name of PetscBinary file (output)
