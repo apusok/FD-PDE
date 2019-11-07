@@ -142,6 +142,9 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
     case FDPDE_ADVDIFF:
       fd->ops->create = FDPDECreate_AdvDiff;
       break;
+    case FDPDE_COMPOSITE:
+    SETERRQ(fd->comm,PETSC_ERR_ARG_WRONGSTATE,"FDPDE_COMPOSITE should never enter here");
+    break;
     default:
       SETERRQ(fd->comm,PETSC_ERR_ARG_UNKNOWN_TYPE,"Unknown type of FD-PDE specified");
   }
@@ -840,5 +843,39 @@ PetscErrorCode FDPDEGetAuxGlobalVectors(FDPDE fd,PetscInt *n,Vec **vecs)
   PetscFunctionBegin;
   if (n)    *n = fd->naux_global_vectors;
   if (vecs) *vecs = fd->aux_global_vectors;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEFormCoefficient"
+PetscErrorCode FDPDEFormCoefficient(FDPDE fd)
+{
+  PetscInt i,n;
+  FDPDE *pdelist = NULL;
+  Vec *subX = NULL;
+  PetscErrorCode ierr;
+  
+  PetscFunctionBegin;
+  switch (fd->type) {
+    case FDPDE_COMPOSITE:
+    
+    ierr = FDPDCompositeGetFDPDE(fd,&n,&pdelist);CHKERRQ(ierr);
+    ierr = DMCompositeGetAccessArray(fd->dmstag,fd->x,n,NULL,subX);CHKERRQ(ierr);
+    /* set auxillary vectors */
+    for (i=0; i<n; i++) {
+      pdelist[i]->naux_global_vectors = n;
+      pdelist[i]->aux_global_vectors = subX;
+    }
+    for (i=0; i<n; i++) {
+      ierr = FDPDEFormCoefficient(pdelist[i]);CHKERRQ(ierr);
+    }
+    ierr = DMCompositeRestoreAccessArray(fd->dmstag,fd->x,n,NULL,subX);CHKERRQ(ierr);
+    break;
+    
+    default:
+      if (!fd->ops->form_coefficient) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Form coefficient function pointer is NULL. Must call FDPDESetFunctionCoefficient() and provide a non-NULL function pointer.");
+      ierr = fd->ops->form_coefficient(fd,fd->dmstag,fd->x,fd->dmcoeff,fd->coeff,fd->user_context);CHKERRQ(ierr);
+    break;
+  }
   PetscFunctionReturn(0);
 }

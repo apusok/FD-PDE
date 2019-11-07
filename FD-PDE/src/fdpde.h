@@ -82,5 +82,6 @@ PetscErrorCode FDPDECreate2(MPI_Comm,FDPDE*);
 PetscErrorCode FDPDESetType(FDPDE,FDPDEType);
 PetscErrorCode FDPDESetSizes(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 PetscErrorCode FDPDEGetAuxGlobalVectors(FDPDE,PetscInt*,Vec**);
+PetscErrorCode FDPDEFormCoefficient(FDPDE fd);
 
 #endif
