@@ -173,7 +173,7 @@ static PetscErrorCode FDPDEDestroy_Composite(FDPDE fd)
   PetscFunctionBegin;
   composite = (PDEComposite*)fd->data;
   for (i=0; i<composite->n; i++) {
-    /*ierr = FDPDEDestroy(&composite->pdelist[i]);CHKERRQ(ierr);*/// needs refcount
+    ierr = FDPDEDestroy(&composite->pdelist[i]);CHKERRQ(ierr);
     ierr = DMDestroy(&composite->dmlist[i]);CHKERRQ(ierr);
   }
   ierr = PetscFree(composite->pdelist);CHKERRQ(ierr);
@@ -198,7 +198,7 @@ PetscErrorCode FDPDCompositeSetFDPDE(FDPDE fd,PetscInt n,FDPDE pdelist[])
   ierr = PetscCalloc1(n,&composite->dmlist);CHKERRQ(ierr);
   for (i=0; i<n; i++) {
     composite->pdelist[i] = pdelist[i];
-    /*pdelist[i]->refcount++;*/// needs refcount
+    pdelist[i]->refcount++;
     ierr = FDPDEGetDM(pdelist[i],&composite->dmlist[i]);CHKERRQ(ierr);
   }
   ierr = PetscCalloc1(composite->n,&composite->subX);CHKERRQ(ierr);

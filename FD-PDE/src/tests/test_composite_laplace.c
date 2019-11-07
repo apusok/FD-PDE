@@ -184,6 +184,9 @@ PetscErrorCode Numerical_Laplace_Decoupled(DM _dm[], Vec _x[], void *ctx)
   ierr = FDPDESetUp(fdmono);CHKERRQ(ierr);
   ierr = FDPDEView(fdmono); CHKERRQ(ierr);
   
+  for (i=0; i<n; i++) {
+    ierr = FDPDEDestroy(&fdlaplace[i]);CHKERRQ(ierr);
+  }
 
   
   // FD SNES Solver
@@ -205,10 +208,8 @@ PetscErrorCode Numerical_Laplace_Decoupled(DM _dm[], Vec _x[], void *ctx)
   // Output solution to file
   //ierr = DMStagViewBinaryPython(dm,x,usr->par->fname_out);CHKERRQ(ierr);
   
-  // Destroy FD-PDE object
-  for (i=0; i<n; i++) {
-    ierr = FDPDEDestroy(&fdlaplace[i]);CHKERRQ(ierr);
-  }
+  ierr = VecDestroy(&x);CHKERRQ(ierr);
+  ierr = FDPDEDestroy(&fdmono);CHKERRQ(ierr);
   
   PetscFunctionReturn(0);
 }
@@ -527,9 +528,11 @@ int main (int argc,char **argv)
     DM dm0;
     Vec x0;
     ierr = Numerical_Laplace(&dm0, &x0, usr); CHKERRQ(ierr);
+    
+    ierr = DMDestroy(&dm0); CHKERRQ(ierr);
+    ierr = VecDestroy(&x0); CHKERRQ(ierr);
   }
   ierr = Numerical_Laplace_Decoupled(dmLaplace, xLaplace, usr); CHKERRQ(ierr);
-  exit(1);
   
   // Analytical solution
   ierr = Analytic_Laplace(dmLaplace[0], &xAnalytic, usr); CHKERRQ(ierr);

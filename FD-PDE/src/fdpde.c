@@ -94,7 +94,7 @@ PetscErrorCode FDPDECreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
 
   fd->description_bc = NULL;
   fd->description_coeff = NULL;
-
+  fd->refcount++;
   *_fd = fd;
   
   PetscFunctionReturn(0);
@@ -228,7 +228,12 @@ PetscErrorCode FDPDEDestroy(FDPDE *_fd)
   if (!_fd) PetscFunctionReturn(0);
   if (!*_fd) PetscFunctionReturn(0);
   fd = *_fd;
-
+  if (fd->refcount-1 > 0) {
+    fd->refcount--;
+    *_fd = NULL;
+    PetscFunctionReturn(0);
+  }
+  
   // Destroy FD-PDE specific objects
   if (fd->ops->destroy) { ierr = fd->ops->destroy(fd); CHKERRQ(ierr); }
   fd->data = NULL;
@@ -771,6 +776,7 @@ PetscErrorCode FDPDECreate2(MPI_Comm comm,FDPDE *_fd)
   fd->setupcalled       = PETSC_FALSE;
   fd->description_bc    = NULL;
   fd->description_coeff = NULL;
+  fd->refcount++;
   *_fd = fd;
   PetscFunctionReturn(0);
 }

@@ -51,6 +51,7 @@ struct _p_FDPDE {
   PetscBool       setupcalled;
   PetscInt        naux_global_vectors;
   Vec            *aux_global_vectors;
+  PetscInt        refcount;
 };
 
 // ---------------------------------------
