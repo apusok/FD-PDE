@@ -191,6 +191,7 @@ PetscErrorCode FDPDCompositeSetFDPDE(FDPDE fd,PetscInt n,FDPDE pdelist[])
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
+  if (fd->type != FDPDE_COMPOSITE) PetscFunctionReturn(0);
   composite = (PDEComposite*)fd->data;
   if (composite->setup) PetscFunctionReturn(0);
   composite->n = n;
@@ -212,13 +213,14 @@ PetscErrorCode FDPDCompositeGetFDPDE(FDPDE fd,PetscInt *n,FDPDE *pdelist[])
   PDEComposite *composite;
   
   PetscFunctionBegin;
+  if (fd->type != FDPDE_COMPOSITE) PetscFunctionReturn(0);
   composite = (PDEComposite*)fd->data;
   if (n) *n = composite->n;
   if (pdelist) *pdelist = composite->pdelist;
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode FDPDECompositeUpdateState(FDPDE fd,Vec X)
+PetscErrorCode FDPDECompositeSynchronizeGlobalVectors(FDPDE fd,Vec X)
 {
   PDEComposite   *composite;
   PetscInt       i;
@@ -227,6 +229,7 @@ PetscErrorCode FDPDECompositeUpdateState(FDPDE fd,Vec X)
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
+  if (fd->type != FDPDE_COMPOSITE) PetscFunctionReturn(0);
   composite = (PDEComposite*)fd->data;
   dm = fd->dmstag; /* dmcomposite */
   subX = composite->subX;
@@ -243,6 +246,16 @@ PetscErrorCode FDPDECompositeUpdateState(FDPDE fd,Vec X)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode FDPDECreateComposite(MPI_Comm comm,PetscInt n,FDPDE pdelist[],FDPDE *fd)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  ierr = FDPDECreate2(comm,fd);CHKERRQ(ierr);
+  ierr = FDPDESetType(*fd,FDPDE_COMPOSITE);CHKERRQ(ierr);
+  ierr = FDPDCompositeSetFDPDE(*fd,n,pdelist);CHKERRQ(ierr);
+  ierr = FDPDESetUp(*fd);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 
 PetscErrorCode FDPDESNESComposite_GaussSeidel(FDPDE fd,Vec X)
 {

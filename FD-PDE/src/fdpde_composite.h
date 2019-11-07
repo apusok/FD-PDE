@@ -4,6 +4,7 @@
 
 PetscErrorCode FDPDCompositeSetFDPDE(FDPDE,PetscInt,FDPDE*);
 PetscErrorCode FDPDCompositeGetFDPDE(FDPDE,PetscInt*,FDPDE**);
-PetscErrorCode FDPDECompositeUpdateState(FDPDE fd,Vec X);
+PetscErrorCode FDPDECompositeSynchronizeGlobalVectors(FDPDE fd,Vec X);
+PetscErrorCode FDPDECreateComposite(MPI_Comm comm,PetscInt n,FDPDE pdelist[],FDPDE *fd);
 
 #endif

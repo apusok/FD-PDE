@@ -1,6 +1,7 @@
 /* Finite Differences PDE (FD-PDE) object */
 
 #include "fdpde.h"
+#include "fdpde_composite.h"
 
 const char *FDPDETypeNames[] = {
   "uninit",
