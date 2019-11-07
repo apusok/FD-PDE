@@ -46,6 +46,9 @@ PetscErrorCode InputParameters(UsrData**);
 PetscErrorCode Analytic_Laplace(DM,Vec*,void*);
 PetscErrorCode Numerical_Laplace(DM*,Vec*,void*);
 PetscErrorCode FormCoefficient_Laplace(FDPDE,DM,Vec,DM,Vec,void*);
+PetscErrorCode FormCoefficient_Laplace_NL(FDPDE,DM,Vec,DM,Vec,void*);
+PetscErrorCode FormCoefficient_Laplace_NL1(FDPDE,DM,Vec,DM,Vec,void*);
+PetscErrorCode FormCoefficient_Laplace_NL2(FDPDE,DM,Vec,DM,Vec,void*);
 PetscErrorCode FormBCList_Laplace(DM,Vec,DMStagBCList,void*);
 
 // ---------------------------------------
@@ -172,8 +175,18 @@ PetscErrorCode Numerical_Laplace_Decoupled(DM _dm[], Vec _x[], void *ctx)
     ierr = FDPDESetFunctionBCList(fd,FormBCList_Laplace,bc_description,NULL); CHKERRQ(ierr);
     
     // Set coefficients evaluation function
-    ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient_Laplace,coeff_description,usr); CHKERRQ(ierr);
-    
+    if (i == 0) {
+      ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient_Laplace_NL,coeff_description,usr); CHKERRQ(ierr);
+    } else {
+      ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient_Laplace,coeff_description,usr); CHKERRQ(ierr);
+    }
+
+    if (i == 0) {
+      ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient_Laplace_NL1,coeff_description,usr); CHKERRQ(ierr);
+    } else {
+      ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient_Laplace_NL2,coeff_description,usr); CHKERRQ(ierr);
+    }
+
     fdlaplace[i] = fd;
   }
   
@@ -191,18 +204,22 @@ PetscErrorCode Numerical_Laplace_Decoupled(DM _dm[], Vec _x[], void *ctx)
   
   // FD SNES Solver
   ierr = FDPDESolve(fdmono,NULL);CHKERRQ(ierr);
-  
+  // testing
+  ierr = FDPDEGetSolution(fdmono,&x);CHKERRQ(ierr);
+  //ierr = FDPDESNESComposite_Jacobi(fdmono,x);CHKERRQ(ierr);
+  //ierr = FDPDESNESComposite_GaussSeidel(fdmono,x);CHKERRQ(ierr);
+  ierr = VecDestroy(&x);CHKERRQ(ierr);
   
   // Get solution vector
   ierr = FDPDEGetSolution(fdmono,&x);CHKERRQ(ierr);
-  ierr = FDPDECompositeUpdateState(fdmono,x);CHKERRQ(ierr);
+  ierr = FDPDECompositeSynchronizeGlobalVectors(fdmono,x);CHKERRQ(ierr);
   
   ierr = FDPDCompositeGetFDPDE(fdmono,NULL,&pdes);CHKERRQ(ierr);
   for (i=0; i<n; i++) {
     ierr = FDPDEGetDM(pdes[i],&_dm[i]); CHKERRQ(ierr);
     ierr = FDPDEGetSolution(pdes[i],&_x[i]);CHKERRQ(ierr);
     printf("solution %d\n",i);
-    VecView(_x[i],PETSC_VIEWER_STDOUT_WORLD);
+    //VecView(_x[i],PETSC_VIEWER_STDOUT_WORLD);
   }
   
   // Output solution to file
@@ -281,7 +298,7 @@ PetscErrorCode FormCoefficient_Laplace(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec c
   PetscFunctionBeginUser;
 
   ierr = FDPDEGetAuxGlobalVectors(fd,&naux,&aux_vecs);CHKERRQ(ierr);
-  PetscPrintf(PETSC_COMM_WORLD,"Found %D auxillary vectors\n",naux);
+  //PetscPrintf(PETSC_COMM_WORLD,"Found %D auxillary vectors\n",naux);
   
   // Element: A = rho*cp (dof 0), C = heat production/sink (dof 1)
   // Edges: k (dof 0), velocity (dof 1)
@@ -367,6 +384,372 @@ PetscErrorCode FormCoefficient_Laplace(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec c
 
   PetscFunctionReturn(0);
 }
+
+#undef __FUNCT__
+#define __FUNCT__ "FormCoefficient_Laplace_NL"
+PetscErrorCode FormCoefficient_Laplace_NL(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
+{
+  UsrData        *usr = (UsrData*)ctx;
+  PetscInt       i, j, sx, sz, nx, nz;
+  Vec            coefflocal;
+  PetscScalar    rho, k, cp, v[2];
+  PetscScalar    ***c,***LA_x_u,***LA_x_v;
+  PetscInt       naux;
+  Vec            *aux_vecs, x_u, x_u_local, x_v, x_v_local;
+  PetscErrorCode ierr;
+  
+  PetscFunctionBeginUser;
+  
+  ierr = FDPDEGetAuxGlobalVectors(fd,&naux,&aux_vecs);CHKERRQ(ierr);
+  //PetscPrintf(PETSC_COMM_WORLD,"Found %D auxillary vectors\n",naux);
+
+  x_u = aux_vecs[0];
+  x_v = aux_vecs[1];
+  
+  ierr = DMCreateLocalVector(dm,&x_u_local);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(dm,x_u,INSERT_VALUES,x_u_local);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(dm,x_u,INSERT_VALUES,x_u_local);CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayDOF(dm,x_u_local,&LA_x_u); CHKERRQ(ierr);
+
+  ierr = DMCreateLocalVector(dm,&x_v_local);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(dm,x_v,INSERT_VALUES,x_v_local);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(dm,x_v,INSERT_VALUES,x_v_local);CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayDOF(dm,x_v_local,&LA_x_v); CHKERRQ(ierr);
+  
+  // Element: A = rho*cp (dof 0), C = heat production/sink (dof 1)
+  // Edges: k (dof 0), velocity (dof 1)
+  
+  // User parameters
+  rho = usr->par->rho;
+  k   = usr->par->k;
+  cp  = usr->par->cp;
+  v[0]= usr->par->ux;
+  v[1]= usr->par->uz;
+  
+  // Get domain corners
+  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  
+  // Create coefficient local vector
+  ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayDOF(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
+  
+  // Loop over local domain - set initial density and viscosity
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      
+      { // A = rho*cp
+        DMStagStencil point;
+        PetscInt      idx;
+        
+        point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 0;
+        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = rho*cp;
+      }
+      
+      { // C = 0.0
+        DMStagStencil point;
+        PetscInt      idx;
+        
+        point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 1;
+        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 1.0 + 10.1 * pow(LA_x_v[j][i][0] , 33.3);
+      }
+      
+      { // B = k (edge)
+        DMStagStencil point[4];
+        PetscInt      ii, idx;
+        
+        point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
+        point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
+        point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 0;
+        point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 0;
+        
+        for (ii = 0; ii < 4; ii++) {
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = k;
+          c[j][i][idx] = 1.0 + pow(LA_x_v[j][i][0] , 2.3) + pow(LA_x_u[j][i][0] , 1.0);
+        }
+      }
+      
+      { // u = velocity (edge)
+        DMStagStencil point[4];
+        PetscInt      ii, idx;
+        
+        point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 1;
+        point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 1;
+        point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 1;
+        point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 1;
+        
+        for (ii = 0; ii < 2; ii++) {
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = v[0];
+        }
+        for (ii = 2; ii < 4; ii++) {
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = v[1];
+        }
+      }
+    }
+  }
+  
+  // Restore arrays, local vectors
+  ierr = DMStagVecRestoreArrayDOF(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
+
+  ierr = DMStagVecRestoreArrayDOF(dm,x_u_local,&LA_x_u);CHKERRQ(ierr);
+  ierr = VecDestroy(&x_u_local);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArrayDOF(dm,x_v_local,&LA_x_v);CHKERRQ(ierr);
+  ierr = VecDestroy(&x_v_local);CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+
+#undef __FUNCT__
+#define __FUNCT__ "FormCoefficient_Laplace_NL1"
+PetscErrorCode FormCoefficient_Laplace_NL1(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
+{
+  UsrData        *usr = (UsrData*)ctx;
+  PetscInt       i, j, sx, sz, nx, nz;
+  Vec            coefflocal;
+  PetscScalar    rho, k, cp, v[2];
+  PetscScalar    ***c,***LA_x_u,***LA_x_v;
+  PetscInt       naux;
+  Vec            *aux_vecs, x_u, x_u_local, x_v, x_v_local;
+  PetscErrorCode ierr;
+  
+  PetscFunctionBeginUser;
+  
+  ierr = FDPDEGetAuxGlobalVectors(fd,&naux,&aux_vecs);CHKERRQ(ierr);
+  
+  x_u = aux_vecs[0];
+  x_v = aux_vecs[1];
+  
+  ierr = DMCreateLocalVector(dm,&x_u_local);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(dm,x_u,INSERT_VALUES,x_u_local);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(dm,x_u,INSERT_VALUES,x_u_local);CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayDOF(dm,x_u_local,&LA_x_u); CHKERRQ(ierr);
+  
+  ierr = DMCreateLocalVector(dm,&x_v_local);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(dm,x_v,INSERT_VALUES,x_v_local);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(dm,x_v,INSERT_VALUES,x_v_local);CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayDOF(dm,x_v_local,&LA_x_v); CHKERRQ(ierr);
+  
+  // Element: A = rho*cp (dof 0), C = heat production/sink (dof 1)
+  // Edges: k (dof 0), velocity (dof 1)
+  
+  // User parameters
+  rho = usr->par->rho;
+  k   = usr->par->k;
+  cp  = usr->par->cp;
+  v[0]= usr->par->ux;
+  v[1]= usr->par->uz;
+  
+  // Get domain corners
+  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  
+  // Create coefficient local vector
+  ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayDOF(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
+  
+  // Loop over local domain - set initial density and viscosity
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      
+      { // A = rho*cp
+        DMStagStencil point;
+        PetscInt      idx;
+        
+        point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 0;
+        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = rho*cp;
+      }
+      
+      { // C = 0.0
+        DMStagStencil point;
+        PetscInt      idx;
+        
+        point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 1;
+        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 1.0 + 10.1 * LA_x_v[j][i][0];
+      }
+      
+      { // B = k (edge)
+        DMStagStencil point[4];
+        PetscInt      ii, idx;
+        
+        point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
+        point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
+        point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 0;
+        point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 0;
+        
+        for (ii = 0; ii < 4; ii++) {
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = k;
+          c[j][i][idx] = k * (1.0 + pow(LA_x_u[j][i][0] , 2) * exp(LA_x_v[j][i][0]) );
+        }
+      }
+      
+      { // u = velocity (edge)
+        DMStagStencil point[4];
+        PetscInt      ii, idx;
+        
+        point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 1;
+        point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 1;
+        point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 1;
+        point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 1;
+        
+        for (ii = 0; ii < 2; ii++) {
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = v[0];
+        }
+        for (ii = 2; ii < 4; ii++) {
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = v[1];
+        }
+      }
+    }
+  }
+  
+  // Restore arrays, local vectors
+  ierr = DMStagVecRestoreArrayDOF(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
+  
+  ierr = DMStagVecRestoreArrayDOF(dm,x_u_local,&LA_x_u);CHKERRQ(ierr);
+  ierr = VecDestroy(&x_u_local);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArrayDOF(dm,x_v_local,&LA_x_v);CHKERRQ(ierr);
+  ierr = VecDestroy(&x_v_local);CHKERRQ(ierr);
+  
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "FormCoefficient_Laplace_NL2"
+PetscErrorCode FormCoefficient_Laplace_NL2(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
+{
+  UsrData        *usr = (UsrData*)ctx;
+  PetscInt       i, j, sx, sz, nx, nz;
+  Vec            coefflocal;
+  PetscScalar    rho, k, cp, v[2];
+  PetscScalar    ***c,***LA_x_u,***LA_x_v;
+  PetscInt       naux;
+  Vec            *aux_vecs, x_u, x_u_local, x_v, x_v_local;
+  PetscErrorCode ierr;
+  
+  PetscFunctionBeginUser;
+  
+  ierr = FDPDEGetAuxGlobalVectors(fd,&naux,&aux_vecs);CHKERRQ(ierr);
+  
+  x_u = aux_vecs[0];
+  x_v = aux_vecs[1];
+  
+  ierr = DMCreateLocalVector(dm,&x_u_local);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(dm,x_u,INSERT_VALUES,x_u_local);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(dm,x_u,INSERT_VALUES,x_u_local);CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayDOF(dm,x_u_local,&LA_x_u); CHKERRQ(ierr);
+  
+  ierr = DMCreateLocalVector(dm,&x_v_local);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(dm,x_v,INSERT_VALUES,x_v_local);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(dm,x_v,INSERT_VALUES,x_v_local);CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayDOF(dm,x_v_local,&LA_x_v); CHKERRQ(ierr);
+  
+  // Element: A = rho*cp (dof 0), C = heat production/sink (dof 1)
+  // Edges: k (dof 0), velocity (dof 1)
+  
+  // User parameters
+  rho = usr->par->rho;
+  k   = usr->par->k;
+  cp  = usr->par->cp;
+  v[0]= usr->par->ux;
+  v[1]= usr->par->uz;
+  
+  // Get domain corners
+  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  
+  // Create coefficient local vector
+  ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayDOF(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
+  
+  // Loop over local domain - set initial density and viscosity
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      
+      { // A = rho*cp
+        DMStagStencil point;
+        PetscInt      idx;
+        
+        point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 0;
+        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = rho*cp;
+      }
+      
+      { // C = 0.0
+        DMStagStencil point;
+        PetscInt      idx;
+        
+        point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 1;
+        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 1.0;
+      }
+      
+      { // B = k (edge)
+        DMStagStencil point[4];
+        PetscInt      ii, idx;
+        
+        point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
+        point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
+        point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 0;
+        point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 0;
+        
+        for (ii = 0; ii < 4; ii++) {
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = k;
+          c[j][i][idx] = k * (1.0 + pow(LA_x_v[j][i][0] , 1.0) );
+        }
+      }
+      
+      { // u = velocity (edge)
+        DMStagStencil point[4];
+        PetscInt      ii, idx;
+        
+        point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 1;
+        point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 1;
+        point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 1;
+        point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 1;
+        
+        for (ii = 0; ii < 2; ii++) {
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = v[0];
+        }
+        for (ii = 2; ii < 4; ii++) {
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = v[1];
+        }
+      }
+    }
+  }
+  
+  // Restore arrays, local vectors
+  ierr = DMStagVecRestoreArrayDOF(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
+  
+  ierr = DMStagVecRestoreArrayDOF(dm,x_u_local,&LA_x_u);CHKERRQ(ierr);
+  ierr = VecDestroy(&x_u_local);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArrayDOF(dm,x_v_local,&LA_x_v);CHKERRQ(ierr);
+  ierr = VecDestroy(&x_v_local);CHKERRQ(ierr);
+  
+  PetscFunctionReturn(0);
+}
+
+
+
+
 
 // ---------------------------------------
 // Create analytical solution for Laplace equation
@@ -524,6 +907,7 @@ int main (int argc,char **argv)
   }
 
   // Numerical solution using the FD pde object
+  /*
   {
     DM dm0;
     Vec x0;
@@ -532,6 +916,8 @@ int main (int argc,char **argv)
     ierr = DMDestroy(&dm0); CHKERRQ(ierr);
     ierr = VecDestroy(&x0); CHKERRQ(ierr);
   }
+  */
+   
   ierr = Numerical_Laplace_Decoupled(dmLaplace, xLaplace, usr); CHKERRQ(ierr);
   
   // Analytical solution
