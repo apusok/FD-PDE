@@ -42,7 +42,7 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
   }
 
   // Update coefficients
-  ierr = fd->ops->form_coefficient(dm,x,dmcoeff,fd->coeff,fd->user_context);CHKERRQ(ierr);
+  ierr = fd->ops->form_coefficient(fd,dm,x,dmcoeff,fd->coeff,fd->user_context);CHKERRQ(ierr);
 
   // Get local domain
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -62,7 +62,7 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
     ierr = DMGetLocalVector(dm, &xprevlocal); CHKERRQ(ierr);
     ierr = DMGlobalToLocal (dm, ad->xprev, INSERT_VALUES, xprevlocal); CHKERRQ(ierr);
 
-    ierr = fd->ops->form_coefficient(dm,ad->xprev,dmcoeff,ad->coeffprev,fd->user_context);CHKERRQ(ierr);
+    ierr = fd->ops->form_coefficient(fd,dm,ad->xprev,dmcoeff,ad->coeffprev,fd->user_context);CHKERRQ(ierr);
     ierr = DMGetLocalVector(dmcoeff, &coeffprevlocal); CHKERRQ(ierr);
     ierr = DMGlobalToLocal (dmcoeff, ad->coeffprev, INSERT_VALUES, coeffprevlocal); CHKERRQ(ierr);
   }

@@ -1,9 +1,4 @@
-// ---------------------------------------
-// LAPLACE (ADVDIFF) benchmark \nabla^2 T = 0
-// run: ./tests/test_advdiff_laplace.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
-// python test: ./tests/python/test_advdiff_laplace.py
-// ---------------------------------------
-static char help[] = "Application to solve the Laplace equation (ADVDIFF) with FD-PDE \n\n";
+static char help[] = "Application to solve the two de-coupled Laplace problems with a monolithoc FD-PDE \n\n";
 
 // define convenient names for DMStagStencilLocation
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
@@ -18,6 +13,7 @@ static char help[] = "Application to solve the Laplace equation (ADVDIFF) with F
 
 #include "petsc.h"
 #include "../fdpde_advdiff.h"
+#include "../fdpde_composite.h"
 #include "../dmstagoutput.h"
 
 // ---------------------------------------
@@ -47,7 +43,6 @@ typedef struct {
 // Function definitions
 // ---------------------------------------
 PetscErrorCode InputParameters(UsrData**);
-PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode Analytic_Laplace(DM,Vec*,void*);
 PetscErrorCode Numerical_Laplace(DM*,Vec*,void*);
 PetscErrorCode FormCoefficient_Laplace(FDPDE,DM,Vec,DM,Vec,void*);
@@ -124,6 +119,7 @@ PetscErrorCode Numerical_Laplace(DM *_dm, Vec *_x, void *ctx)
   // Get solution vector
   ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr); 
   ierr = FDPDEGetDM(fd, &dm); CHKERRQ(ierr);
+  VecView(x,PETSC_VIEWER_STDOUT_WORLD);
 
   // Output solution to file
   ierr = DMStagViewBinaryPython(dm,x,usr->par->fname_out);CHKERRQ(ierr);
@@ -134,6 +130,87 @@ PetscErrorCode Numerical_Laplace(DM *_dm, Vec *_x, void *ctx)
   *_x  = x;
   *_dm = dm;
 
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode Numerical_Laplace_Decoupled(DM _dm[], Vec _x[], void *ctx)
+{
+  UsrData       *usr = (UsrData*) ctx;
+  FDPDE          fdlaplace[2],fdmono,*pdes;
+  Vec            x;
+  PetscInt       nx, nz, i, n=2;
+  PetscScalar    dx, dz,xmin, zmin, xmax, zmax;
+  PetscErrorCode ierr;
+  
+  PetscFunctionBegin;
+  
+  // Element count
+  nx = usr->par->nx;
+  nz = usr->par->nz;
+  
+  // Domain coords
+  dx = usr->par->L/(2*nx-2);
+  dz = usr->par->H/(2*nz-2);
+  
+  // modify coord of dm such that unknowns are located on the boundaries limits (0,1)
+  xmin = usr->par->xmin-dx;
+  zmin = usr->par->zmin-dz;
+  xmax = usr->par->xmin+usr->par->L+dx;
+  zmax = usr->par->zmin+usr->par->H+dz;
+  
+  // Create the sub FD-pde objects
+  for (i=0; i<n; i++) {
+    FDPDE fd;
+    
+    ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ADVDIFF,&fd);CHKERRQ(ierr);
+    ierr = FDPDESetUp(fd);CHKERRQ(ierr);
+    ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_NONE);CHKERRQ(ierr);
+    ierr = FDPDEAdvDiffSetTimeStepSchemeType(fd,TS_NONE);CHKERRQ(ierr);
+    // User can modify the dm coordinates anywhere between FDPDESetUp() and FDPDESolve()
+    
+    // Set BC evaluation function
+    ierr = FDPDESetFunctionBCList(fd,FormBCList_Laplace,bc_description,NULL); CHKERRQ(ierr);
+    
+    // Set coefficients evaluation function
+    ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient_Laplace,coeff_description,usr); CHKERRQ(ierr);
+    
+    fdlaplace[i] = fd;
+  }
+  
+  // Create the composite FD-PDE
+  ierr = FDPDECreate2(usr->comm,&fdmono);CHKERRQ(ierr);
+  ierr = FDPDESetType(fdmono,FDPDE_COMPOSITE);CHKERRQ(ierr);
+  ierr = FDPDCompositeSetFDPDE(fdmono,2,fdlaplace);CHKERRQ(ierr);
+  ierr = FDPDESetUp(fdmono);CHKERRQ(ierr);
+  ierr = FDPDEView(fdmono); CHKERRQ(ierr);
+  
+  for (i=0; i<n; i++) {
+    ierr = FDPDEDestroy(&fdlaplace[i]);CHKERRQ(ierr);
+  }
+
+  
+  // FD SNES Solver
+  ierr = FDPDESolve(fdmono,NULL);CHKERRQ(ierr);
+  
+  
+  // Get solution vector
+  ierr = FDPDEGetSolution(fdmono,&x);CHKERRQ(ierr);
+  ierr = FDPDECompositeUpdateState(fdmono,x);CHKERRQ(ierr);
+  
+  ierr = FDPDCompositeGetFDPDE(fdmono,NULL,&pdes);CHKERRQ(ierr);
+  for (i=0; i<n; i++) {
+    ierr = FDPDEGetDM(pdes[i],&_dm[i]); CHKERRQ(ierr);
+    ierr = FDPDEGetSolution(pdes[i],&_x[i]);CHKERRQ(ierr);
+    printf("solution %d\n",i);
+    VecView(_x[i],PETSC_VIEWER_STDOUT_WORLD);
+  }
+  
+  // Output solution to file
+  //ierr = DMStagViewBinaryPython(dm,x,usr->par->fname_out);CHKERRQ(ierr);
+  
+  ierr = VecDestroy(&x);CHKERRQ(ierr);
+  ierr = FDPDEDestroy(&fdmono);CHKERRQ(ierr);
+  
   PetscFunctionReturn(0);
 }
 
@@ -197,10 +274,15 @@ PetscErrorCode FormCoefficient_Laplace(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec c
   Vec            coefflocal;
   PetscScalar    rho, k, cp, v[2];
   PetscScalar    ***c;
+  PetscInt       naux;
+  Vec            *aux_vecs;
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
 
+  ierr = FDPDEGetAuxGlobalVectors(fd,&naux,&aux_vecs);CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"Found %D auxillary vectors\n",naux);
+  
   // Element: A = rho*cp (dof 0), C = heat production/sink (dof 1)
   // Edges: k (dof 0), velocity (dof 1)
 
@@ -409,50 +491,6 @@ PetscErrorCode InputParameters(UsrData **_usr)
 }
 
 // ---------------------------------------
-// InputPrintData
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "InputPrintData"
-PetscErrorCode InputPrintData(UsrData *usr)
-{
-  char           date[30], *opts;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-
-  // Get date
-  ierr = PetscGetDate(date,30); CHKERRQ(ierr);
-
-  // Get petsc command options
-  ierr = PetscOptionsGetAll(NULL, &opts); CHKERRQ(ierr);
-
-  // Print header and petsc options
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# Test_advdiff_laplace: %s \n",&(date[0]));
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-
-  // Input file info
-  if (usr->par->fname_in[0] == '\0') { // string is empty
-    PetscPrintf(usr->comm,"# Input options file: NONE \n");
-  }
-  else {
-    PetscPrintf(usr->comm,"# Input options file: %s \n",usr->par->fname_in);
-  }
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-
-  // Print usr bag
-  ierr = PetscBagView(usr->bag,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-
-  // Free memory
-  ierr = PetscFree(opts); CHKERRQ(ierr);
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
 // MAIN
 // ---------------------------------------
 #undef __FUNCT__
@@ -460,8 +498,8 @@ PetscErrorCode InputPrintData(UsrData *usr)
 int main (int argc,char **argv)
 {
   UsrData         *usr;
-  DM              dmLaplace;
-  Vec             xLaplace,xAnalytic;
+  DM              dmLaplace[2];
+  Vec             xLaplace[2],xAnalytic;
   PetscLogDouble  start_time, end_time;
   PetscErrorCode  ierr;
     
@@ -485,18 +523,25 @@ int main (int argc,char **argv)
     if (flg) { ierr = PetscStrcpy(usr->par->fname_in, argv[i+1]); CHKERRQ(ierr); }
   }
 
-  // Print user parameters
-  ierr = InputPrintData(usr); CHKERRQ(ierr);
-
   // Numerical solution using the FD pde object
-  ierr = Numerical_Laplace(&dmLaplace, &xLaplace, usr); CHKERRQ(ierr);
-
+  {
+    DM dm0;
+    Vec x0;
+    ierr = Numerical_Laplace(&dm0, &x0, usr); CHKERRQ(ierr);
+    
+    ierr = DMDestroy(&dm0); CHKERRQ(ierr);
+    ierr = VecDestroy(&x0); CHKERRQ(ierr);
+  }
+  ierr = Numerical_Laplace_Decoupled(dmLaplace, xLaplace, usr); CHKERRQ(ierr);
+  
   // Analytical solution
-  ierr = Analytic_Laplace(dmLaplace, &xAnalytic, usr); CHKERRQ(ierr);
+  ierr = Analytic_Laplace(dmLaplace[0], &xAnalytic, usr); CHKERRQ(ierr);
 
   // Destroy objects
-  ierr = DMDestroy(&dmLaplace); CHKERRQ(ierr);
-  ierr = VecDestroy(&xLaplace); CHKERRQ(ierr);
+  ierr = DMDestroy(&dmLaplace[0]); CHKERRQ(ierr);
+  ierr = DMDestroy(&dmLaplace[1]); CHKERRQ(ierr);
+  ierr = VecDestroy(&xLaplace[0]); CHKERRQ(ierr);
+  ierr = VecDestroy(&xLaplace[1]); CHKERRQ(ierr);
   ierr = VecDestroy(&xAnalytic); CHKERRQ(ierr);
 
   ierr = PetscBagDestroy(&usr->bag); CHKERRQ(ierr);

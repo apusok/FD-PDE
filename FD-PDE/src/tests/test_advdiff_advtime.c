@@ -51,7 +51,7 @@ typedef struct {
 PetscErrorCode Numerical_solution(void*,PetscInt);
 PetscErrorCode InputParameters(UsrData**);
 PetscErrorCode InputPrintData(UsrData*);
-PetscErrorCode FormCoefficient(DM,Vec,DM,Vec,void*);
+PetscErrorCode FormCoefficient(FDPDE,DM,Vec,DM,Vec,void*);
 PetscErrorCode FormBCList_Dirichlet(DM,Vec,DMStagBCList,void*);
 PetscErrorCode SetGaussianInitialGuess(DM,Vec,void*);
 PetscErrorCode Analytic_AdvTime(DM,void*,PetscInt);
@@ -418,7 +418,7 @@ PetscErrorCode SetGaussianInitialGuess(DM dm, Vec xguess, void *ctx)
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FormCoefficient"
-PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
+PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       i, j, sx, sz, nx, nz;

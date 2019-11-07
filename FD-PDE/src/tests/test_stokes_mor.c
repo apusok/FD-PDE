@@ -52,7 +52,7 @@ PetscErrorCode SNESStokes_MOR(DM*,Vec*,void*);
 PetscErrorCode Analytic_MOR(DM,Vec*,void*);
 PetscErrorCode InputParameters(UsrData**);
 PetscErrorCode InputPrintData(UsrData*);
-PetscErrorCode FormCoefficient(DM, Vec, DM, Vec, void*);
+PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList_MOR(DM, Vec, DMStagBCList, void*);
 
 // ---------------------------------------
@@ -246,7 +246,7 @@ PetscErrorCode InputPrintData(UsrData *usr)
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FormCoefficient"
-PetscErrorCode FormCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
+PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       i, j, sx, sz, nx, nz;
