@@ -11,7 +11,7 @@
 // Enum definitions
 // ---------------------------------------
 // FD-PDE type
-typedef enum { FDPDE_UNINIT = 0, FDPDE_STOKES, FDPDE_ADVDIFF } FDPDEType;
+typedef enum { FDPDE_UNINIT = 0, FDPDE_STOKES, FDPDE_ADVDIFF, FDPDE_COMPOSITE } FDPDEType;
 
 // ---------------------------------------
 // Struct definitions
@@ -28,6 +28,7 @@ struct _FDPDEOps {
   PetscErrorCode (*create)(FDPDE);
   PetscErrorCode (*view)(FDPDE);
   PetscErrorCode (*destroy)(FDPDE);
+  PetscErrorCode (*setup)(FDPDE);
 };
 
 // FD-PDE struct
@@ -48,6 +49,8 @@ struct _p_FDPDE {
   PetscInt        dofc0,dofc1,dofc2;
   PetscScalar     x0,x1,z0,z1;
   PetscBool       setupcalled;
+  PetscInt        naux_global_vectors;
+  Vec            *aux_global_vectors;
 };
 
 // ---------------------------------------
@@ -73,5 +76,10 @@ PetscErrorCode FDPDEGetSolutionGuess(FDPDE,Vec*);
 
 PetscErrorCode FDPDEGetCoordinatesArrayDMStag(FDPDE,PetscScalar***,PetscScalar***);
 PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE,PetscScalar**,PetscScalar**);
+
+PetscErrorCode FDPDECreate2(MPI_Comm,FDPDE*);
+PetscErrorCode FDPDESetType(FDPDE,FDPDEType);
+PetscErrorCode FDPDESetSizes(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
+PetscErrorCode FDPDEGetAuxGlobalVectors(FDPDE,PetscInt*,Vec**);
 
 #endif

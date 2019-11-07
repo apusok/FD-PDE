@@ -5,7 +5,8 @@
 const char *FDPDETypeNames[] = {
   "uninit",
   "stokes",
-  "advdiff"
+  "advdiff",
+  "composite"
 };
 
 // ---------------------------------------
@@ -13,6 +14,8 @@ const char *FDPDETypeNames[] = {
 // ---------------------------------------
 PetscErrorCode FDPDECreate_Stokes(FDPDE fd);
 PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd);
+PetscErrorCode FDPDECreate_Composite(FDPDE fd);
+PetscErrorCode FDPDESetUp_Composite(FDPDE fd);
 
 // ---------------------------------------
 /*@ FDPDECreate - creates an object that will manage the discretization of a PDE using 
@@ -54,6 +57,8 @@ PetscErrorCode FDPDECreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   
   if (xs >= xe) SETERRQ(comm,PETSC_ERR_ARG_OUTOFRANGE,"Invalid x-maximum (arg 5) provided. xe > xs.");
   if (zs >= ze) SETERRQ(comm,PETSC_ERR_ARG_OUTOFRANGE,"Invalid y-maximum (arg 7) provided. ze > zs");
+  
+  if (type == FDPDE_COMPOSITE) SETERRQ(comm,PETSC_ERR_ARG_WRONG,"Must use FDPDECreate2() with FDPDE_COMPOSITE");
   
   // Allocate memory
   ierr = PetscCalloc1(1,&fd);CHKERRQ(ierr);
@@ -119,7 +124,13 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
   PetscErrorCode ierr; 
   PetscFunctionBegin;
   if (fd->setupcalled) PetscFunctionReturn(0);
-
+  /* call setup and return if defined - else do default setup */
+  if (fd->ops->setup) {
+    ierr = fd->ops->setup(fd);CHKERRQ(ierr);
+    fd->setupcalled = PETSC_TRUE;
+   PetscFunctionReturn(0);
+  }
+  
   // Set up structures needed for FD-PDE type
   switch (fd->type) {
     case FDPDE_UNINIT:
@@ -220,6 +231,7 @@ PetscErrorCode FDPDEDestroy(FDPDE *_fd)
 
   // Destroy FD-PDE specific objects
   if (fd->ops->destroy) { ierr = fd->ops->destroy(fd); CHKERRQ(ierr); }
+  fd->data = NULL;
 
   // Destroy FD-PDE objects
   ierr = DMStagBCListDestroy(&fd->bclist);CHKERRQ(ierr);
@@ -235,7 +247,6 @@ PetscErrorCode FDPDEDestroy(FDPDE *_fd)
   ierr = DMDestroy(&fd->dmstag); CHKERRQ(ierr);
 
   fd->user_context = NULL;
-  fd->data = NULL;
 
   ierr = PetscFree(fd->description);CHKERRQ(ierr);
   ierr = PetscFree(fd->description_bc);CHKERRQ(ierr);
@@ -259,7 +270,6 @@ Use: user
 #define __FUNCT__ "FDPDEView"
 PetscErrorCode FDPDEView(FDPDE fd)
 {
-  PetscInt       dof[3];
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
@@ -278,14 +288,12 @@ PetscErrorCode FDPDEView(FDPDE fd)
   PetscPrintf(fd->comm,"  # global size elements: %D (x-dir) %D (z-dir)\n",fd->Nx,fd->Nz);
 
   if (fd->dmstag) {
-    ierr = DMStagGetDOF(fd->dmstag,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
-    PetscPrintf(fd->comm,"  # dmstag: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
+    PetscPrintf(fd->comm,"  # dmstag: %D (vertices) %D (faces) %D (elements)\n",fd->dof0,fd->dof1,fd->dof2);
   } else {
     PetscPrintf(fd->comm,"  # dmstag: not available\n");
   }
   if (fd->dmcoeff) {
-    ierr = DMStagGetDOF(fd->dmcoeff,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
-    PetscPrintf(fd->comm,"  # dmcoeff: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
+    PetscPrintf(fd->comm,"  # dmcoeff: %D (vertices) %D (faces) %D (elements)\n",fd->dofc0,fd->dofc1,fd->dofc2);
   } else {
     PetscPrintf(fd->comm,"  # dmcoeff: not available\n");
   }
@@ -732,5 +740,99 @@ PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE fd,PetscScalar **cx, Pet
   // update coords of BCs
   ierr = DMStagBCListSetupCoordinates(fd->bclist);CHKERRQ(ierr);
 
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "FDPDECreate2"
+PetscErrorCode FDPDECreate2(MPI_Comm comm,FDPDE *_fd)
+{
+  FDPDE          fd;
+  FDPDEOps       ops;
+  PetscErrorCode ierr;
+  
+  PetscFunctionBegin;
+  if (!_fd) SETERRQ(comm,PETSC_ERR_ARG_NULL,"Must provide a valid (non-NULL) pointer for fd (arg 2)");
+  ierr = PetscCalloc1(1,&fd);CHKERRQ(ierr);
+  fd->comm = comm;
+  fd->type = FDPDE_UNINIT;
+  ierr = PetscCalloc1(1,&fd->ops);CHKERRQ(ierr);
+  fd->dmstag  = NULL;
+  fd->dmcoeff = NULL;
+  fd->bclist  = NULL;
+  fd->x       = NULL;
+  fd->xguess  = NULL;
+  fd->r       = NULL;
+  fd->coeff   = NULL;
+  fd->J       = NULL;
+  fd->snes    = NULL;
+  fd->data    = NULL;
+  fd->user_context      = NULL;
+  fd->setupcalled       = PETSC_FALSE;
+  fd->description_bc    = NULL;
+  fd->description_coeff = NULL;
+  *_fd = fd;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "FDPDESetType"
+PetscErrorCode FDPDESetType(FDPDE fd,FDPDEType type)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  if (fd->type != FDPDE_UNINIT) {
+    if (fd->ops->destroy) { ierr = fd->ops->destroy(fd); CHKERRQ(ierr); }
+  }
+  fd->type = type;
+  switch (fd->type) {
+    case FDPDE_UNINIT:
+    SETERRQ(fd->comm,PETSC_ERR_ARG_TYPENOTSET,"Un-initialized type for FD-PDE");
+    break;
+    case FDPDE_STOKES:
+    fd->ops->create = FDPDECreate_Stokes;
+    fd->ops->setup = NULL;
+    break;
+    case FDPDE_ADVDIFF:
+    fd->ops->create = FDPDECreate_AdvDiff;
+    fd->ops->setup = NULL;
+    break;
+    case FDPDE_COMPOSITE:
+    fd->ops->create = FDPDECreate_Composite;
+    fd->ops->setup  = FDPDESetUp_Composite;
+    break;
+    default:
+    SETERRQ(fd->comm,PETSC_ERR_ARG_UNKNOWN_TYPE,"Unknown type of FD-PDE specified");
+  }
+  ierr = fd->ops->create(fd);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "FDPDESetSizes"
+PetscErrorCode FDPDESetSizes(FDPDE fd,PetscInt nx,PetscInt nz,PetscScalar xs,PetscScalar xe,PetscScalar zs,PetscScalar ze)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  if (nx <= 0) SETERRQ1(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Dimension 1 (arg 2) provided for FD-PDE dmstag must be > 0. Found %D",nx);
+  if (nz <= 0) SETERRQ1(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Dimension 2 (arg 3) provided for FD-PDE dmstag must be > 0. Found %D",nz);
+  if (xs >= xe) SETERRQ(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Invalid x-maximum (arg 3) provided. xe > xs.");
+  if (zs >= ze) SETERRQ(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Invalid y-maximum (arg 5) provided. ze > zs");
+  fd->Nx = nx;
+  fd->Nz = nz;
+  fd->x0 = xs;
+  fd->x1 = xe;
+  fd->z0 = zs;
+  fd->z1 = ze;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEGetAuxGlobalVectors"
+PetscErrorCode FDPDEGetAuxGlobalVectors(FDPDE fd,PetscInt *n,Vec **vecs)
+{
+  PetscFunctionBegin;
+  if (n)    *n = fd->naux_global_vectors;
+  if (vecs) *vecs = fd->aux_global_vectors;
   PetscFunctionReturn(0);
 }
