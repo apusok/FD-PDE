@@ -45,7 +45,7 @@ typedef struct {
 PetscErrorCode InputParameters(UsrData**);
 PetscErrorCode Analytic_Laplace(DM,Vec*,void*);
 PetscErrorCode Numerical_Laplace(DM*,Vec*,void*);
-PetscErrorCode FormCoefficient_Laplace(DM,Vec,DM,Vec,void*);
+PetscErrorCode FormCoefficient_Laplace(FDPDE,DM,Vec,DM,Vec,void*);
 PetscErrorCode FormBCList_Laplace(DM,Vec,DMStagBCList,void*);
 
 // ---------------------------------------
@@ -266,7 +266,7 @@ PetscErrorCode FormBCList_Laplace(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FormCoefficient_Laplace"
-PetscErrorCode FormCoefficient_Laplace(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
+PetscErrorCode FormCoefficient_Laplace(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       i, j, sx, sz, nx, nz;

@@ -408,7 +408,7 @@ Use: user
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDPDESetFunctionCoefficient"
-PetscErrorCode FDPDESetFunctionCoefficient(FDPDE fd, PetscErrorCode (*form_coefficient)(DM,Vec,DM,Vec,void*), const char description[], void *data)
+PetscErrorCode FDPDESetFunctionCoefficient(FDPDE fd, PetscErrorCode (*form_coefficient)(FDPDE fd,DM,Vec,DM,Vec,void*), const char description[], void *data)
 {
   PetscErrorCode ierr;
   PetscFunctionBegin;

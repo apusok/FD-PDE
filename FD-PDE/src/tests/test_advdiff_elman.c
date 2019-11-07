@@ -55,9 +55,9 @@ PetscErrorCode Analytic_Elman311(DM,Vec*,void*);
 PetscErrorCode Numerical_Elman311(DM*,Vec*,void*);
 PetscErrorCode Numerical_Elman313(DM*,Vec*,void*);
 PetscErrorCode Numerical_Elman314(DM*,Vec*,void*);
-PetscErrorCode FormCoefficient_Elman311(DM,Vec,DM,Vec,void*);
-PetscErrorCode FormCoefficient_Elman313(DM,Vec,DM,Vec,void*);
-PetscErrorCode FormCoefficient_Elman314(DM,Vec,DM,Vec,void*);
+PetscErrorCode FormCoefficient_Elman311(FDPDE,DM,Vec,DM,Vec,void*);
+PetscErrorCode FormCoefficient_Elman313(FDPDE,DM,Vec,DM,Vec,void*);
+PetscErrorCode FormCoefficient_Elman314(FDPDE,DM,Vec,DM,Vec,void*);
 PetscErrorCode FormBCList_Elman311(DM,Vec,DMStagBCList,void*);
 PetscErrorCode FormBCList_Elman313(DM,Vec,DMStagBCList,void*);
 PetscErrorCode FormBCList_Elman314(DM,Vec,DMStagBCList,void*);
@@ -454,7 +454,7 @@ PetscErrorCode FormBCList_Elman314(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FormCoefficient_Elman311"
-PetscErrorCode FormCoefficient_Elman311(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
+PetscErrorCode FormCoefficient_Elman311(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       i, j, sx, sz, nx, nz;
@@ -552,7 +552,7 @@ PetscErrorCode FormCoefficient_Elman311(DM dm, Vec x, DM dmcoeff, Vec coeff, voi
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FormCoefficient_Elman313"
-PetscErrorCode FormCoefficient_Elman313(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
+PetscErrorCode FormCoefficient_Elman313(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       i, j, sx, sz, nx, nz;
@@ -650,7 +650,7 @@ PetscErrorCode FormCoefficient_Elman313(DM dm, Vec x, DM dmcoeff, Vec coeff, voi
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FormCoefficient_Elman314"
-PetscErrorCode FormCoefficient_Elman314(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
+PetscErrorCode FormCoefficient_Elman314(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       i, j, sx, sz, nx, nz;
