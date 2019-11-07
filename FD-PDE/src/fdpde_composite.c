@@ -67,8 +67,13 @@ static PetscErrorCode FormFunction_Composite(SNES snes,Vec X,Vec F,void *ctx)
   dm = fd->dmstag; /* dmcomposite */
   subX = composite->subX;
   subF = composite->subF;
-  ierr = DMCompositeGetAccessArray(dm,X,composite->n,NULL,composite->subX);CHKERRQ(ierr);
-  ierr = DMCompositeGetAccessArray(dm,F,composite->n,NULL,composite->subF);CHKERRQ(ierr);
+  ierr = DMCompositeGetAccessArray(dm,X,composite->n,NULL,subX);CHKERRQ(ierr);
+  ierr = DMCompositeGetAccessArray(dm,F,composite->n,NULL,subF);CHKERRQ(ierr);
+  /* set auxillary vectors */
+  for (i=0; i<composite->n; i++) {
+    composite->pdelist[i]->naux_global_vectors = composite->n;
+    composite->pdelist[i]->aux_global_vectors = subX;
+  }
   for (i=0; i<composite->n; i++) {
     /* Copy state (X) and residual (F) into sub-FDPDE objects */
     /* The state vector is most likely required as this is passed to form_coefficient() */
@@ -79,13 +84,19 @@ static PetscErrorCode FormFunction_Composite(SNES snes,Vec X,Vec F,void *ctx)
     /* evaluate residual of sub-FDPDE */
     ierr = SNESComputeFunction(composite->pdelist[i]->snes,subX[i],subF[i]);CHKERRQ(ierr);
   }
-  ierr = DMCompositeRestoreAccessArray(dm,F,composite->n,NULL,composite->subF);CHKERRQ(ierr);
-  ierr = DMCompositeRestoreAccessArray(dm,X,composite->n,NULL,composite->subX);CHKERRQ(ierr);
+  ierr = DMCompositeRestoreAccessArray(dm,F,composite->n,NULL,subF);CHKERRQ(ierr);
+  ierr = DMCompositeRestoreAccessArray(dm,X,composite->n,NULL,subX);CHKERRQ(ierr);
   /* probably unecesary, but NULL-ify vectors just for safety */
   for (i=0; i<composite->n; i++) {
     composite->subX[i] = NULL;
     composite->subF[i] = NULL;
   }
+  /* reset auxillary vectors */
+  for (i=0; i<composite->n; i++) {
+    composite->pdelist[i]->naux_global_vectors = 0;
+    composite->pdelist[i]->aux_global_vectors = NULL;
+  }
+
   PetscFunctionReturn(0);
 }
 
@@ -219,12 +230,12 @@ PetscErrorCode FDPDECompositeUpdateState(FDPDE fd,Vec X)
   composite = (PDEComposite*)fd->data;
   dm = fd->dmstag; /* dmcomposite */
   subX = composite->subX;
-  ierr = DMCompositeGetAccessArray(dm,X,composite->n,NULL,composite->subX);CHKERRQ(ierr);
+  ierr = DMCompositeGetAccessArray(dm,X,composite->n,NULL,subX);CHKERRQ(ierr);
   for (i=0; i<composite->n; i++) {
     /* Copy state (X) and residual (F) into sub-FDPDE objects */
     ierr = VecCopy(subX[i],composite->pdelist[i]->x);CHKERRQ(ierr);
   }
-  ierr = DMCompositeRestoreAccessArray(dm,X,composite->n,NULL,composite->subX);CHKERRQ(ierr);
+  ierr = DMCompositeRestoreAccessArray(dm,X,composite->n,NULL,subX);CHKERRQ(ierr);
   /* probably unecesary, but NULL-ify vectors just for safety */
   for (i=0; i<composite->n; i++) {
     composite->subX[i] = NULL;

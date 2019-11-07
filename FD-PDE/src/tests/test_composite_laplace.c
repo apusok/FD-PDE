@@ -273,10 +273,15 @@ PetscErrorCode FormCoefficient_Laplace(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec c
   Vec            coefflocal;
   PetscScalar    rho, k, cp, v[2];
   PetscScalar    ***c;
+  PetscInt       naux;
+  Vec            *aux_vecs;
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
 
+  ierr = FDPDEGetAuxGlobalVectors(fd,&naux,&aux_vecs);CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"Found %D auxillary vectors\n",naux);
+  
   // Element: A = rho*cp (dof 0), C = heat production/sink (dof 1)
   // Edges: k (dof 0), velocity (dof 1)
 
