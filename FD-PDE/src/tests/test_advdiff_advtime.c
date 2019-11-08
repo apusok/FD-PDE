@@ -81,6 +81,7 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
   UsrData       *usr = (UsrData*) ctx;
   DM             dm;
   Vec            x, xprev, xguess;
+  Vec            coeff, coeffprev;
   FDPDE          fd;
   PetscInt       nx, nz, istep, tstep;
   PetscScalar    dx, dz,xmin, zmin, xmax, zmax, dt;
@@ -156,6 +157,12 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
     ierr = FDPDEAdvDiffGetPrevSolution(fd,&xprev);CHKERRQ(ierr);
     ierr = VecCopy(x,xprev);CHKERRQ(ierr);
     ierr = VecDestroy(&xprev);CHKERRQ(ierr);
+
+    // Copy old coefficient to new
+    ierr = FDPDEGetCoefficient(fd,NULL,&coeff);CHKERRQ(ierr);
+    ierr = FDPDEAdvDiffGetPrevCoefficient(fd,&coeffprev);CHKERRQ(ierr);
+    ierr = VecCopy(coeff,coeffprev);CHKERRQ(ierr);
+    ierr = VecDestroy(&coeffprev);CHKERRQ(ierr);
 
     // Output solution
     if (istep % usr->par->tout == 0 ) {

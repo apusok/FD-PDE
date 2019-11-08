@@ -70,6 +70,9 @@ PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd)
   ad->xprev = NULL;
   ad->coeffprev = NULL;
 
+  // coefficient called
+  ad->coeffcalled = PETSC_FALSE;
+
   // fd-pde context data
   fd->data = ad;
 
@@ -159,6 +162,43 @@ PetscErrorCode FDPDEAdvDiffGetPrevSolution(FDPDE fd, Vec *xprev)
   if (xprev) {
     *xprev = ad->xprev;
     ierr = PetscObjectReference((PetscObject)ad->xprev);CHKERRQ(ierr);
+  }
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+FDPDEAdvDiffGetPrevCoefficient - retrieves the previous time step coefficient vector from the FD-PDE object (ADVDIFF). 
+
+Input Parameter:
+fd - the FD-PDE object
+
+Output Parameter:
+coeffprev - the previous time step coefficient vector
+
+Notes:
+Reference count on coeffprev is incremented. User must call VecDestroy().
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEAdvDiffGetPrevCoefficient"
+PetscErrorCode FDPDEAdvDiffGetPrevCoefficient(FDPDE fd, Vec *coeffprev)
+{
+  AdvDiffData    *ad;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  if (fd->type != FDPDE_ADVDIFF) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ADVDIFF!");
+  if (!fd->data) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"The FD-PDE context data has not been set up. Call FDPDESetUp() first.");
+  
+  ad = fd->data;
+
+  if (coeffprev) {
+    *coeffprev = ad->coeffprev;
+    ierr = PetscObjectReference((PetscObject)ad->coeffprev);CHKERRQ(ierr);
   }
 
   PetscFunctionReturn(0);
