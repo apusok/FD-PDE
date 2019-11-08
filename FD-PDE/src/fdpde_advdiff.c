@@ -64,7 +64,7 @@ PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd)
   ierr = PetscCalloc1(1,&ad);CHKERRQ(ierr);
 
   // time stepping
-  ad->CFL = 0.5;
+  ad->dtflg = PETSC_FALSE;
 
   // vectors
   ad->xprev = NULL;
@@ -124,7 +124,6 @@ PetscErrorCode FDPDEView_AdvDiff(FDPDE fd)
   PetscPrintf(fd->comm,"  # Advection Scheme type: %s\n",AdvectSchemeTypeNames[(int)ad->advtype]);
   PetscPrintf(fd->comm,"  # Time step Scheme type: %s\n",TimeStepSchemeTypeNames[(int)ad->timesteptype]);
   PetscPrintf(fd->comm,"  # Theta: %g\n",ad->theta);
-  PetscPrintf(fd->comm,"  # CFL: %g\n",ad->CFL);
   PetscPrintf(fd->comm,"  # User-defined time step size: %g\n\n",ad->dt_user);
 
   PetscFunctionReturn(0);
@@ -290,17 +289,17 @@ FDPDEAdvDiffSetTimestep - set a time step size and/or the CFL value (ADVDIFF)
 Input Parameters:
 fd - the FD-PDE object
 dt - time stepping size
-CFL - value to satisfy the Courant–Friedrichs–Lewy (CFL) criterion. If not specified (NULL), CFL = 0.5.
+dtflg - if true, dt = min(dt,max_dt_grid) where max_dt_grid is max allowed timestep on grid. if false, dt=dt
 
 Note:
-The time step size will be checked against the CFL criterion such that dt <= dt_CFL.
+The time step size will be checked against the max allowed timestep on grid such that dt <= max_dt_grid.
 
 Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDPDEAdvDiffSetTimestep"
-PetscErrorCode FDPDEAdvDiffSetTimestep(FDPDE fd, PetscScalar dt, PetscScalar CFL)
+PetscErrorCode FDPDEAdvDiffSetTimestep(FDPDE fd, PetscScalar dt, PetscBool dtflg)
 {
   AdvDiffData    *ad;
   PetscErrorCode ierr;
@@ -311,7 +310,9 @@ PetscErrorCode FDPDEAdvDiffSetTimestep(FDPDE fd, PetscScalar dt, PetscScalar CFL
 
   ad = fd->data;
   if (dt) ad->dt_user = dt;
-  if (CFL) ad->CFL = CFL;
+  if ((!dt) && (!dtflg)) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"No dt value was set and the dt flag was set to PETSC_FALSE!");
+  
+  ad->dtflg = dtflg;
 
   PetscFunctionReturn(0);
 }
