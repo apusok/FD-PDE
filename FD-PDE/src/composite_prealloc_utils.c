@@ -61,9 +61,11 @@ static PetscErrorCode private_DMStagStencilToIndexLocal(DM dm,PetscInt n,const D
 static PetscInt* convert_in_place(DM dm,PetscInt n,const DMStagStencil *pos)
 {
   PetscInt *ix;
+  PetscErrorCode ierr;
+  
   PetscFunctionBegin;
   PetscMalloc1(n,&ix);
-  private_DMStagStencilToIndexLocal(dm,n,pos,ix);
+  ierr = private_DMStagStencilToIndexLocal(dm,n,pos,ix);
   //for (i=0; i<n; i++) printf("ix[%d] = %d\n",i,ix[i]);
   return(ix);
 }
@@ -450,7 +452,7 @@ static PetscErrorCode _preallocate_coupled(Mat p,PetscInt i,DM row_dm,PetscInt n
       
       ierr = FillStencilCentral_2D(row_dm,ci,cj,Ni,Nj,&r_used,r_point_buffer);CHKERRQ(ierr);
       
-      rowidx = convert_in_place(row_dm,r_used,r_point_buffer);CHKERRQ(ierr);
+      rowidx = convert_in_place(row_dm,r_used,r_point_buffer);
       for (ii=0; ii<r_used; ii++) {
         //printf("ii %d : rowidx[jj] %d\n",ii,rowidx[ii]);
         if (rowidx[ii] < 0) { continue; }
@@ -465,7 +467,7 @@ static PetscErrorCode _preallocate_coupled(Mat p,PetscInt i,DM row_dm,PetscInt n
         
         ierr = fill_stencil[j](cols_dm[j],ci,cj,Ni,Nj,&c_used,c_point_buffer[j]);CHKERRQ(ierr);
         
-        colidx = convert_in_place(cols_dm[j],c_used,c_point_buffer[j]);CHKERRQ(ierr);
+        colidx = convert_in_place(cols_dm[j],c_used,c_point_buffer[j]);
         
         for (jj=0; jj<c_used; jj++) {
           //printf("jj %d : colidx[jj] %d\n",jj,colidx[jj]);
@@ -548,14 +550,14 @@ PetscErrorCode FDPDECoupledCreateMatrix(PetscInt ndm,DM dm[],MatType mtype,Mat *
   for (d=0; d<ndm; d++) {
     Vec x;
     PetscInt size;
-    DMCreateGlobalVector(dm[d],&x);CHKERRQ(ierr);
-    VecGetSize(x,&size);
+    ierr = DMCreateGlobalVector(dm[d],&x);CHKERRQ(ierr);
+    ierr = VecGetSize(x,&size);
     M[d] = size;
     N[d] = size;
-    VecGetLocalSize(x,&size);
+    ierr = VecGetLocalSize(x,&size);CHKERRQ(ierr);
     m[d] = size;
     n[d] = size;
-    VecDestroy(&x);
+    ierr = VecDestroy(&x);CHKERRQ(ierr);
   }
   for (d=1; d<ndm; d++) {
     offset[d] = offset[d-1] + m[d-1];
