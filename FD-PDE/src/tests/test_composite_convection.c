@@ -160,6 +160,7 @@ PetscErrorCode Numerical_convection(void *ctx)
   ierr = FDPDESetUp(fdstokes);CHKERRQ(ierr);
   ierr = FDPDESetFunctionBCList(fdstokes,FormBCList_Stokes,bc_description_stokes,NULL); CHKERRQ(ierr);
   ierr = FDPDESetFunctionCoefficient(fdstokes,FormCoefficient_Stokes,coeff_description_stokes,usr); CHKERRQ(ierr);
+  ierr = SNESSetFromOptions(fdstokes->snes); CHKERRQ(ierr);
 
   // Temperature (Advection-diffusion)
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ADVDIFF,&fdtemp);CHKERRQ(ierr);
@@ -175,6 +176,7 @@ PetscErrorCode Numerical_convection(void *ctx)
 
   ierr = FDPDESetFunctionBCList(fdtemp,FormBCList_Temp,bc_description_temp,NULL); CHKERRQ(ierr);
   ierr = FDPDESetFunctionCoefficient(fdtemp,FormCoefficient_Temp,coeff_description_temp,usr); CHKERRQ(ierr);
+  ierr = SNESSetFromOptions(fdtemp->snes); CHKERRQ(ierr);
 
   // Save fd-pdes in array for composite form
   fd[0] = fdstokes;
@@ -186,6 +188,7 @@ PetscErrorCode Numerical_convection(void *ctx)
   ierr = FDPDCompositeSetFDPDE(fdmono,2,fd);CHKERRQ(ierr);
   ierr = FDPDESetUp(fdmono);CHKERRQ(ierr);
   ierr = FDPDEView(fdmono); CHKERRQ(ierr);
+  ierr = SNESSetFromOptions(fdmono->snes); CHKERRQ(ierr);
   
   // Destroy individual FD-PDE objects
   ierr = FDPDEDestroy(&fd[0]);CHKERRQ(ierr);
@@ -239,9 +242,8 @@ PetscErrorCode Numerical_convection(void *ctx)
 PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
-  FDPDE          *pdes;
-  DM             dmT;
-  Vec            *aux_vecs, xT, xTlocal, xlocal;
+  DM             dmT = NULL;
+  Vec            *aux_vecs, xT = NULL, xTlocal, xlocal;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, naux;
   Vec            coefflocal;
   PetscScalar    **coordx,**coordz;
@@ -264,11 +266,16 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
   H     = usr->nd->H;
   
   // Get dm and solution vector for Temperature
-  ierr = FDPDCompositeGetFDPDE(fd,NULL,&pdes);CHKERRQ(ierr);
-  ierr = FDPDEGetDM(pdes[1],&dmT); CHKERRQ(ierr);
+  /* You will get NULL in each pdes[] endtry if fd is not of type COMPOSITE */
+  /* The fd input here will be of type STOKES */
+  /*ierr = FDPDCompositeGetFDPDE(fd,NULL,&pdes);CHKERRQ(ierr);*/
+  /*ierr = FDPDEGetDM(pdes[1],&dmT); CHKERRQ(ierr);*/
   ierr = FDPDEGetAuxGlobalVectors(fd,&naux,&aux_vecs);CHKERRQ(ierr);
   xT = aux_vecs[1];
-  
+  ierr = VecGetDM(aux_vecs[1],&dmT); CHKERRQ(ierr);
+  if (!dmT) SETERRQ(fd->comm,PETSC_ERR_USER,"Expected to obtain a non-NULL value for dmT");
+  if (!xT) SETERRQ(fd->comm,PETSC_ERR_USER,"Expected to obtain a non-NULL value for xT");
+
   ierr = DMCreateLocalVector(dmT,&xTlocal);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(dmT,xT,INSERT_VALUES,xTlocal);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(dmT,xT,INSERT_VALUES,xTlocal);CHKERRQ(ierr);
@@ -519,12 +526,11 @@ PetscErrorCode FormCoefficient_Temp(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coef
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       i, j, sx, sz, nx, nz, naux;
-  FDPDE          *pdes;
-  DM             dmPV;
+  DM             dmPV = NULL;
   Vec            coefflocal;
   PetscScalar    rho, rho0, k, cp, alpha, Ttop;
   PetscScalar    ***c;
-  Vec            *aux_vecs, xPV, xPVlocal, xlocal;
+  Vec            *aux_vecs, xPV = NULL, xPVlocal, xlocal;
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -537,10 +543,15 @@ PetscErrorCode FormCoefficient_Temp(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coef
   Ttop  = usr->nd->Ttop;
   
   // Get dm and solution vector for Stokes velocity
-  ierr = FDPDCompositeGetFDPDE(fd,NULL,&pdes);CHKERRQ(ierr);
-  ierr = FDPDEGetDM(pdes[0],&dmPV); CHKERRQ(ierr);
+  /* You will get NULL in each pdes[] endtry if fd is not of type COMPOSITE */
+  /* The fd input here will be of type ADVDIFF */
+  /*ierr = FDPDCompositeGetFDPDE(fd,NULL,&pdes);CHKERRQ(ierr);*/
+  /*ierr = FDPDEGetDM(pdes[0],&dmPV); CHKERRQ(ierr);*/
   ierr = FDPDEGetAuxGlobalVectors(fd,&naux,&aux_vecs);CHKERRQ(ierr);
   xPV = aux_vecs[0];
+  ierr = VecGetDM(aux_vecs[0],&dmPV);CHKERRQ(ierr);
+  if (!dmPV) SETERRQ(fd->comm,PETSC_ERR_USER,"Expected to obtain a non-NULL value for dmPV");
+  if (!xPV) SETERRQ(fd->comm,PETSC_ERR_USER,"Expected to obtain a non-NULL value for xPV");
   
   ierr = DMCreateLocalVector(dmPV,&xPVlocal);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(dmPV,xPV,INSERT_VALUES,xPVlocal);CHKERRQ(ierr);
