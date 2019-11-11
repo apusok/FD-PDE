@@ -82,7 +82,7 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
       PetscScalar   A, A0, A1;
       DMStagStencil point;
 
-      if ((i > 0) && (i < Nx-1) && (j > 0) && (j < Nz-1)) {
+      // if ((i > 0) && (i < Nx-1) && (j > 0) && (j < Nz-1)) {
         if (ad->timesteptype == TS_NONE) {
           // steady-state solution
           ierr = EnergyResidual(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,&fval,&A); CHKERRQ(ierr);
@@ -100,7 +100,7 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
 
         ierr = DMStagGetLocationSlot(dm, DMSTAG_ELEMENT, 0, &idx); CHKERRQ(ierr);
         ff[j][i][idx] = fval;
-      }
+      // }
     }
   }
 
@@ -181,12 +181,18 @@ PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Pets
   u[4] = cx[9]; // u_up
 
   // Grid spacings
-  dx[0] = coordx[i+1][icenter]-coordx[i  ][icenter];
-  dx[1] = coordx[i  ][icenter]-coordx[i-1][icenter];
+  if (i == Nx-1) dx[0] = coordx[i  ][icenter]-coordx[i-1][icenter];
+  else           dx[0] = coordx[i+1][icenter]-coordx[i  ][icenter];
+
+  if (i == 0) dx[1] = coordx[i+1][icenter]-coordx[i  ][icenter];
+  else        dx[1] = coordx[i  ][icenter]-coordx[i-1][icenter];
   dx[2]  = (dx[0]+dx[1])*0.5;
 
-  dz[0] = coordz[j+1][icenter]-coordz[j  ][icenter];
-  dz[1] = coordz[j  ][icenter]-coordz[j-1][icenter];
+  if (j == Nz-1) dz[0] = coordz[j  ][icenter]-coordz[j-1][icenter];
+  else           dz[0] = coordz[j+1][icenter]-coordz[j  ][icenter];
+
+  if (j == 0) dz[1] = coordz[j+1][icenter]-coordz[j  ][icenter];
+  else        dz[1] = coordz[j  ][icenter]-coordz[j-1][icenter];
   dz[2] = (dz[0]+dz[1])*0.5;
 
   // Get stencil values - diffusion
@@ -204,8 +210,14 @@ PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Pets
 
   if (i == 1) point[5] = point[1];
   if (j == 1) point[7] = point[3];
-  if (i == Nx-1) point[6] = point[2];
-  if (j == Nz-1) point[8] = point[4];
+  if (i == Nx-2) point[6] = point[2];
+  if (j == Nz-2) point[8] = point[4];
+
+  if (i == 0) { point[1] = point[0]; point[5] = point[0]; }
+  if (j == 0) { point[3] = point[0]; point[7] = point[0]; }
+
+  if (i == Nx-1) { point[2] = point[0]; point[6] = point[0]; }
+  if (j == Nz-1) { point[4] = point[0]; point[8] = point[0]; }
 
   ierr = DMStagVecGetValuesStencil(dm,xlocal,9,point,xx); CHKERRQ(ierr);
 
@@ -253,7 +265,11 @@ PetscErrorCode DMStagBCListApply_AdvDiff(DM dm, Vec xlocal,DM dmcoeff, Vec coeff
     }
 
     if (bclist[ibc].type == BC_NEUMANN) {
-      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"BC type NEUMANN for FDPDE_ADVDIFF is not yet implemented.");
+
+      // Add flux terms - default zero terms
+      if (bclist[ibc].val!=0.0) {
+        SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"BC type NEUMANN for FDPDE_ADVDIFF is not yet implemented.");
+      }
     }
   }
 

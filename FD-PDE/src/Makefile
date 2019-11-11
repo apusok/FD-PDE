@@ -33,6 +33,7 @@ TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_dmstagoutput.c \
 		tests/test_fdpde.c \
 		tests/test_composite_laplace.c \
+		tests/test_composite_convection.c \
 		tests/test_coupling.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,$(TEST_SRC))

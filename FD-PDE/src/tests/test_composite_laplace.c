@@ -1,4 +1,8 @@
-static char help[] = "Application to solve the two de-coupled Laplace problems with a monolithoc FD-PDE \n\n";
+// ---------------------------------------
+// Composite solver test (monolithic)
+// run: ./tests/test_composite_laplace.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// ---------------------------------------
+static char help[] = "Application to solve two de-coupled Laplace problems with a monolithoc FD-PDE \n\n";
 
 // define convenient names for DMStagStencilLocation
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
