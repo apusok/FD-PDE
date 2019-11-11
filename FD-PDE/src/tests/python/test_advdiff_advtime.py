@@ -146,12 +146,12 @@ for istep in range(0,tstep,tout):
 
 # mass plot
 ax3 = axs[3,0]
-pl30 = ax3.plot(dt,np.square(massan-massan),color='gray',label='analytical')
-pl31 = ax3.plot(dt,np.square(mass00-massan),color='r',label='forward Euler')
-pl32 = ax3.plot(dt,np.square(mass01-massan),color='b',label='backward Euler')
-pl33 = ax3.plot(dt,np.square(mass02-massan),color='k',label='Crank-Nicholson')
+pl30 = ax3.plot(dt,massan-massan,color='gray',label='analytical')
+pl31 = ax3.plot(dt,mass00-massan,color='r',label='forward Euler')
+pl32 = ax3.plot(dt,mass01-massan,color='b',label='backward Euler')
+pl33 = ax3.plot(dt,mass02-massan,color='k',label='Crank-Nicholson')
 ax3.set_xlabel('Time steps')
-ax3.set_ylabel('||Int(Q)-Int(Q_an)||2')
+ax3.set_ylabel('Int(Q)-Int(Q_an)')
 ax3.set_title('Upwind advection scheme')
 ax3.legend(loc='upper right')
 # ax3.axis('scaled')
@@ -272,12 +272,12 @@ for istep in range(0,tstep,tout):
 
 # mass plot
 ax3 = axs[3,1]
-pl30 = ax3.plot(dt,np.square(massan-massan),color='gray',label='analytical')
-pl31 = ax3.plot(dt,np.square(mass00-massan),color='r',label='forward Euler')
-pl32 = ax3.plot(dt,np.square(mass01-massan),color='b',label='backward Euler')
-pl33 = ax3.plot(dt,np.square(mass02-massan),color='k',label='Crank-Nicholson')
+pl30 = ax3.plot(dt,massan-massan,color='gray',label='analytical')
+pl31 = ax3.plot(dt,mass00-massan,color='r',label='forward Euler')
+pl32 = ax3.plot(dt,mass01-massan,color='b',label='backward Euler')
+pl33 = ax3.plot(dt,mass02-massan,color='k',label='Crank-Nicholson')
 ax3.set_xlabel('Time steps')
-ax3.set_ylabel('||Int(Q)-Int(Q_an)||2')
+ax3.set_ylabel('Int(Q)-Int(Q_an)')
 ax3.set_title('Fromm advection scheme')
 ax3.legend(loc='upper right')
 # ax3.axis('scaled')
