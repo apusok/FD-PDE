@@ -9,6 +9,7 @@
 // Time-dependent models:
 //    3A - eta0=1e23, b=0, c=0, L=1500, Ra = 216000
 // run: ./tests/test_composite_convection.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// python test: ./tests/python/test_composite_convection.py
 // ---------------------------------------
 static char help[] = "Application to solve the mantle convection benchmark (Blankenbach et al. 1989) with FD-PDE \n\n";
 
@@ -174,7 +175,7 @@ PetscErrorCode Numerical_convection(void *ctx)
   // if (usr->par->ts_scheme == 1) { ierr = FDPDEAdvDiffSetTimeStepSchemeType(fdtemp,TS_BACKWARD_EULER);CHKERRQ(ierr); }
   // if (usr->par->ts_scheme == 2) { ierr = FDPDEAdvDiffSetTimeStepSchemeType(fdtemp,TS_CRANK_NICHOLSON );CHKERRQ(ierr);}
 
-  ierr = FDPDESetFunctionBCList(fdtemp,FormBCList_Temp,bc_description_temp,NULL); CHKERRQ(ierr);
+  ierr = FDPDESetFunctionBCList(fdtemp,FormBCList_Temp,bc_description_temp,usr); CHKERRQ(ierr);
   ierr = FDPDESetFunctionCoefficient(fdtemp,FormCoefficient_Temp,coeff_description_temp,usr); CHKERRQ(ierr);
   ierr = SNESSetFromOptions(fdtemp->snes); CHKERRQ(ierr);
 
@@ -429,7 +430,7 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
   
   ierr = VecDestroy(&xTlocal);CHKERRQ(ierr);
-  ierr = DMDestroy(&dmT); CHKERRQ(ierr);
+  // ierr = DMDestroy(&dmT); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -613,14 +614,15 @@ PetscErrorCode FormCoefficient_Temp(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coef
         DMStagStencil point[4];
         PetscInt      ii, idx;
 
-        point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 1;
-        point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 1;
-        point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 1;
-        point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 1;
+        point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
+        point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
+        point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 0;
+        point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 0;
         
         ierr = DMStagVecGetValuesStencil(dmPV,xPVlocal,4,point,v); CHKERRQ(ierr);
 
         for (ii = 0; ii < 4; ii++) {
+          point[ii].c = 1;
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           c[j][i][idx] = v[ii];
         }
@@ -637,7 +639,7 @@ PetscErrorCode FormCoefficient_Temp(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coef
   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
   
   ierr = VecDestroy(&xPVlocal);CHKERRQ(ierr);
-  ierr = DMDestroy(&dmPV); CHKERRQ(ierr);
+  // ierr = DMDestroy(&dmPV); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -770,7 +772,7 @@ PetscErrorCode ScaleSolutionOutput(DM dmPV, Vec xPV, DM dmT, Vec xT, UsrData *us
 
         for (ii = 0; ii < 4; ii++) {
           ierr = DMStagGetLocationSlot(dmOut, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
-          xxout[j][i][idx] = xx[ii]*scal->vel*1.0e2/secyear; // [cm/yr]
+          xxout[j][i][idx] = xx[ii]*scal->vel*1.0e2*secyear; // [cm/yr]
         }
       }
 
@@ -783,7 +785,7 @@ PetscErrorCode ScaleSolutionOutput(DM dmPV, Vec xPV, DM dmT, Vec xT, UsrData *us
         ierr = DMStagVecGetValuesStencil(dmPV,xPVlocal,1,&point,&xx); CHKERRQ(ierr);
 
         ierr = DMStagGetLocationSlot(dmOut, point.loc, 0, &idx); CHKERRQ(ierr);
-        xxout[j][i][idx] = xx*scal->stress/1.0e6; // [MPa]
+        xxout[j][i][idx] = xx*scal->stress/1.0e9; // [GPa]
       }
 
       { // Temperature
@@ -879,11 +881,11 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterInt(bag, &par->nx, 4, "nx", "Element count in the x-dir"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->nz, 5, "nz", "Element count in the z-dir"); CHKERRQ(ierr);
 
-  ierr = PetscBagRegisterScalar(bag, &par->xmin, 0.0, "xmin", "Start coordinate of domain in x-dir [km]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->zmin, 0.0, "zmin", "Start coordinate of domain in z-dir [km]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->xmin, 0.0e3, "xmin", "Start coordinate of domain in x-dir [m]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->zmin, -1000.0e3, "zmin", "Start coordinate of domain in z-dir [m]"); CHKERRQ(ierr);
 
-  ierr = PetscBagRegisterScalar(bag, &par->L, 1000.0, "L", "Length of domain in x-dir [km]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->H, 1000.0, "H", "Height of domain in z-dir [km]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->L, 1000.0e3, "L", "Length of domain in x-dir [m]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->H, 1000.0e3, "H", "Height of domain in z-dir [m]"); CHKERRQ(ierr);
 
   // Time stepping and advection
   ierr = PetscBagRegisterInt(bag, &par->tstep, 1, "tstep", "Number of time steps"); CHKERRQ(ierr);
@@ -891,7 +893,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterInt(bag, &par->ts_scheme,0, "ts_scheme", "Time stepping scheme"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->adv_scheme,0, "adv_scheme", "Advection scheme 0-upwind, 1-fromm"); CHKERRQ(ierr);
 
-  ierr = PetscBagRegisterScalar(bag, &par->dt, 1.0e3, "dt", "Time step size [kyr]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->dt, 1.0, "dt", "Time step size [kyr]"); CHKERRQ(ierr);
 
   // Physical and material parameters
   ierr = PetscBagRegisterScalar(bag, &par->g, 10.0, "g", "Gravitational acceleration [m/s2]"); CHKERRQ(ierr);
@@ -988,8 +990,8 @@ PetscErrorCode ScalingParameters(UsrData *usr)
   par = usr->par;
 
   // Characteristic lengthscales
-  scal->length = par->H*1.0e3; // [m]
-  scal->accel  = par->g;       // [m/s2]
+  scal->length = par->H; // [m]
+  scal->accel  = par->g; // [m/s2]
   scal->time   = PetscSqrtScalar(scal->length/scal->accel); // [s]
   scal->vel    = scal->length/scal->time; // [m/s]
   scal->visc   = par->eta0; // [Pa.s]
@@ -1001,14 +1003,14 @@ PetscErrorCode ScalingParameters(UsrData *usr)
   scal->stress = scal->visc/scal->time; // [Pa]
   
   // Scaled parameters
-  nd->L = par->L*1.0e3/scal->length;
-  nd->H = par->H*1.0e3/scal->length;
-  nd->xmin = par->xmin*1.0e3/scal->length;
-  nd->xmax = par->xmax*1.0e3/scal->length;
-  nd->zmin = par->zmin*1.0e3/scal->length;
-  nd->zmax = par->zmax*1.0e3/scal->length;
+  nd->L = par->L/scal->length;
+  nd->H = par->H/scal->length;
+  nd->xmin = par->xmin/scal->length;
+  nd->xmax = par->xmax/scal->length;
+  nd->zmin = par->zmin/scal->length;
+  nd->zmax = par->zmax/scal->length;
 
-  nd->dt = 1.0e3*par->dt*secyear/scal->time; // [s]
+  nd->dt = par->dt*1.0e3*secyear/scal->time; // [s]
   nd->g  = par->g/scal->accel;
   nd->eta0 = par->eta0/scal->visc;
   nd->rho0 = par->rho0/scal->density;
