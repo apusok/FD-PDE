@@ -62,7 +62,11 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
     ierr = DMGetLocalVector(dm, &xprevlocal); CHKERRQ(ierr);
     ierr = DMGlobalToLocal (dm, ad->xprev, INSERT_VALUES, xprevlocal); CHKERRQ(ierr);
 
-    ierr = fd->ops->form_coefficient(fd,dm,ad->xprev,dmcoeff,ad->coeffprev,fd->user_context);CHKERRQ(ierr);
+    if (!ad->coeffcalled) {
+      ierr = fd->ops->form_coefficient(fd,dm,ad->xprev,dmcoeff,ad->coeffprev,fd->user_context);CHKERRQ(ierr);
+      ad->coeffcalled = PETSC_TRUE;
+    }
+    
     ierr = DMGetLocalVector(dmcoeff, &coeffprevlocal); CHKERRQ(ierr);
     ierr = DMGlobalToLocal (dmcoeff, ad->coeffprev, INSERT_VALUES, coeffprevlocal); CHKERRQ(ierr);
   }
@@ -287,7 +291,7 @@ Use: internal
 #define __FUNCT__ "UpdateTimeStep_AdvDiff"
 PetscErrorCode UpdateTimeStep_AdvDiff(AdvDiffData *ad, DM dmcoeff, Vec coefflocal)
 {
-  PetscScalar    vmax[2], gvmax[2], dh[2], gdh[2],dtCFL;
+  PetscScalar    domain_dt, global_dt, eps, dx, dz, cell_dt, cell_dt_x, cell_dt_z;
   PetscInt       iprev=-1, inext=-1;
   PetscInt       i, j, sx, sz, nx, nz;
   PetscScalar    **coordx, **coordz;
@@ -302,8 +306,17 @@ PetscErrorCode UpdateTimeStep_AdvDiff(AdvDiffData *ad, DM dmcoeff, Vec coeffloca
   // return if not required
   if (ad->timesteptype == TS_NONE) PetscFunctionReturn(0);
 
-  vmax[0] = 0.0;
-  vmax[1] = 0.0;
+  if ((!ad->dt_user) && (!ad->dtflg)) {
+    SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"No time step size or method was set! Set with FDPDEAdvDiffSetTimestep()");
+  }
+
+  if ((ad->dt_user) && (!ad->dtflg)) {
+    ad->dt = ad->dt_user;
+    PetscFunctionReturn(0);
+  }
+
+  domain_dt = 1.0e32;
+  eps = 1.0e-32; /* small shift to avoid dividing by zero */
 
   ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   ierr = DMStagGet1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -324,35 +337,26 @@ PetscErrorCode UpdateTimeStep_AdvDiff(AdvDiffData *ad, DM dmcoeff, Vec coeffloca
 
       ierr = DMStagVecGetValuesStencil(dmcoeff,coefflocal,4,point,xx); CHKERRQ(ierr);
 
-      vmax[0] = PetscMax(vmax[0],PetscMax(PetscAbsScalar(xx[0]),PetscAbsScalar(xx[1])));
-      vmax[1] = PetscMax(vmax[1],PetscMax(PetscAbsScalar(xx[2]),PetscAbsScalar(xx[3])));
+      dx = coordx[0][inext]-coordx[0][iprev];
+      dz = coordz[0][inext]-coordz[0][iprev];
+
+      /* compute dx, dy for this cell */
+      cell_dt_x = dx / PetscMax(PetscMax(PetscAbsScalar(xx[0]), PetscAbsScalar(xx[1])), eps);
+      cell_dt_z = dz / PetscMax(PetscMax(PetscAbsScalar(xx[2]), PetscAbsScalar(xx[3])), eps);
+      cell_dt   = PetscMin(cell_dt_x,cell_dt_z);
+      domain_dt = PetscMin(domain_dt,cell_dt);
     }
   }
 
-  // Find smallest grid size
-  dh[0] = coordx[0][inext]-coordx[0][iprev];
-  for (i = sx; i<sx+nx; i++) {
-    dh[0] = PetscMin(dh[0],(coordx[i][inext]-coordx[i][iprev]));
-  }
-
-  dh[1] = coordz[0][inext]-coordz[0][iprev];
-  for (j = sz; j<sz+nz; j++) {
-    dh[1] = PetscMin(dh[1],(coordz[j][inext]-coordz[j][iprev]));
-  }
-
   // MPI exchange global min/max
-  ierr = MPI_Allreduce(&vmax,&gvmax,2,MPI_DOUBLE,MPI_MAX,PETSC_COMM_WORLD);CHKERRQ(ierr);
-  ierr = MPI_Allreduce(&dh,&gdh,2,MPI_DOUBLE,MPI_MIN,PETSC_COMM_WORLD);CHKERRQ(ierr);
+  ierr = MPI_Allreduce(&domain_dt,&global_dt,1,MPI_DOUBLE,MPI_MIN,PetscObjectComm((PetscObject)dmcoeff));CHKERRQ(ierr);
 
   ierr = DMStagRestore1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
 
-  // CFL criterion
-  dtCFL = ad->CFL*PetscMin(gdh[0]/gvmax[0],gdh[1]/gvmax[1]);
-
   if (ad->dt_user) {
-    ad->dt = PetscMin(ad->dt_user,dtCFL);
+    ad->dt = PetscMin(ad->dt_user,global_dt);
   } else {
-    ad->dt = dtCFL;
+    ad->dt = global_dt;
   }
 
   PetscFunctionReturn(0);

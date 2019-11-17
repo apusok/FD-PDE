@@ -20,7 +20,8 @@ typedef struct {
   AdvectSchemeType   advtype;
   TimeStepSchemeType timesteptype;
   Vec                xprev,coeffprev;
-  PetscScalar        dt,dt_user,CFL,theta;
+  PetscScalar        dt,dt_user,theta;
+  PetscBool          coeffcalled, dtflg;
 } AdvDiffData;
 
 // ---------------------------------------
@@ -50,7 +51,8 @@ PetscScalar FrommAdvection(PetscScalar[], PetscScalar[], PetscScalar[], PetscSca
 PetscErrorCode FDPDEAdvDiffSetAdvectSchemeType(FDPDE, AdvectSchemeType);
 PetscErrorCode FDPDEAdvDiffSetTimeStepSchemeType(FDPDE, TimeStepSchemeType);
 PetscErrorCode FDPDEAdvDiffGetPrevSolution(FDPDE,Vec*);
-PetscErrorCode FDPDEAdvDiffSetTimestep(FDPDE,PetscScalar,PetscScalar);
+PetscErrorCode FDPDEAdvDiffGetPrevCoefficient(FDPDE,Vec*);
+PetscErrorCode FDPDEAdvDiffSetTimestep(FDPDE,PetscScalar,PetscBool);
 PetscErrorCode FDPDEAdvDiffGetTimestep(FDPDE, PetscScalar*);
 
 #endif
