@@ -21,7 +21,8 @@ typedef struct {
   TimeStepSchemeType timesteptype;
   Vec                xprev,coeffprev;
   PetscScalar        dt,dt_user,theta;
-  PetscBool          coeffcalled, dtflg;
+  PetscBool          dtflg;
+  // PetscBool          coeffcalled, dtflg;
 } AdvDiffData;
 
 // ---------------------------------------

@@ -62,10 +62,10 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
     ierr = DMGetLocalVector(dm, &xprevlocal); CHKERRQ(ierr);
     ierr = DMGlobalToLocal (dm, ad->xprev, INSERT_VALUES, xprevlocal); CHKERRQ(ierr);
 
-    if (!ad->coeffcalled) {
-      ierr = fd->ops->form_coefficient(fd,dm,ad->xprev,dmcoeff,ad->coeffprev,fd->user_context);CHKERRQ(ierr);
-      ad->coeffcalled = PETSC_TRUE;
-    }
+    // if (!ad->coeffcalled) {
+    //   ierr = fd->ops->form_coefficient(fd,dm,ad->xprev,dmcoeff,ad->coeffprev,fd->user_context);CHKERRQ(ierr);
+    //   ad->coeffcalled = PETSC_TRUE;
+    // }
     
     ierr = DMGetLocalVector(dmcoeff, &coeffprevlocal); CHKERRQ(ierr);
     ierr = DMGlobalToLocal (dmcoeff, ad->coeffprev, INSERT_VALUES, coeffprevlocal); CHKERRQ(ierr);

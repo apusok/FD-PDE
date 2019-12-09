@@ -71,7 +71,7 @@ PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd)
   ad->coeffprev = NULL;
 
   // coefficient called
-  ad->coeffcalled = PETSC_FALSE;
+  // ad->coeffcalled = PETSC_FALSE;
 
   // fd-pde context data
   fd->data = ad;

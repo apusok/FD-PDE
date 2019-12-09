@@ -24,13 +24,15 @@ print('# Mantle convection benchmark (Blankenbach et al. 1989)')
 print('# --------------------------------------- #')
 
 n = 50
-tstep = 21
-tout = 10
-ts_scheme = 1 
+tstep = 1001
+tout = 20
+ts_scheme = 0
 adv_scheme = 0
+dt = 1e-5
+ts_flg = 1
 
 # Run test
-str1 = '../test_composite_convection.app -pc_type lu -pc_factor_mat_solver_type umfpack -adv_scheme '+str(adv_scheme)+' -ts_scheme '+str(ts_scheme)+' -output_file '+fname+' -tstep '+str(tstep)+' -tout '+str(tout)+' -nx '+str(n)+' -nz '+str(n)
+str1 = '../test_composite_convection_nd1.app -pc_type lu -pc_factor_mat_solver_type umfpack -ts_flg '+str(ts_flg)+' -dt '+str(dt)+' -adv_scheme '+str(adv_scheme)+' -ts_scheme '+str(ts_scheme)+' -output_file '+fname+' -tstep '+str(tstep)+' -tout '+str(tout)+' -nx '+str(n)+' -nz '+str(n)+' > '+fname+'.out'
 print(str1)
 os.system(str1)
 
@@ -38,9 +40,9 @@ for istep in range(0,tstep,tout):
   # Load python module describing data
   if (istep < 10): ft = '_ts00'+str(istep)
   if (istep >= 10) & (istep < 99): ft = '_ts0'+str(istep)
-  if (istep >= 100) & (istep < 999): ft = '_ts'+str(istep)
+  if (istep >= 100): ft = '_ts'+str(istep)
 
-  fout = fname+'_m'+str(ts_scheme)+ft
+  fout = fname+'_PV_m'+str(ts_scheme)+ft
   # Plot solution
   # Load python module describing data
   imod = importlib.import_module(fout)
@@ -52,10 +54,10 @@ for istep in range(0,tstep,tout):
   # Get data
   m = data['Nx'][0]
   n = data['Ny'][0]
-  xv = data['x1d_vertex']/1e3
-  yv = data['y1d_vertex']/1e3
-  xc = data['x1d_cell']/1e3
-  yc = data['y1d_cell']/1e3
+  xv = data['x1d_vertex']
+  yv = data['y1d_vertex']
+  xc = data['x1d_cell']
+  yc = data['y1d_cell']
   vxface = data['X_face_x']
   vyface = data['X_face_y']
   xcenter = data['X_cell']
@@ -78,19 +80,24 @@ for istep in range(0,tstep,tout):
       vyc[j][i] = 0.5 * (vyface[j+1][i] + vyface[j][i])
 
   # Prepare center values
-  p0 = xcenter[0::celldof]
-  pavg = np.average(p0)
-  # p = p0/pavg
-  p = p0
+  p = xcenter[0::celldof]
 
-  T = xcenter[1::celldof]
-  eta = xcenter[2::celldof]
-  rho = xcenter[3::celldof]
+  fout = fname+'_T_m'+str(ts_scheme)+ft
+  # Plot solution
+  # Load python module describing data
+  imod = importlib.import_module(fout)
+
+  # Load data
+  data = imod._PETScBinaryLoad()
+  imod._PETScBinaryLoadReportNames(data)
+  xcenter = data['X_cell']
+
+  T = xcenter[0::celldof]
 
   # Open a figure
   fig, axs = plt.subplots(1, 2,figsize=(12,6))
 
-  nind = 5
+  nind = 2
 
   ax1 = axs[0]
   contours = ax1.contour(xc,yc,p.reshape(n,m), colors='white',linestyles='solid',linewidths=0.5)
@@ -114,6 +121,71 @@ for istep in range(0,tstep,tout):
   cbar = fig.colorbar(im2,ax=ax2, shrink=0.75, label='T')
   ax2.set_xlabel('x-dir')
   # ax2.set_ylabel('z-dir')
-  ax2.set_title('Temperature contours and density (AdvDiff)')
+  ax2.set_title('Temperature contours (AdvDiff)')
 
   plt.savefig(fout+'.pdf')
+  plt.close()
+
+# Parse log file
+fout1 = fname+'.out'
+
+Nu = np.zeros(tstep)
+vrms = np.zeros(tstep)
+q1 = np.zeros(tstep)
+q2 = np.zeros(tstep)
+ts = np.zeros(tstep)
+
+# Open file 1 and read
+f = open(fout1, 'r')
+i0=0
+i1=0
+i2=0
+i3=0
+i4=0
+for line in f:
+  if 'Nusselt' in line:
+      Nu[i0] = float(line[23:42])
+      i0+=1
+  if 'Root-mean-squared' in line:
+      vrms[i1] = float(line[37:56])
+      i1+=1
+  if 'Corner flux (down-left)' in line:
+      q1[i2] = float(line[32:51])
+      i2+=1
+  if 'Corner flux (up-left)' in line:
+      q2[i3] = float(line[30:49])
+      i3+=1
+  if '# Time step size' in line:
+      ts[i4] = float(line[23:42])
+      i4+=1
+f.close()
+
+# Plot diasgnostics
+plt.figure(1,figsize=(12,6))
+
+plt.subplot(221)
+plt.grid(color='lightgray', linestyle=':')
+plt.plot(Nu,'k+--',label='Nu')
+plt.ylabel('Nu',fontweight='bold',fontsize=12)
+
+plt.subplot(222)
+plt.grid(color='lightgray', linestyle=':')
+plt.plot(vrms,'k+--',label='vrms')
+plt.ylabel('vrms',fontweight='bold',fontsize=12)
+
+plt.subplot(223)
+plt.grid(color='lightgray', linestyle=':')
+plt.plot(q1,'k+--',label='q1')
+plt.plot(q2,'b+--',label='q2')
+plt.xlabel('Time step',fontweight='bold',fontsize=12)
+plt.ylabel('q (Temp gradient)',fontweight='bold',fontsize=12)
+plt.legend()
+
+plt.subplot(224)
+plt.grid(color='lightgray', linestyle=':')
+plt.plot(ts,'k+--',label='ts size')
+plt.xlabel('Time step',fontweight='bold',fontsize=12)
+plt.ylabel('Time step size (dt)',fontweight='bold',fontsize=12)
+
+plt.savefig(fname+'.pdf')
+plt.close()
