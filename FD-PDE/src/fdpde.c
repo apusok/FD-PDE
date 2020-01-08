@@ -860,7 +860,7 @@ PetscErrorCode FDPDEFormCoefficient(FDPDE fd)
   switch (fd->type) {
     case FDPDE_COMPOSITE:
     
-    ierr = FDPDCompositeGetFDPDE(fd,&n,&pdelist);CHKERRQ(ierr);
+    ierr = FDPDECompositeGetFDPDE(fd,&n,&pdelist);CHKERRQ(ierr);
     ierr = DMCompositeGetAccessArray(fd->dmstag,fd->x,n,NULL,subX);CHKERRQ(ierr);
     /* set auxillary vectors */
     for (i=0; i<n; i++) {

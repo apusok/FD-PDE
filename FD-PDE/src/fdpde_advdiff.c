@@ -63,15 +63,9 @@ PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd)
   // allocate memory to fd-pde context data
   ierr = PetscCalloc1(1,&ad);CHKERRQ(ierr);
 
-  // time stepping
-  ad->dtflg = PETSC_FALSE;
-
   // vectors
   ad->xprev = NULL;
   ad->coeffprev = NULL;
-
-  // coefficient called
-  // ad->coeffcalled = PETSC_FALSE;
 
   // fd-pde context data
   fd->data = ad;
@@ -124,7 +118,6 @@ PetscErrorCode FDPDEView_AdvDiff(FDPDE fd)
   PetscPrintf(fd->comm,"  # Advection Scheme type: %s\n",AdvectSchemeTypeNames[(int)ad->advtype]);
   PetscPrintf(fd->comm,"  # Time step Scheme type: %s\n",TimeStepSchemeTypeNames[(int)ad->timesteptype]);
   PetscPrintf(fd->comm,"  # Theta: %g\n",ad->theta);
-  PetscPrintf(fd->comm,"  # User-defined time step size: %g\n\n",ad->dt_user);
 
   PetscFunctionReturn(0);
 }
@@ -299,7 +292,7 @@ Use: user
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDPDEAdvDiffSetTimestep"
-PetscErrorCode FDPDEAdvDiffSetTimestep(FDPDE fd, PetscScalar dt, PetscBool dtflg)
+PetscErrorCode FDPDEAdvDiffSetTimestep(FDPDE fd, PetscScalar dt)
 {
   AdvDiffData    *ad;
   PetscErrorCode ierr;
@@ -309,10 +302,7 @@ PetscErrorCode FDPDEAdvDiffSetTimestep(FDPDE fd, PetscScalar dt, PetscBool dtflg
   if (!fd->data) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"The FD-PDE context data has not been set up. Call FDPDESetUp() first.");
 
   ad = fd->data;
-  if (dt) ad->dt_user = dt;
-  if ((!dt) && (!dtflg)) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"No dt value was set and the dt flag was set to PETSC_FALSE!");
-  
-  ad->dtflg = dtflg;
+  if (dt) ad->dt = dt;
 
   PetscFunctionReturn(0);
 }
@@ -343,6 +333,98 @@ PetscErrorCode FDPDEAdvDiffGetTimestep(FDPDE fd, PetscScalar *dt)
 
   ad = fd->data;
   if (dt) *dt = ad->dt;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+FDPDEAdvDiffComputeExplicitTimestep - function to update time step size for ADVDIFF equations
+
+Input Parameter:
+fd - the FD-PDE object
+
+Output Parameter:
+dt - time stepping size
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEAdvDiffComputeExplicitTimestep"
+PetscErrorCode FDPDEAdvDiffComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
+{
+  AdvDiffData    *ad;
+  PetscScalar    domain_dt, global_dt, eps, dx, dz, cell_dt, cell_dt_x, cell_dt_z;
+  PetscInt       iprev=-1, inext=-1;
+  PetscInt       i, j, sx, sz, nx, nz;
+  PetscScalar    **coordx, **coordz;
+  DM             dmcoeff;
+  Vec            coefflocal;
+  PetscErrorCode ierr;
+  PetscFunctionBeginUser;
+
+  // Check fd-pde for type and setup
+  if (fd->type != FDPDE_ADVDIFF) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ADVDIFF!");
+  if (!fd->data) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"The FD-PDE context data has not been set up. Call FDPDESetUp() first.");
+
+  ad = fd->data;
+  dmcoeff = fd->dmcoeff;
+
+  ierr = DMGetLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
+
+  // Check below not needed - because user can still calculate dt!
+  // // check time-step scheme
+  // if (ad->timesteptype == TS_UNINIT) {
+  //   SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"Time stepping scheme for the FD-PDE ADVDIFF was not set! Set with FDPDEAdvDiffSetTimeStepSchemeType()");
+  // }
+
+  // // return if not required
+  // if (ad->timesteptype == TS_NONE) PetscFunctionReturn(0);
+
+  domain_dt = 1.0e32;
+  eps = 1.0e-32; /* small shift to avoid dividing by zero */
+
+  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+
+  ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,DMSTAG_LEFT,&iprev);CHKERRQ(ierr); 
+  ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
+
+  // Loop over elements - velocity is located on edge and c=1
+  for (j = sz; j<sz+nz; j++) {
+    for (i = sx; i<sx+nx; i++) {
+      DMStagStencil point[4];
+      PetscScalar   xx[4];
+
+      point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_LEFT;  point[0].c = 1;
+      point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_RIGHT; point[1].c = 1;
+      point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_DOWN;  point[2].c = 1;
+      point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_UP;    point[3].c = 1;
+
+      ierr = DMStagVecGetValuesStencil(dmcoeff,coefflocal,4,point,xx); CHKERRQ(ierr);
+
+      dx = coordx[0][inext]-coordx[0][iprev];
+      dz = coordz[0][inext]-coordz[0][iprev];
+
+      /* compute dx, dy for this cell */
+      cell_dt_x = dx / PetscMax(PetscMax(PetscAbsScalar(xx[0]), PetscAbsScalar(xx[1])), eps);
+      cell_dt_z = dz / PetscMax(PetscMax(PetscAbsScalar(xx[2]), PetscAbsScalar(xx[3])), eps);
+      cell_dt   = PetscMin(cell_dt_x,cell_dt_z);
+      domain_dt = PetscMin(domain_dt,cell_dt);
+    }
+  }
+
+  // MPI exchange global min/max
+  ierr = MPI_Allreduce(&domain_dt,&global_dt,1,MPI_DOUBLE,MPI_MIN,PetscObjectComm((PetscObject)dmcoeff));CHKERRQ(ierr);
+
+  // Return vectors and arrays
+  ierr = DMStagRestore1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmcoeff,&coefflocal); CHKERRQ(ierr);
+
+  // Return value
+  *dt = global_dt;
 
   PetscFunctionReturn(0);
 }

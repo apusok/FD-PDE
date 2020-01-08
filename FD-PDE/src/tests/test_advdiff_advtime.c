@@ -126,7 +126,7 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
   ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient,coeff_description,usr); CHKERRQ(ierr);
 
   // Set timestep
-  ierr = FDPDEAdvDiffSetTimestep(fd,usr->par->dt,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = FDPDEAdvDiffSetTimestep(fd,usr->par->dt);CHKERRQ(ierr);
   ierr = FDPDEView(fd); CHKERRQ(ierr);
 
   // Set initial distribution - xguess

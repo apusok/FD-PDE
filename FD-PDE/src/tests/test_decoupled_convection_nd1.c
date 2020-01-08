@@ -43,9 +43,9 @@ typedef struct {
   PetscScalar    L, H;
   PetscScalar    xmin, zmin, xmax, zmax;
   PetscScalar    Ttop, Tbot;
-  PetscScalar    b, c, dt, Ra, dT, t;
-  PetscInt       ts_scheme,adv_scheme,tout,tstep;
-  PetscBool      ts_flg;
+  PetscScalar    b, c, Ra, dT;
+  PetscInt       ts_scheme, adv_scheme, test, tout, tstep;
+  PetscScalar    t, dt, tmax, dtmax;
   char           fname_out[FNAME_LENGTH]; 
   char           fname_in [FNAME_LENGTH];  
 } Params;
@@ -121,8 +121,8 @@ PetscErrorCode Numerical_convection(void *ctx)
   FDPDE          fdtemp, fdstokes;
   DM             dmPV, dmT, dmTcoeff;
   Vec            xPV, xT, xTprev, Tcoeff, Tcoeffprev;
-  PetscInt       nx, nz, istep, tstep;
-  PetscScalar    xmin, zmin, xmax, zmax, dt;
+  PetscInt       nx, nz, istep = 0;
+  PetscScalar    xmin, zmin, xmax, zmax, dt_damp;
   char           fout[FNAME_LENGTH];
   PetscErrorCode ierr;
   
@@ -137,9 +137,6 @@ PetscErrorCode Numerical_convection(void *ctx)
   zmin = usr->par->zmin;
   xmax = usr->par->xmax;
   zmax = usr->par->zmax;
-
-  istep = 0;
-  tstep = usr->par->tstep;
 
   // Create the sub FD-pde objects
   // 1. Stokes
@@ -157,8 +154,6 @@ PetscErrorCode Numerical_convection(void *ctx)
   if (usr->par->adv_scheme==1) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fdtemp,ADV_FROMM);CHKERRQ(ierr); }
   
   // Set timestep and time-stepping scheme
-  ierr = FDPDEAdvDiffSetTimestep(fdtemp,usr->par->dt,usr->par->ts_flg);CHKERRQ(ierr);
-
   if (usr->par->ts_scheme ==  0) { ierr = FDPDEAdvDiffSetTimeStepSchemeType(fdtemp,TS_FORWARD_EULER);CHKERRQ(ierr); }
   if (usr->par->ts_scheme ==  1) { ierr = FDPDEAdvDiffSetTimeStepSchemeType(fdtemp,TS_BACKWARD_EULER);CHKERRQ(ierr); }
   if (usr->par->ts_scheme ==  2) { ierr = FDPDEAdvDiffSetTimeStepSchemeType(fdtemp,TS_CRANK_NICHOLSON );CHKERRQ(ierr);}
@@ -180,7 +175,7 @@ PetscErrorCode Numerical_convection(void *ctx)
   ierr = VecDestroy(&xT);CHKERRQ(ierr);
   ierr = VecDestroy(&xPV);CHKERRQ(ierr);
 
-  // Initial temperature profile and coefficient
+  // Set initial temperature profile into xT, Tcoeff
   ierr = FDPDEAdvDiffGetPrevSolution(fdtemp,&xTprev);CHKERRQ(ierr);
   ierr = SetInitialTempProfile(dmT,xTprev,usr);CHKERRQ(ierr);
   ierr = VecCopy(xTprev,usr->xTprev);CHKERRQ(ierr);
@@ -191,26 +186,43 @@ PetscErrorCode Numerical_convection(void *ctx)
   ierr = VecDestroy(&Tcoeffprev);CHKERRQ(ierr);
   ierr = VecDestroy(&xTprev);CHKERRQ(ierr);
 
-  // Time loop
-  while (istep < tstep) {
-    PetscPrintf(PETSC_COMM_WORLD,"# Timestep %d out of %d: time %1.3f \n",istep,tstep,usr->par->t);
+  dt_damp = 1.0e-2;
 
-    // Stokes Solver
+  // Time loop
+  while ((usr->par->t <= usr->par->tmax) && (istep<=usr->par->tstep)) {
+    PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep);
+
+    // Stokes Solver - use Tprev
     ierr = FDPDESolve(fdstokes,NULL);CHKERRQ(ierr);
     ierr = FDPDEGetSolution(fdstokes,&xPV);CHKERRQ(ierr);
     ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
+
+    PetscPrintf(PETSC_COMM_WORLD,"# XPV: \n");
+    ierr = VecView(xPV,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+    // Set dt for temperature advection 
+    if (istep == 0) { // first timestep
+      usr->par->dt = usr->par->dtmax*dt_damp*dt_damp;
+    } else {
+      PetscScalar dt;
+      ierr = FDPDEAdvDiffComputeExplicitTimestep(fdtemp,&dt);CHKERRQ(ierr);
+      usr->par->dt = PetscMin(dt,usr->par->dtmax);
+    }
+    ierr = FDPDEAdvDiffSetTimestep(fdtemp,usr->par->dt);CHKERRQ(ierr);
 
     // Temperature Solver
     ierr = FDPDESolve(fdtemp,NULL);CHKERRQ(ierr);
     ierr = FDPDEGetSolution(fdtemp,&xT);CHKERRQ(ierr);
 
+    PetscPrintf(PETSC_COMM_WORLD,"# XT: \n");
+    ierr = VecView(xT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+    // Update time
+    usr->par->t += usr->par->dt;
+    PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e dt = %1.12e \n",usr->par->t,usr->par->dt);
+
     // Calculate diagnostics
     ierr = MantleConvectionDiagnostics(dmPV,xPV,dmT,xT,usr); CHKERRQ(ierr);
-
-    // Increment time for temperature advection
-    ierr = FDPDEAdvDiffGetTimestep(fdtemp,&dt);CHKERRQ(ierr);
-    usr->par->t += dt;
-    PetscPrintf(usr->comm,"# Time step size: dt = %1.12e \n",dt);
 
     // Temperature: copy new solution and coefficient to old
     ierr = FDPDEAdvDiffGetPrevSolution(fdtemp,&xTprev);CHKERRQ(ierr);
@@ -1033,13 +1045,19 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->L, 1.0, "L", "Length of domain in x-dir [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->H, 1.0, "H", "Height of domain in z-dir [-]"); CHKERRQ(ierr);
 
+  ierr = PetscBagRegisterInt(bag, &par->test,2, "test", "Test case 0-decoupled nd1, 1-composite nd1, 2-composite nd2"); CHKERRQ(ierr);
+
   // Time stepping and advection
-  ierr = PetscBagRegisterInt(bag, &par->tstep, 1, "tstep", "Number of time steps"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->tout,1,"tout", "Output every <tout> time steps"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->ts_scheme,0, "ts_scheme", "Time stepping scheme 0-forward euler, 1-backward euler, 2-crank-nicholson"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->adv_scheme,0, "adv_scheme", "Advection scheme 0-upwind, 1-fromm"); CHKERRQ(ierr);
 
-  ierr = PetscBagRegisterScalar(bag, &par->dt, 1.0e-3, "dt", "Time step size [-]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->tout,1, "tout", "Output every tout time step"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->tstep,1, "tstep", "Maximum no of time steps"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->tmax, 2.5e-1, "tmax", "Maximum time [-]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->dtmax, 1.0e-3, "dtmax", "Maximum time step size [-]"); CHKERRQ(ierr);
+
+  par->t  = 0.0;
+  par->dt = 0.0;
 
   // Physical and material parameters
   ierr = PetscBagRegisterScalar(bag, &par->Ttop, 0.0, "Ttop", "Temperature top [-]"); CHKERRQ(ierr);
@@ -1052,9 +1070,6 @@ PetscErrorCode InputParameters(UsrData **_usr)
   // Input/output 
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_convection","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
 
-  // Time stepping
-  ierr = PetscBagRegisterBool(bag,&par->ts_flg,PETSC_FALSE,"ts_flg","Flag to turn on stability criterion for time step");CHKERRQ(ierr);
-
   // Other variables
   par->fname_in[0] = '\0';
 
@@ -1062,7 +1077,6 @@ PetscErrorCode InputParameters(UsrData **_usr)
   par->zmax = par->zmin+par->H;
 
   par->dT = par->Tbot-par->Ttop;
-  par->t = 0.0;
 
   // return pointer
   *_usr = usr;

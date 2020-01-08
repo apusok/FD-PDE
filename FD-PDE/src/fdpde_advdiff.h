@@ -20,9 +20,7 @@ typedef struct {
   AdvectSchemeType   advtype;
   TimeStepSchemeType timesteptype;
   Vec                xprev,coeffprev;
-  PetscScalar        dt,dt_user,theta;
-  PetscBool          dtflg;
-  // PetscBool          coeffcalled, dtflg;
+  PetscScalar        dt,theta;
 } AdvDiffData;
 
 // ---------------------------------------
@@ -41,7 +39,6 @@ PetscErrorCode EnergyStencil(PetscInt,PetscInt,PetscInt,PetscInt,DMStagStencil*)
 PetscErrorCode FormFunction_AdvDiff(SNES,Vec,Vec,void*);
 PetscErrorCode EnergyResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,AdvectSchemeType,PetscScalar*,PetscScalar*);
 PetscErrorCode DMStagBCListApply_AdvDiff(DM,Vec,DM,Vec,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,PetscScalar***);
-PetscErrorCode UpdateTimeStep_AdvDiff(AdvDiffData*,DM,Vec);
 
 // ADVECTION
 PetscErrorCode AdvectionResidual(PetscScalar[],PetscScalar[],PetscScalar[],PetscScalar[],AdvectSchemeType,PetscScalar*);
@@ -53,7 +50,9 @@ PetscErrorCode FDPDEAdvDiffSetAdvectSchemeType(FDPDE, AdvectSchemeType);
 PetscErrorCode FDPDEAdvDiffSetTimeStepSchemeType(FDPDE, TimeStepSchemeType);
 PetscErrorCode FDPDEAdvDiffGetPrevSolution(FDPDE,Vec*);
 PetscErrorCode FDPDEAdvDiffGetPrevCoefficient(FDPDE,Vec*);
-PetscErrorCode FDPDEAdvDiffSetTimestep(FDPDE,PetscScalar,PetscBool);
+PetscErrorCode FDPDEAdvDiffSetTimestep(FDPDE,PetscScalar);
 PetscErrorCode FDPDEAdvDiffGetTimestep(FDPDE, PetscScalar*);
+
+PetscErrorCode FDPDEAdvDiffComputeExplicitTimestep(FDPDE, PetscScalar*);
 
 #endif

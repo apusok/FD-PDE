@@ -197,7 +197,7 @@ PetscErrorCode Numerical_Laplace_Decoupled(DM _dm[], Vec _x[], void *ctx)
   // Create the composite FD-PDE
   ierr = FDPDECreate2(usr->comm,&fdmono);CHKERRQ(ierr);
   ierr = FDPDESetType(fdmono,FDPDE_COMPOSITE);CHKERRQ(ierr);
-  ierr = FDPDCompositeSetFDPDE(fdmono,2,fdlaplace);CHKERRQ(ierr);
+  ierr = FDPDECompositeSetFDPDE(fdmono,2,fdlaplace);CHKERRQ(ierr);
   ierr = FDPDESetUp(fdmono);CHKERRQ(ierr);
   ierr = FDPDEView(fdmono); CHKERRQ(ierr);
   
@@ -218,7 +218,7 @@ PetscErrorCode Numerical_Laplace_Decoupled(DM _dm[], Vec _x[], void *ctx)
   ierr = FDPDEGetSolution(fdmono,&x);CHKERRQ(ierr);
   ierr = FDPDECompositeSynchronizeGlobalVectors(fdmono,x);CHKERRQ(ierr);
   
-  ierr = FDPDCompositeGetFDPDE(fdmono,NULL,&pdes);CHKERRQ(ierr);
+  ierr = FDPDECompositeGetFDPDE(fdmono,NULL,&pdes);CHKERRQ(ierr);
   for (i=0; i<n; i++) {
     ierr = FDPDEGetDM(pdes[i],&_dm[i]); CHKERRQ(ierr);
     ierr = FDPDEGetSolution(pdes[i],&_x[i]);CHKERRQ(ierr);

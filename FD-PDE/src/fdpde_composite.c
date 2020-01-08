@@ -110,7 +110,7 @@ PetscErrorCode FDPDESetUp_Composite(FDPDE fd)
   if (fd->setupcalled) PetscFunctionReturn(0);
   
   composite = (PDEComposite*)fd->data;
-  if (!composite->setup) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDCompositeSetFDPDE() before FDPDESetUp()");
+  if (!composite->setup) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDECompositeSetFDPDE() before FDPDESetUp()");
 
   for (i=0; i<composite->n; i++) {
     ierr = FDPDESetUp(composite->pdelist[i]);CHKERRQ(ierr);
@@ -184,7 +184,7 @@ static PetscErrorCode FDPDEDestroy_Composite(FDPDE fd)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode FDPDCompositeSetFDPDE(FDPDE fd,PetscInt n,FDPDE pdelist[])
+PetscErrorCode FDPDECompositeSetFDPDE(FDPDE fd,PetscInt n,FDPDE pdelist[])
 {
   PDEComposite *composite;
   PetscInt i;
@@ -208,7 +208,7 @@ PetscErrorCode FDPDCompositeSetFDPDE(FDPDE fd,PetscInt n,FDPDE pdelist[])
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode FDPDCompositeGetFDPDE(FDPDE fd,PetscInt *n,FDPDE *pdelist[])
+PetscErrorCode FDPDECompositeGetFDPDE(FDPDE fd,PetscInt *n,FDPDE *pdelist[])
 {
   PDEComposite *composite;
   
@@ -252,7 +252,7 @@ PetscErrorCode FDPDECreateComposite(MPI_Comm comm,PetscInt n,FDPDE pdelist[],FDP
   PetscFunctionBegin;
   ierr = FDPDECreate2(comm,fd);CHKERRQ(ierr);
   ierr = FDPDESetType(*fd,FDPDE_COMPOSITE);CHKERRQ(ierr);
-  ierr = FDPDCompositeSetFDPDE(*fd,n,pdelist);CHKERRQ(ierr);
+  ierr = FDPDECompositeSetFDPDE(*fd,n,pdelist);CHKERRQ(ierr);
   ierr = FDPDESetUp(*fd);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
