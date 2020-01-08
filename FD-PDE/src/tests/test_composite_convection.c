@@ -276,6 +276,53 @@ PetscErrorCode Test_composite_convection(void *ctx, PetscInt nd)
       PetscPrintf(PETSC_COMM_WORLD,"# XMONO: %d \n",converged);
       ierr = VecView(fdmono->x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
+      // plot solution values
+      {
+        Vec  xlocal, xTlocal;
+        PetscInt  i, j;
+
+        // Get global mono solution
+        ierr = FDPDEGetSolution(fdmono,&x);CHKERRQ(ierr);
+        ierr = FDPDECompositeSynchronizeGlobalVectors(fdmono,x);CHKERRQ(ierr);
+
+        // Get separate solutions
+        ierr = FDPDEGetSolution(pdes[0],&xPV);CHKERRQ(ierr);
+        ierr = FDPDEGetSolution(pdes[1],&xT);CHKERRQ(ierr);
+
+        ierr = DMGetLocalVector(dmPV, &xlocal); CHKERRQ(ierr);
+        ierr = DMGlobalToLocal (dmPV, xPV, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+        ierr = DMGetLocalVector(dmT, &xTlocal); CHKERRQ(ierr);
+        ierr = DMGlobalToLocal (dmT, xT, INSERT_VALUES, xTlocal); CHKERRQ(ierr);
+
+        for (j = 0; j<nz; j++) {
+          for (i =0; i<nx; i++) {
+            DMStagStencil  point;
+            PetscScalar    x0,x1,x2,x3,x4,x5;
+
+            point.i = i; point.j = j; point.loc = DMSTAG_LEFT; point.c = 0;
+            ierr = DMStagVecGetValuesStencil(dmPV,xlocal,1,&point,&x0); CHKERRQ(ierr);
+            point.i = i; point.j = j; point.loc = DMSTAG_RIGHT; point.c = 0;
+            ierr = DMStagVecGetValuesStencil(dmPV,xlocal,1,&point,&x1); CHKERRQ(ierr);
+            point.i = i; point.j = j; point.loc = DMSTAG_DOWN; point.c = 0;
+            ierr = DMStagVecGetValuesStencil(dmPV,xlocal,1,&point,&x2); CHKERRQ(ierr);
+            point.i = i; point.j = j; point.loc = DMSTAG_UP; point.c = 0;
+            ierr = DMStagVecGetValuesStencil(dmPV,xlocal,1,&point,&x3); CHKERRQ(ierr);
+            point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
+            ierr = DMStagVecGetValuesStencil(dmPV,xlocal,1,&point,&x4); CHKERRQ(ierr);
+            point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
+            ierr = DMStagVecGetValuesStencil(dmT,xTlocal,1,&point,&x5); CHKERRQ(ierr);
+            PetscPrintf(PETSC_COMM_WORLD,"# [i=%d, j=%d] Stokes: LEFT=%1.12e RIGHT=%1.12e DOWN=%1.12e UP=%1.12e ELEMENT=%1.12e Temp: ELEMENT=%1.12e\n",i,j,x0,x1,x2,x3,x4,x5);
+
+          }
+        }
+
+        ierr = DMRestoreLocalVector(dmPV,&xlocal); CHKERRQ(ierr);
+        ierr = DMRestoreLocalVector(dmT,&xTlocal); CHKERRQ(ierr);
+
+        ierr = VecDestroy(&xPV);CHKERRQ(ierr);
+        ierr = VecDestroy(&xT);CHKERRQ(ierr);
+      }
+
       if (!converged) { // Reduce dt if not converged
         usr->par->dt *= dt_damp;
         ierr = FDPDEAdvDiffSetTimestep(pdes[1],usr->par->dt);CHKERRQ(ierr);
