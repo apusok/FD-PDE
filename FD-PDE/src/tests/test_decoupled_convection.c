@@ -8,8 +8,8 @@
 //    2B - eta0=1e23, b=ln(16384), c=ln(64), L=2500, Ra0 = 1e4
 // Time-dependent models:
 //    3A - eta0=1e23, b=0, c=0, L=1500, Ra = 216000
-// run: ./tests/test_composite_convection_nd1.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
-// python test: ./tests/python/test_composite_convection_nd1.py
+// run: ./tests/test_decoupled_convection.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// python test: ./tests/python/test_decoupled_convection.py
 //
 // NON-DIMENSIONLESS FORM as in Moresi and Solomatov (1995) - decoupled PV-T
 // ---------------------------------------
@@ -124,6 +124,7 @@ PetscErrorCode Numerical_convection(void *ctx)
   PetscInt       nx, nz, istep = 0;
   PetscScalar    xmin, zmin, xmax, zmax, dt_damp;
   char           fout[FNAME_LENGTH];
+  PetscBool      converged;
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
@@ -197,9 +198,6 @@ PetscErrorCode Numerical_convection(void *ctx)
     ierr = FDPDEGetSolution(fdstokes,&xPV);CHKERRQ(ierr);
     ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
 
-    PetscPrintf(PETSC_COMM_WORLD,"# XPV: \n");
-    ierr = VecView(xPV,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-
     // Set dt for temperature advection 
     if (istep == 0) { // first timestep
       usr->par->dt = usr->par->dtmax*dt_damp*dt_damp;
@@ -211,11 +209,16 @@ PetscErrorCode Numerical_convection(void *ctx)
     ierr = FDPDEAdvDiffSetTimestep(fdtemp,usr->par->dt);CHKERRQ(ierr);
 
     // Temperature Solver
-    ierr = FDPDESolve(fdtemp,NULL);CHKERRQ(ierr);
-    ierr = FDPDEGetSolution(fdtemp,&xT);CHKERRQ(ierr);
+    converged = PETSC_FALSE;
+    while (!converged) {
+      ierr = FDPDESolve(fdtemp,&converged);CHKERRQ(ierr);
+      if (!converged) { // Reduce dt if not converged
+        usr->par->dt *= dt_damp;
+        ierr = FDPDEAdvDiffSetTimestep(fdtemp,usr->par->dt);CHKERRQ(ierr);
+      }
+    }
 
-    PetscPrintf(PETSC_COMM_WORLD,"# XT: \n");
-    ierr = VecView(xT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    ierr = FDPDEGetSolution(fdtemp,&xT);CHKERRQ(ierr);
 
     // Update time
     usr->par->t += usr->par->dt;

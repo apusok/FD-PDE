@@ -61,6 +61,7 @@ typedef struct {
   PetscBag       bag;
   MPI_Comm       comm;
   PetscMPIInt    rank;
+  Vec            xTprev;
 } UsrData;
 
 // ---------------------------------------
@@ -147,7 +148,7 @@ PetscErrorCode Test_composite_convection(void *ctx, PetscInt nd)
   FDPDE          fd[2], fdmono, *pdes, fdtemp, fdstokes;
   DM             dmPV, dmT, dmTcoeff;
   Vec            x, xPV, xT, xTprev, xTguess, Tcoeff, Tcoeffprev;
-  PetscInt       nx, nz, istep = 0;//, it;
+  PetscInt       nx, nz, istep = 0, it;
   PetscScalar    xmin, zmin, xmax, zmax, dt_damp;
   char           fout[FNAME_LENGTH];
   PetscBool      converged;
@@ -218,6 +219,7 @@ PetscErrorCode Test_composite_convection(void *ctx, PetscInt nd)
     ierr = SetInitialTempCoefficient_nd2(dmT,xT,dmTcoeff,Tcoeff,usr);CHKERRQ(ierr);
   }
 
+  ierr = VecDuplicate(xT,&usr->xTprev);CHKERRQ(ierr);
   ierr = VecDestroy(&xT);CHKERRQ(ierr);
 
   // Coupled system - save fd-pdes in array for composite form
@@ -259,6 +261,7 @@ PetscErrorCode Test_composite_convection(void *ctx, PetscInt nd)
     ierr = FDPDEGetSolution(pdes[1],&xT);CHKERRQ(ierr);
     ierr = FDPDEAdvDiffGetPrevSolution(pdes[1],&xTprev);CHKERRQ(ierr);
     ierr = VecCopy(xT,xTprev);CHKERRQ(ierr);
+    ierr = VecCopy(xTprev,usr->xTprev);CHKERRQ(ierr);
     ierr = VecDestroy(&xTprev);CHKERRQ(ierr);
     ierr = VecDestroy(&xT);CHKERRQ(ierr);
 
@@ -268,16 +271,18 @@ PetscErrorCode Test_composite_convection(void *ctx, PetscInt nd)
     ierr = VecDestroy(&Tcoeffprev);CHKERRQ(ierr);
 
     // FD SNES Solver
+    it = 0;
     converged = PETSC_FALSE;
     while (!converged) {
       // PetscPrintf(PETSC_COMM_WORLD,"# XMONO guess: \n");
       // ierr = VecView(fdmono->xguess,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+      PetscPrintf(PETSC_COMM_WORLD,"# Solver iteration %d \n",it);
       ierr = FDPDESolve(fdmono,&converged);CHKERRQ(ierr);
-      PetscPrintf(PETSC_COMM_WORLD,"# XMONO: %d \n",converged);
-      ierr = VecView(fdmono->x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+      // PetscPrintf(PETSC_COMM_WORLD,"# XMONO: %d \n",converged);
+      // ierr = VecView(fdmono->x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
       // plot solution values
-      {
+      /*{
         Vec  xlocal, xTlocal;
         PetscInt  i, j;
 
@@ -311,7 +316,7 @@ PetscErrorCode Test_composite_convection(void *ctx, PetscInt nd)
             ierr = DMStagVecGetValuesStencil(dmPV,xlocal,1,&point,&x4); CHKERRQ(ierr);
             point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
             ierr = DMStagVecGetValuesStencil(dmT,xTlocal,1,&point,&x5); CHKERRQ(ierr);
-            PetscPrintf(PETSC_COMM_WORLD,"# [i=%d, j=%d] Stokes: LEFT=%1.12e RIGHT=%1.12e DOWN=%1.12e UP=%1.12e ELEMENT=%1.12e Temp: ELEMENT=%1.12e\n",i,j,x0,x1,x2,x3,x4,x5);
+            PetscPrintf(PETSC_COMM_WORLD,"# [i=%d, j=%d] Stokes: L=%1.12e R=%1.12e D=%1.12e U=%1.12e E=%1.12e Temp: E=%1.12e\n",i,j,x0,x1,x2,x3,x4,x5);
 
           }
         }
@@ -321,11 +326,21 @@ PetscErrorCode Test_composite_convection(void *ctx, PetscInt nd)
 
         ierr = VecDestroy(&xPV);CHKERRQ(ierr);
         ierr = VecDestroy(&xT);CHKERRQ(ierr);
-      }
+      }*/
+
+      /*{
+        PetscPrintf(PETSC_COMM_WORLD,"# PV JACOBIAN:\n");
+        ierr = MatView(pdes[0]->J,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+        PetscPrintf(PETSC_COMM_WORLD,"# TEMP JACOBIAN:\n");
+        ierr = MatView(pdes[1]->J,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+        PetscPrintf(PETSC_COMM_WORLD,"# FULL JACOBIAN:\n");
+        ierr = MatView(fdmono->J,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+     }*/
 
       if (!converged) { // Reduce dt if not converged
         usr->par->dt *= dt_damp;
         ierr = FDPDEAdvDiffSetTimestep(pdes[1],usr->par->dt);CHKERRQ(ierr);
+        it++;
       }
     }
 
@@ -364,6 +379,7 @@ PetscErrorCode Test_composite_convection(void *ctx, PetscInt nd)
   ierr = DMDestroy(&dmPV); CHKERRQ(ierr);
   ierr = DMDestroy(&dmT); CHKERRQ(ierr);
   ierr = FDPDEDestroy(&fdmono);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xTprev);CHKERRQ(ierr);
   
   PetscFunctionReturn(0);
 }
@@ -808,8 +824,9 @@ PetscErrorCode FormCoefficient_Stokes_nd1(FDPDE fd, DM dm, Vec x, DM dmcoeff, Ve
   Ra    = usr->par->Ra;
   
   // Get dm and solution vector for Temperature
-  ierr = FDPDEGetAuxGlobalVectors(fd,&naux,&aux_vecs);CHKERRQ(ierr);
+  ierr = FDPDEGetAuxGlobalVectors(fd,&naux,&aux_vecs);CHKERRQ(ierr);  
   xT = aux_vecs[1];
+  // xT  = usr->xTprev; // may pass previous solution, to remove non-linear coupling in Stokes
   ierr = VecGetDM(aux_vecs[1],&dmT); CHKERRQ(ierr);
   if (!dmT) SETERRQ(fd->comm,PETSC_ERR_USER,"Expected to obtain a non-NULL value for dmT");
   if (!xT) SETERRQ(fd->comm,PETSC_ERR_USER,"Expected to obtain a non-NULL value for xT");
@@ -875,6 +892,7 @@ PetscErrorCode FormCoefficient_Stokes_nd1(FDPDE fd, DM dm, Vec x, DM dmcoeff, Ve
           Tinterp = (T[ii]+T[ii+1])*0.5; // assume constant grid spacing
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           cx[j][i][idx] = -Ra*Tinterp;
+          // PetscPrintf(PETSC_COMM_WORLD,"# [%d,%d,%d] Tinterp = %1.12e cx = %1.12e\n",i,j,idx,Tinterp,cx[j][i][idx]);
         }
       }
 
