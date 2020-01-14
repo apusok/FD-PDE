@@ -1,9 +1,9 @@
 // ---------------------------------------
-// SOLCX benchmark - constant grid spacing
-// run: ./tests/test_stokes_solcx.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
-// python test: ./tests/python/test_stokes_solcx.py
+// SOLCX benchmark - Irregular grid spacing
+// run: ./tests/test_stokes_solcx_vargrid.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// viz: with Paraview (example VTK output)
 // ---------------------------------------
-static char help[] = "Application to solve the SolCx benchmark with FD-PDE \n\n";
+static char help[] = "Application to solve the SolCx benchmark with FD-PDE - Irregular grid spacing \n\n";
 
 // define convenient names for DMStagStencilLocation
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
@@ -18,8 +18,6 @@ static char help[] = "Application to solve the SolCx benchmark with FD-PDE \n\n"
 
 #include "petsc.h"
 #include "../fdpde_stokes.h"
-#include "../dmstagoutput.h"
-#include "../benchmark_solcx.h"
 
 // ---------------------------------------
 // Application Context
@@ -48,12 +46,11 @@ typedef struct {
 // Function definitions
 // ---------------------------------------
 PetscErrorCode SNESStokes_Solcx(DM*,Vec*,void*);
-PetscErrorCode Analytic_Solcx(DM,Vec*,void*);
 PetscErrorCode InputParameters(UsrData**);
 PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
-PetscErrorCode ComputeErrorNorms(DM,Vec,Vec,void*);
+PetscErrorCode DoOutput(DM,Vec,const char[]);
 
 // ---------------------------------------
 // Some descriptions
@@ -83,8 +80,10 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   FDPDE          fd;
   DM             dmPV;
   Vec            x;
-  PetscInt       nx, nz;
-  PetscScalar    xmin, zmin, xmax, zmax;
+  PetscInt       i, j, sx, sz, nx, nz;
+  PetscScalar    dx, dz, xmin, zmin, xmax, zmax;
+  PetscInt       iprev, inext, icenter;
+  PetscScalar    **coordx,**coordz;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -102,51 +101,49 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   // Create the FD-pde object
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKES,&fd);CHKERRQ(ierr);
   ierr = FDPDESetUp(fd);CHKERRQ(ierr);
-  // User can modify the dm coordinates anywhere between FDPDESetUp() and FDPDESolve()
+
+  // ---------------------------------------
+  // Modify coordinates for irregular grid spacing
+  ierr = DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = FDPDEGetCoordinatesArrayDMStag(fd,&coordx,&coordz);CHKERRQ(ierr);
+
+  ierr = DMStagGet1dCoordinateLocationSlot(fd->dmstag,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
+  ierr = DMStagGet1dCoordinateLocationSlot(fd->dmstag,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateLocationSlot(fd->dmstag,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
+
+  dx = usr->par->L/nx/1.2;
+  dz = usr->par->H/nz/1.2;
+
+  for (i = sx; i<sx+nx-1; i++) {
+    coordx[i  ][inext  ] -= dx/(i+1);
+    coordx[i  ][icenter]  = (coordx[i][iprev]+coordx[i][inext])*0.5;
+  }
+
+  for (j = sz; j<sz+nz-1; j++) {
+    coordz[j  ][inext  ] -= dz/(j+1);
+    coordz[j  ][icenter]  = (coordz[j][iprev]+coordz[j][inext])*0.5;
+  }
+
+  ierr = FDPDERestoreCoordinatesArrayDMStag(fd,coordx,coordz);CHKERRQ(ierr);
+  // ---------------------------------------
 
   // Set BC evaluation function
   ierr = FDPDESetFunctionBCList(fd,FormBCList,bc_description,NULL); CHKERRQ(ierr);
 
   // Set coefficients evaluation function
   ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient,coeff_description,usr); CHKERRQ(ierr);
+
   ierr = FDPDEView(fd); CHKERRQ(ierr);
-
-  // Some SNES options
-  PetscInt  maxit, maxf, its;
-  PetscReal atol, rtol, stol;
-  SNES      snes;
-
-  ierr = FDPDEGetSNES(fd,&snes);CHKERRQ(ierr);
-
-  // SNES Options - default info on convergence
-  ierr = PetscOptionsSetValue(NULL, "-snes_monitor",         ""); CHKERRQ(ierr);
-  ierr = PetscOptionsSetValue(NULL, "-ksp_monitor",          ""); CHKERRQ(ierr);
-  ierr = PetscOptionsSetValue(NULL, "-snes_converged_reason",""); CHKERRQ(ierr);
-  ierr = PetscOptionsSetValue(NULL, "-ksp_converged_reason", ""); CHKERRQ(ierr);
-  //ierr = SNESSetOptionsPrefix(snes,"stk_");CHKERRQ(ierr);
 
   // FD SNES Solver
   ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
 
-  ierr = SNESGetIterationNumber(fd->snes,&its);    CHKERRQ(ierr);
-  ierr = SNESGetTolerances(fd->snes, &atol, &rtol, &stol, &maxit, &maxf); CHKERRQ(ierr);
-  
-  // Print some SNES diagnostics
-  ierr = PetscPrintf(fd->comm,"Number of SNES iterations = %d\n",its);
-  ierr = PetscPrintf(fd->comm,"SNES: atol = %g, rtol = %g, stol = %g, maxit = %D, maxf = %D\n",(double)atol,(double)rtol,(double)stol,maxit,maxf); CHKERRQ(ierr);
-
   // Get solution vector
   ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr); 
-  ierr = FDPDEGetDM(fd, &dmPV); CHKERRQ(ierr);
+  ierr = FDPDEGetDM(fd,&dmPV); CHKERRQ(ierr);
 
   // Output solution to file
-  ierr = DMStagViewBinaryPython(dmPV,x,usr->par->fname_out);CHKERRQ(ierr);
-  {
-    DM dmcoeff;
-    Vec coeff;
-    ierr = FDPDEGetCoefficient(fd,&dmcoeff,&coeff);CHKERRQ(ierr);
-    ierr = DMStagViewBinaryPython(dmcoeff,coeff,"out_coefficients");CHKERRQ(ierr);
-  }
+  ierr = DoOutput(dmPV,x,"numerical_solution_vargrid.vtr");CHKERRQ(ierr);
 
   // Destroy FD-PDE object
   ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
@@ -202,7 +199,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->eta1, 1.0, "eta1", "Viscosity eta1"); CHKERRQ(ierr);
 
   // Input/output 
-  ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_num_solution","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"output","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
 
   // Other variables
   par->fname_in[0] = '\0';
@@ -233,7 +230,7 @@ PetscErrorCode InputPrintData(UsrData *usr)
 
   // Print header and petsc options
   PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# Test_stokes_solcx: %s \n",&(date[0]));
+  PetscPrintf(usr->comm,"# Test_stokes_solcx_vargrid: %s \n",&(date[0]));
   PetscPrintf(usr->comm,"# --------------------------------------- #\n");
   PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
   PetscPrintf(usr->comm,"# --------------------------------------- #\n");
@@ -398,12 +395,15 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
 #define __FUNCT__ "FormBCList"
 PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
+  //DMStagBC       *list;
   PetscInt    k,n_bc,*idx_bc;
   PetscScalar *value_bc;
   BCType      *type_bc;
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
+  
+  //list = bclist->bc_f;
   
   // dVz/dx=0 on left boundary (w)
   ierr = DMStagBCListGetValues(bclist,'w','|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -473,210 +473,126 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 }
 
 // ---------------------------------------
-// CreateSolCx analytical solution
+// DoOutput
 // ---------------------------------------
-PetscErrorCode Analytic_Solcx(DM dm,Vec *_x, void *ctx)
+PetscErrorCode DoOutput(DM dm,Vec x,const char fname[])
 {
-  UsrData       *usr = (UsrData*) ctx;
-  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, idx;
-  PetscInt       iprev, inext, icenter;
-  PetscScalar    eta0, eta1, xc;
-  PetscScalar    ***xx;
-  PetscScalar    **coordx,**coordz;
-  Vec            x, xlocal;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-
-  // Get parameters
-  eta0 = usr->par->eta0;
-  eta1 = usr->par->eta1;
-  xc   = 0.5;
-
-  // Create local and global vector associated with DM
-  ierr = DMCreateGlobalVector(dm, &x     ); CHKERRQ(ierr);
-  ierr = DMCreateLocalVector (dm, &xlocal); CHKERRQ(ierr);
-
-  // Get array associated with vector
-  ierr = DMStagVecGetArrayDOF(dm,xlocal,&xx); CHKERRQ(ierr);
-
-  // Get domain corners
-  ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  
-// Get dm coordinates array
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,RIGHT,&inext);CHKERRQ(ierr); 
-
-  // Loop over local domain to calculate the SolCx analytical solution
-  for (j = sz; j < sz+nz; j++) {
-    for (i = sx; i <sx+nx; i++) {
-      PetscScalar    xp[2];
-      PetscReal      pressure, vel[2], total_stress[3], strain_rate[3];
-      
-      // 1) Vx - Calculate SolCx
-      xp[0] = coordx[i][iprev ];
-      xp[1] = coordz[j][icenter];
-      evaluate_solCx(xp,eta0,eta1,xc,1,vel,&pressure,total_stress,strain_rate);
-      ierr = DMStagGetLocationSlot(dm, LEFT, 0, &idx); CHKERRQ(ierr);
-      xx[j][i][idx] = vel[0];
-
-      if (i == Nx-1) {
-        xp[0] = coordx[i][inext  ];
-        xp[1] = coordz[j][icenter];
-        evaluate_solCx(xp,eta0,eta1,xc,1,vel,&pressure,total_stress,strain_rate);
-        ierr = DMStagGetLocationSlot(dm, RIGHT, 0, &idx); CHKERRQ(ierr);
-        xx[j][i][idx] = vel[0];
-      }
-      
-      // 2) Vz
-      xp[0] = coordx[i][icenter];
-      xp[1] = coordz[j][iprev  ];
-      evaluate_solCx(xp,eta0,eta1,xc,1,vel,&pressure,total_stress,strain_rate);
-      ierr = DMStagGetLocationSlot(dm, DOWN, 0, &idx); CHKERRQ(ierr);
-      xx[j][i][idx] = vel[1];
-
-      if (j == Nz-1) {
-        xp[0] = coordx[i][icenter];
-        xp[1] = coordz[j][inext  ];
-        evaluate_solCx(xp,eta0,eta1,xc,1,vel,&pressure,total_stress,strain_rate);
-        ierr = DMStagGetLocationSlot(dm, UP, 0, &idx); CHKERRQ(ierr);
-        xx[j][i][idx] = vel[1];
-      }
-    
-      // 3) Pressure
-      xp[0] = coordx[i][icenter];
-      xp[1] = coordz[j][icenter];
-      evaluate_solCx(xp,eta0,eta1,xc,1,vel,&pressure,total_stress,strain_rate);
-      ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &idx); CHKERRQ(ierr);
-      xx[j][i][idx] = pressure;
-    }
-  }
-
-  // Restore arrays
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayDOF(dm,xlocal,&xx); CHKERRQ(ierr);
-
-  // Map local to global
-  ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
-
-  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
-  ierr = DMStagViewBinaryPython(dm,x,"out_analytic_solution");CHKERRQ(ierr);
-
-  // Assign pointers
-  *_x  = x;
-  
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-// ComputeErrorNorms
-// ---------------------------------------
-PetscErrorCode ComputeErrorNorms(DM dm,Vec x,Vec xanalytic, void *ctx)
-{
+  DM             dmVel,  daVel, daP;
+  Vec            vecVel, vaVel, vecP;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
-  PetscScalar    xx[5], xa[5], dx, dz, dv;
-  PetscScalar    nrm[3], gnrm[3], totp, avgp, gavgp;
-  Vec            xlocal, xalocal;
-  MPI_Comm       comm;
-
+  PetscScalar    xmin, xmax, zmin, zmax;
+  PetscScalar    **coordx,**coordz,**cx, **cz;
+  PetscInt       iprev=-1,inext=-1,icenter=-1,icenterc=-1;
   PetscErrorCode ierr;
-  PetscFunctionBegin;
 
-  comm = PETSC_COMM_WORLD;
+  PetscFunctionBeginUser;
 
-  // Get domain corners
-  ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  // Create a new DM and Vec for velocity
+  ierr = DMStagCreateCompatibleDMStag(dm,0,0,2,0,&dmVel); CHKERRQ(ierr);
+  ierr = DMSetUp(dmVel); CHKERRQ(ierr);
 
-  // Map global vectors to local domain
-  ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  // Get corners
+  ierr = DMStagGetCorners(dm,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL); CHKERRQ(ierr);
 
-  ierr = DMCreateLocalVector (dm, &xalocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm, xanalytic, INSERT_VALUES, xalocal); CHKERRQ(ierr);
+  // Set coordinates
+  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&cx,&cz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
 
-  // Loop over local domain to calculate average pressure
-  totp = 0.0; avgp = 0.0;
-  for (j = sz; j < sz+nz; j++) {
-    for (i = sx; i <sx+nx; i++) {
-      PetscScalar    p;
-      DMStagStencil  point;
-      
-      // Get stencil values
-      point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0;
-      ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &point, &p); CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr);
 
-      // Average pressure
-      totp += p;
-    }
-  }
-  // Collect data 
-  ierr = MPI_Allreduce(&totp, &gavgp, 1, MPI_DOUBLE, MPI_SUM, comm); CHKERRQ(ierr);
-  avgp = gavgp/Nx/Nz;
+  xmin = cx[0   ][iprev];
+  xmax = cx[Nx-1][inext];
+  zmin = cz[0   ][iprev];
+  zmax = cz[Nz-1][inext];
 
-  // Initialize norms
-  nrm[0] = 0.0; nrm[1] = 0.0; nrm[2] = 0.0;
-  dx = 1.0/Nx;
-  dz = 1.0/Nz;
-  dv = dx*dz;
+  ierr = DMStagSetUniformCoordinatesProduct(dmVel,xmin,xmax,zmin,zmax,0.0,0.0);CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateLocationSlot(dmVel,DMSTAG_ELEMENT,&icenterc);CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateArraysDOFRead(dmVel,&coordx,&coordz,NULL);CHKERRQ(ierr);
 
-  // Loop over local domain to calculate ELEMENT errors
-  for (j = sz; j < sz+nz; j++) {
-    for (i = sx; i <sx+nx; i++) {
-      
-      PetscScalar    ve[4], pe;
-      DMStagStencil  point[5];
-      
-      // Get stencil values
-      point[0].i = i; point[0].j = j; point[0].loc = LEFT;    point[0].c = 0; // Vx
-      point[1].i = i; point[1].j = j; point[1].loc = RIGHT;   point[1].c = 0; // Vx
-      point[2].i = i; point[2].j = j; point[2].loc = DOWN;    point[2].c = 0; // Vz
-      point[3].i = i; point[3].j = j; point[3].loc = UP;      point[3].c = 0; // Vz
-      point[4].i = i; point[4].j = j; point[4].loc = ELEMENT; point[4].c = 0; // P
-
-      // Get numerical solution
-      ierr = DMStagVecGetValuesStencil(dm, xlocal, 5, point, xx); CHKERRQ(ierr);
-
-      // Get analytical solution
-      ierr = DMStagVecGetValuesStencil(dm, xalocal, 5, point, xa); CHKERRQ(ierr);
-
-      // Calculate errors
-      ve[0] = PetscAbsScalar(xx[0]-xa[0]); // Left
-      ve[1] = PetscAbsScalar(xx[1]-xa[1]); // Right
-      ve[2] = PetscAbsScalar(xx[2]-xa[2]); // Down
-      ve[3] = PetscAbsScalar(xx[3]-xa[3]); // Up
-      pe    = PetscAbsScalar(xx[4]-avgp-xa[4]); // normalized pressure 
-
-      // Calculate norms as in Duretz et al. 2011
-      if      (i == 0   ) { nrm[0] += ve[0]*dv*0.5; nrm[0] += ve[1]*dv; }
-      else if (i == Nx-1) nrm[0] += ve[1]*dv*0.5;
-      else                nrm[0] += ve[1]*dv;
-
-      if      (j == 0   ) { nrm[1] += ve[2]*dv*0.5; nrm[1] += ve[3]*dv; }
-      else if (j == Nz-1) nrm[1] += ve[3]*dv*0.5;
-      else                nrm[1] += ve[3]*dv;
-
-      nrm[2] += pe*dv;
-    }
+  for (i = sx; i<sx+nx; i++) {
+    coordx[i][icenterc] = cx[i][icenter];
   }
 
-  // Collect data 
-  ierr = MPI_Allreduce(&nrm, &gnrm, 3, MPI_DOUBLE, MPI_SUM, comm); CHKERRQ(ierr);
+  for (j = sz; j<sz+nz; j++) {
+    coordz[j][icenterc] = cz[j][icenter];
+  }
 
-  // Restore arrays and vectors
-  ierr = DMRestoreLocalVector(dm, &xlocal ); CHKERRQ(ierr);
-  ierr = VecDestroy(&xalocal); CHKERRQ(ierr);
+  // Restore coordinates
+  ierr = DMStagRestore1dCoordinateArraysDOFRead(dmVel,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&cx,&cz,NULL);CHKERRQ(ierr);
 
-  // Print information
-  PetscPrintf(comm,"# --------------------------------------- #\n");
-  PetscPrintf(comm,"# NORMS: \n");
-  PetscPrintf(comm,"# Velocity: norm1 = %1.12e norm1x = %1.12e norm1z = %1.12e \n",gnrm[0]+gnrm[1],gnrm[0],gnrm[1]);
-  PetscPrintf(comm,"# Pressure: norm1 = %1.12e\n",gnrm[2]);
-  PetscPrintf(comm,"# Grid info: hx = %1.12e hz = %1.12e \n",dx,dz);
+  // Create global vectors
+  ierr = DMCreateGlobalVector(dmVel,&vecVel); CHKERRQ(ierr);
+  
+  // Loop over elements
+  {
+    Vec          xlocal;
+    
+    // Access local vector
+    ierr = DMGetLocalVector(dm,&xlocal); CHKERRQ(ierr);
+    ierr = DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal); CHKERRQ(ierr);
+
+    // Loop
+    for (j = sz; j < sz+nz; j++) {
+      for (i = sx; i < sx+nx; i++) {
+        DMStagStencil from[4], to[2];
+        PetscScalar   valFrom[4], valTo[2];
+        
+        from[0].i = i; from[0].j = j; from[0].loc = UP;    from[0].c = 0;
+        from[1].i = i; from[1].j = j; from[1].loc = DOWN;  from[1].c = 0;
+        from[2].i = i; from[2].j = j; from[2].loc = LEFT;  from[2].c = 0;
+        from[3].i = i; from[3].j = j; from[3].loc = RIGHT; from[3].c = 0;
+        
+        // Get values from stencil locations
+        ierr = DMStagVecGetValuesStencil(dm,xlocal,4,from,valFrom); CHKERRQ(ierr);
+        
+        // Average edge values to obtain ELEMENT values
+        to[0].i = i; to[0].j = j; to[0].loc = ELEMENT; to[0].c = 0; valTo[0] = 0.5 * (valFrom[2] + valFrom[3]);
+        to[1].i = i; to[1].j = j; to[1].loc = ELEMENT; to[1].c = 1; valTo[1] = 0.5 * (valFrom[0] + valFrom[1]);
+        
+        // Return values in new dm - averaged velocities
+        ierr = DMStagVecSetValuesStencil(dmVel,vecVel,2,to,valTo,INSERT_VALUES); CHKERRQ(ierr);
+      }
+    }
+    
+    // Vector assembly
+    ierr = VecAssemblyBegin(vecVel); CHKERRQ(ierr);
+    ierr = VecAssemblyEnd  (vecVel); CHKERRQ(ierr);
+    
+    // Restore vector
+    ierr = DMRestoreLocalVector(dm, &xlocal); CHKERRQ(ierr);
+  }
+
+  // Create individual DMDAs for sub-grids of our DMStag objects
+  ierr = DMStagVecSplitToDMDA(dm,x,ELEMENT,0,&daP,&vecP); CHKERRQ(ierr);
+  ierr = PetscObjectSetName  ((PetscObject)vecP,"Pressure");         CHKERRQ(ierr);
+  
+  ierr = DMStagVecSplitToDMDA(dmVel,vecVel,ELEMENT,-3,&daVel,&vaVel); CHKERRQ(ierr); // note -3 : output 2 DOFs
+  ierr = PetscObjectSetName  ((PetscObject)vaVel,"Velocity");          CHKERRQ(ierr);
+
+  // Dump element-based fields to a .vtr file
+  {
+    PetscViewer viewer;
+
+    // Warning: is being output as Point Data instead of Cell Data - the grid is shifted to be in the center points.
+    ierr = PetscViewerVTKOpen(PetscObjectComm((PetscObject)daVel),fname,FILE_MODE_WRITE,&viewer); CHKERRQ(ierr);
+    ierr = VecView(vaVel,    viewer); CHKERRQ(ierr);
+    ierr = VecView(vecP,     viewer); CHKERRQ(ierr);
+    
+    // Free memory
+    ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+  }
+
+  // Destroy DMDAs and Vecs
+  ierr = VecDestroy(&vecVel); CHKERRQ(ierr);
+  ierr = VecDestroy(&vaVel ); CHKERRQ(ierr);
+  ierr = VecDestroy(&vecP  ); CHKERRQ(ierr);
+  
+  ierr = DMDestroy(&dmVel  ); CHKERRQ(ierr);
+  ierr = DMDestroy(&daVel  ); CHKERRQ(ierr);
+  ierr = DMDestroy(&daP    ); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -690,7 +606,7 @@ int main (int argc,char **argv)
 {
   UsrData         *usr;
   DM              dmStokes;
-  Vec             xStokes,xAnalytic;
+  Vec             xStokes; //,xAnalytic;
   PetscLogDouble  start_time, end_time;
   PetscErrorCode  ierr;
     
@@ -720,16 +636,10 @@ int main (int argc,char **argv)
   // Numerical solution using the FD pde object
   ierr = SNESStokes_Solcx(&dmStokes, &xStokes, usr); CHKERRQ(ierr);
 
-  // Analytical solution
-  ierr = Analytic_Solcx(dmStokes, &xAnalytic, usr); CHKERRQ(ierr);
-
-  // Compute norms
-  ierr = ComputeErrorNorms(dmStokes, xStokes, xAnalytic, usr); CHKERRQ(ierr);
-
   // Destroy objects
   ierr = DMDestroy(&dmStokes); CHKERRQ(ierr);
   ierr = VecDestroy(&xStokes); CHKERRQ(ierr);
-  ierr = VecDestroy(&xAnalytic); CHKERRQ(ierr);
+  // ierr = VecDestroy(&xAnalytic); CHKERRQ(ierr);
 
   ierr = PetscBagDestroy(&usr->bag); CHKERRQ(ierr);
   ierr = PetscFree(usr);             CHKERRQ(ierr);

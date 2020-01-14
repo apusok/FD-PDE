@@ -1,183 +1,67 @@
 /* Finite differences staggered grid context for STOKES equations */
 
-#include "fdstokes.h"
-
+#include "fdpde_stokes.h"
 
 const char stokes_description[] =
 "  << FD-PDE Stokes >> solves the PDEs: \n"
-"    div ( 2 eta symgrad(u) ) - grad(p) = f(x) \n"
-"                              - div(u) = g(x) \n"
-"  [User notes] \n"
-"  * The function f(x) is defined in velocity points, and g(x) is defined \n" 
-"    in center points. For DMStag the following right-hand-side coefficients  \n" 
-"    f(x) = [fux, fuz] and g(x) = fp need to be specified. \n"
-"  * The viscosity is defined in corner and center points for a staggered grid\n" 
-"    discretization, so the eta coefficients become [eta_c, eta_n].";
+"    div ( 2 A symgrad(u) ) - grad(p) = B \n"
+"                            - div(u) = C \n"
+"  Notes: \n"
+"  * Unknowns: p - pressure, u - velocity. \n" 
+"  * The coefficients A,B,C need to be defined by the user. \n" 
+"        A - effective viscosity, \n" 
+"        B - right-hand side for the momentum equation, \n" 
+"        C - right-hand side for the continuity equation. \n" 
+"  * A,B,C are not colocated on DMStag! Effective viscosity (A) has to be specified:\n" 
+"        A = [eta_c, eta_n], with eta_c in center points, eta_n in corner points.\n"
+"  * The momentum rhs (B) is defined in velocity points, and the continuity rhs (C) \n" 
+"    is defined in center points. For DMStag the following right-hand-side coefficients  \n" 
+"    need to be specified: \n" 
+"        B = [fux, fuz], with fux in Vx-points, fuz in Vz-points (edges)\n" 
+"        C = fp, in P-points (element). \n";
 
 // ---------------------------------------
-// FDCreate_Stokes
+/*@
+FDPDECreate_Stokes - creates the data structures for FDPDEType = STOKES
+
+Use: internal
+@*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDCreate_Stokes"
-PetscErrorCode FDCreate_Stokes(FD fd)
+#define __FUNCT__ "FDPDECreate_Stokes"
+PetscErrorCode FDPDECreate_Stokes(FDPDE fd)
 {
-  CoeffStokes    *cdata;
   PetscErrorCode ierr;
-  
   PetscFunctionBegin;
 
   // Initialize data
   ierr = PetscStrallocpy(stokes_description,&fd->description); CHKERRQ(ierr);
 
-  // Coefficient structure
-  ierr = PetscMalloc1(1,&cdata);CHKERRQ(ierr);
-  cdata->eta_n = NULL;
-  cdata->eta_c = NULL;
-  cdata->fux   = NULL;
-  cdata->fuz   = NULL;
-  cdata->fp    = NULL;
-  fd->coeff_context = cdata;
+  // STOKES Stencil dofs: dmstag - Vx, Vz (edges), P (element)
+  fd->dof0  = 0; fd->dof1  = 1; fd->dof2  = 1; 
+  fd->dofc0 = 1; fd->dofc1 = 1; fd->dofc2 = 2;
 
   // Evaluation functions
-  fd->ops->form_function     = FormFunction_Stokes;
-  fd->ops->view              = FDView_Stokes;
-  fd->ops->destroy           = FDDestroy_Stokes;
-  fd->ops->jacobian_prealloc = FDJacobianPreallocator_Stokes;
-
-  // Create coefficients
-  ierr = CoefficientCreate(fd->comm,&cdata->eta_n,DMSTAG_DOWN_RIGHT);CHKERRQ(ierr);
-  ierr = CoefficientCreate(fd->comm,&cdata->eta_c,DMSTAG_ELEMENT);CHKERRQ(ierr);
-  ierr = CoefficientCreate(fd->comm,&cdata->fux,DMSTAG_RIGHT);CHKERRQ(ierr);
-  ierr = CoefficientCreate(fd->comm,&cdata->fuz,DMSTAG_DOWN);CHKERRQ(ierr);
-  ierr = CoefficientCreate(fd->comm,&cdata->fp,DMSTAG_ELEMENT);CHKERRQ(ierr);
+  fd->ops->form_function      = FormFunction_Stokes;
+  fd->ops->form_jacobian      = NULL;
+  fd->ops->create_jacobian    = JacobianCreate_Stokes;
+  // fd->ops->setup              = NULL;
+  fd->ops->view               = NULL;
+  fd->ops->destroy            = NULL;
 
   PetscFunctionReturn(0);
 }
 
 // ---------------------------------------
-// FDDestroy_Stokes
+/*@
+JacobianPreallocator_Stokes - preallocates the non-zero pattern into the Jacobian for FDPDEType = FDPDE_STOKES
+
+Use: internal
+@*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDDestroy_Stokes"
-PetscErrorCode FDDestroy_Stokes(FD fd)
-{
-  CoeffStokes    *cdata;
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
-
-  cdata = fd->coeff_context;
-  ierr = CoefficientDestroy(&cdata->eta_n); CHKERRQ(ierr);
-  ierr = CoefficientDestroy(&cdata->eta_c); CHKERRQ(ierr);
-  ierr = CoefficientDestroy(&cdata->fux); CHKERRQ(ierr);
-  ierr = CoefficientDestroy(&cdata->fuz); CHKERRQ(ierr);
-  ierr = CoefficientDestroy(&cdata->fp); CHKERRQ(ierr);
-  
-  ierr = PetscFree(cdata);CHKERRQ(ierr);
-  fd->coeff_context = NULL;
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-// FDView_Stokes <INCOMPLETE>
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDView_Stokes"
-PetscErrorCode FDView_Stokes(FD fd, PetscViewer viewer)
-{
-  //PetscErrorCode ierr;
-  PetscFunctionBegin;
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-// FDStokesGetCoefficients
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDStokesGetCoefficients"
-PetscErrorCode FDStokesGetCoefficients(FD fd,Coefficient *eta_c, Coefficient *eta_n,Coefficient *fux,Coefficient *fuz,Coefficient *fp)
-{
-  CoeffStokes *cdata;
-  PetscFunctionBegin;
-
-  cdata = (CoeffStokes*)fd->coeff_context;
-  if (eta_c) { 
-    cdata->eta_c->type = COEFF_EVAL;
-    *eta_c = cdata->eta_c; 
-    }
-  if (eta_n) { 
-    cdata->eta_n->type = COEFF_EVAL;
-    *eta_n = cdata->eta_n; 
-    }
-  if (fux) { 
-    cdata->fux->type = COEFF_EVAL;
-    *fux = cdata->fux;
-    }
-  if (fuz) { 
-    cdata->fuz->type = COEFF_EVAL;
-    *fuz = cdata->fuz;
-    }
-  if (fp ) { 
-    cdata->fp->type = COEFF_EVAL;
-    *fp  = cdata->fp; 
-    }
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-// FDStokesSetData
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDStokesSetData"
-PetscErrorCode FDStokesSetData(FD fd, DM dm, DM dmcoeff, BCList *bclist, PetscInt nbc)
-{
-  CoeffStokes *cdata;
-  PetscScalar    pval = -0.00001;
-  PetscErrorCode ierr;
-  
-  PetscFunctionBegin;
-  cdata = (CoeffStokes*)fd->coeff_context;
-
-  // Save pointers to dms and bclist
-  if (dm) fd->dmstag = dm;
-  if (dmcoeff) fd->dmcoeff = dmcoeff;
-  if (bclist) fd->bc_list = bclist;
-  if (nbc) fd->nbc = nbc;
-
-  // Save global dm size
-  ierr = DMStagGetGlobalSizes(fd->dmstag,&fd->Nx,&fd->Nz,NULL);CHKERRQ(ierr);
-
-  // Allocate memory to coefficients
-  ierr = CoefficientAllocateMemory(fd,&cdata->eta_n);CHKERRQ(ierr);
-  ierr = CoefficientAllocateMemory(fd,&cdata->eta_c);CHKERRQ(ierr);
-  ierr = CoefficientAllocateMemory(fd,&cdata->fux);CHKERRQ(ierr);
-  ierr = CoefficientAllocateMemory(fd,&cdata->fuz);CHKERRQ(ierr);
-  ierr = CoefficientAllocateMemory(fd,&cdata->fp );CHKERRQ(ierr);
-
-  // Create global vectors
-  ierr = DMCreateGlobalVector(fd->dmstag, &fd->x    ); CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(fd->dmcoeff,&fd->coeff); CHKERRQ(ierr);
-  ierr = VecDuplicate(fd->x,&fd->r     ); CHKERRQ(ierr);
-  ierr = VecDuplicate(fd->x,&fd->xguess); CHKERRQ(ierr);
-
-  // Set initial values for xguess, coeff
-  ierr = VecSet(fd->xguess,pval);CHKERRQ(ierr);
-
-  // Create Jacobian
-  ierr = DMCreateMatrix(fd->dmstag, &fd->J); CHKERRQ(ierr);
-
-  // Preallocate Jacobian
-  ierr = fd->ops->jacobian_prealloc(fd); CHKERRQ(ierr);
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-// FDJacobianPreallocator_Stokes
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDJacobianPreallocator_Stokes"
-PetscErrorCode FDJacobianPreallocator_Stokes(FD fd)
+#define __FUNCT__ "JacobianPreallocator_Stokes"
+PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd,Mat J)
 {
   PetscInt       Nx, Nz;               // global variables
   PetscInt       i, j, sx, sz, nx, nz; // local variables
@@ -191,7 +75,7 @@ PetscErrorCode FDJacobianPreallocator_Stokes(FD fd)
   Nz = fd->Nz;
 
   // MatPreallocate begin
-  ierr = MatPreallocatePhaseBegin(fd->J, &preallocator); CHKERRQ(ierr);
+  ierr = MatPreallocatePhaseBegin(J, &preallocator); CHKERRQ(ierr);
   
   // Get local domain
   ierr = DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -201,10 +85,10 @@ PetscErrorCode FDJacobianPreallocator_Stokes(FD fd)
   DMStagStencil point[11];
   ierr = PetscMemzero(xx,sizeof(PetscScalar)*11); CHKERRQ(ierr);
 
-  // NOTE: Should take into account fd->bc_list for BC
+  // NOTE: Should take into account fd->bclist for BC
   // Get non-zero pattern for preallocator - Loop over all local elements 
-  for (j = sz; j<sz+nz; ++j) {
-    for (i = sx; i<sx+nx; ++i) {
+  for (j = sz; j<sz+nz; j++) {
+    for (i = sx; i<sx+nx; i++) {
 
       // Top boundary velocity Dirichlet
       if (j == Nz-1) {
@@ -249,25 +133,44 @@ PetscErrorCode FDJacobianPreallocator_Stokes(FD fd)
   }
   
   // Push the non-zero pattern defined within preallocator into the Jacobian
-  ierr = MatPreallocatePhaseEnd(fd->J); CHKERRQ(ierr);
-  
-  // View preallocated struct of the Jacobian
-  //ierr = MatView(fd->J,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+  ierr = MatPreallocatePhaseEnd(J); CHKERRQ(ierr);
 
   // Matrix assembly
-  ierr = MatAssemblyBegin(fd->J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-  ierr = MatAssemblyEnd  (fd->J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+  ierr = MatAssemblyEnd  (J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
 
 // ---------------------------------------
-// ContinuityStencil
+/*@
+ JacobianCreate_Stokes - creates and preallocates the non-zero pattern into the Jacobian for FDPDEType = FDPDE_STOKES
+ 
+ Use: internal
+ @*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "JacobianCreate_Stokes"
+PetscErrorCode JacobianCreate_Stokes(FDPDE fd,Mat *J)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  ierr = DMCreateMatrix(fd->dmstag,J); CHKERRQ(ierr);
+  ierr = JacobianPreallocator_Stokes(fd,*J);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+ContinuityStencil - calculates the non-zero pattern for the continuity equation/dof for JacobianPreallocator_Stokes()
+
+Use: internal
+@*/
 // ---------------------------------------
 PetscErrorCode ContinuityStencil(PetscInt i,PetscInt j, DMStagStencil *point)
 {
   PetscFunctionBegin;
-  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0;
+  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0; // for P Dirichlet BC
   point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_LEFT;    point[1].c = 0;
   point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_RIGHT;   point[2].c = 0;
   point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_DOWN;    point[3].c = 0;
@@ -276,7 +179,11 @@ PetscErrorCode ContinuityStencil(PetscInt i,PetscInt j, DMStagStencil *point)
 }
 
 // ---------------------------------------
-// XMomentumStencil
+/*@
+XMomentumStencil - calculates the non-zero pattern for the X-momentum equation/dof for JacobianPreallocator_Stokes()
+
+Use: internal
+@*/
 // ---------------------------------------
 PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt N, DMStagStencil *point)
 {
@@ -300,8 +207,13 @@ PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt N, DMStagStencil 
   }
   PetscFunctionReturn(0);
 }
+
 // ---------------------------------------
-// ZMomentumStencil
+/*@
+ZMomentumStencil - calculates the non-zero pattern for the Z-momentum equation/dof for JacobianPreallocator_Stokes()
+
+Use: internal
+@*/
 // ---------------------------------------
 PetscErrorCode ZMomentumStencil(PetscInt i,PetscInt j,PetscInt N, DMStagStencil *point)
 {
