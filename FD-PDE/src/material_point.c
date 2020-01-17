@@ -16,7 +16,7 @@ PetscErrorCode DMStagPICCreateDMSwarm(DM dmstag,DM *s)
   PetscFunctionBeginUser;
   ierr = DMSetPointLocation(dmstag,DMLocatePoints_Stag);CHKERRQ(ierr);
   
-  ierr = DMCreate(PETSC_COMM_WORLD,&dmswarm);CHKERRQ(ierr);
+  ierr = DMCreate(PetscObjectComm((PetscObject)dmstag),&dmswarm);CHKERRQ(ierr);
   ierr = DMSetType(dmswarm,DMSWARM);CHKERRQ(ierr);
   ierr = DMSetDimension(dmswarm,2);CHKERRQ(ierr);
   ierr = DMSwarmSetType(dmswarm,DMSWARM_PIC);CHKERRQ(ierr);
@@ -477,7 +477,7 @@ PetscErrorCode MPointCoordLayout_DomainVolume(DM dmswarm,PetscReal factor,PetscI
   PetscErrorCode ierr;
   
   PetscFunctionBeginUser;
-  if (mode == COOR_APPEND) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Only mode COOR_INITIALIZE supported");
+  if (mode == COOR_APPEND) SETERRQ(PetscObjectComm((PetscObject)dmswarm),PETSC_ERR_SUP,"Only mode COOR_INITIALIZE supported");
   
   ierr = DMSwarmInsertPointsUsingCellDM(dmswarm,DMSWARMPIC_LAYOUT_REGULAR,points_per_dim);CHKERRQ(ierr);
   
@@ -582,6 +582,7 @@ PetscErrorCode _CellFaceFillCoor_e_w(PetscReal y0,PetscReal y1,PetscReal x,Petsc
  + dmswarm - On exit dmswarm will contain newly defined coordinates
  
  Notes:
+ * The input celllist[] may be NULL. In this case, all cells in the domain will be filled with points
  * Assumes constant cell spacing
 
  Collective
@@ -771,7 +772,6 @@ PetscErrorCode _MPointCoordLayout_FillDomainFace_NS(DM dmswarm,
   PetscErrorCode ierr;
   
   PetscFunctionBeginUser;
-  //if (mode == COOR_INITIALIZE) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Only mode COOR_APPEND supported. Initialize does not make sense when filling a sub-set of cells");
   if (mode == COOR_INITIALIZE) {
     ierr = DMSwarmSetLocalSizes(dmswarm,0,-1);CHKERRQ(ierr);
   }

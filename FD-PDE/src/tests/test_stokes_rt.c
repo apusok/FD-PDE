@@ -59,8 +59,8 @@ const char coeff_description[] =
 "  << Stokes Coefficients >> \n"
 "  eta_n/eta_c = f(x,y)\n"
 "  fux = 0 \n" 
-"  fuz = rho*g \n" 
-"  fp = 0 (incompressible)\n";
+"  fuz = rho(x,y)*g \n"
+"  fp = 0\n";
 
 const char bc_description[] =
 "  << Stokes BCs >> \n"
@@ -155,6 +155,7 @@ PetscErrorCode SNESStokes_RT(DM *_dm, Vec *_x, void *ctx)
   Vec            x;
   PetscInt       nx, nz, k;
   PetscScalar    xmin, zmin, xmax, zmax;
+  SNES           snes;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -174,8 +175,9 @@ PetscErrorCode SNESStokes_RT(DM *_dm, Vec *_x, void *ctx)
   ierr = FDPDESetUp(fd);CHKERRQ(ierr);
   // User can modify the dm coordinates anywhere between FDPDESetUp() and FDPDESolve()
 
-  ierr = FDPDEGetDM(fd, &dmPV); CHKERRQ(ierr);
+  ierr = FDPDEGetDM(fd,&dmPV);CHKERRQ(ierr);
   
+  /* Create a swarm object, assign several fields */
   ierr = DMStagPICCreateDMSwarm(dmPV,&dmswarm);CHKERRQ(ierr);
   ierr = DMSwarmRegisterPetscDatatypeField(dmswarm,"eta",1,PETSC_REAL);CHKERRQ(ierr);
   ierr = DMSwarmRegisterPetscDatatypeField(dmswarm,"rho",1,PETSC_REAL);CHKERRQ(ierr);
@@ -188,7 +190,7 @@ PetscErrorCode SNESStokes_RT(DM *_dm, Vec *_x, void *ctx)
   {
     PetscInt ppcell[] = {4,4};
     
-    ierr = MPointCoordLayout_DomainVolumeWithCellList(dmswarm,0,NULL,0.0,ppcell,COOR_INITIALIZE);CHKERRQ(ierr);
+    ierr = MPointCoordLayout_DomainVolumeWithCellList(dmswarm,0,NULL,0.5,ppcell,COOR_INITIALIZE);CHKERRQ(ierr);
   }
   
   /* swarm initial condition */
@@ -201,7 +203,15 @@ PetscErrorCode SNESStokes_RT(DM *_dm, Vec *_x, void *ctx)
     
     ierr = DMSwarmGetField(dmswarm,"eta",NULL,NULL,(void**)&pfield);CHKERRQ(ierr);
     for (p=0; p<npoints; p++) {
-      pfield[p] = 1.0;
+      PetscReal yinterface,xcoor,ycoor;
+      
+      xcoor = pcoor[2*p+0];
+      ycoor = pcoor[2*p+1];
+      yinterface = 0.1 * PetscCosReal(PETSC_PI * xcoor) + 0.3;
+      pfield[p] = usr->par->eta0;
+      if (ycoor < yinterface) {
+        pfield[p] = usr->par->eta1;
+      }
     }
     ierr = DMSwarmRestoreField(dmswarm,"eta",NULL,NULL,(void**)&pfield);CHKERRQ(ierr);
     
@@ -211,7 +221,7 @@ PetscErrorCode SNESStokes_RT(DM *_dm, Vec *_x, void *ctx)
       
       xcoor = pcoor[2*p+0];
       ycoor = pcoor[2*p+1];
-      yinterface = 0.1 * cos(M_PI * xcoor) + 0.3;
+      yinterface = 0.1 * PetscCosReal(PETSC_PI * xcoor) + 0.3;
       pfield[p] = 1.2;
       if (ycoor < yinterface) {
         pfield[p] = 1.0;
@@ -222,37 +232,25 @@ PetscErrorCode SNESStokes_RT(DM *_dm, Vec *_x, void *ctx)
   }
   
   // Set BC evaluation function
-  ierr = FDPDESetFunctionBCList(fd,FormBCList,bc_description,NULL); CHKERRQ(ierr);
+  ierr = FDPDESetFunctionBCList(fd,FormBCList,bc_description,NULL);CHKERRQ(ierr);
 
   // Set coefficients evaluation function
-  ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient,coeff_description,usr); CHKERRQ(ierr);
-
-  // Some SNES options
-  PetscInt  maxit, maxf, its;
-  PetscReal atol, rtol, stol;
-  SNES      snes;
+  ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient,coeff_description,usr);CHKERRQ(ierr);
 
   ierr = FDPDEGetSNES(fd,&snes);CHKERRQ(ierr);
-
-  // SNES Options - default info on convergence
-  ierr = PetscOptionsSetValue(NULL, "-snes_monitor",         ""); CHKERRQ(ierr);
-  //ierr = SNESSetOptionsPrefix(snes,"stk_");CHKERRQ(ierr);
 
   ierr = DMSwarmViewXDMF(dmswarm,"dms-0.xmf");CHKERRQ(ierr);
 
   for (k=1; k<usr->par->nt; k++) {
     char filename[100];
     
-    printf("====== step %d =======\n",k);
+    PetscPrintf(PETSC_COMM_SELF,"====== step %d =======\n",k);
     // FD SNES Solver
     ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
 
-    ierr = SNESGetIterationNumber(fd->snes,&its);    CHKERRQ(ierr);
-    ierr = SNESGetTolerances(fd->snes, &atol, &rtol, &stol, &maxit, &maxf); CHKERRQ(ierr);
-    
     // Get solution vector
     ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr); 
-    ierr = FDPDEGetDM(fd, &dmPV); CHKERRQ(ierr);
+    ierr = FDPDEGetDM(fd,&dmPV);CHKERRQ(ierr);
     
     ierr = MPoint_AdvectRK1(dmswarm,dmPV,x,20.0);CHKERRQ(ierr);
 
@@ -265,9 +263,8 @@ PetscErrorCode SNESStokes_RT(DM *_dm, Vec *_x, void *ctx)
   }
   
   ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr);
-  ierr = FDPDEGetDM(fd, &dmPV); CHKERRQ(ierr);
+  ierr = FDPDEGetDM(fd,&dmPV);CHKERRQ(ierr);
 
-  
   // Output solution to file
   ierr = DMStagViewBinaryPython(dmPV,x,usr->par->fname_out);CHKERRQ(ierr);
   {
@@ -400,7 +397,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   PetscScalar    **coordx,**coordz;
   PetscInt       iprev, inext, icenter;
   PetscScalar    ***c;
-  PetscScalar    g, L2 = 0.5;
+  PetscScalar    g;
   DM             dmswarm;
   PetscErrorCode ierr;
 
@@ -411,18 +408,15 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   //ierr = MPoint_ProjectP0_arith(dmswarm,"eta",dm,dmcoeff,0,coeff);CHKERRQ(ierr);
   //ierr = MPoint_ProjectP0_arith(dmswarm,"rho",dm,dmcoeff,1,coeff);CHKERRQ(ierr);
 
-  VecZeroEntries(coeff);
+  ierr = VecZeroEntries(coeff);CHKERRQ(ierr);
   ierr = MPoint_ProjectQ1_arith_general(dmswarm,"eta",dm,dmcoeff,2,1,coeff);CHKERRQ(ierr);//cell
-  //VecView(coeff,PETSC_VIEWER_STDOUT_WORLD);
   
   ierr = MPoint_ProjectQ1_arith_general(dmswarm,"eta",dm,dmcoeff,0,0,coeff);CHKERRQ(ierr);//vertex
 
   ierr = MPoint_ProjectQ1_arith_general(dmswarm,"rho",dm,dmcoeff,1,0,coeff);CHKERRQ(ierr);//face
-  //VecView(coeff,PETSC_VIEWER_STDOUT_WORLD);
-  //exit(0);
   
-  // Density is defined (edges): sin(pi*z)*cos(pi*x); 
-  // Viscosity is defined (corner and center): solcx_eta0, for 0<=x<=0.5, solcx_eta1, for 0.5<x<=1
+  // Density is defined on the edges
+  // Viscosity is defined (vertices and cell center
   // DM dm, Vec x - used for non-linear coefficients
 
   // User parameters
@@ -449,7 +443,6 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
 
-#if 1
       { // fux = 0.0
         DMStagStencil point[2];
         PetscInt      ii, idx;
@@ -463,6 +456,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         }
       }
 
+      // Above we project rho into the slot associated with fuz. Hence we just need to scale it by g to define fuz //
       { // fuz = rho*g
         DMStagStencil point[2];
         PetscScalar   fval = 0.0;
@@ -487,111 +481,32 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         c[j][i][idx] = 0.0;
       }
 
+      /* // Don't require this as a projected value for eta on the cell center has already been performed //
       { // eta_c = eta0:eta1
         DMStagStencil point;
         PetscInt      idx;
 
         point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 1;
-        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
-        //c[j][i][idx] = fval;
-      }
-
-      { // eta_n = eta0:eta1
-        DMStagStencil point[4];
-        PetscInt      ii, idx;
-
-        point[0].i = i; point[0].j = j; point[0].loc = DOWN_LEFT;  point[0].c = 0;
-        point[1].i = i; point[1].j = j; point[1].loc = DOWN_RIGHT; point[1].c = 0;
-        point[2].i = i; point[2].j = j; point[2].loc = UP_LEFT;    point[2].c = 0;
-        point[3].i = i; point[3].j = j; point[3].loc = UP_RIGHT;   point[3].c = 0;
-        for (ii = 0; ii < 4; ii++) {
-          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
-          //c[j][i][idx] = fval;
-        }
-      }
-#endif
-      
-#if 0
-      { // fux = 0.0
-        DMStagStencil point[2];
-        PetscInt      ii, idx;
-        
-        point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
-        point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
-        
-        for (ii = 0; ii < 2; ii++) {
-          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
-          c[j][i][idx] = 0.0;
-        }
-      }
-      
-      { // fuz = rho*g
-        DMStagStencil point[2];
-        PetscScalar   xp[2], zp[2], fval = 0.0;
-        PetscInt      ii, idx;
-        
-        point[0].i = i; point[0].j = j; point[0].loc = DOWN; point[0].c = 0;
-        point[1].i = i; point[1].j = j; point[1].loc = UP;   point[1].c = 0;
-        
-        xp[0] = coordx[i][icenter]; zp[0] = coordz[j][iprev  ];
-        xp[1] = coordx[i][icenter]; zp[1] = coordz[j][inext  ];
-        
-        for (ii = 0; ii < 2; ii++) {
-          fval = g*PetscSinScalar(PETSC_PI*zp[ii]) * PetscCosScalar(PETSC_PI*xp[ii]);
-          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
-          c[j][i][idx] = fval;
-        }
-      }
-      
-      { // fp = 0.0
-        DMStagStencil point;
-        PetscInt      idx;
-        
-        point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 0;
-        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
-        c[j][i][idx] = 0.0;
-      }
-      
-      { // eta_c = eta0:eta1
-        DMStagStencil point;
-        PetscScalar   xp, fval = 0.0;
-        PetscInt      idx;
-        
-        point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 1;
-        xp = coordx[i][icenter];
-        
-        if (xp <= L2) fval = usr->par->eta0;
-        else          fval = usr->par->eta1;
-        
         ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
         c[j][i][idx] = fval;
       }
-      
+      */
+       
+      /* // Don't require this as a projected value for eta on the cell nodes has already been performed //
       { // eta_n = eta0:eta1
         DMStagStencil point[4];
-        PetscScalar   xp[4], fval = 0.0;
         PetscInt      ii, idx;
-        
+
         point[0].i = i; point[0].j = j; point[0].loc = DOWN_LEFT;  point[0].c = 0;
         point[1].i = i; point[1].j = j; point[1].loc = DOWN_RIGHT; point[1].c = 0;
         point[2].i = i; point[2].j = j; point[2].loc = UP_LEFT;    point[2].c = 0;
         point[3].i = i; point[3].j = j; point[3].loc = UP_RIGHT;   point[3].c = 0;
-        
-        xp[0] = coordx[i][iprev];
-        xp[1] = coordx[i][inext];
-        xp[2] = coordx[i][iprev];
-        xp[3] = coordx[i][inext];
-        
         for (ii = 0; ii < 4; ii++) {
-          if (xp[ii] <= L2) fval = usr->par->eta0;
-          else              fval = usr->par->eta1;
-          
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           c[j][i][idx] = fval;
         }
       }
-#endif
-      
+      */
     }
   }
 
