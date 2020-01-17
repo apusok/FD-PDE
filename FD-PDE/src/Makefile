@@ -9,6 +9,7 @@ SRC := 	dmstagbclist.c \
 	fdpde_stokes_residual.c fdpde_stokes.c \
 	fdpde_advdiff_advect.c fdpde_advdiff_residual.c fdpde_advdiff.c \
 	fdpde_composite.c composite_prealloc_utils.c \
+	dmstag_utils.c material_point.c \
 
 HDR := 	benchmark_solcx.h \
 	benchmark_cornerflow.h \
@@ -19,7 +20,7 @@ HDR := 	benchmark_solcx.h \
 	fdpde_stokes.h \
 	fdpde_advdiff.h \
 	fdpde_composite.h composite_prealloc_utils.h \
-
+	dmstag_utils.h material_point.h \
 
 OBJ := $(patsubst %.c,%.o,$(SRC))
 
@@ -35,6 +36,8 @@ TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_composite_laplace.c \
 		tests/test_decoupled_convection.c \
 		tests/test_coupling.c \
+		tests/test_material_point.c \
+		tests/test_stokes_rt.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,$(TEST_SRC))
 
