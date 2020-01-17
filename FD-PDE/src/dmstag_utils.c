@@ -852,6 +852,11 @@ static PetscErrorCode DMStagLocatePointsIS_2D_Product_ConstantSpacing_Private(DM
     if (gei[0] == Ng[0]) gei[0]--;
     if (gei[1] == Ng[1]) gei[1]--;
     
+    if (gei[0] < start[0]) continue;
+    if (gei[1] < start[1]) continue;
+    if (gei[0] >= (start[0]+n[0])) continue;
+    if (gei[1] >= (start[1]+n[1])) continue;
+    
     ierr = DMStagGetLocalElementIndex(dm,gei,&elocal);CHKERRQ(ierr);
     cellidx[p] = elocal;
   }
