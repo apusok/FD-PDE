@@ -1551,7 +1551,46 @@ PetscErrorCode MPoint_AdvectRK2(DM dmswarm,DM dmstag,Vec X,PetscReal dt)
 
 /* DataBucket utilities */
 #include <petsc/private/dmswarmimpl.h>    /*I   "petscdmswarm.h"   I*/
-#include "../src/dm/impls/swarm/data_bucket.h"
+#include "private/data_bucket.h"
+
+
+/* copy x into y */
+PetscErrorCode DMSwarmDataFieldCopyPoint(const PetscInt pid_x,const DMSwarmDataField field_x,
+                        const PetscInt pid_y,const DMSwarmDataField field_y )
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+#if defined(DMSWARM_DATAFIELD_POINT_ACCESS_GUARD)
+  /* check point is valid */
+  if (pid_x < 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"(IN) index must be >= 0");
+  if (pid_x >= field_x->L) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_USER,"(IN) index must be < %D",field_x->L);
+  if (pid_y < 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"(OUT) index must be >= 0");
+  if (pid_y >= field_y->L) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_USER,"(OUT) index must be < %D",field_y->L);
+  if( field_y->atomic_size != field_x->atomic_size ) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"atomic size must match");
+#endif
+  ierr = PetscMemcpy(DMSWARM_DATAFIELD_point_access(field_y->data,pid_y,field_y->atomic_size),DMSWARM_DATAFIELD_point_access(field_x->data,pid_x,field_x->atomic_size),field_y->atomic_size);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMSwarmDataFieldStringFindInList(const char name[],const PetscInt N,const DMSwarmDataField gfield[],PetscInt *index)
+{
+  PetscInt       i;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  *index = -1;
+  for (i = 0; i < N; ++i) {
+    PetscBool flg;
+    ierr = PetscStrcmp(name, gfield[i]->name, &flg);CHKERRQ(ierr);
+    if (flg) {
+      *index = i;
+      PetscFunctionReturn(0);
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
 
 /*
  Query if a DMSwarm defines a particular property
