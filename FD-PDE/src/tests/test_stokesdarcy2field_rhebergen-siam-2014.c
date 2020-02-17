@@ -55,6 +55,43 @@ PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
 
+// Solution for k = 1.0
+// static PetscScalar get_k(PetscScalar x, PetscScalar z, PetscScalar k_ls, PetscScalar k_us, PetscScalar alpha, PetscScalar A)
+// { PetscScalar result;
+//   result = 1.0;
+//   return(result);
+// }
+// static PetscScalar get_p(PetscScalar x, PetscScalar z, PetscScalar k_ls, PetscScalar k_us, PetscScalar alpha, PetscScalar A)
+// { PetscScalar result;
+//   result = -cos(4.0*M_PI*x)*cos(2.0*M_PI*z);
+//   return(result);
+// }
+// static PetscScalar get_ux(PetscScalar x, PetscScalar z, PetscScalar k_ls, PetscScalar k_us, PetscScalar alpha, PetscScalar A)
+// { PetscScalar result;
+//   result = sin(M_PI*x)*sin(2.0*M_PI*z) + 4.0*M_PI*sin(4.0*M_PI*x)*cos(2.0*M_PI*z) + 2.0;
+//   return(result);
+// }
+// static PetscScalar get_uz(PetscScalar x, PetscScalar z, PetscScalar k_ls, PetscScalar k_us, PetscScalar alpha, PetscScalar A)
+// { PetscScalar result;
+//   result = 2.0*M_PI*sin(2.0*M_PI*z)*cos(4.0*M_PI*x) + 0.5*cos(M_PI*x)*cos(2.0*M_PI*z) + 2.0;
+//   return(result);
+// }
+// static PetscScalar get_fux(PetscScalar x, PetscScalar z, PetscScalar k_ls, PetscScalar k_us, PetscScalar alpha, PetscScalar A)
+// { PetscScalar result;
+//   result = A*(-5.0*pow(M_PI, 2)*sin(M_PI*x)*sin(2.0*M_PI*z) - 160.0*pow(M_PI, 3)*sin(4.0*M_PI*x)*cos(2.0*M_PI*z)) - 80.0*pow(M_PI, 3)*alpha*sin(4.0*M_PI*x)*cos(2.0*M_PI*z) - 4.0*M_PI*sin(4.0*M_PI*x)*cos(2.0*M_PI*z);
+//   return(result);
+// }
+// static PetscScalar get_fuz(PetscScalar x, PetscScalar z, PetscScalar k_ls, PetscScalar k_us, PetscScalar alpha, PetscScalar A)
+// { PetscScalar result;
+//   result = A*(-80.0*pow(M_PI, 3)*sin(2.0*M_PI*z)*cos(4.0*M_PI*x) - 2.5*pow(M_PI, 2)*cos(M_PI*x)*cos(2.0*M_PI*z)) - 40.0*pow(M_PI, 3)*alpha*sin(2.0*M_PI*z)*cos(4.0*M_PI*x) - 2.0*M_PI*sin(2.0*M_PI*z)*cos(4.0*M_PI*x);
+//   return(result);
+// }
+// static PetscScalar get_fp(PetscScalar x, PetscScalar z, PetscScalar k_ls, PetscScalar k_us, PetscScalar alpha, PetscScalar A)
+// { PetscScalar result;
+//   result = 0;
+//   return(result);
+// }
+
 static PetscScalar get_k(PetscScalar x, PetscScalar z, PetscScalar k_ls, PetscScalar k_us, PetscScalar alpha, PetscScalar A)
 { PetscScalar result;
   result = (-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*((-3.99981840852519*k_ls + 0.00018159147480978355*k_us)/(k_ls - k_us) + tanh(10.0*x - 5.0) + tanh(10.0*z - 5.0) + 2.0);
@@ -77,12 +114,12 @@ static PetscScalar get_uz(PetscScalar x, PetscScalar z, PetscScalar k_ls, PetscS
 }
 static PetscScalar get_fux(PetscScalar x, PetscScalar z, PetscScalar k_ls, PetscScalar k_us, PetscScalar alpha, PetscScalar A)
 { PetscScalar result;
-  result = A*(-80.0*M_PI*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*(-20.0*pow(tanh(10.0*x - 5.0), 2) + 20.0)*sin(4.0*M_PI*x)*cos(2.0*M_PI*z)*tanh(10.0*x - 5.0) + 68.0*pow(M_PI, 2)*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*(-10.0*pow(tanh(10.0*x - 5.0), 2) + 10.0)*cos(4.0*M_PI*x)*cos(2.0*M_PI*z) - 40.0*M_PI*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*(-20.0*pow(tanh(10.0*z - 5.0), 2) + 20.0)*sin(4.0*M_PI*x)*cos(2.0*M_PI*z)*tanh(10.0*z - 5.0) - 24.0*pow(M_PI, 2)*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*(-10.0*pow(tanh(10.0*z - 5.0), 2) + 10.0)*sin(4.0*M_PI*x)*sin(2.0*M_PI*z) - 160.0*pow(M_PI, 3)*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*((-3.99981840852519*k_ls + 0.00018159147480978355*k_us)/(k_ls - k_us) + tanh(10.0*x - 5.0) + tanh(10.0*z - 5.0) + 2.0)*sin(4.0*M_PI*x)*cos(2.0*M_PI*z) - 5.0*pow(M_PI, 2)*sin(M_PI*x)*sin(2.0*M_PI*z)) + alpha*(-40.0*M_PI*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*(-20.0*pow(tanh(10.0*x - 5.0), 2) + 20.0)*sin(4.0*M_PI*x)*cos(2.0*M_PI*z)*tanh(10.0*x - 5.0) + 36.0*pow(M_PI, 2)*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*(-10.0*pow(tanh(10.0*x - 5.0), 2) + 10.0)*cos(4.0*M_PI*x)*cos(2.0*M_PI*z) - 8.0*pow(M_PI, 2)*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*(-10.0*pow(tanh(10.0*z - 5.0), 2) + 10.0)*sin(4.0*M_PI*x)*sin(2.0*M_PI*z) - 80.0*pow(M_PI, 3)*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*((-3.99981840852519*k_ls + 0.00018159147480978355*k_us)/(k_ls - k_us) + tanh(10.0*x - 5.0) + tanh(10.0*z - 5.0) + 2.0)*sin(4.0*M_PI*x)*cos(2.0*M_PI*z)) - 4.0*M_PI*sin(4.0*M_PI*x)*cos(2.0*M_PI*z);
+  result = A*(68.0*pow(M_PI, 2)*(10.0 - 10.0*pow(tanh(10.0*x - 5.0), 2))*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*cos(4.0*M_PI*x)*cos(2.0*M_PI*z) - 24.0*pow(M_PI, 2)*(10.0 - 10.0*pow(tanh(10.0*z - 5.0), 2))*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*sin(4.0*M_PI*x)*sin(2.0*M_PI*z) - 80.0*M_PI*(20.0 - 20.0*pow(tanh(10.0*x - 5.0), 2))*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*sin(4.0*M_PI*x)*cos(2.0*M_PI*z)*tanh(10.0*x - 5.0) - 40.0*M_PI*(20.0 - 20.0*pow(tanh(10.0*z - 5.0), 2))*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*sin(4.0*M_PI*x)*cos(2.0*M_PI*z)*tanh(10.0*z - 5.0) - 160.0*pow(M_PI, 3)*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*((-3.99981840852519*k_ls + 0.00018159147480978355*k_us)/(k_ls - k_us) + tanh(10.0*x - 5.0) + tanh(10.0*z - 5.0) + 2.0)*sin(4.0*M_PI*x)*cos(2.0*M_PI*z) - 5.0*pow(M_PI, 2)*sin(M_PI*x)*sin(2.0*M_PI*z)) + alpha*(36.0*pow(M_PI, 2)*(10.0 - 10.0*pow(tanh(10.0*x - 5.0), 2))*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*cos(4.0*M_PI*x)*cos(2.0*M_PI*z) - 8.0*pow(M_PI, 2)*(10.0 - 10.0*pow(tanh(10.0*z - 5.0), 2))*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*sin(4.0*M_PI*x)*sin(2.0*M_PI*z) - 40.0*M_PI*(20.0 - 20.0*pow(tanh(10.0*x - 5.0), 2))*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*sin(4.0*M_PI*x)*cos(2.0*M_PI*z)*tanh(10.0*x - 5.0) - 80.0*pow(M_PI, 3)*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*((-3.99981840852519*k_ls + 0.00018159147480978355*k_us)/(k_ls - k_us) + tanh(10.0*x - 5.0) + tanh(10.0*z - 5.0) + 2.0)*sin(4.0*M_PI*x)*cos(2.0*M_PI*z)) - 4.0*M_PI*sin(4.0*M_PI*x)*cos(2.0*M_PI*z);
   return(result);
 }
 static PetscScalar get_fuz(PetscScalar x, PetscScalar z, PetscScalar k_ls, PetscScalar k_us, PetscScalar alpha, PetscScalar A)
 { PetscScalar result;
-  result = A*(-20.0*M_PI*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*(-20.0*pow(tanh(10.0*x - 5.0), 2) + 20.0)*sin(2.0*M_PI*z)*cos(4.0*M_PI*x)*tanh(10.0*x - 5.0) - 24.0*pow(M_PI, 2)*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*(-10.0*pow(tanh(10.0*x - 5.0), 2) + 10.0)*sin(4.0*M_PI*x)*sin(2.0*M_PI*z) - 40.0*M_PI*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*(-20.0*pow(tanh(10.0*z - 5.0), 2) + 20.0)*sin(2.0*M_PI*z)*cos(4.0*M_PI*x)*tanh(10.0*z - 5.0) + 32.0*pow(M_PI, 2)*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*(-10.0*pow(tanh(10.0*z - 5.0), 2) + 10.0)*cos(4.0*M_PI*x)*cos(2.0*M_PI*z) - 80.0*pow(M_PI, 3)*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*((-3.99981840852519*k_ls + 0.00018159147480978355*k_us)/(k_ls - k_us) + tanh(10.0*x - 5.0) + tanh(10.0*z - 5.0) + 2.0)*sin(2.0*M_PI*z)*cos(4.0*M_PI*x) - 2.5*pow(M_PI, 2)*cos(M_PI*x)*cos(2.0*M_PI*z)) + alpha*(-8.0*pow(M_PI, 2)*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*(-10.0*pow(tanh(10.0*x - 5.0), 2) + 10.0)*sin(4.0*M_PI*x)*sin(2.0*M_PI*z) - 20.0*M_PI*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*(-20.0*pow(tanh(10.0*z - 5.0), 2) + 20.0)*sin(2.0*M_PI*z)*cos(4.0*M_PI*x)*tanh(10.0*z - 5.0) + 24.0*pow(M_PI, 2)*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*(-10.0*pow(tanh(10.0*z - 5.0), 2) + 10.0)*cos(4.0*M_PI*x)*cos(2.0*M_PI*z) - 40.0*pow(M_PI, 3)*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*((-3.99981840852519*k_ls + 0.00018159147480978355*k_us)/(k_ls - k_us) + tanh(10.0*x - 5.0) + tanh(10.0*z - 5.0) + 2.0)*sin(2.0*M_PI*z)*cos(4.0*M_PI*x)) - 2.0*M_PI*sin(2.0*M_PI*z)*cos(4.0*M_PI*x);
+  result = A*(-24.0*pow(M_PI, 2)*(10.0 - 10.0*pow(tanh(10.0*x - 5.0), 2))*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*sin(4.0*M_PI*x)*sin(2.0*M_PI*z) + 32.0*pow(M_PI, 2)*(10.0 - 10.0*pow(tanh(10.0*z - 5.0), 2))*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*cos(4.0*M_PI*x)*cos(2.0*M_PI*z) - 20.0*M_PI*(20.0 - 20.0*pow(tanh(10.0*x - 5.0), 2))*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*sin(2.0*M_PI*z)*cos(4.0*M_PI*x)*tanh(10.0*x - 5.0) - 40.0*M_PI*(20.0 - 20.0*pow(tanh(10.0*z - 5.0), 2))*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*sin(2.0*M_PI*z)*cos(4.0*M_PI*x)*tanh(10.0*z - 5.0) - 80.0*pow(M_PI, 3)*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*((-3.99981840852519*k_ls + 0.00018159147480978355*k_us)/(k_ls - k_us) + tanh(10.0*x - 5.0) + tanh(10.0*z - 5.0) + 2.0)*sin(2.0*M_PI*z)*cos(4.0*M_PI*x) - 2.5*pow(M_PI, 2)*cos(M_PI*x)*cos(2.0*M_PI*z)) + alpha*(-8.0*pow(M_PI, 2)*(10.0 - 10.0*pow(tanh(10.0*x - 5.0), 2))*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*sin(4.0*M_PI*x)*sin(2.0*M_PI*z) + 24.0*pow(M_PI, 2)*(10.0 - 10.0*pow(tanh(10.0*z - 5.0), 2))*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*cos(4.0*M_PI*x)*cos(2.0*M_PI*z) - 20.0*M_PI*(20.0 - 20.0*pow(tanh(10.0*z - 5.0), 2))*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*sin(2.0*M_PI*z)*cos(4.0*M_PI*x)*tanh(10.0*z - 5.0) - 40.0*pow(M_PI, 3)*(-0.25002270099550483*k_ls + 0.25002270099550483*k_us)*((-3.99981840852519*k_ls + 0.00018159147480978355*k_us)/(k_ls - k_us) + tanh(10.0*x - 5.0) + tanh(10.0*z - 5.0) + 2.0)*sin(2.0*M_PI*z)*cos(4.0*M_PI*x)) - 2.0*M_PI*sin(2.0*M_PI*z)*cos(4.0*M_PI*x);
   return(result);
 }
 static PetscScalar get_fp(PetscScalar x, PetscScalar z, PetscScalar k_ls, PetscScalar k_us, PetscScalar alpha, PetscScalar A)
