@@ -7,6 +7,7 @@ SRC := 	dmstagbclist.c \
 	prealloc_helper.c \
 	fdpde.c \
 	fdpde_stokes_residual.c fdpde_stokes.c \
+	fdpde_stokesdarcy2field_residual.c fdpde_stokesdarcy2field.c \
 	fdpde_advdiff_advect.c fdpde_advdiff_residual.c fdpde_advdiff.c \
 	fdpde_composite.c composite_prealloc_utils.c \
 
