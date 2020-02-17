@@ -4,8 +4,8 @@
 
 const char stokes_description[] =
 "  << FD-PDE Stokes >> solves the PDEs: \n"
-"    div ( 2 A symgrad(u) ) - grad(p) = B \n"
-"                            - div(u) = C \n"
+"    - grad(p) + div ( 2 A symgrad(u) ) - B = 0\n"
+"                                div(u) - C = 0\n"
 "  Notes: \n"
 "  * Unknowns: p - pressure, u - velocity. \n" 
 "  * The coefficients A,B,C need to be defined by the user. \n" 

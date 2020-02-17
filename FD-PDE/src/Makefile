@@ -26,9 +26,11 @@ OBJ := $(patsubst %.c,%.o,$(SRC))
 TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_stokes_solcx_vargrid.c \
 		tests/test_stokes_mor.c \
+		tests/test_stokesdarcy2field_rhebergen-siam-2014.c \
 		tests/test_advdiff_laplace.c \
 		tests/test_advdiff_elman.c \
 		tests/test_advdiff_advtime.c \
+		tests/test_advdiff_mms_2d_diffusion.c \
 		tests/test_dmstagbclist.c \
 		tests/test_dmstagoutput.c \
 		tests/test_fdpde.c \
