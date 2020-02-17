@@ -16,9 +16,11 @@ x = Symbol('x')
 z = Symbol('z')
 k = Symbol('k')
 
+k0 = 1.5
+
 # Chosen coefficient
-# k = sin(2.0*pi*x)*cos(2.0*pi*z)
-k = 1.0
+k = k0 + sin(2.0*pi*x)*cos(2.0*pi*z)
+# k = 1.0
 
 # Chosen solution
 T = cos(2.0*pi*x)*sin(2.0*pi*z)

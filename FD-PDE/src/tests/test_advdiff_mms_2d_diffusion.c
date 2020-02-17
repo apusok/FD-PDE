@@ -1,5 +1,5 @@
 // ---------------------------------------
-// MMS 2D diffusion test div(k*grad(T)) = f
+// MMS 2D diffusion test div(k*grad(T)) = f, with k > 0
 // run: ./tests/test_advdiff_mms_2d_diffusion.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
 // ---------------------------------------
 static char help[] = "Application to solve an MMS 2D diffusion equation (ADVDIFF) with FD-PDE \n\n";
@@ -16,25 +16,9 @@ PetscErrorCode ComputeErrorNorms(DM,Vec,Vec);
 PetscErrorCode FormCoefficient(FDPDE,DM,Vec,DM,Vec,void*);
 PetscErrorCode FormBCList(DM,Vec,DMStagBCList,void*);
 
-// static PetscScalar get_k(PetscScalar x, PetscScalar z)
-// { PetscScalar result;
-//   result = sin(2.0*M_PI*x)*cos(2.0*M_PI*z);
-//   return(result);
-// }
-// static PetscScalar get_T(PetscScalar x, PetscScalar z)
-// { PetscScalar result;
-//   result = sin(2.0*M_PI*z)*cos(2.0*M_PI*x);
-//   return(result);
-// }
-// static PetscScalar get_f(PetscScalar x, PetscScalar z)
-// { PetscScalar result;
-//   result = -16.0*pow(M_PI, 2)*sin(2.0*M_PI*x)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x)*cos(2.0*M_PI*z);
-//   return(result);
-// }
-
 static PetscScalar get_k(PetscScalar x, PetscScalar z)
 { PetscScalar result;
-  result = 1.0;
+  result = sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.5;
   return(result);
 }
 static PetscScalar get_T(PetscScalar x, PetscScalar z)
@@ -44,9 +28,25 @@ static PetscScalar get_T(PetscScalar x, PetscScalar z)
 }
 static PetscScalar get_f(PetscScalar x, PetscScalar z)
 { PetscScalar result;
-  result = -8.0*pow(M_PI, 2)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x);
+  result = -8.0*pow(M_PI, 2)*(sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.5)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x) - 8.0*pow(M_PI, 2)*sin(2.0*M_PI*x)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x)*cos(2.0*M_PI*z);
   return(result);
 }
+
+// static PetscScalar get_k(PetscScalar x, PetscScalar z)
+// { PetscScalar result;
+//   result = 1.0;
+//   return(result);
+// }
+// static PetscScalar get_T(PetscScalar x, PetscScalar z)
+// { PetscScalar result;
+//   result = sin(2.0*M_PI*z)*cos(2.0*M_PI*x);
+//   return(result);
+// }
+// static PetscScalar get_f(PetscScalar x, PetscScalar z)
+// { PetscScalar result;
+//   result = -8.0*pow(M_PI, 2)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x);
+//   return(result);
+// }
 
 // ---------------------------------------
 // MAIN

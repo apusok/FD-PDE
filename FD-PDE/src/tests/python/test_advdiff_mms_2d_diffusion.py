@@ -12,8 +12,7 @@ import os
 f1 = 'out_mms_2d_diff_solution'
 
 # Parameters
-n = [40, 80, 100, 200, 300, 400]
-# n = [25, 40, 50, 80, 100, 125, 150, 200, 300, 400] # not all resolutions give solutions
+n = [25, 40, 50, 80, 100, 125, 150, 200, 300, 400]
 
 # Run simulations
 for nx in n:
