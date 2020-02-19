@@ -1,7 +1,8 @@
 // ---------------------------------------
 // Rhebergen et al. 2014, SIAM - Ex. 6.1
 // run: ./tests/test_stokesdarcy2field_rhebergen-siam-2014.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
-// python test: 
+// python test: ./tests/python/test_stokesdarcy2field_mms_rhebergen_siam_2014.py
+// python sympy: ./mms/mms_rhebergen_2014_siam.py
 // ---------------------------------------
 static char help[] = "Application to solve the rhebergen-siam-2014 benchmark with FD-PDE \n\n";
 

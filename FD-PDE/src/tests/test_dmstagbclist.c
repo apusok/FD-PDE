@@ -1,5 +1,5 @@
 static char help[] = "DMStagBCList test \n\n";
-// run: ./tests/test_bclist.app
+// run: ./tests/test_dmstagbclist.app
 
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
 #define DOWN       DMSTAG_DOWN
