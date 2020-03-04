@@ -462,7 +462,12 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         xp[2] = coordx[i][icenter]; zp[2] = coordz[j][iprev  ];
         xp[3] = coordx[i][icenter]; zp[3] = coordz[j][inext  ];
 
-        for (ii = 0; ii < 4; ii++) {
+        for (ii = 0; ii < 2; ii++) {
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = 0.0;
+        }
+
+        for (ii = 2; ii < 4; ii++) {
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           c[j][i][idx] = get_k(xp[ii],zp[ii],usr->par->k_ls,usr->par->k_us,usr->par->alpha,usr->par->A)*usr->par->e3;
         }

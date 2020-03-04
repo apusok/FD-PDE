@@ -494,7 +494,12 @@ PetscErrorCode FormCoefficient_MMS1(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coef
         xp[2] = coordx[i][icenter]; zp[2] = coordz[j][iprev  ];
         xp[3] = coordx[i][icenter]; zp[3] = coordz[j][inext  ];
 
-        for (ii = 0; ii < 4; ii++) {
+        for (ii = 0; ii < 2; ii++) {
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = 0.0;
+        }
+
+        for (ii = 2; ii < 4; ii++) {
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           c[j][i][idx] = R_alpha*e3*get_Kphi(xp[ii],zp[ii],alpha,R,phi_0,phi_s,p_s,psi_s,U_s,m,n,e3);
         }
@@ -669,7 +674,12 @@ PetscErrorCode FormCoefficient_MMS2(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coef
         xp[2] = coordx[i][icenter]; zp[2] = coordz[j][iprev  ];
         xp[3] = coordx[i][icenter]; zp[3] = coordz[j][inext  ];
 
-        for (ii = 0; ii < 4; ii++) {
+        for (ii = 0; ii < 2; ii++) {
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = 0.0;
+        }
+
+        for (ii = 2; ii < 4; ii++) {
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           c[j][i][idx] = e3*get_Kphi(xp[ii],zp[ii],alpha,R,phi_0,phi_s,p_s,psi_s,U_s,m,n,e3);
         }
