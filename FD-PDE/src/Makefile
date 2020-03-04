@@ -30,6 +30,7 @@ TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_stokesdarcy2field_rhebergen-siam-2014.c \
 		tests/test_stokesdarcy2field_mms_katz_ch13.c \
 		tests/test_stokesdarcy2field_mms_compare_nd.c \
+		tests/test_stokesdarcy2field_mms_porosity.c \
 		tests/test_advdiff_laplace.c \
 		tests/test_advdiff_elman.c \
 		tests/test_advdiff_advtime.c \
