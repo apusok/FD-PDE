@@ -66,7 +66,7 @@ const char coeff_description[] =
 "  << ADVDIFF - Coefficients >> \n"
 "  A = (manufactured) \n"
 "  B = (manufactured) \n"
-"  C = -fQ (manufactured) \n"
+"  C = -frhs (manufactured) \n"
 "  u = [ux, uz] (manufactured) \n";
 
 const char bc_description[] =
@@ -87,7 +87,7 @@ static PetscScalar get_A1(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_B1(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.5;
+  result = -sin(2.0*M_PI*x)*cos(2.0*M_PI*z) - 1.5;
   return(result);
 }
 static PetscScalar get_ux1(PetscScalar x, PetscScalar z, PetscScalar t)
@@ -102,7 +102,7 @@ static PetscScalar get_uz1(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_frhs1(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = -8.0*pow(M_PI, 2)*(sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.5)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x) - 8.0*pow(M_PI, 2)*sin(2.0*M_PI*x)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x)*cos(2.0*M_PI*z);
+  result = -8.0*pow(M_PI, 2)*(-sin(2.0*M_PI*x)*cos(2.0*M_PI*z) - 1.5)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x) + 8.0*pow(M_PI, 2)*sin(2.0*M_PI*x)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x)*cos(2.0*M_PI*z);
   return(result);
 }
 static PetscScalar get_Q2(PetscScalar x, PetscScalar z, PetscScalar t)
@@ -117,22 +117,22 @@ static PetscScalar get_A2(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_B2(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.5;
+  result = -1.0;
   return(result);
 }
 static PetscScalar get_ux2(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = sin(2.0*M_PI*z)*cos(2.0*M_PI*x);
+  result = 1.0;
   return(result);
 }
 static PetscScalar get_uz2(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = sin(2.0*M_PI*x)*cos(2.0*M_PI*z);
+  result = 1.0;
   return(result);
 }
 static PetscScalar get_frhs2(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = -8.0*pow(M_PI, 2)*(sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.5)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x) - 6.0*M_PI*sin(2.0*M_PI*x)*pow(sin(2.0*M_PI*z), 2)*cos(2.0*M_PI*x) - 8.0*pow(M_PI, 2)*sin(2.0*M_PI*x)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x)*cos(2.0*M_PI*z) + 2.0*M_PI*sin(2.0*M_PI*x)*cos(2.0*M_PI*x)*pow(cos(2.0*M_PI*z), 2);
+  result = -2.0*M_PI*sin(2.0*M_PI*x)*sin(2.0*M_PI*z) + 8.0*pow(M_PI, 2)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x) + 2.0*M_PI*cos(2.0*M_PI*x)*cos(2.0*M_PI*z);
   return(result);
 }
 static PetscScalar get_Q3(PetscScalar x, PetscScalar z, PetscScalar t)
@@ -142,12 +142,12 @@ static PetscScalar get_Q3(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_A3(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.2;
+  result = 1.0;
   return(result);
 }
 static PetscScalar get_B3(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.5;
+  result = -1.0;
   return(result);
 }
 static PetscScalar get_ux3(PetscScalar x, PetscScalar z, PetscScalar t)
@@ -162,7 +162,7 @@ static PetscScalar get_uz3(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_frhs3(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = -2.0*M_PI*(sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.2)*exp(-2.0*M_PI*t)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x) - 8.0*pow(M_PI, 2)*(sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.5)*exp(-2.0*M_PI*t)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x) - 8.0*pow(M_PI, 2)*exp(-2.0*M_PI*t)*sin(2.0*M_PI*x)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x)*cos(2.0*M_PI*z);
+  result = -2.0*M_PI*exp(-2.0*M_PI*t)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x) + 8.0*pow(M_PI, 2)*exp(-2.0*M_PI*t)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x);
   return(result);
 }
 
@@ -279,9 +279,13 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = VecDestroy(&xmms); CHKERRQ(ierr);
 
   } else { // time dependent
-    if (usr->par->adv_scheme == 0) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_UPWIND);CHKERRQ(ierr); }
-    if (usr->par->adv_scheme == 1) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_UPWIND2);CHKERRQ(ierr); }
-    if (usr->par->adv_scheme == 2) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_FROMM);CHKERRQ(ierr); }
+    if (usr->par->test == 3) {
+      ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_NONE);CHKERRQ(ierr); 
+    } else {
+      if (usr->par->adv_scheme == 0) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_UPWIND);CHKERRQ(ierr); }
+      if (usr->par->adv_scheme == 1) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_UPWIND2);CHKERRQ(ierr); }
+      if (usr->par->adv_scheme == 2) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_FROMM);CHKERRQ(ierr); }
+    }
 
     if (usr->par->ts_scheme == 0) { ierr = FDPDEAdvDiffSetTimeStepSchemeType(fd,TS_FORWARD_EULER);CHKERRQ(ierr); }
     if (usr->par->ts_scheme == 1) { ierr = FDPDEAdvDiffSetTimeStepSchemeType(fd,TS_BACKWARD_EULER);CHKERRQ(ierr); }
@@ -742,7 +746,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 0;
         xp = coordx[i][icenter]; zp = coordz[j][icenter];
         ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
-        c[j][i][idx] = get_A(usr->par->test,xp,zp,usr->par->t);
+        c[j][i][idx] = get_A(usr->par->test,xp,zp,usr->par->tinit);
       }
 
       { // C = -frhs 
@@ -752,7 +756,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 1;
         xp = coordx[i][icenter]; zp = coordz[j][icenter];
         ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
-        c[j][i][idx] = -get_frhs(usr->par->test,xp,zp,usr->par->t);
+        c[j][i][idx] = -get_frhs(usr->par->test,xp,zp,usr->par->tinit);
       }
 
       { // B = Bmms (edge)
@@ -772,7 +776,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
 
         for (ii = 0; ii < 4; ii++) {
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, 0, &idx); CHKERRQ(ierr);
-          c[j][i][idx] = get_B(usr->par->test,xp[ii],zp[ii],usr->par->t);
+          c[j][i][idx] = get_B(usr->par->test,xp[ii],zp[ii],usr->par->tinit);
         }
       }
 
@@ -791,10 +795,10 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         xp[2] = coordx[i][icenter]; zp[2] = coordz[j][iprev  ];
         xp[3] = coordx[i][icenter]; zp[3] = coordz[j][inext  ];
 
-        val[0] = get_ux(usr->par->test,xp[0],zp[0],usr->par->t);
-        val[1] = get_ux(usr->par->test,xp[1],zp[1],usr->par->t);
-        val[2] = get_uz(usr->par->test,xp[2],zp[2],usr->par->t);
-        val[3] = get_uz(usr->par->test,xp[3],zp[3],usr->par->t);
+        val[0] = get_ux(usr->par->test,xp[0],zp[0],usr->par->tinit);
+        val[1] = get_ux(usr->par->test,xp[1],zp[1],usr->par->tinit);
+        val[2] = get_uz(usr->par->test,xp[2],zp[2],usr->par->tinit);
+        val[3] = get_uz(usr->par->test,xp[3],zp[3],usr->par->tinit);
 
         for (ii = 0; ii < 4; ii++) {
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, 1, &idx); CHKERRQ(ierr);
@@ -843,7 +847,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   // Left: Qmms
   ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    value_bc[k] = get_Q(usr->par->test,x_bc[2*k],x_bc[2*k+1],usr->par->t);
+    value_bc[k] = get_Q(usr->par->test,x_bc[2*k],x_bc[2*k+1],usr->par->tinit);
     type_bc[k] = BC_DIRICHLET;
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -851,7 +855,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   // RIGHT:
   ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    value_bc[k] = get_Q(usr->par->test,x_bc[2*k],x_bc[2*k+1],usr->par->t);
+    value_bc[k] = get_Q(usr->par->test,x_bc[2*k],x_bc[2*k+1],usr->par->tinit);
     type_bc[k] = BC_DIRICHLET;
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -859,7 +863,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   // DOWN:
   ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    value_bc[k] = get_Q(usr->par->test,x_bc[2*k],x_bc[2*k+1],usr->par->t);
+    value_bc[k] = get_Q(usr->par->test,x_bc[2*k],x_bc[2*k+1],usr->par->tinit);
     type_bc[k] = BC_DIRICHLET;
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -867,7 +871,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   // UP:
   ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    value_bc[k] = get_Q(usr->par->test,x_bc[2*k],x_bc[2*k+1],usr->par->t);
+    value_bc[k] = get_Q(usr->par->test,x_bc[2*k],x_bc[2*k+1],usr->par->tinit);
     type_bc[k] = BC_DIRICHLET;
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);

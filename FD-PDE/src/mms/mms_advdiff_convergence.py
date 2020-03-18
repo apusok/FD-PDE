@@ -32,24 +32,24 @@ ux1 = 0.0
 uz1 = 0.0
 Q1 = cos(2.0*pi*x)*sin(2.0*pi*z)
 A1 = 0.0
-B1 = 1.5 + sin(2.0*pi*x)*cos(2.0*pi*z)
+B1 = -(1.5 + sin(2.0*pi*x)*cos(2.0*pi*z))
 frhs1 = diff(B1*diff(Q1,x),x)+diff(B1*diff(Q1,z),z)
 
 # 2-advection-diffusion steady-state (space+advection scheme)
-ux2 = cos(2.0*pi*x)*sin(2.0*pi*z)
-uz2 = sin(2.0*pi*x)*cos(2.0*pi*z)
+ux2 = 1.0
+uz2 = 1.0
 Q2 = cos(2.0*pi*x)*sin(2.0*pi*z)
 A2 = 1.0
-B2 = 1.5 + sin(2.0*pi*x)*cos(2.0*pi*z)
+B2 = -1.0
 frhs2 = A2*(diff(Q2*ux2,x) + diff(Q2*uz2,z)) + diff(B2*diff(Q2,x),x)+diff(B2*diff(Q2,z),z)
 
 # 3-time-dependent diffusion (time-stepping scheme)
 ux3 = 0.0
 uz3 = 0.0
 Q3 = exp(-2.0*pi*t)*cos(2.0*pi*x)*sin(2.0*pi*z)
-A3 = 1.2 + sin(2.0*pi*x)*cos(2.0*pi*z)
-B3 = 1.5 + sin(2.0*pi*x)*cos(2.0*pi*z)
-frhs3 = A3*(diff(Q3,t) + diff(Q3*ux3,x) + diff(Q3*uz3,z)) + diff(B3*diff(Q3,x),x)+diff(B3*diff(Q3,z),z)
+A3 = 1.0
+B3 = -1.0
+frhs3 = A3*(diff(Q3,t)) + diff(B3*diff(Q3,x),x)+diff(B3*diff(Q3,z),z)
 
 # Q = Q0*exp(-((x-x0-ux*t)/taux)**2-((z-z0-uz*t)/tauz)**2)
 # divuQ = diff(Q*ux,x) + diff(Q*uz,z)

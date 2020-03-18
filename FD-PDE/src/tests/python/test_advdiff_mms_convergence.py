@@ -265,9 +265,8 @@ def test2_advection_diffusion_space(fname,n):
 # ---------------------------------------
 def test3_timediff(fname,dt,tend,n):
   tout = 10 # output every x timesteps
-  nts_scheme = [1] #[0, 1, 2]
+  nts_scheme = [0, 1, 2]
   tstep_max = 10000000# max no of timesteps
-  tmax = 1e-3
 
   # Prepare errors and convergence
   nrm_Q = np.zeros(len(dt)) # dummy
@@ -289,7 +288,7 @@ def test3_timediff(fname,dt,tend,n):
       # Run test
       str1 = '../test_advdiff_mms_convergence.app -pc_type lu -pc_factor_mat_solver_type umfpack -test 3'+ \
             ' -dtmax '+str(dtmax)+ \
-            ' -tmax '+str(tmax)+ \
+            ' -tmax '+str(tend)+ \
             ' -tstep '+str(tstep_max)+ \
             ' -ts_scheme '+str(ts_scheme)+ \
             ' -output_file '+fname1+ \
@@ -322,7 +321,7 @@ def test3_timediff(fname,dt,tend,n):
     else:                nrm_Q3 = nrm_Q
 
   # Plot convergence
-  # plot_convergence_error_time(fname,dt_nrm,nrm_Q1,nrm_Q2,nrm_Q3)
+  plot_convergence_error_time(fname,dt_nrm,nrm_Q1,nrm_Q2,nrm_Q3)
 
 # ---------------------------------------
 def test5_advdiff(fname,dt,n):
@@ -387,9 +386,9 @@ print('# MMS tests for ADVDIFF convergence order ')
 print('# --------------------------------------- #')
 
 # 1. Steady-state diffusion
-fname = 'out_mms_advdiff_01_diff'
-n = [25, 40, 50, 80, 100, 125, 150, 200, 300]
-test1_diffusion_space(fname,n)
+# fname = 'out_mms_advdiff_01_diff'
+# n = [25, 40, 50, 80, 100, 125, 150, 200, 300]
+# test1_diffusion_space(fname,n)
 
 # 2. Steady-state diffusion-advection
 fname = 'out_mms_advdiff_02_advdiff'
@@ -397,11 +396,11 @@ n = [25, 40, 50, 80, 100, 125, 150, 200, 300]
 test2_advection_diffusion_space(fname,n)
 
 # 3. Time-dependent diffusion
-fname = 'out_mms_advdiff_03_timediff'
-dt   = [-5, -4.5, -4]
-n    = 100
-tend = 1e-3 
-test3_timediff(fname,dt,tend,n)
+# fname = 'out_mms_advdiff_03_timediff'
+# dt   = [-5, -4.5, -4]
+# n    = 50
+# tend = 1e-3
+# test3_timediff(fname,dt,tend,n)
 
 # dt = [-6, -5.5, -5, -4.5, -4] 
 # dt = [-5, -4, -3] 
