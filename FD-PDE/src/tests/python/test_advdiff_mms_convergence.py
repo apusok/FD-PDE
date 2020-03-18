@@ -269,7 +269,6 @@ def test3_timediff(fname,dt,tend,n):
   tstep_max = 10000000# max no of timesteps
 
   # Prepare errors and convergence
-  nrm_Q = np.zeros(len(dt)) # dummy
   nrm_Q1 = np.zeros(len(dt)) # fe
   nrm_Q2 = np.zeros(len(dt)) # be
   nrm_Q3 = np.zeros(len(dt)) # cn
@@ -277,6 +276,7 @@ def test3_timediff(fname,dt,tend,n):
 
   # Run and plot simulations
   for ts_scheme in nts_scheme:
+    nrm_Q = np.zeros(len(dt)) # dummy
     for i in range(len(dt)):
       dt_string = str(dt[i])
       dt_string = dt_string.replace('.','-')
@@ -331,7 +331,6 @@ def test4_timeadv(fname,dt,tend,n):
   adv_scheme = 2
 
   # Prepare errors and convergence
-  nrm_Q = np.zeros(len(dt)) # dummy
   nrm_Q1 = np.zeros(len(dt)) # fe
   nrm_Q2 = np.zeros(len(dt)) # be
   nrm_Q3 = np.zeros(len(dt)) # cn
@@ -339,6 +338,7 @@ def test4_timeadv(fname,dt,tend,n):
 
   # Run and plot simulations
   for ts_scheme in nts_scheme:
+    nrm_Q = np.zeros(len(dt)) # dummy
     for i in range(len(dt)):
       dt_string = str(dt[i])
       dt_string = dt_string.replace('.','-')
@@ -377,7 +377,7 @@ def test4_timeadv(fname,dt,tend,n):
         if (istep >= 10) & (istep < 99): ft = '_ts0'+str(istep)
         if (istep >= 100): ft = '_ts'+str(istep)
         plot_solution_mms_error(fname1+ft,fname1+'_mms'+ft,istep,n)
-    
+
     # Save errors
     if   (ts_scheme==0): nrm_Q1 = nrm_Q
     elif (ts_scheme==1): nrm_Q2 = nrm_Q
@@ -449,21 +449,21 @@ print('# MMS tests for ADVDIFF convergence order ')
 print('# --------------------------------------- #')
 
 # 1. Steady-state diffusion
-fname = 'out_mms_advdiff_01_diff'
-n = [25, 40, 50, 80, 100, 125, 150, 200, 300]
-test1_diffusion_space(fname,n)
+# fname = 'out_mms_advdiff_01_diff'
+# n = [25, 40, 50, 80, 100, 125, 150, 200, 300]
+# test1_diffusion_space(fname,n)
 
 # 2. Steady-state diffusion-advection
-fname = 'out_mms_advdiff_02_advdiff'
-n = [25, 40, 50, 80, 100, 125, 150, 200, 300]
-test2_advection_diffusion_space(fname,n)
+# fname = 'out_mms_advdiff_02_advdiff'
+# n = [25, 40, 50, 80, 100, 125, 150, 200, 300]
+# test2_advection_diffusion_space(fname,n)
 
 # 3. Time-dependent diffusion
-fname = 'out_mms_advdiff_03_timediff'
-dt   = [-5, -4.5, -4]
-n    = 50
-tend = 1e-3
-test3_timediff(fname,dt,tend,n)
+# fname = 'out_mms_advdiff_03_timediff'
+# dt   = [-5, -4.5, -4]
+# n    = 50
+# tend = 1e-3
+# test3_timediff(fname,dt,tend,n)
 
 # 4. Time-dependent advection
 fname = 'out_mms_advdiff_04_timeadv'

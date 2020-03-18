@@ -54,7 +54,7 @@ frhs3 = A3*(diff(Q3,t)) - (diff(B3*diff(Q3,x),x)+diff(B3*diff(Q3,z),z))
 # 4-time-dependent advection (pure-advection)
 ux4 = 1.0
 uz4 = 1.0
-Q4 = t**3*(x**2+z**2)
+Q4 = 1e6*t**3*(x**2+z**2)
 A4 = 1.0
 B4 = 0.0
 frhs4 = A4*(diff(Q4,t) + diff(Q4*ux4,x) + diff(Q4*uz4,z))

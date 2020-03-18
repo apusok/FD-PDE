@@ -167,7 +167,7 @@ static PetscScalar get_frhs3(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_Q4(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = pow(t, 3)*(pow(x, 2) + pow(z, 2));
+  result = 1000000.0*pow(t, 3)*(pow(x, 2) + pow(z, 2));
   return(result);
 }
 static PetscScalar get_A4(PetscScalar x, PetscScalar z, PetscScalar t)
@@ -192,7 +192,7 @@ static PetscScalar get_uz4(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_frhs4(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = 2.0*pow(t, 3)*x + 2.0*pow(t, 3)*z + 3.0*pow(t, 2)*(pow(x, 2) + pow(z, 2));
+  result = 2000000.0*pow(t, 3)*x + 2000000.0*pow(t, 3)*z + 3000000.0*pow(t, 2)*(pow(x, 2) + pow(z, 2));
   return(result);
 }
 
