@@ -229,7 +229,7 @@ PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Pets
 
   // Calculate diffadv residual
   ierr = AdvectionResidual(u,xx,dx,dz,advtype,&adv); CHKERRQ(ierr);
-  ffi  = A*adv + diff + C;
+  ffi  = A*adv - diff + C;
 
   *ff = ffi;
   *_A = A;

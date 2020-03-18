@@ -87,7 +87,7 @@ static PetscScalar get_A1(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_B1(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = -sin(2.0*M_PI*x)*cos(2.0*M_PI*z) - 1.5;
+  result = sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.5;
   return(result);
 }
 static PetscScalar get_ux1(PetscScalar x, PetscScalar z, PetscScalar t)
@@ -102,7 +102,7 @@ static PetscScalar get_uz1(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_frhs1(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = -8.0*pow(M_PI, 2)*(-sin(2.0*M_PI*x)*cos(2.0*M_PI*z) - 1.5)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x) + 8.0*pow(M_PI, 2)*sin(2.0*M_PI*x)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x)*cos(2.0*M_PI*z);
+  result = 8.0*pow(M_PI, 2)*(sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.5)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x) + 8.0*pow(M_PI, 2)*sin(2.0*M_PI*x)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x)*cos(2.0*M_PI*z);
   return(result);
 }
 static PetscScalar get_Q2(PetscScalar x, PetscScalar z, PetscScalar t)
@@ -117,7 +117,7 @@ static PetscScalar get_A2(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_B2(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = -1.0;
+  result = 1.0;
   return(result);
 }
 static PetscScalar get_ux2(PetscScalar x, PetscScalar z, PetscScalar t)
@@ -147,7 +147,7 @@ static PetscScalar get_A3(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_B3(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = -1.0;
+  result = 1.0;
   return(result);
 }
 static PetscScalar get_ux3(PetscScalar x, PetscScalar z, PetscScalar t)
@@ -165,6 +165,36 @@ static PetscScalar get_frhs3(PetscScalar x, PetscScalar z, PetscScalar t)
   result = -2.0*M_PI*exp(-2.0*M_PI*t)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x) + 8.0*pow(M_PI, 2)*exp(-2.0*M_PI*t)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x);
   return(result);
 }
+static PetscScalar get_Q4(PetscScalar x, PetscScalar z, PetscScalar t)
+{ PetscScalar result;
+  result = pow(t, 3)*(pow(x, 2) + pow(z, 2));
+  return(result);
+}
+static PetscScalar get_A4(PetscScalar x, PetscScalar z, PetscScalar t)
+{ PetscScalar result;
+  result = 1.0;
+  return(result);
+}
+static PetscScalar get_B4(PetscScalar x, PetscScalar z, PetscScalar t)
+{ PetscScalar result;
+  result = 0.0;
+  return(result);
+}
+static PetscScalar get_ux4(PetscScalar x, PetscScalar z, PetscScalar t)
+{ PetscScalar result;
+  result = 1.0;
+  return(result);
+}
+static PetscScalar get_uz4(PetscScalar x, PetscScalar z, PetscScalar t)
+{ PetscScalar result;
+  result = 1.0;
+  return(result);
+}
+static PetscScalar get_frhs4(PetscScalar x, PetscScalar z, PetscScalar t)
+{ PetscScalar result;
+  result = 2.0*pow(t, 3)*x + 2.0*pow(t, 3)*z + 3.0*pow(t, 2)*(pow(x, 2) + pow(z, 2));
+  return(result);
+}
 
 // ---------------------------------------
 static PetscScalar get_Q(PetscInt test, PetscScalar x, PetscScalar z, PetscScalar t)
@@ -172,6 +202,7 @@ static PetscScalar get_Q(PetscInt test, PetscScalar x, PetscScalar z, PetscScala
   if (test==1) result = get_Q1(x,z,t);
   if (test==2) result = get_Q2(x,z,t);
   if (test==3) result = get_Q3(x,z,t);
+  if (test==4) result = get_Q4(x,z,t);
   return(result);
 }
 static PetscScalar get_A(PetscInt test, PetscScalar x, PetscScalar z, PetscScalar t)
@@ -179,6 +210,7 @@ static PetscScalar get_A(PetscInt test, PetscScalar x, PetscScalar z, PetscScala
   if (test==1) result = get_A1(x,z,t);
   if (test==2) result = get_A2(x,z,t);
   if (test==3) result = get_A3(x,z,t);
+  if (test==4) result = get_A4(x,z,t);
   return(result);
 }
 static PetscScalar get_B(PetscInt test, PetscScalar x, PetscScalar z, PetscScalar t)
@@ -186,6 +218,7 @@ static PetscScalar get_B(PetscInt test, PetscScalar x, PetscScalar z, PetscScala
   if (test==1) result = get_B1(x,z,t);
   if (test==2) result = get_B2(x,z,t);
   if (test==3) result = get_B3(x,z,t);
+  if (test==4) result = get_B4(x,z,t);
   return(result);
 }
 static PetscScalar get_ux(PetscInt test, PetscScalar x, PetscScalar z, PetscScalar t)
@@ -193,6 +226,7 @@ static PetscScalar get_ux(PetscInt test, PetscScalar x, PetscScalar z, PetscScal
   if (test==1) result = get_ux1(x,z,t);
   if (test==2) result = get_ux2(x,z,t);
   if (test==3) result = get_ux3(x,z,t);
+  if (test==4) result = get_ux4(x,z,t);
   return(result);
 }
 static PetscScalar get_uz(PetscInt test, PetscScalar x, PetscScalar z, PetscScalar t)
@@ -200,6 +234,7 @@ static PetscScalar get_uz(PetscInt test, PetscScalar x, PetscScalar z, PetscScal
   if (test==1) result = get_uz1(x,z,t);
   if (test==2) result = get_uz2(x,z,t);
   if (test==3) result = get_uz3(x,z,t);
+  if (test==4) result = get_uz4(x,z,t);
   return(result);
 }
 static PetscScalar get_frhs(PetscInt test, PetscScalar x, PetscScalar z, PetscScalar t)
@@ -207,6 +242,7 @@ static PetscScalar get_frhs(PetscInt test, PetscScalar x, PetscScalar z, PetscSc
   if (test==1) result = get_frhs1(x,z,t);
   if (test==2) result = get_frhs2(x,z,t);
   if (test==3) result = get_frhs3(x,z,t);
+  if (test==4) result = get_frhs4(x,z,t);
   return(result);
 }
 
