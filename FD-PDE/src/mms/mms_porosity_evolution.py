@@ -47,6 +47,10 @@ dpdz = diff(p,z)
 ux = dpdx + sin(m*pi*x)*sin(m*pi*z)
 uz = dpdz + cos(m*pi*x)*cos(m*pi*z)
 
+# constant velocity
+# ux = 0.0
+# uz = -10.0
+
 # porosity
 # phi = phi_0*(1.0+phi_s*cos(m*pi*x)*cos(m*pi*z))
 phi = phi_0*exp(-((x-x0-ux*t)/taux)**2-((z-z0-uz*t)/tauz)**2)

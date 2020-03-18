@@ -352,7 +352,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->H, 1.0, "H", "Height of domain in z-dir"); CHKERRQ(ierr);
 
   // Physical and material parameters
-  ierr = PetscBagRegisterScalar(bag, &par->e3, 1.0, "e3", "Direction of unit vertical vector"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->e3, -1.0, "e3", "Direction of unit vertical vector"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->phi_0, 0.1, "phi_0", "Reference porosity"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->p_s, 1.0, "p_s", "Pressure amplitude"); CHKERRQ(ierr);
 
@@ -375,7 +375,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   ierr = PetscBagRegisterInt(bag, &par->tout,1, "tout", "Output every tout time step"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->tstep,1, "tstep", "Maximum no of time steps"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->tmax, 1.0e-2, "tmax", "Maximum time [-]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->tmax, 1.0e2, "tmax", "Maximum time [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->dtmax, 1.0e-4, "dtmax", "Maximum time step size [-]"); CHKERRQ(ierr);
 
   par->t  = 0.0;
@@ -1403,6 +1403,7 @@ PetscErrorCode ComputeErrorNorms(DM dmPV,Vec xPV,Vec xmms_PV,DM dmphi,Vec xphi,V
   PetscPrintf(comm,"# Velocity: norm2 = %1.12e norm2x = %1.12e norm2z = %1.12e \n",nrm2v,nrm2vx,nrm2vz);
   PetscPrintf(comm,"# Pressure: norm2 = %1.12e\n",nrm2p);
   PetscPrintf(comm,"# Porosity: norm2 = %1.12e\n",nrm2phi);
+  PetscPrintf(comm,"# Porosity err-squared: num = %1.12e mms = %1.12e\n",gsum_err[3],gsum_mms[3]);
   PetscPrintf(comm,"# Grid info: hx = %1.12e hz = %1.12e\n",dx,dz);
 
   PetscFunctionReturn(0);
