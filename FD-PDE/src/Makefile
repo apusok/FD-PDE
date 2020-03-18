@@ -35,6 +35,7 @@ TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_advdiff_elman.c \
 		tests/test_advdiff_advtime.c \
 		tests/test_advdiff_mms_2d_diffusion.c \
+		tests/test_advdiff_mms_convergence.c \
 		tests/test_dmstagbclist.c \
 		tests/test_dmstagoutput.c \
 		tests/test_fdpde.c \

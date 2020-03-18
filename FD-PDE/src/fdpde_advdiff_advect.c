@@ -29,6 +29,9 @@ PetscErrorCode AdvectionResidual(PetscScalar v[], PetscScalar x[], PetscScalar d
     case ADV_UPWIND:
       fval = UpwindAdvection(v,x,dx,dz);
       break;
+    case ADV_UPWIND2:
+      fval = UpwindAdvection2(v,x,dx,dz);
+      break;
     case ADV_FROMM:
       fval = FrommAdvection(v,x,dx,dz);
       break;
@@ -64,6 +67,34 @@ PetscScalar UpwindAdvection(PetscScalar v[], PetscScalar x[], PetscScalar dx[], 
 
   dadz1 = (x[pN]-x[pC])/dz[0];
   dadz2 = (x[pC]-x[pS])/dz[1];
+
+  return  vxmin*dadx1 + vxmax*dadx2 
+        + vzmin*dadz1 + vzmax*dadz2;
+}
+
+// ---------------------------------------
+/*@
+UpwindAdvection2 - returns the [UPWIND2] order residual value for the advection term for FDPDEType = ADVDIFF
+
+Use: internal
+@*/
+// ---------------------------------------
+PetscScalar UpwindAdvection2(PetscScalar v[], PetscScalar x[], PetscScalar dx[], PetscScalar dz[])
+{
+  PetscScalar vx, vz, vxmin, vxmax, vzmin, vzmax;
+  PetscScalar dadx1, dadx2, dadz1, dadz2;
+
+  vx = (v[pE]+v[pW])*0.5;
+  vz = (v[pS]+v[pN])*0.5;
+
+  vxmin  =  PetscMin(0,vx); vxmax  =  PetscMax(0,vx);
+  vzmin  =  PetscMin(0,vz); vzmax  =  PetscMax(0,vz);
+
+  dadx1 = 0.5*(-3.0*x[pC]+4.0*x[pE]+x[pEE])/dx[0];
+  dadx2 = 0.5*( 3.0*x[pC]-4.0*x[pW]+x[pWW])/dx[1];
+
+  dadz1 = 0.5*(-3.0*x[pC]+4.0*x[pN]+x[pNN])/dz[0];
+  dadz2 = 0.5*( 3.0*x[pC]-4.0*x[pS]+x[pSS])/dz[1];
 
   return  vxmin*dadx1 + vxmax*dadx2 
         + vzmin*dadz1 + vzmax*dadz2;

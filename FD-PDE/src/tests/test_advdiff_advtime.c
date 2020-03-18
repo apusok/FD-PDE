@@ -1,6 +1,7 @@
 // ---------------------------------------
 // (ADVDIFF) Pure advection and time-stepping test
 // run: ./tests/test_advdiff_advtime.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// python test: ./tests/python/test_advdiff_advtime.py
 // ---------------------------------------
 static char help[] = "Application to solve advection of a Gaussian pulse in time (ADVDIFF) with FD-PDE \n\n";
 

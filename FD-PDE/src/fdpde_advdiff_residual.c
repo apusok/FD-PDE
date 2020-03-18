@@ -153,9 +153,9 @@ PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Pets
   ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
 
   // Coefficients
-  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0; // A = rho*cp
-  point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_ELEMENT; point[1].c = 1; // C = heat production/sink
-  point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_LEFT;    point[2].c = 0; // B_left = k
+  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0; // A
+  point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_ELEMENT; point[1].c = 1; // C
+  point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_LEFT;    point[2].c = 0; // B_left
   point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_RIGHT;   point[3].c = 0; // B_right
   point[4].i = i; point[4].j = j; point[4].loc = DMSTAG_DOWN;    point[4].c = 0; // B_down
   point[5].i = i; point[5].j = j; point[5].loc = DMSTAG_UP;      point[5].c = 0; // B_up
@@ -229,7 +229,7 @@ PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Pets
 
   // Calculate diffadv residual
   ierr = AdvectionResidual(u,xx,dx,dz,advtype,&adv); CHKERRQ(ierr);
-  ffi  = A*adv - diff + C;
+  ffi  = A*adv + diff + C;
 
   *ff = ffi;
   *_A = A;
