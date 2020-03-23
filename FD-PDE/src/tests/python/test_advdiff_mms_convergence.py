@@ -89,19 +89,22 @@ def plot_solution_mms_error(fnum,fmms,*args):
   imod._PETScBinaryLoadReportNames(data)
   Q_mms = data['X_cell']
 
+  Qmax = max(Q_mms)
+  Qmin = min(Q_mms)
+
   # Plot figure
   fig, axs = plt.subplots(1, 2,figsize=(18,6))
   cmaps='RdBu_r' 
 
   ax = plt.subplot(131)
-  im = ax.imshow(Q_mms.reshape(mz,mx),extent=[min(xc), max(xc), min(zc), max(zc)],cmap=cmaps)
+  im = ax.imshow(Q_mms.reshape(mz,mx),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=Qmin,vmax=Qmax,cmap=cmaps)
   ax.set_title('a) MMS solution '+' timestep = '+str(istep))
   ax.set_xlabel('x')
   ax.set_ylabel('z')
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
 
   ax = plt.subplot(132)
-  im = ax.imshow(Q.reshape(mz,mx),extent=[min(xc), max(xc), min(zc), max(zc)],cmap=cmaps)
+  im = ax.imshow(Q.reshape(mz,mx),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=Qmin,vmax=Qmax,cmap=cmaps)
   ax.set_title('b) Numerical solution')
   ax.set_xlabel('x')
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
@@ -376,7 +379,7 @@ def test4_timeadv(fname,dt,tend,n):
         if (istep < 10): ft = '_ts00'+str(istep)
         if (istep >= 10) & (istep < 99): ft = '_ts0'+str(istep)
         if (istep >= 100): ft = '_ts'+str(istep)
-        plot_solution_mms_error(fname1+ft,fname1+'_mms'+ft,istep,n)
+        plot_solution_mms_error(fname1+ft,fname1+'_mms'+ft,istep,n,adv_scheme)
 
     # Save errors
     if   (ts_scheme==0): nrm_Q1 = nrm_Q
@@ -385,61 +388,6 @@ def test4_timeadv(fname,dt,tend,n):
 
   # Plot convergence
   plot_convergence_error_time(fname,dt_nrm,nrm_Q1,nrm_Q2,nrm_Q3)
-
-# ---------------------------------------
-def test5_advdiff(fname,dt,n):
-  tout = 10 # output every x timesteps
-  ts_scheme = 2
-  adv_scheme = 1
-  tstep_max = 1# max no of timesteps
-  tmax = 1e-3
-
-  # Prepare errors and convergence
-  nrm_Q1 = np.zeros(len(dt))
-  dt_nrm = np.zeros(len(dt))
-
-  # Run and plot simulations
-  for i in range(len(dt)):
-    dt_string = str(dt[i])
-    dt_string = dt_string.replace('.','-')
-    dtmax = 10**(dt[i])
-
-    # Create output filename
-    fname1 = fname+'_dt'+dt_string
-
-    # Run test
-    str1 = '../test_advdiff_mms_convergence.app -pc_type lu -pc_factor_mat_solver_type umfpack'+ \
-          ' -dtmax '+str(dtmax)+ \
-          ' -tmax '+str(tmax)+ \
-          ' -tstep '+str(tstep_max)+ \
-          ' -adv_scheme '+str(adv_scheme)+ \
-          ' -ts_scheme '+str(ts_scheme)+ \
-          ' -output_file '+fname1+ \
-          ' -tout '+str(tout)+ \
-          ' -nx '+str(n)+' -nz '+str(n)+' > '+fname1+'.out'
-    print(str1)
-    os.system(str1)
-
-    # Parse log file and calculate errors
-    fout = fname1+'.out'
-    tstep, err_sum, err_mms, dt_num, hx = parse_log_file(fout)
-    dt_nrm[i] = 10**(dt[i])
-
-    sum_Q1 = 0.0 
-    for istep in range(tstep):
-      sum_Q1 += err_sum[istep]*dt_num[istep]
-
-    nrm_Q1[i] = sum_Q1**0.5
-
-    # Plot solution for every timestep
-    for istep in range(0,tstep,tout):
-      if (istep < 10): ft = '_ts00'+str(istep)
-      if (istep >= 10) & (istep < 99): ft = '_ts0'+str(istep)
-      if (istep >= 100): ft = '_ts'+str(istep)
-      plot_solution_mms_error(fname1+ft,fname1+'_mms'+ft,istep,n)
-
-  # Plot convergence
-  plot_convergence_error_time(fname,dt_nrm,nrm_Q1)
 
 # ---------------------------------------
 # Main script - tests
@@ -459,22 +407,17 @@ print('# --------------------------------------- #')
 # test2_advection_diffusion_space(fname,n)
 
 # 3. Time-dependent diffusion
-# fname = 'out_mms_advdiff_03_timediff'
-# dt   = [-5, -4.5, -4]
-# n    = 50
-# tend = 1e-3
-# test3_timediff(fname,dt,tend,n)
-
-# 4. Time-dependent advection
-fname = 'out_mms_advdiff_04_timeadv'
-dt   = [-5, -4.5, -4]
+fname = 'out_mms_advdiff_03_timediff'
+dt   = [-6, -5.5, -5, -4.5, -4]
 n    = 50
 tend = 1e-3
-test4_timeadv(fname,dt,tend,n)
+test3_timediff(fname,dt,tend,n)
 
-# dt = [-6, -5.5, -5, -4.5, -4] 
-# dt = [-5, -4, -3] 
-# n = 100
-# test5_advdiff(fname,dt,n)
+# 4. Time-dependent advection
+# fname = 'out_mms_advdiff_04_timeadv'
+# dt   = [-6, -5.5, -5, -4.5, -4] # not stable above dt>1e-3
+# n    = 100
+# tend = 1e-3 # 1e-3
+# test4_timeadv(fname,dt,tend,n)
 
 os.system('rm -r __pycache__')

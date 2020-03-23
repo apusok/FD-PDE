@@ -2,8 +2,6 @@
 def write_c_method(var,varname):
   code  = 'static PetscScalar get_'+ varname + \
     '(PetscScalar x, PetscScalar z, PetscScalar t)\n'
-    # '(PetscScalar x, PetscScalar z, PetscScalar t, '+ \
-    # 'PetscScalar Q0, PetscScalar taux, PetscScalar tauz, PetscScalar x0, PetscScalar z0)\n'
   code += '{ PetscScalar result;\n'
   code += '  result = ' + ccode(var) + ';\n'
   code += '  return(result);\n'
@@ -20,12 +18,6 @@ from sympy import *
 x = Symbol('x')
 z = Symbol('z')
 t = Symbol('t')
-
-# Q0 = Symbol('Q0')
-# taux = Symbol('taux')
-# tauz = Symbol('tauz')
-# x0   = Symbol('x0')
-# z0   = Symbol('z0')
 
 # 1-diffusion steady-state (space)
 ux1 = 0.0
@@ -46,7 +38,7 @@ frhs2 = A2*(diff(Q2*ux2,x) + diff(Q2*uz2,z)) - (diff(B2*diff(Q2,x),x)+diff(B2*di
 # 3-time-dependent diffusion (time-stepping scheme)
 ux3 = 0.0
 uz3 = 0.0
-Q3 = exp(-2.0*pi*t)*cos(2.0*pi*x)*sin(2.0*pi*z)
+Q3 = exp(-t)*sin(pi*x)*sin(pi*z)
 A3 = 1.0
 B3 = 1.0
 frhs3 = A3*(diff(Q3,t)) - (diff(B3*diff(Q3,x),x)+diff(B3*diff(Q3,z),z))
@@ -54,17 +46,11 @@ frhs3 = A3*(diff(Q3,t)) - (diff(B3*diff(Q3,x),x)+diff(B3*diff(Q3,z),z))
 # 4-time-dependent advection (pure-advection)
 ux4 = 1.0
 uz4 = 1.0
-Q4 = 1e6*t**3*(x**2+z**2)
+Q4 = t**3*(x**2+z**2)
 A4 = 1.0
 B4 = 0.0
 frhs4 = A4*(diff(Q4,t) + diff(Q4*ux4,x) + diff(Q4*uz4,z))
 
-# Q = Q0*exp(-((x-x0-ux*t)/taux)**2-((z-z0-uz*t)/tauz)**2)
-# divuQ = diff(Q*ux,x) + diff(Q*uz,z)
-# BgradQx = B*diff(Q,x)
-# BgradQz = B*diff(Q,z)
-
-# frhs = A*(diff(Q,t) + divuQ)- (diff(BgradQx,x)+diff(BgradQz,z))
 
 print('MMS solutions:')
 print('\n')

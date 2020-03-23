@@ -2,6 +2,7 @@
 // (ADVDIFF) Advection-diffusion convergence test using MMS
 // run: ./tests/test_advdiff_mms_convergence.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
 // python test: ./tests/python/test_advdiff_mms_convergence.py
+// sympy: ./mms/mms_advdiff_convergence.py
 // ---------------------------------------
 static char help[] = "Application to verify the convergence accuracy of ADVDIFF FD-PDE using MMS \n\n";
 
@@ -137,7 +138,7 @@ static PetscScalar get_frhs2(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_Q3(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = exp(-2.0*M_PI*t)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x);
+  result = exp(-t)*sin(M_PI*x)*sin(M_PI*z);
   return(result);
 }
 static PetscScalar get_A3(PetscScalar x, PetscScalar z, PetscScalar t)
@@ -162,12 +163,12 @@ static PetscScalar get_uz3(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_frhs3(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = -2.0*M_PI*exp(-2.0*M_PI*t)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x) + 8.0*pow(M_PI, 2)*exp(-2.0*M_PI*t)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x);
+  result = -1.0*exp(-t)*sin(M_PI*x)*sin(M_PI*z) + 2.0*pow(M_PI, 2)*exp(-t)*sin(M_PI*x)*sin(M_PI*z);
   return(result);
 }
 static PetscScalar get_Q4(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = 1000000.0*pow(t, 3)*(pow(x, 2) + pow(z, 2));
+  result = pow(t, 3)*(pow(x, 2) + pow(z, 2));
   return(result);
 }
 static PetscScalar get_A4(PetscScalar x, PetscScalar z, PetscScalar t)
@@ -192,7 +193,7 @@ static PetscScalar get_uz4(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_frhs4(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = 2000000.0*pow(t, 3)*x + 2000000.0*pow(t, 3)*z + 3000000.0*pow(t, 2)*(pow(x, 2) + pow(z, 2));
+  result = 2.0*pow(t, 3)*x + 2.0*pow(t, 3)*z + 3.0*pow(t, 2)*(pow(x, 2) + pow(z, 2));
   return(result);
 }
 
@@ -258,7 +259,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   DM             dm, dmcoeff;
   Vec            x, xprev, xmms, coeff, coeffprev;
   PetscInt       nx, nz, istep=0;
-  PetscScalar    dx, dz,xmin, zmin, xmax, zmax, dt, dt_damp = 1.0e-2;
+  PetscScalar    dx, dz,xmin, zmin, xmax, zmax; //, dt, dt_damp = 1.0e-2;
   char           fout[FNAME_LENGTH];
   PetscBool      converged;
   PetscErrorCode ierr;
@@ -343,23 +344,25 @@ PetscErrorCode Numerical_solution(void *ctx)
       PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep);
 
       // Set dt
-      ierr = FDPDEAdvDiffComputeExplicitTimestep(fd,&dt);CHKERRQ(ierr);
-      usr->par->dt = PetscMin(dt,usr->par->dtmax);
+      // ierr = FDPDEAdvDiffComputeExplicitTimestep(fd,&dt);CHKERRQ(ierr);
+      // usr->par->dt = PetscMin(dt,usr->par->dtmax);
+      usr->par->dt = usr->par->dtmax;
       ierr = FDPDEAdvDiffSetTimestep(fd,usr->par->dt);CHKERRQ(ierr);
 
       // update approximate time
       usr->par->tinit = usr->par->t+usr->par->dt;
 
       // Solve
-      converged = PETSC_FALSE;
-      while (!converged) {
-        ierr = FDPDESolve(fd,&converged);CHKERRQ(ierr);
-        if (!converged) { // Reduce dt if not converged
-          usr->par->dt *= dt_damp;
-          ierr = FDPDEAdvDiffSetTimestep(fd,usr->par->dt);CHKERRQ(ierr);
-          usr->par->tinit = usr->par->t+usr->par->dt; // update approximate time
-        }
-      }
+      ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
+      // converged = PETSC_FALSE;
+      // while (!converged) {
+      //   ierr = FDPDESolve(fd,&converged);CHKERRQ(ierr);
+      //   if (!converged) { // Reduce dt if not converged
+      //     usr->par->dt *= dt_damp;
+      //     ierr = FDPDEAdvDiffSetTimestep(fd,usr->par->dt);CHKERRQ(ierr);
+      //     usr->par->tinit = usr->par->t+usr->par->dt; // update approximate time
+      //   }
+      // }
       ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr);
 
       // Update time
@@ -560,20 +563,10 @@ PetscErrorCode SetInitialQProfile(DM dm, Vec x, void *ctx)
   UsrData       *usr = (UsrData*) ctx;
   Vec            xlocal;
   PetscInt       i,j, sx, sz, nx, nz, icenter;
-  // PetscScalar    Q0, x0, z0, taux, tauz;
   PetscScalar    ***xx, **coordx, **coordz;
 
   PetscErrorCode ierr;
   PetscFunctionBegin;
-
-  // PetscPrintf(PETSC_COMM_WORLD,"Initial profile: t = %1.12e tinit = %1.12e\n",usr->par->t,usr->par->tinit);
-
-  // Gaussian function parameters
-  // Q0   = usr->par->Q0;
-  // x0   = usr->par->x0;
-  // z0   = usr->par->z0;
-  // taux = usr->par->taux;
-  // tauz = usr->par->tauz;
 
   // Get domain corners
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -623,20 +616,11 @@ PetscErrorCode SetInitialQCoefficient(DM dmcoeff, Vec coeff, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       i, j, sx, sz, nx, nz,iprev,inext,icenter;
-  // PetscScalar    Q0, x0, z0, taux, tauz;
   Vec            coefflocal;
   PetscScalar    ***c, **coordx, **coordz;
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-
-  // PetscPrintf(PETSC_COMM_WORLD,"Initial coeff: t = %1.12e tinit = %1.12e\n",usr->par->t,usr->par->tinit);
-
-  // Q0   = usr->par->Q0;
-  // x0   = usr->par->x0;
-  // z0   = usr->par->z0;
-  // taux = usr->par->taux;
-  // tauz = usr->par->tauz;
 
   // Get domain corners
   ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -743,21 +727,10 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       i, j, sx, sz, nx, nz,iprev,inext,icenter;
   Vec            coefflocal;
-  // PetscScalar    Q0, x0, z0, taux, tauz, t;
   PetscScalar    ***c, **coordx, **coordz;
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-
-  // PetscPrintf(PETSC_COMM_WORLD,"Form coeff: t = %1.12e tinit = %1.12e\n",usr->par->t,usr->par->tinit);
-
-  // User parameters
-  // Q0   = usr->par->Q0;
-  // x0   = usr->par->x0;
-  // z0   = usr->par->z0;
-  // taux = usr->par->taux;
-  // tauz = usr->par->tauz;
-  // t    = usr->par->tinit;
 
   // Get domain corners
   ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -864,21 +837,11 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       k,n_bc,*idx_bc;
-  // PetscScalar    Q0, x0, z0, taux, tauz, t;
   PetscScalar   *value_bc,*x_bc;
   BCType        *type_bc;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-
-  // PetscPrintf(PETSC_COMM_WORLD,"BC: t = %1.12e tinit = %1.12e\n",usr->par->t,usr->par->tinit);
-
-  // Q0   = usr->par->Q0;
-  // x0   = usr->par->x0;
-  // z0   = usr->par->z0;
-  // taux = usr->par->taux;
-  // tauz = usr->par->tauz;
-  // t    = usr->par->tinit;
   
   // Left: Qmms
   ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -925,18 +888,9 @@ PetscErrorCode ComputeManufacturedSolution(DM dm, Vec *_xmms, void *ctx)
   PetscScalar    ***xx;
   PetscScalar    **coordx,**coordz;
   Vec            xmms,xmmslocal;
-  // PetscScalar    Q0, x0, z0, taux, tauz;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-
-  // PetscPrintf(PETSC_COMM_WORLD,"MMS: t = %1.12e tinit = %1.12e\n",usr->par->t,usr->par->tinit);
-
-  // Q0   = usr->par->Q0;
-  // x0   = usr->par->x0;
-  // z0   = usr->par->z0;
-  // taux = usr->par->taux;
-  // tauz = usr->par->tauz;
 
   // Create local and global vectors for MMS solutions
   ierr = DMCreateGlobalVector(dm,&xmms     ); CHKERRQ(ierr);
