@@ -256,7 +256,6 @@ def test2_advection_diffusion_space(fname,n):
       # Plot solution and error
       plot_solution_mms_error(fname,fname+'_mms',0,nx,adv_scheme)
 
-    print(nrm_Q)
     # Save errors
     if   (adv_scheme==0): nrm_Q1 = nrm_Q
     elif (adv_scheme==1): nrm_Q2 = nrm_Q
@@ -371,6 +370,7 @@ def test4_timeadv(fname,dt,tend,n):
       sum_Q = 0.0 
       for istep in range(tstep):
         sum_Q += err_sum[istep]*dt_num[istep]
+        # sum_Q += err_sum[istep]/err_mms[istep]*dt_num[istep]
 
       nrm_Q[i] = sum_Q**0.5
 
@@ -397,14 +397,14 @@ print('# MMS tests for ADVDIFF convergence order ')
 print('# --------------------------------------- #')
 
 # 1. Steady-state diffusion
-# fname = 'out_mms_advdiff_01_diff'
-# n = [25, 40, 50, 80, 100, 125, 150, 200, 300]
-# test1_diffusion_space(fname,n)
+fname = 'out_mms_advdiff_01_diff'
+n = [25, 40, 50, 80, 100, 125, 150, 200, 300]
+test1_diffusion_space(fname,n)
 
 # 2. Steady-state diffusion-advection
-# fname = 'out_mms_advdiff_02_advdiff'
-# n = [25, 40, 50, 80, 100, 125, 150, 200, 300]
-# test2_advection_diffusion_space(fname,n)
+fname = 'out_mms_advdiff_02_advdiff'
+n = [25, 40, 50, 80, 100, 125, 150, 200, 300]
+test2_advection_diffusion_space(fname,n)
 
 # 3. Time-dependent diffusion
 fname = 'out_mms_advdiff_03_timediff'
@@ -414,10 +414,10 @@ tend = 1e-3
 test3_timediff(fname,dt,tend,n)
 
 # 4. Time-dependent advection
-# fname = 'out_mms_advdiff_04_timeadv'
-# dt   = [-6, -5.5, -5, -4.5, -4] # not stable above dt>1e-3
-# n    = 100
-# tend = 1e-3 # 1e-3
-# test4_timeadv(fname,dt,tend,n)
+fname = 'out_mms_advdiff_04_timeadv'
+dt   = [-6, -5.5, -5, -4.5, -4] # not stable above dt>1e-3
+n    = 50
+tend = 1e-3 # 1e-3
+test4_timeadv(fname,dt,tend,n)
 
 os.system('rm -r __pycache__')

@@ -113,32 +113,32 @@ static PetscScalar get_Q2(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_A2(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = 1.0;
+  result = sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.5;
   return(result);
 }
 static PetscScalar get_B2(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = 1.0;
+  result = pow(x, 2) + pow(z, 2) + 1.0;
   return(result);
 }
 static PetscScalar get_ux2(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = 1.0;
+  result = x + 1.0;
   return(result);
 }
 static PetscScalar get_uz2(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = 1.0;
+  result = pow(x, 2)*sin(2*M_PI*z);
   return(result);
 }
 static PetscScalar get_frhs2(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = -2.0*M_PI*sin(2.0*M_PI*x)*sin(2.0*M_PI*z) + 8.0*pow(M_PI, 2)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x) + 2.0*M_PI*cos(2.0*M_PI*x)*cos(2.0*M_PI*z);
+  result = 4.0*M_PI*x*sin(2.0*M_PI*x)*sin(2.0*M_PI*z) - 4.0*M_PI*z*cos(2.0*M_PI*x)*cos(2.0*M_PI*z) + (sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.5)*(2*M_PI*pow(x, 2)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x)*cos(2*M_PI*z) + 2.0*M_PI*pow(x, 2)*sin(2*M_PI*z)*cos(2.0*M_PI*x)*cos(2.0*M_PI*z) - 2.0*M_PI*(x + 1.0)*sin(2.0*M_PI*x)*sin(2.0*M_PI*z) + sin(2.0*M_PI*z)*cos(2.0*M_PI*x)) + 8.0*pow(M_PI, 2)*(pow(x, 2) + pow(z, 2) + 1.0)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x);
   return(result);
 }
 static PetscScalar get_Q3(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = exp(-t)*sin(M_PI*x)*sin(M_PI*z);
+  result = pow(t, 3)*(pow(x, 2) + pow(z, 2));
   return(result);
 }
 static PetscScalar get_A3(PetscScalar x, PetscScalar z, PetscScalar t)
@@ -163,7 +163,7 @@ static PetscScalar get_uz3(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_frhs3(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = -1.0*exp(-t)*sin(M_PI*x)*sin(M_PI*z) + 2.0*pow(M_PI, 2)*exp(-t)*sin(M_PI*x)*sin(M_PI*z);
+  result = -4.0*pow(t, 3) + 3.0*pow(t, 2)*(pow(x, 2) + pow(z, 2));
   return(result);
 }
 static PetscScalar get_Q4(PetscScalar x, PetscScalar z, PetscScalar t)
@@ -173,7 +173,7 @@ static PetscScalar get_Q4(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_A4(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = 1.0;
+  result = sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.0;
   return(result);
 }
 static PetscScalar get_B4(PetscScalar x, PetscScalar z, PetscScalar t)
@@ -183,17 +183,17 @@ static PetscScalar get_B4(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_ux4(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = 1.0;
+  result = x + 1.0;
   return(result);
 }
 static PetscScalar get_uz4(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = 1.0;
+  result = pow(x, 2)*sin(2*M_PI*z);
   return(result);
 }
 static PetscScalar get_frhs4(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = 2.0*pow(t, 3)*x + 2.0*pow(t, 3)*z + 3.0*pow(t, 2)*(pow(x, 2) + pow(z, 2));
+  result = (sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.0)*(2*pow(t, 3)*pow(x, 2)*z*sin(2*M_PI*z) + 2*M_PI*pow(t, 3)*pow(x, 2)*(pow(x, 2) + pow(z, 2))*cos(2*M_PI*z) + 2*pow(t, 3)*x*(x + 1.0) + pow(t, 3)*(pow(x, 2) + pow(z, 2)) + 3*pow(t, 2)*(pow(x, 2) + pow(z, 2)));
   return(result);
 }
 
@@ -261,7 +261,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   PetscInt       nx, nz, istep=0;
   PetscScalar    dx, dz,xmin, zmin, xmax, zmax; //, dt, dt_damp = 1.0e-2;
   char           fout[FNAME_LENGTH];
-  PetscBool      converged;
+  // PetscBool      converged;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;

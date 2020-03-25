@@ -62,6 +62,10 @@ PetscScalar UpwindAdvection(PetscScalar v[], PetscScalar x[], PetscScalar dx[], 
   vxmin  =  PetscMin(0,vx); vxmax  =  PetscMax(0,vx);
   vzmin  =  PetscMin(0,vz); vzmax  =  PetscMax(0,vz);
 
+  // can also do this choice for staggered grids
+  // vxmin  =  PetscMin(0,v[pE]); vxmax  =  PetscMax(0,v[pW]);
+  // vzmin  =  PetscMin(0,v[pN]); vzmax  =  PetscMax(0,v[pS]);
+
   dadx1 = (x[pE]-x[pC])/dx[0];
   dadx2 = (x[pC]-x[pW])/dx[1];
 
@@ -90,10 +94,13 @@ PetscScalar UpwindAdvection2(PetscScalar v[], PetscScalar x[], PetscScalar dx[],
   vxmin  =  PetscMin(0,vx); vxmax  =  PetscMax(0,vx);
   vzmin  =  PetscMin(0,vz); vzmax  =  PetscMax(0,vz);
 
-  dadx1 = 0.5*(-3.0*x[pC]+4.0*x[pE]+x[pEE])/dx[0];
+  // vxmin  =  PetscMin(0,v[pE]); vxmax  =  PetscMax(0,v[pW]);
+  // vzmin  =  PetscMin(0,v[pN]); vzmax  =  PetscMax(0,v[pS]);
+
+  dadx1 = 0.5*(-3.0*x[pC]+4.0*x[pE]-x[pEE])/dx[0];
   dadx2 = 0.5*( 3.0*x[pC]-4.0*x[pW]+x[pWW])/dx[1];
 
-  dadz1 = 0.5*(-3.0*x[pC]+4.0*x[pN]+x[pNN])/dz[0];
+  dadz1 = 0.5*(-3.0*x[pC]+4.0*x[pN]-x[pNN])/dz[0];
   dadz2 = 0.5*( 3.0*x[pC]-4.0*x[pS]+x[pSS])/dz[1];
 
   return  vxmin*dadx1 + vxmax*dadx2 
