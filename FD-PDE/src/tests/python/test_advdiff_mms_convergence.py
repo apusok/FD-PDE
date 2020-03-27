@@ -403,7 +403,7 @@ test1_diffusion_space(fname,n)
 
 # 2. Steady-state diffusion-advection
 fname = 'out_mms_advdiff_02_advdiff'
-n = [25, 40, 50, 80, 100, 125, 150, 200, 300]
+n = [100, 125, 150, 200, 250, 300]
 test2_advection_diffusion_space(fname,n)
 
 # 3. Time-dependent diffusion

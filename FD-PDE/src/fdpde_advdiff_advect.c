@@ -10,6 +10,11 @@
 #define pSS 7
 #define pNN 8
 
+static PetscScalar get_upwind_flux(PetscScalar v, PetscScalar f_down, PetscScalar f_up)
+{ PetscScalar result;
+  result = 0.5*v*(f_up+f_down)-0.5*PetscAbsScalar(v)*(f_up-f_down);
+  return(result);
+}
 // ---------------------------------------
 /*@
 AdvectionResidual - returns the residual value for the advection term for FDPDEType = ADVDIFF
@@ -46,65 +51,41 @@ PetscErrorCode AdvectionResidual(PetscScalar v[], PetscScalar x[], PetscScalar d
 
 // ---------------------------------------
 /*@
-UpwindAdvection - returns the [UPWIND] residual value for the advection term for FDPDEType = ADVDIFF
+UpwindAdvection - returns the first order upwind (FOU) residual value for the advection term for FDPDEType = ADVDIFF
 
 Use: internal
 @*/
 // ---------------------------------------
 PetscScalar UpwindAdvection(PetscScalar v[], PetscScalar x[], PetscScalar dx[], PetscScalar dz[])
 {
-  PetscScalar vx, vz, vxmin, vxmax, vzmin, vzmax;
-  PetscScalar dadx1, dadx2, dadz1, dadz2;
+  PetscScalar fW,fE,fS,fN;
 
-  vx = (v[pE]+v[pW])*0.5;
-  vz = (v[pS]+v[pN])*0.5;
+  fW = get_upwind_flux(v[pW],x[pW],x[pC]);
+  fE = get_upwind_flux(v[pE],x[pC],x[pE]);
+  fS = get_upwind_flux(v[pS],x[pS],x[pC]);
+  fN = get_upwind_flux(v[pN],x[pC],x[pN]);
 
-  vxmin  =  PetscMin(0,vx); vxmax  =  PetscMax(0,vx);
-  vzmin  =  PetscMin(0,vz); vzmax  =  PetscMax(0,vz);
-
-  // can also do this choice for staggered grids
-  // vxmin  =  PetscMin(0,v[pE]); vxmax  =  PetscMax(0,v[pW]);
-  // vzmin  =  PetscMin(0,v[pN]); vzmax  =  PetscMax(0,v[pS]);
-
-  dadx1 = (x[pE]-x[pC])/dx[0];
-  dadx2 = (x[pC]-x[pW])/dx[1];
-
-  dadz1 = (x[pN]-x[pC])/dz[0];
-  dadz2 = (x[pC]-x[pS])/dz[1];
-
-  return  vxmin*dadx1 + vxmax*dadx2 
-        + vzmin*dadz1 + vzmax*dadz2;
+  return (fE-fW)/dx[2] + (fN-fS)/dz[2];
 }
 
 // ---------------------------------------
 /*@
-UpwindAdvection2 - returns the [UPWIND2] order residual value for the advection term for FDPDEType = ADVDIFF
+UpwindAdvection2 - returns the second order upwind (SOU) residual value for the advection term for FDPDEType = ADVDIFF
 
 Use: internal
 @*/
 // ---------------------------------------
 PetscScalar UpwindAdvection2(PetscScalar v[], PetscScalar x[], PetscScalar dx[], PetscScalar dz[])
 {
-  PetscScalar vx, vz, vxmin, vxmax, vzmin, vzmax;
-  PetscScalar dadx1, dadx2, dadz1, dadz2;
+  PetscScalar fW,fE,fS,fN,f_down,f_up;
 
-  vx = (v[pE]+v[pW])*0.5;
-  vz = (v[pS]+v[pN])*0.5;
+  // Fluxes across boundaries - including second order taylor series expansion terms
+  f_down = 0.5*(3.0*x[pW]-x[pWW]); f_up = 0.5*(3.0*x[pC]-x[pE] ); fW = get_upwind_flux(v[pW],f_down,f_up);
+  f_down = 0.5*(3.0*x[pC]-x[pW] ); f_up = 0.5*(3.0*x[pE]-x[pEE]); fE = get_upwind_flux(v[pE],f_down,f_up);
+  f_down = 0.5*(3.0*x[pS]-x[pSS]); f_up = 0.5*(3.0*x[pC]-x[pN] ); fS = get_upwind_flux(v[pS],f_down,f_up);
+  f_down = 0.5*(3.0*x[pC]-x[pS] ); f_up = 0.5*(3.0*x[pN]-x[pNN]); fN = get_upwind_flux(v[pN],f_down,f_up);
 
-  vxmin  =  PetscMin(0,vx); vxmax  =  PetscMax(0,vx);
-  vzmin  =  PetscMin(0,vz); vzmax  =  PetscMax(0,vz);
-
-  // vxmin  =  PetscMin(0,v[pE]); vxmax  =  PetscMax(0,v[pW]);
-  // vzmin  =  PetscMin(0,v[pN]); vzmax  =  PetscMax(0,v[pS]);
-
-  dadx1 = 0.5*(-3.0*x[pC]+4.0*x[pE]-x[pEE])/dx[0];
-  dadx2 = 0.5*( 3.0*x[pC]-4.0*x[pW]+x[pWW])/dx[1];
-
-  dadz1 = 0.5*(-3.0*x[pC]+4.0*x[pN]-x[pNN])/dz[0];
-  dadz2 = 0.5*( 3.0*x[pC]-4.0*x[pS]+x[pSS])/dz[1];
-
-  return  vxmin*dadx1 + vxmax*dadx2 
-        + vzmin*dadz1 + vzmax*dadz2;
+  return (fE-fW)/dx[2] + (fN-fS)/dz[2];
 }
 
 // ---------------------------------------
