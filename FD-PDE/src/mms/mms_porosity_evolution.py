@@ -2,7 +2,7 @@
 def write_c_method(var,varname):
   code  = 'static PetscScalar get_'+ varname + \
     '(PetscScalar x, PetscScalar z, PetscScalar t, PetscScalar eta, PetscScalar zeta, PetscScalar phi_0, '+ \
-    'PetscScalar p_s, PetscScalar taux, PetscScalar tauz, PetscScalar x0, PetscScalar z0, PetscScalar m, PetscScalar n, PetscScalar e3)\n'
+    'PetscScalar p_s, PetscScalar m, PetscScalar n, PetscScalar e3)\n'
   code += '{ PetscScalar result;\n'
   code += '  result = ' + ccode(var) + ';\n'
   code += '  return(result);\n'
@@ -29,31 +29,38 @@ n     = Symbol('n')
 m     = Symbol('m')
 e3    = Symbol('e3') # unit vector of gravity
 
-taux = Symbol('taux')
-tauz = Symbol('tauz')
-x0   = Symbol('x0')
-z0   = Symbol('z0')
-
 # Chosen solutions and coefficients
 xi = zeta - 2/3*eta
 
-# pressure
+# Pressure
+# p = 1.0 
 p = p_s*cos(m*pi*x)*cos(m*pi*z)
+# p = p_s*cos(m*pi*x)*cos(m*pi*z)*(t*1.0e3+1.0) # Time-dependent
 
-dpdx = diff(p,x)
-dpdz = diff(p,z)
+# Velocity using potential functions
+psi_s = 1.0
+U_s   = 1.0
 
-# velocity
-ux = dpdx + sin(m*pi*x)*sin(m*pi*z)
-uz = dpdz + cos(m*pi*x)*cos(m*pi*z)
+psi = psi_s*(1.0-cos(m*pi*x))*(1.0-cos(m*pi*z))
+U   = -U_s*cos(m*pi*x)*cos(m*pi*z)
+# psi = psi_s*(1.0-cos(m*pi*x))*(1.0-cos(m*pi*z))*(t*1.0e3+1.0) # Time-dependent
+# U   = -U_s*cos(m*pi*x)*cos(m*pi*z)*(t*1.0e3+1.0)
 
-# constant velocity
-# ux = 0.0
-# uz = -10.0
+curl_psix = diff(psi,z)
+curl_psiz = diff(psi,x)
+gradUx    = diff(U,x)
+gradUz    = diff(U,z)
 
-# porosity
-# phi = phi_0*(1.0+phi_s*cos(m*pi*x)*cos(m*pi*z))
-phi = phi_0*exp(-((x-x0-ux*t)/taux)**2-((z-z0-uz*t)/tauz)**2)
+ux = curl_psix + gradUx
+uz = curl_psiz + gradUz
+
+# Constant velocity
+# ux = 1.0
+# uz = 1.0
+
+# Porosity
+Q = t**3*(x**2+z**2)
+phi = 1.0-Q
 
 # mobility
 Kphi = (phi/phi_0)**n
@@ -82,11 +89,11 @@ darcyx = -Kphi*(diff(p,x) - 0.0)
 darcyz = -Kphi*(diff(p,z) - e3 )
 div_darcy = diff(darcyx,x) + diff(darcyz,z)
 
-fux = -diff(p,x) + eta*(2.0*dvx2dx + dvx2dz + dvz2dxdz) + xi*diff(divu,x)
-fuz = -diff(p,z) + eta*(2.0*dvz2dz + dvz2dx + dvx2dzdx) + xi*diff(divu,z) + phi*e3
+fux = -diff(p,x) + eta*(2.0*dvx2dx + dvx2dz + dvz2dxdz) + diff(xi*divu,x)
+fuz = -diff(p,z) + eta*(2.0*dvz2dz + dvz2dx + dvx2dzdx) + diff(xi*divu,z) + phi*e3
 fp  = divu + div_darcy
 
-fphi = diff(1-phi,t) + diff((1-phi)*ux,x) + diff((1-phi)*uz,z)
+fphi = diff(Q,t) + diff(Q*ux,x) + diff(Q*uz,z)
 
 print('MMS solutions:')
 print('\n')
@@ -99,7 +106,5 @@ write_c_method(fux,'fux')
 write_c_method(fuz,'fuz')
 write_c_method(fp,'fp')
 write_c_method(fphi,'fphi')
-
-# write_c_method(Kphi,'Kphi')
 
 print('\n')
