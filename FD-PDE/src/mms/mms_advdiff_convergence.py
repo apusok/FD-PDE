@@ -69,6 +69,17 @@ frhs4 = A4*(diff(Q4,t) + diff(Q4*ux4,x) + diff(Q4*uz4,z))
 
 # Q4 = t**3*sin(pi*x)*sin(pi*z)
 # ------------------------------------------------ #
+# 5. Steady-state diffusion-advection with different boundary conditions - random Dirichlet or Neumann
+ux5 = x
+uz5 = z
+Q5 = cos(2.0*pi*x)*sin(2.0*pi*z)
+A5 = 1.5+sin(2.0*pi*x)*cos(2.0*pi*z)
+B5 = 1.0+x**2+z**2
+frhs5 = A5*(diff(Q5*ux5,x) + diff(Q5*uz5,z)) - (diff(B5*diff(Q5,x),x)+diff(B5*diff(Q5,z),z))
+
+bc_neumann_x = diff(Q5,x) # Neumann dQ/dx
+bc_neumann_z = diff(Q5,z) # Neumann dQ/dz
+# ------------------------------------------------ #
 
 print('MMS solutions:')
 print('\n')
@@ -99,5 +110,14 @@ write_c_method(B4,'B4')
 write_c_method(ux4,'ux4')
 write_c_method(uz4,'uz4')
 write_c_method(frhs4,'frhs4')
+
+write_c_method(Q5,'Q5')
+write_c_method(A5,'A5')
+write_c_method(B5,'B5')
+write_c_method(ux5,'ux5')
+write_c_method(uz5,'uz5')
+write_c_method(frhs5,'frhs5')
+write_c_method(bc_neumann_x,'bc_neumann_x')
+write_c_method(bc_neumann_z,'bc_neumann_z')
 
 print('\n')

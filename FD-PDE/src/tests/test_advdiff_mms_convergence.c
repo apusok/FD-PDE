@@ -33,6 +33,7 @@ typedef struct {
   PetscScalar    L, H, xmin, zmin;
   PetscScalar    t, dt, tmax, dtmax, tinit;
   PetscScalar    Q0, x0, z0, taux, tauz;
+  PetscInt       bcleft,bcright,bcdown,bcup;
   char           fname_out[FNAME_LENGTH]; 
   char           fname_in [FNAME_LENGTH];  
 } Params;
@@ -133,7 +134,7 @@ static PetscScalar get_uz2(PetscScalar x, PetscScalar z, PetscScalar t)
 }
 static PetscScalar get_frhs2(PetscScalar x, PetscScalar z, PetscScalar t)
 { PetscScalar result;
-  result = 4.0*M_PI*x*sin(2.0*M_PI*x)*sin(2.0*M_PI*z) - 4.0*M_PI*z*cos(2.0*M_PI*x)*cos(2.0*M_PI*z) + (sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.5)*(2*M_PI*pow(x, 2)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x)*cos(2*M_PI*z) + 2.0*M_PI*pow(x, 2)*sin(2*M_PI*z)*cos(2.0*M_PI*x)*cos(2.0*M_PI*z) - 2.0*M_PI*(x + 1.0)*sin(2.0*M_PI*x)*sin(2.0*M_PI*z) + sin(2.0*M_PI*z)*cos(2.0*M_PI*x)) + 8.0*pow(M_PI, 2)*(pow(x, 2) + pow(z, 2) + 1.0)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x);
+  result = 4.0*M_PI*x*sin(2.0*M_PI*x)*sin(2.0*M_PI*z) - 4.0*M_PI*z*cos(2.0*M_PI*x)*cos(2.0*M_PI*z) + (sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.5)*(2.0*M_PI*pow(x, 2)*sin(2*M_PI*z)*cos(2.0*M_PI*x)*cos(2.0*M_PI*z) + 2*M_PI*pow(x, 2)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x)*cos(2*M_PI*z) - 2.0*M_PI*(x + 1.0)*sin(2.0*M_PI*x)*sin(2.0*M_PI*z) + sin(2.0*M_PI*z)*cos(2.0*M_PI*x)) + 8.0*pow(M_PI, 2)*(pow(x, 2) + pow(z, 2) + 1.0)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x);
   return(result);
 }
 static PetscScalar get_Q3(PetscScalar x, PetscScalar z, PetscScalar t)
@@ -196,6 +197,46 @@ static PetscScalar get_frhs4(PetscScalar x, PetscScalar z, PetscScalar t)
   result = (sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.0)*(2*pow(t, 3)*pow(x, 2)*z*sin(2*M_PI*z) + 2*M_PI*pow(t, 3)*pow(x, 2)*(pow(x, 2) + pow(z, 2))*cos(2*M_PI*z) + 2*pow(t, 3)*x*(x + 1.0) + pow(t, 3)*(pow(x, 2) + pow(z, 2)) + 3*pow(t, 2)*(pow(x, 2) + pow(z, 2)));
   return(result);
 }
+static PetscScalar get_Q5(PetscScalar x, PetscScalar z, PetscScalar t)
+{ PetscScalar result;
+  result = sin(2.0*M_PI*z)*cos(2.0*M_PI*x);
+  return(result);
+}
+static PetscScalar get_A5(PetscScalar x, PetscScalar z, PetscScalar t)
+{ PetscScalar result;
+  result = sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.5;
+  return(result);
+}
+static PetscScalar get_B5(PetscScalar x, PetscScalar z, PetscScalar t)
+{ PetscScalar result;
+  result = pow(x, 2) + pow(z, 2) + 1.0;
+  return(result);
+}
+static PetscScalar get_ux5(PetscScalar x, PetscScalar z, PetscScalar t)
+{ PetscScalar result;
+  result = x;
+  return(result);
+}
+static PetscScalar get_uz5(PetscScalar x, PetscScalar z, PetscScalar t)
+{ PetscScalar result;
+  result = z;
+  return(result);
+}
+static PetscScalar get_frhs5(PetscScalar x, PetscScalar z, PetscScalar t)
+{ PetscScalar result;
+  result = 4.0*M_PI*x*sin(2.0*M_PI*x)*sin(2.0*M_PI*z) - 4.0*M_PI*z*cos(2.0*M_PI*x)*cos(2.0*M_PI*z) + (sin(2.0*M_PI*x)*cos(2.0*M_PI*z) + 1.5)*(-2.0*M_PI*x*sin(2.0*M_PI*x)*sin(2.0*M_PI*z) + 2.0*M_PI*z*cos(2.0*M_PI*x)*cos(2.0*M_PI*z) + 2*sin(2.0*M_PI*z)*cos(2.0*M_PI*x)) + 8.0*pow(M_PI, 2)*(pow(x, 2) + pow(z, 2) + 1.0)*sin(2.0*M_PI*z)*cos(2.0*M_PI*x);
+  return(result);
+}
+static PetscScalar get_bc_neumann_x(PetscScalar x, PetscScalar z, PetscScalar t)
+{ PetscScalar result;
+  result = -2.0*M_PI*sin(2.0*M_PI*x)*sin(2.0*M_PI*z);
+  return(result);
+}
+static PetscScalar get_bc_neumann_z(PetscScalar x, PetscScalar z, PetscScalar t)
+{ PetscScalar result;
+  result = 2.0*M_PI*cos(2.0*M_PI*x)*cos(2.0*M_PI*z);
+  return(result);
+}
 
 // ---------------------------------------
 static PetscScalar get_Q(PetscInt test, PetscScalar x, PetscScalar z, PetscScalar t)
@@ -204,6 +245,7 @@ static PetscScalar get_Q(PetscInt test, PetscScalar x, PetscScalar z, PetscScala
   if (test==2) result = get_Q2(x,z,t);
   if (test==3) result = get_Q3(x,z,t);
   if (test==4) result = get_Q4(x,z,t);
+  if (test==5) result = get_Q5(x,z,t);
   return(result);
 }
 static PetscScalar get_A(PetscInt test, PetscScalar x, PetscScalar z, PetscScalar t)
@@ -212,6 +254,7 @@ static PetscScalar get_A(PetscInt test, PetscScalar x, PetscScalar z, PetscScala
   if (test==2) result = get_A2(x,z,t);
   if (test==3) result = get_A3(x,z,t);
   if (test==4) result = get_A4(x,z,t);
+  if (test==5) result = get_A5(x,z,t);
   return(result);
 }
 static PetscScalar get_B(PetscInt test, PetscScalar x, PetscScalar z, PetscScalar t)
@@ -220,6 +263,7 @@ static PetscScalar get_B(PetscInt test, PetscScalar x, PetscScalar z, PetscScala
   if (test==2) result = get_B2(x,z,t);
   if (test==3) result = get_B3(x,z,t);
   if (test==4) result = get_B4(x,z,t);
+  if (test==5) result = get_B5(x,z,t);
   return(result);
 }
 static PetscScalar get_ux(PetscInt test, PetscScalar x, PetscScalar z, PetscScalar t)
@@ -228,6 +272,7 @@ static PetscScalar get_ux(PetscInt test, PetscScalar x, PetscScalar z, PetscScal
   if (test==2) result = get_ux2(x,z,t);
   if (test==3) result = get_ux3(x,z,t);
   if (test==4) result = get_ux4(x,z,t);
+  if (test==5) result = get_ux5(x,z,t);
   return(result);
 }
 static PetscScalar get_uz(PetscInt test, PetscScalar x, PetscScalar z, PetscScalar t)
@@ -236,6 +281,7 @@ static PetscScalar get_uz(PetscInt test, PetscScalar x, PetscScalar z, PetscScal
   if (test==2) result = get_uz2(x,z,t);
   if (test==3) result = get_uz3(x,z,t);
   if (test==4) result = get_uz4(x,z,t);
+  if (test==5) result = get_uz5(x,z,t);
   return(result);
 }
 static PetscScalar get_frhs(PetscInt test, PetscScalar x, PetscScalar z, PetscScalar t)
@@ -244,6 +290,7 @@ static PetscScalar get_frhs(PetscInt test, PetscScalar x, PetscScalar z, PetscSc
   if (test==2) result = get_frhs2(x,z,t);
   if (test==3) result = get_frhs3(x,z,t);
   if (test==4) result = get_frhs4(x,z,t);
+  if (test==5) result = get_frhs5(x,z,t);
   return(result);
 }
 
@@ -287,9 +334,9 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient,coeff_description,usr); CHKERRQ(ierr);
 
   
-  if (usr->par->test<=2) { // steady - state
+  if ((usr->par->test<=2) || (usr->par->test==5)) { // steady - state
     if      (usr->par->test==1) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_NONE);CHKERRQ(ierr); }
-    else if (usr->par->test==2) { 
+    else if ((usr->par->test==2) || (usr->par->test==5)) { 
       if (usr->par->adv_scheme == 0) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_UPWIND);CHKERRQ(ierr); }
       if (usr->par->adv_scheme == 1) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_UPWIND2);CHKERRQ(ierr); }
       if (usr->par->adv_scheme == 2) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_FROMM);CHKERRQ(ierr); }
@@ -504,6 +551,12 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterInt(bag, &par->tstep,1, "tstep", "Maximum no of time steps"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->tmax, 1.0e2, "tmax", "Maximum time [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->dtmax, 1.0e-4, "dtmax", "Maximum time step size [-]"); CHKERRQ(ierr);
+
+  // Boundary conditions
+  ierr = PetscBagRegisterInt(bag, &par->bcleft, 0, "bcleft", "0-Dirichlet, 1-Neumann"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->bcright, 0, "bcright", "0-Dirichlet, 1-Neumann"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->bcdown, 0, "bcdown", "0-Dirichlet, 1-Neumann"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->bcup, 0, "bcup", "0-Dirichlet, 1-Neumann"); CHKERRQ(ierr);
 
   par->t  = 0.0;
   par->dt = 0.0;
@@ -843,35 +896,55 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   PetscFunctionBegin;
   
-  // Left: Qmms
+  // Left:
   ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    value_bc[k] = get_Q(usr->par->test,x_bc[2*k],x_bc[2*k+1],usr->par->tinit);
-    type_bc[k] = BC_DIRICHLET;
+    if (usr->par->bcleft == 0) {
+      value_bc[k] = get_Q(usr->par->test,x_bc[2*k],x_bc[2*k+1],usr->par->tinit);
+      type_bc[k] = BC_DIRICHLET;
+    } else {
+      value_bc[k] = get_bc_neumann_x(usr->par->xmin,x_bc[2*k+1],usr->par->tinit); // use real boundary coordinates
+      type_bc[k] = BC_NEUMANN;
+    }
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // RIGHT:
   ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    value_bc[k] = get_Q(usr->par->test,x_bc[2*k],x_bc[2*k+1],usr->par->tinit);
-    type_bc[k] = BC_DIRICHLET;
+    if (usr->par->bcright == 0) {
+      value_bc[k] = get_Q(usr->par->test,x_bc[2*k],x_bc[2*k+1],usr->par->tinit);
+      type_bc[k] = BC_DIRICHLET;
+    } else {
+      value_bc[k] = get_bc_neumann_x(usr->par->xmin+usr->par->L,x_bc[2*k+1],usr->par->tinit);
+      type_bc[k] = BC_NEUMANN;
+    }
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // DOWN:
   ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    value_bc[k] = get_Q(usr->par->test,x_bc[2*k],x_bc[2*k+1],usr->par->tinit);
-    type_bc[k] = BC_DIRICHLET;
+    if (usr->par->bcdown == 0) {
+      value_bc[k] = get_Q(usr->par->test,x_bc[2*k],x_bc[2*k+1],usr->par->tinit);
+      type_bc[k] = BC_DIRICHLET;
+    } else {
+      value_bc[k] = get_bc_neumann_z(x_bc[2*k],usr->par->zmin,usr->par->tinit);
+      type_bc[k] = BC_NEUMANN;
+    }
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // UP:
   ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    value_bc[k] = get_Q(usr->par->test,x_bc[2*k],x_bc[2*k+1],usr->par->tinit);
-    type_bc[k] = BC_DIRICHLET;
+    if (usr->par->bcup == 0) {
+      value_bc[k] = get_Q(usr->par->test,x_bc[2*k],x_bc[2*k+1],usr->par->tinit);
+      type_bc[k] = BC_DIRICHLET;
+    } else {
+      value_bc[k] = get_bc_neumann_z(x_bc[2*k],usr->par->zmin+usr->par->H,usr->par->tinit);
+      type_bc[k] = BC_NEUMANN;
+    }
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 

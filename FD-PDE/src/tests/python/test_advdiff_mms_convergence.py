@@ -63,6 +63,7 @@ def plot_solution_mms_error(fnum,fmms,*args):
   istep = 0
   nx    = 0
   adv_scheme = 99
+  bc = np.zeros(4)
   if (len(args)==1): 
     istep = args[0]
   if (len(args)==2): 
@@ -72,6 +73,11 @@ def plot_solution_mms_error(fnum,fmms,*args):
     istep = args[0]
     nx    = args[1]
     adv_scheme = args[2]
+  if (len(args)==4): 
+    istep = args[0]
+    nx    = args[1]
+    adv_scheme = args[2]
+    bc = args[3]
 
   # Load data
   imod = importlib.import_module(fnum) # 1. Numerical solution
@@ -115,7 +121,7 @@ def plot_solution_mms_error(fnum,fmms,*args):
   ax.set_xlabel('x')
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
 
-  fout = fnum+'_solution'+'_adv_'+str(adv_scheme)+'_nx_'+str(nx)
+  fout = fnum+'_solution'+'_adv_'+str(adv_scheme)+'_nx_'+str(nx)+'_BC_'+str(int(bc[0]))+str(int(bc[1]))+str(int(bc[2]))+str(int(bc[3]))
   plt.savefig(fout+'.pdf')
   plt.close()
 
@@ -158,7 +164,11 @@ def plot_convergence_error_space(fname,hx,*args):
   plt.ylabel(r'$E(Q)$',fontweight='bold',fontsize=12)
   plt.legend()
 
-  plt.savefig(fname+'_error_hx_L2.pdf')
+  bc = np.zeros(4)
+  if (len(args)>3):
+    bc = args[3] 
+
+  plt.savefig(fname+'_error_hx_L2'+'_BC_'+str(int(bc[0]))+str(int(bc[1]))+str(int(bc[2]))+str(int(bc[3]))+'.pdf')
   plt.close()
 
 # ---------------------------------------
@@ -390,6 +400,51 @@ def test4_timeadv(fname,dt,tend,n):
   plot_convergence_error_time(fname,dt_nrm,nrm_Q1,nrm_Q2,nrm_Q3)
 
 # ---------------------------------------
+def test5_advection_diffusion_BC(fname,n,bc):
+  # Prepare errors and convergence
+  nrm_Q1 = np.zeros(len(n)) # upwind
+  nrm_Q2 = np.zeros(len(n)) # upwind2
+  nrm_Q3 = np.zeros(len(n)) # fromm
+  hx    = np.zeros(len(n))
+
+  nadv_scheme = [0, 1, 2]
+
+  # Run simulations
+  for adv_scheme in nadv_scheme:
+    nrm_Q = np.zeros(len(n)) # dummy
+    for i in range(len(n)):
+      # Create output filename
+      nx = n[i]
+      fout = fname+'_adv'+str(adv_scheme)+'_'+str(nx)+'.out'
+
+      # Run with different resolutions and advection schemes - test 2 but for BC 
+      str1 = '../test_advdiff_mms_convergence.app -pc_type lu -pc_factor_mat_solver_type umfpack -test 5 -output_file '+fname+ \
+        ' -adv_scheme '+str(adv_scheme)+ \
+        ' -bcleft '+str(int(bc[0]))+ \
+        ' -bcright '+str(int(bc[1]))+ \
+        ' -bcdown '+str(int(bc[2]))+ \
+        ' -bcup '+str(int(bc[3]))+ \
+        ' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout
+      print(str1)
+      os.system(str1)
+
+      # Parse variables
+      tstep, err_sum, err_mms, dt_num, hx_num = parse_log_file(fout)
+      nrm_Q[i] = err_sum**0.5
+      hx[i]    = hx_num
+
+      # Plot solution and error
+      plot_solution_mms_error(fname,fname+'_mms',0,nx,adv_scheme,bc)
+
+    # Save errors
+    if   (adv_scheme==0): nrm_Q1 = nrm_Q
+    elif (adv_scheme==1): nrm_Q2 = nrm_Q
+    else:                 nrm_Q3 = nrm_Q
+
+  # Convergence plot
+  plot_convergence_error_space(fname,hx,nrm_Q1,nrm_Q2,nrm_Q3,bc)
+
+# ---------------------------------------
 # Main script - tests
 # ---------------------------------------
 print('# --------------------------------------- #')
@@ -419,5 +474,32 @@ dt   = [-6, -5.5, -5, -4.5, -4] # not stable above dt>1e-3
 n    = 50
 tend = 1e-3 # 1e-3
 test4_timeadv(fname,dt,tend,n)
+
+# 5. Steady-state diffusion-advection with different boundary conditions - random Dirichlet or Neumann
+fname = 'out_mms_advdiff_05_BC'
+n  = [100, 125, 150, 200, 250, 300]
+# bc = np.random.randint(0,2,4) # array of 4 random 0 or 1
+# bc = np.zeros(4)
+bc_list = np.zeros((16,4))
+bc_list[0,:] = [0,0,0,0]
+bc_list[1,:] = [0,0,0,1]
+bc_list[2,:] = [0,0,1,0]
+bc_list[3,:] = [0,1,0,0]
+bc_list[4,:] = [1,0,0,0]
+bc_list[5,:] = [0,0,1,1]
+bc_list[6,:] = [0,1,0,1]
+bc_list[7,:] = [1,0,0,1]
+bc_list[8,:] = [0,1,1,0]
+bc_list[9,:] = [1,0,1,0]
+bc_list[10,:] = [1,1,0,0]
+bc_list[11,:] = [0,1,1,1]
+bc_list[12,:] = [1,0,1,1]
+bc_list[13,:] = [1,1,0,1]
+bc_list[14,:] = [1,1,1,0]
+bc_list[15,:] = [1,1,1,1]
+
+for i in range(0,16):
+  bc = bc_list[i,:]
+  test5_advection_diffusion_BC(fname,n,bc)
 
 os.system('rm -r __pycache__')
