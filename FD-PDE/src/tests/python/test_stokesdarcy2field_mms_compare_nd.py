@@ -21,8 +21,8 @@ f1 = 'out_mms_compare_nd'
 # Parameters
 n = [20, 40, 80, 100, 200, 300, 400]
 
-alpha_i = [1e3] #[1e0, 1e3, 1e6]
-R_i     = [1e2] #[1e0, 1e1, 1e2, 1e3]
+alpha_i = [1e6] #[1e0, 1e3, 1e6]
+R_i     = [1e0] #[1e0, 1e1, 1e2, 1e3]
 e3_i    = [1.0] #[0.0, 1.0] # unit vector in the z-dir (remove if ignore buoyancy)
 
 # Other parameters

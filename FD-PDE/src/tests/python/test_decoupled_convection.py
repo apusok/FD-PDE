@@ -25,11 +25,11 @@ print('# --------------------------------------- #')
 
 n = 50
 tmax = 0.25
-tout = 1 # 50
+tout = 50
 ts_scheme = 2
 adv_scheme = 1
 dtmax = 1e-3
-tstep_max = 11 # 100000 timesteps
+tstep_max = 100000 #timesteps
 test = 1
 Ra = 1e4
 
