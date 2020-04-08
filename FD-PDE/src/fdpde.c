@@ -6,8 +6,8 @@
 const char *FDPDETypeNames[] = {
   "uninit",
   "stokes",
-  "stokesdarcy2field",
   "advdiff",
+  "stokesdarcy2field",
   "composite"
 };
 
