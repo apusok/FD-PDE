@@ -122,7 +122,7 @@ static PetscScalar get_ux(PetscScalar x, PetscScalar z, PetscScalar t, PetscScal
 }
 static PetscScalar get_uz(PetscScalar x, PetscScalar z, PetscScalar t, PetscScalar eta, PetscScalar zeta, PetscScalar phi_0, PetscScalar p_s, PetscScalar m, PetscScalar n, PetscScalar e3)
 { PetscScalar result;
-  result = 1.0*M_PI*m*(1.0 - cos(M_PI*m*z))*sin(M_PI*m*x) + 1.0*M_PI*m*sin(M_PI*m*z)*cos(M_PI*m*x);
+  result = -1.0*M_PI*m*(1.0 - cos(M_PI*m*z))*sin(M_PI*m*x) + 1.0*M_PI*m*sin(M_PI*m*z)*cos(M_PI*m*x);
   return(result);
 }
 static PetscScalar get_phi(PetscScalar x, PetscScalar z, PetscScalar t, PetscScalar eta, PetscScalar zeta, PetscScalar phi_0, PetscScalar p_s, PetscScalar m, PetscScalar n, PetscScalar e3)
@@ -132,22 +132,22 @@ static PetscScalar get_phi(PetscScalar x, PetscScalar z, PetscScalar t, PetscSca
 }
 static PetscScalar get_fux(PetscScalar x, PetscScalar z, PetscScalar t, PetscScalar eta, PetscScalar zeta, PetscScalar phi_0, PetscScalar p_s, PetscScalar m, PetscScalar n, PetscScalar e3)
 { PetscScalar result;
-  result = eta*(-pow(M_PI, 3)*pow(m, 3)*(1.0 - 1.0*cos(M_PI*m*x))*sin(M_PI*m*z) - 4.0*pow(M_PI, 3)*pow(m, 3)*sin(M_PI*m*x)*cos(M_PI*m*z) + 3.0*pow(M_PI, 3)*pow(m, 3)*sin(M_PI*m*z)*cos(M_PI*m*x)) + M_PI*m*p_s*sin(M_PI*m*x)*cos(M_PI*m*z) + (-0.66666666666666663*eta + zeta)*(-2.0*pow(M_PI, 3)*pow(m, 3)*sin(M_PI*m*x)*cos(M_PI*m*z) + 2.0*pow(M_PI, 3)*pow(m, 3)*sin(M_PI*m*z)*cos(M_PI*m*x));
+  result = eta*(-pow(M_PI, 3)*pow(m, 3)*(1.0 - 1.0*cos(M_PI*m*x))*sin(M_PI*m*z) - 4.0*pow(M_PI, 3)*pow(m, 3)*sin(M_PI*m*x)*cos(M_PI*m*z) + 1.0*pow(M_PI, 3)*pow(m, 3)*sin(M_PI*m*z)*cos(M_PI*m*x)) - 2.0*pow(M_PI, 3)*pow(m, 3)*(-0.66666666666666663*eta + zeta)*sin(M_PI*m*x)*cos(M_PI*m*z) + M_PI*m*p_s*sin(M_PI*m*x)*cos(M_PI*m*z);
   return(result);
 }
 static PetscScalar get_fuz(PetscScalar x, PetscScalar z, PetscScalar t, PetscScalar eta, PetscScalar zeta, PetscScalar phi_0, PetscScalar p_s, PetscScalar m, PetscScalar n, PetscScalar e3)
 { PetscScalar result;
-  result = e3*(-pow(t, 3)*(pow(x, 2) + pow(z, 2)) + 1.0) + eta*(-1.0*pow(M_PI, 3)*pow(m, 3)*(1.0 - cos(M_PI*m*z))*sin(M_PI*m*x) + 3.0*pow(M_PI, 3)*pow(m, 3)*sin(M_PI*m*x)*cos(M_PI*m*z) - 4.0*pow(M_PI, 3)*pow(m, 3)*sin(M_PI*m*z)*cos(M_PI*m*x)) + M_PI*m*p_s*sin(M_PI*m*z)*cos(M_PI*m*x) + (-0.66666666666666663*eta + zeta)*(2.0*pow(M_PI, 3)*pow(m, 3)*sin(M_PI*m*x)*cos(M_PI*m*z) - 2.0*pow(M_PI, 3)*pow(m, 3)*sin(M_PI*m*z)*cos(M_PI*m*x));
+  result = e3*(-pow(t, 3)*(pow(x, 2) + pow(z, 2)) + 1.0) + eta*(1.0*pow(M_PI, 3)*pow(m, 3)*(1.0 - cos(M_PI*m*z))*sin(M_PI*m*x) - 1.0*pow(M_PI, 3)*pow(m, 3)*sin(M_PI*m*x)*cos(M_PI*m*z) - 4.0*pow(M_PI, 3)*pow(m, 3)*sin(M_PI*m*z)*cos(M_PI*m*x)) - 2.0*pow(M_PI, 3)*pow(m, 3)*(-0.66666666666666663*eta + zeta)*sin(M_PI*m*z)*cos(M_PI*m*x) + M_PI*m*p_s*sin(M_PI*m*z)*cos(M_PI*m*x);
   return(result);
 }
 static PetscScalar get_fp(PetscScalar x, PetscScalar z, PetscScalar t, PetscScalar eta, PetscScalar zeta, PetscScalar phi_0, PetscScalar p_s, PetscScalar m, PetscScalar n, PetscScalar e3)
 { PetscScalar result;
-  result = 2*pow(M_PI, 2)*pow(m, 2)*p_s*pow((-pow(t, 3)*(pow(x, 2) + pow(z, 2)) + 1.0)/phi_0, n)*cos(M_PI*m*x)*cos(M_PI*m*z) + 2.0*pow(M_PI, 2)*pow(m, 2)*sin(M_PI*m*x)*sin(M_PI*m*z) + 2.0*pow(M_PI, 2)*pow(m, 2)*cos(M_PI*m*x)*cos(M_PI*m*z) - 2*M_PI*m*n*p_s*pow(t, 3)*x*pow((-pow(t, 3)*(pow(x, 2) + pow(z, 2)) + 1.0)/phi_0, n)*sin(M_PI*m*x)*cos(M_PI*m*z)/(-pow(t, 3)*(pow(x, 2) + pow(z, 2)) + 1.0) + 2*n*pow(t, 3)*z*pow((-pow(t, 3)*(pow(x, 2) + pow(z, 2)) + 1.0)/phi_0, n)*(-e3 - M_PI*m*p_s*sin(M_PI*m*z)*cos(M_PI*m*x))/(-pow(t, 3)*(pow(x, 2) + pow(z, 2)) + 1.0);
+  result = 2*pow(M_PI, 2)*pow(m, 2)*p_s*pow((-pow(t, 3)*(pow(x, 2) + pow(z, 2)) + 1.0)/phi_0, n)*cos(M_PI*m*x)*cos(M_PI*m*z) + 2.0*pow(M_PI, 2)*pow(m, 2)*cos(M_PI*m*x)*cos(M_PI*m*z) - 2*M_PI*m*n*p_s*pow(t, 3)*x*pow((-pow(t, 3)*(pow(x, 2) + pow(z, 2)) + 1.0)/phi_0, n)*sin(M_PI*m*x)*cos(M_PI*m*z)/(-pow(t, 3)*(pow(x, 2) + pow(z, 2)) + 1.0) + 2*n*pow(t, 3)*z*pow((-pow(t, 3)*(pow(x, 2) + pow(z, 2)) + 1.0)/phi_0, n)*(-e3 - M_PI*m*p_s*sin(M_PI*m*z)*cos(M_PI*m*x))/(-pow(t, 3)*(pow(x, 2) + pow(z, 2)) + 1.0);
   return(result);
 }
 static PetscScalar get_fphi(PetscScalar x, PetscScalar z, PetscScalar t, PetscScalar eta, PetscScalar zeta, PetscScalar phi_0, PetscScalar p_s, PetscScalar m, PetscScalar n, PetscScalar e3)
 { PetscScalar result;
-  result = 2*pow(t, 3)*x*(M_PI*m*(1.0 - 1.0*cos(M_PI*m*x))*sin(M_PI*m*z) + 1.0*M_PI*m*sin(M_PI*m*x)*cos(M_PI*m*z)) + 2*pow(t, 3)*z*(1.0*M_PI*m*(1.0 - cos(M_PI*m*z))*sin(M_PI*m*x) + 1.0*M_PI*m*sin(M_PI*m*z)*cos(M_PI*m*x)) + 2*pow(t, 3)*(pow(x, 2) + pow(z, 2))*(1.0*pow(M_PI, 2)*pow(m, 2)*sin(M_PI*m*x)*sin(M_PI*m*z) + 1.0*pow(M_PI, 2)*pow(m, 2)*cos(M_PI*m*x)*cos(M_PI*m*z)) + 3*pow(t, 2)*(pow(x, 2) + pow(z, 2));
+  result = 2*pow(t, 3)*x*(M_PI*m*(1.0 - 1.0*cos(M_PI*m*x))*sin(M_PI*m*z) + 1.0*M_PI*m*sin(M_PI*m*x)*cos(M_PI*m*z)) + 2*pow(t, 3)*z*(-1.0*M_PI*m*(1.0 - cos(M_PI*m*z))*sin(M_PI*m*x) + 1.0*M_PI*m*sin(M_PI*m*z)*cos(M_PI*m*x)) + pow(t, 3)*(pow(x, 2) + pow(z, 2))*(-1.0*pow(M_PI, 2)*pow(m, 2)*sin(M_PI*m*x)*sin(M_PI*m*z) + 1.0*pow(M_PI, 2)*pow(m, 2)*cos(M_PI*m*x)*cos(M_PI*m*z)) + pow(t, 3)*(pow(x, 2) + pow(z, 2))*(1.0*pow(M_PI, 2)*pow(m, 2)*sin(M_PI*m*x)*sin(M_PI*m*z) + 1.0*pow(M_PI, 2)*pow(m, 2)*cos(M_PI*m*x)*cos(M_PI*m*z)) + 3*pow(t, 2)*(pow(x, 2) + pow(z, 2));
   return(result);
 }
 

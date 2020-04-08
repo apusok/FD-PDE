@@ -47,7 +47,7 @@ U   = -U_s*cos(m*pi*x)*cos(m*pi*z)
 # U   = -U_s*cos(m*pi*x)*cos(m*pi*z)*(t*1.0e3+1.0)
 
 curl_psix = diff(psi,z)
-curl_psiz = diff(psi,x)
+curl_psiz = -diff(psi,x)
 gradUx    = diff(U,x)
 gradUz    = diff(U,z)
 
