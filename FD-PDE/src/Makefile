@@ -44,13 +44,18 @@ TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_coupling.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,$(TEST_SRC))
-
 TEST_APP := $(patsubst %.c,%.app,$(TEST_SRC))
+
+MODEL_SRC = 	../models/mor/mor_mechanics.c \
+
+MODEL_OBJ := $(patsubst %.c,%.o,$(MODEL_SRC))
+MODEL_APP := $(patsubst %.c,%.app,$(MODEL_SRC))
 
 all: $(OBJ)
 
 tests: $(OBJ) $(TEST_APP)
 
+models: $(OBJ) $(MODEL_APP)
 
 %.o: %.c $(HDR)
 	-$(PCC) $(CFLAGS) -o $@ -c $< $(PETSC_CC_INCLUDES)
@@ -63,7 +68,6 @@ clean_tests:
 	@rm -rf $(TEST_OBJ)
 	@rm -rf $(TEST_APP)
 
-
 clean_all:
 	@echo "# -------------------------------- #"
 	@echo "#            Full clean            #"
@@ -71,5 +75,7 @@ clean_all:
 	@rm -rf $(OBJ)
 	@rm -rf $(TEST_OBJ)
 	@rm -rf $(TEST_APP)
+	@rm -rf $(MODEL_OBJ)
+	@rm -rf $(MODEL_APP)
 	@rm -rf *.dSYM ./tests/*.dSYM *.py *.vtr *.pbin *.info
 	@rm -rf ./tests/python/out_* ./tests/python/__pycache__
