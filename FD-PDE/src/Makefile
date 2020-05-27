@@ -5,6 +5,7 @@ include $(PETSC_DIR)/lib/petsc/conf/rules
 SRC := 	dmstagbclist.c \
 	dmstagoutput.c \
 	prealloc_helper.c \
+	consteq.c \
 	fdpde.c \
 	fdpde_stokes_residual.c fdpde_stokes.c \
 	fdpde_stokesdarcy2field_residual.c fdpde_stokesdarcy2field.c \
@@ -14,6 +15,7 @@ SRC := 	dmstagbclist.c \
 HDR := 	benchmark_solcx.h \
 	benchmark_cornerflow.h \
 	dmstagoutput.h \
+	consteq.h \
 	dmstagbclist.h \
 	prealloc_helper.h \
 	fdpde.h \
@@ -36,6 +38,7 @@ TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_advdiff_advtime.c \
 		tests/test_advdiff_mms_2d_diffusion.c \
 		tests/test_advdiff_mms_convergence.c \
+		tests/test_effvisc_mms.c \
 		tests/test_dmstagbclist.c \
 		tests/test_dmstagoutput.c \
 		tests/test_fdpde.c \
