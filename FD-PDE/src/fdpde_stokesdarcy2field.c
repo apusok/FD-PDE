@@ -79,9 +79,10 @@ PetscErrorCode JacobianPreallocator_StokesDarcy2Field(FDPDE fd,Mat J)
   ierr = DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   
   // Zero entries
-  PetscScalar   xx[11];
-  DMStagStencil point[11];
-  ierr = PetscMemzero(xx,sizeof(PetscScalar)*11); CHKERRQ(ierr);
+  PetscInt      nEntries=23;
+  PetscScalar   xx[nEntries];
+  DMStagStencil point[nEntries];
+  ierr = PetscMemzero(xx,sizeof(PetscScalar)*nEntries); CHKERRQ(ierr);
 
   // NOTE: Should take into account fd->bclist for BC
   // Get non-zero pattern for preallocator - Loop over all local elements 
@@ -94,20 +95,20 @@ PetscErrorCode JacobianPreallocator_StokesDarcy2Field(FDPDE fd,Mat J)
 
       // X-momentum equation - stencil remains the same as Stokes
       ierr = XMomentumStencil(i,j,Nx,Nz,point,0); CHKERRQ(ierr);
-      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,11,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       if (i==Nx-1){
         ierr = XMomentumStencil(i,j,Nx,Nz,point,1); CHKERRQ(ierr);
-        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,11,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
 
       // Z-momentum equation - stencil remains the same as Stokes
       ierr = ZMomentumStencil(i,j,Nx,Nz,point,0); CHKERRQ(ierr);
-      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,11,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       if (j==Nz-1){
         ierr = ZMomentumStencil(i,j,Nx,Nz,point,1); CHKERRQ(ierr);
-      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,11,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
     }
   }
