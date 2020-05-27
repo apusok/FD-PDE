@@ -309,7 +309,7 @@ k_hat = 0.0 # unit vertical vector [0.0, 1.0]
 xMOR = 200e3 # [m]
 
 tout  = 1       # output every X steps
-tstep = 1       # max no of timesteps
+tstep = 10       # max no of timesteps
 tmax  = 1.0e6   # max time [yr]
 dtmax = 1.0e3  # max dt [yr]
 
