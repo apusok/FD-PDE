@@ -88,48 +88,26 @@ PetscErrorCode JacobianPreallocator_StokesDarcy2Field(FDPDE fd,Mat J)
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
 
-      // Top boundary velocity (dirichlet and neumann)
-      if (j == Nz-1) {
-        point[0].i = i; point[0].j = j  ; point[0].loc = DMSTAG_UP; point[0].c = 0;
-        point[1].i = i; point[1].j = j-1; point[1].loc = DMSTAG_UP; point[1].c = 0;
-        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,1,point,xx,INSERT_VALUES); CHKERRQ(ierr);
-      }
-      
-      // Bottom boundary velocity (dirichlet and neumann)
-      if (j == 0) {
-        point[0].i = i; point[0].j = j  ; point[0].loc = DMSTAG_DOWN; point[0].c = 0;
-        point[1].i = i; point[1].j = j+1; point[1].loc = DMSTAG_DOWN; point[1].c = 0;
-        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,2,point,xx,INSERT_VALUES); CHKERRQ(ierr);
-      } 
-
-      // Right Boundary velocity (dirichlet and neumann)
-      if (i == Nx-1) {
-        point[0].i = i  ; point[0].j = j; point[0].loc = DMSTAG_RIGHT; point[0].c = 0;
-        point[1].i = i-1; point[1].j = j; point[1].loc = DMSTAG_RIGHT; point[1].c = 0;
-        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,2,point,xx,INSERT_VALUES); CHKERRQ(ierr);
-      }
-      
-      // Left velocity (dirichlet and neumann)
-      if (i == 0) {
-        point[0].i = i  ; point[0].j = j; point[0].loc = DMSTAG_LEFT; point[0].c = 0;
-        point[1].i = i+1; point[1].j = j; point[1].loc = DMSTAG_LEFT; point[1].c = 0;
-        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,2,point,xx,INSERT_VALUES); CHKERRQ(ierr);
-      } 
-
       // Continuity equation - add terms for Darcy
       ierr = ContinuityStencil_StokesDarcy2Field(i,j,Nx,Nz,point); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,9,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       // X-momentum equation - stencil remains the same as Stokes
-      if (i > 0) {
-        ierr = XMomentumStencil(i,j,Nz,point); CHKERRQ(ierr);
+      ierr = XMomentumStencil(i,j,Nx,Nz,point,0); CHKERRQ(ierr);
+      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,11,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+
+      if (i==Nx-1){
+        ierr = XMomentumStencil(i,j,Nx,Nz,point,1); CHKERRQ(ierr);
         ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,11,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
 
       // Z-momentum equation - stencil remains the same as Stokes
-      if (j > 0) {
-        ierr = ZMomentumStencil(i,j,Nx,point); CHKERRQ(ierr);
-        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,11,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      ierr = ZMomentumStencil(i,j,Nx,Nz,point,0); CHKERRQ(ierr);
+      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,11,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+
+      if (j==Nz-1){
+        ierr = ZMomentumStencil(i,j,Nx,Nz,point,1); CHKERRQ(ierr);
+      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,11,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
     }
   }

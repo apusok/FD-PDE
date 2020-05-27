@@ -17,8 +17,8 @@ PetscErrorCode JacobianCreate_Stokes(FDPDE,Mat*);
 
 // PREALLOCATOR STENCIL
 PetscErrorCode ContinuityStencil(PetscInt,PetscInt,DMStagStencil*);
-PetscErrorCode XMomentumStencil(PetscInt,PetscInt,PetscInt,DMStagStencil*);
-PetscErrorCode ZMomentumStencil(PetscInt,PetscInt,PetscInt,DMStagStencil*);
+PetscErrorCode XMomentumStencil(PetscInt,PetscInt,PetscInt,PetscInt,DMStagStencil*,PetscInt);
+PetscErrorCode ZMomentumStencil(PetscInt,PetscInt,PetscInt,PetscInt,DMStagStencil*,PetscInt);
 
 // RESIDUAL STENCILS
 PetscErrorCode ContinuityResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);

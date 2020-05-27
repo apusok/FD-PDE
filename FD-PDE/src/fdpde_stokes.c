@@ -90,44 +90,26 @@ PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd,Mat J)
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
 
-      // Top boundary velocity Dirichlet
-      if (j == Nz-1) {
-        point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_UP; point[0].c = 0;
-        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,1,point,xx,INSERT_VALUES); CHKERRQ(ierr);
-      }
-      
-      // Bottom boundary velocity Dirichlet
-      if (j == 0) {
-        point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_DOWN; point[0].c = 0;
-        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,1,point,xx,INSERT_VALUES); CHKERRQ(ierr);
-      } 
-
-      // Right Boundary velocity Dirichlet
-      if (i == Nx-1) {
-        point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_RIGHT; point[0].c = 0;
-        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,1,point,xx,INSERT_VALUES); CHKERRQ(ierr);
-      }
-      
-      // Left velocity Dirichlet
-      if (i == 0) {
-        point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_LEFT; point[0].c = 0;
-        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,1,point,xx,INSERT_VALUES); CHKERRQ(ierr);
-      } 
-
       // Continuity equation (P) : V_x + V_z = 0
       ierr = ContinuityStencil(i,j,point); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,5,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       // X-momentum equation : (u_xx + u_zz) - p_x = rhog^x (rhog_x=0)
-      if (i > 0) {
-        ierr = XMomentumStencil(i,j,Nz,point); CHKERRQ(ierr);
+      ierr = XMomentumStencil(i,j,Nx,Nz,point,0); CHKERRQ(ierr);
+      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,11,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+
+      if (i==Nx-1){
+        ierr = XMomentumStencil(i,j,Nx,Nz,point,1); CHKERRQ(ierr);
         ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,11,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
 
       // Z-momentum equation : (u_xx + u_zz) - p_z = rhog^z
-      if (j > 0) {
-        ierr = ZMomentumStencil(i,j,Nx,point); CHKERRQ(ierr);
-        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,11,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      ierr = ZMomentumStencil(i,j,Nx,Nz,point,0); CHKERRQ(ierr);
+      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,11,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+
+      if (j==Nz-1){
+        ierr = ZMomentumStencil(i,j,Nx,Nz,point,1); CHKERRQ(ierr);
+      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,11,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
     }
   }
@@ -185,7 +167,7 @@ XMomentumStencil - calculates the non-zero pattern for the X-momentum equation/d
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt N, DMStagStencil *point)
+PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, DMStagStencil *point, PetscInt iloc)
 {
   PetscFunctionBegin;
   point[0].i  = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_LEFT;    point[0].c   = 0;
@@ -200,11 +182,35 @@ PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt N, DMStagStencil 
   point[9].i  = i-1; point[9].j  = j  ; point[9].loc  = DMSTAG_ELEMENT; point[9].c   = 0;
   point[10].i = i  ; point[10].j = j  ; point[10].loc = DMSTAG_ELEMENT; point[10].c  = 0;
 
+  // left
+  if (i == 0) {
+    point[3] = point[0];
+    point[5] = point[6];
+    point[7] = point[8];
+    point[9] = point[10];
+  } 
+  
+  if (iloc) { // right - different stencil
+    point[0].i  = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_RIGHT;   point[0].c   = 0;
+    point[1].i  = i  ; point[1].j  = j-1; point[1].loc  = DMSTAG_RIGHT;   point[1].c   = 0;
+    point[2].i  = i  ; point[2].j  = j+1; point[2].loc  = DMSTAG_RIGHT;   point[2].c   = 0;
+    point[3].i  = i  ; point[3].j  = j  ; point[3].loc  = DMSTAG_LEFT;    point[3].c   = 0;
+    point[4] = point[0];
+    point[5].i  = i  ; point[5].j  = j  ; point[5].loc  = DMSTAG_DOWN;    point[5].c   = 0;
+    point[6] = point[5];
+    point[7].i  = i  ; point[7].j  = j  ; point[7].loc  = DMSTAG_UP;      point[7].c   = 0;
+    point[8] = point[7];
+    point[9].i  = i  ; point[9].j  = j  ; point[9].loc  = DMSTAG_ELEMENT; point[9].c   = 0;
+    point[10] = point[9];
+  }
+
+  // down/up boundary
   if (j == 0) {
     point[1] = point[0];
-  } else if (j == N-1) {
+  } else if (j == Nz-1) {
     point[2] = point[0];
   }
+
   PetscFunctionReturn(0);
 }
 
@@ -215,7 +221,7 @@ ZMomentumStencil - calculates the non-zero pattern for the Z-momentum equation/d
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode ZMomentumStencil(PetscInt i,PetscInt j,PetscInt N, DMStagStencil *point)
+PetscErrorCode ZMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, DMStagStencil *point, PetscInt iloc)
 {
   PetscFunctionBegin;
   point[0].i = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_DOWN;    point[0].c  = 0;
@@ -230,9 +236,31 @@ PetscErrorCode ZMomentumStencil(PetscInt i,PetscInt j,PetscInt N, DMStagStencil 
   point[9].i = i  ; point[9].j  = j-1; point[9].loc  = DMSTAG_ELEMENT; point[9].c  = 0;
   point[10].i= i  ; point[10].j = j  ; point[10].loc = DMSTAG_ELEMENT; point[10].c = 0;
 
+  if (j == 0) { // down
+    point[1] = point[0]; 
+    point[5] = point[7];
+    point[6] = point[8];
+    point[9] = point[10];
+  } 
+
+  if (iloc) { // up - different stencil
+    point[0].i = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_UP;      point[0].c  = 0;
+    point[1].i = i  ; point[1].j  = j  ; point[1].loc  = DMSTAG_DOWN;    point[1].c  = 0;
+    point[2] = point[0];
+    point[3].i = i-1; point[3].j  = j  ; point[3].loc  = DMSTAG_UP;      point[3].c  = 0;
+    point[4].i = i+1; point[4].j  = j  ; point[4].loc  = DMSTAG_UP;      point[4].c  = 0;
+    point[5].i = i  ; point[5].j  = j  ; point[5].loc  = DMSTAG_LEFT;    point[5].c  = 0;
+    point[6].i = i  ; point[6].j  = j  ; point[6].loc  = DMSTAG_RIGHT;   point[6].c  = 0;
+    point[7] = point[5];
+    point[8] = point[6];
+    point[9].i = i  ; point[9].j  = j  ; point[9].loc  = DMSTAG_ELEMENT; point[9].c  = 0;
+    point[10] = point[9];
+  }
+
+  // left/right boundary
   if (i == 0) {
     point[3] = point[0]; 
-  } else if (i == N-1) {
+  } else if (i == Nx-1) {
     point[4] = point[0];
   }
   PetscFunctionReturn(0);
