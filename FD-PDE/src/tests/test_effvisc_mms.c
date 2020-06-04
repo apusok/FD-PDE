@@ -41,7 +41,7 @@ typedef struct {
   PetscInt       nx, nz;
   PetscScalar    L, H;
   PetscScalar    xmin, zmin;
-  PetscScalar    eta0, eps0, np, R;
+  PetscScalar    eta0, eps0, np, R, etamax, etamin;
   PetscScalar    phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat;
   char           fname_out[FNAME_LENGTH]; 
 } Params;
@@ -52,35 +52,37 @@ typedef struct {
   PetscBag       bag;
   MPI_Comm       comm;
   PetscMPIInt    rank;
-  DM             dm;
+  DM             dm, dmeps;
+  Vec            xeps;
 } UsrData;
 
 // ---------------------------------------
 // Function definitions
 // ---------------------------------------
 PetscErrorCode Numerical_solution(void*,PetscInt);
-PetscErrorCode ComputeManufacturedSolution(DM,Vec*,void*);
-PetscErrorCode ComputeErrorNorms(DM,Vec,Vec,PetscInt test);
+PetscErrorCode ComputeManufacturedSolution(DM,Vec*,Vec*,void*);
+PetscErrorCode ComputeErrorNorms(DM,Vec,Vec,Vec,PetscInt test,void*);
 PetscErrorCode InputParameters(UsrData**);
 PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode FormCoefficient_Stokes(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormCoefficient_StokesDarcy(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
+PetscErrorCode UpdateStrainRates(DM,Vec,void*);
 
 // Manufactured solutions
 static PetscScalar get_p(PetscScalar x, PetscScalar z, PetscScalar eta0, PetscScalar eps0, PetscScalar np, PetscScalar phi_0, PetscScalar phi_s, PetscScalar p_s, PetscScalar psi_s, PetscScalar U_s, PetscScalar m, PetscScalar n, PetscScalar k_hat, PetscScalar R)
 { PetscScalar result;
-  result = p_s*cos(M_PI*m*x)*cos(M_PI*m*z);
+  result = x*(1 - x) - 0.16666666666666666;
   return(result);
 }
 static PetscScalar get_ux(PetscScalar x, PetscScalar z, PetscScalar eta0, PetscScalar eps0, PetscScalar np, PetscScalar phi_0, PetscScalar phi_s, PetscScalar p_s, PetscScalar psi_s, PetscScalar U_s, PetscScalar m, PetscScalar n, PetscScalar k_hat, PetscScalar R)
 { PetscScalar result;
-  result = sin(M_PI*x)*sin(2.0*M_PI*z) + 2.0;
+  result = pow(x, 2)*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z);
   return(result);
 }
 static PetscScalar get_uz(PetscScalar x, PetscScalar z, PetscScalar eta0, PetscScalar eps0, PetscScalar np, PetscScalar phi_0, PetscScalar phi_s, PetscScalar p_s, PetscScalar psi_s, PetscScalar U_s, PetscScalar m, PetscScalar n, PetscScalar k_hat, PetscScalar R)
 { PetscScalar result;
-  result = 0.5*cos(M_PI*x)*cos(2.0*M_PI*z) + 2.0;
+  result = -pow(z, 2)*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x);
   return(result);
 }
 static PetscScalar get_phi(PetscScalar x, PetscScalar z, PetscScalar eta0, PetscScalar eps0, PetscScalar np, PetscScalar phi_0, PetscScalar phi_s, PetscScalar p_s, PetscScalar psi_s, PetscScalar U_s, PetscScalar m, PetscScalar n, PetscScalar k_hat, PetscScalar R)
@@ -93,34 +95,49 @@ static PetscScalar get_Kphi(PetscScalar x, PetscScalar z, PetscScalar eta0, Pets
   result = pow(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0, n);
   return(result);
 }
+static PetscScalar get_exx(PetscScalar x, PetscScalar z, PetscScalar eta0, PetscScalar eps0, PetscScalar np, PetscScalar phi_0, PetscScalar phi_s, PetscScalar p_s, PetscScalar psi_s, PetscScalar U_s, PetscScalar m, PetscScalar n, PetscScalar k_hat, PetscScalar R)
+{ PetscScalar result;
+  result = pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z);
+  return(result);
+}
+static PetscScalar get_ezz(PetscScalar x, PetscScalar z, PetscScalar eta0, PetscScalar eps0, PetscScalar np, PetscScalar phi_0, PetscScalar phi_s, PetscScalar p_s, PetscScalar psi_s, PetscScalar U_s, PetscScalar m, PetscScalar n, PetscScalar k_hat, PetscScalar R)
+{ PetscScalar result;
+  result = -pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x);
+  return(result);
+}
+static PetscScalar get_exz(PetscScalar x, PetscScalar z, PetscScalar eta0, PetscScalar eps0, PetscScalar np, PetscScalar phi_0, PetscScalar phi_s, PetscScalar p_s, PetscScalar psi_s, PetscScalar U_s, PetscScalar m, PetscScalar n, PetscScalar k_hat, PetscScalar R)
+{ PetscScalar result;
+  result = 0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0);
+  return(result);
+}
 static PetscScalar get_fux_stokes(PetscScalar x, PetscScalar z, PetscScalar eta0, PetscScalar eps0, PetscScalar np, PetscScalar phi_0, PetscScalar phi_s, PetscScalar p_s, PetscScalar psi_s, PetscScalar U_s, PetscScalar m, PetscScalar n, PetscScalar k_hat, PetscScalar R)
 { PetscScalar result;
-  result = 2.0*M_PI*eta0*pow(sqrt(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*1.0/(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))*(-1.0*pow(M_PI, 3)*sin(M_PI*x)*pow(sin(2.0*M_PI*z), 2)*cos(M_PI*x) + 0.5625*pow(M_PI, 3)*sin(M_PI*x)*cos(M_PI*x)*pow(cos(2.0*M_PI*z), 2))*sin(2.0*M_PI*z)*cos(M_PI*x) + 1.5*M_PI*eta0*pow(sqrt(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*1.0/(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))*(-1.125*pow(M_PI, 3)*pow(sin(M_PI*x), 2)*sin(2.0*M_PI*z)*cos(2.0*M_PI*z) + 2.0*pow(M_PI, 3)*sin(2.0*M_PI*z)*pow(cos(M_PI*x), 2)*cos(2.0*M_PI*z))*sin(M_PI*x)*cos(2.0*M_PI*z) - 5.0*pow(M_PI, 2)*eta0*pow(sqrt(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))/eps0, -1 + 1.0/np)*sin(M_PI*x)*sin(2.0*M_PI*z) + M_PI*m*p_s*sin(M_PI*m*x)*cos(M_PI*m*z);
+  result = 2.0*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(0.5*(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(pow(x, 2)*pow(1 - x, 2)*(24.0*z - 12.0) - 1.0*pow(z, 2)*(2*z - 2)*(12.0*pow(x, 2) - 12.0*x + 2.0) - 2.0*z*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0)) + 0.25*(2*pow(x, 2)*(2*x - 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) + 4*x*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0))*(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z)) + 0.25*(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x))*(-4*pow(z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 8*z*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 4*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x)))*1.0/(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2)) + 2.0*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z))*(0.5*(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(pow(x, 2)*(2*x - 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) + 2.0*x*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 1.0*pow(z, 2)*pow(1 - z, 2)*(24.0*x - 12.0)) + 0.25*(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z))*(4*pow(x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 8*x*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 4*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z)) + 0.25*(-2*pow(z, 2)*(2*z - 2)*(12.0*pow(x, 2) - 12.0*x + 2.0) - 4*z*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x)))*1.0/(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2)) + 2.0*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(2*pow(x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 4*x*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z)) + 2.0*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(0.5*pow(x, 2)*pow(1 - x, 2)*(24.0*z - 12.0) - 0.5*pow(z, 2)*(2*z - 2)*(12.0*pow(x, 2) - 12.0*x + 2.0) - 1.0*z*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0)) + 2*x - 1;
   return(result);
 }
 static PetscScalar get_fuz_stokes(PetscScalar x, PetscScalar z, PetscScalar eta0, PetscScalar eps0, PetscScalar np, PetscScalar phi_0, PetscScalar phi_s, PetscScalar p_s, PetscScalar psi_s, PetscScalar U_s, PetscScalar m, PetscScalar n, PetscScalar k_hat, PetscScalar R)
 { PetscScalar result;
-  result = 1.5*M_PI*eta0*pow(sqrt(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*1.0/(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))*(-1.0*pow(M_PI, 3)*sin(M_PI*x)*pow(sin(2.0*M_PI*z), 2)*cos(M_PI*x) + 0.5625*pow(M_PI, 3)*sin(M_PI*x)*cos(M_PI*x)*pow(cos(2.0*M_PI*z), 2))*sin(M_PI*x)*cos(2.0*M_PI*z) - 2.0*M_PI*eta0*pow(sqrt(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*1.0/(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))*(-1.125*pow(M_PI, 3)*pow(sin(M_PI*x), 2)*sin(2.0*M_PI*z)*cos(2.0*M_PI*z) + 2.0*pow(M_PI, 3)*sin(2.0*M_PI*z)*pow(cos(M_PI*x), 2)*cos(2.0*M_PI*z))*sin(2.0*M_PI*z)*cos(M_PI*x) - 2.5*pow(M_PI, 2)*eta0*pow(sqrt(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))/eps0, -1 + 1.0/np)*cos(M_PI*x)*cos(2.0*M_PI*z) + M_PI*m*p_s*sin(M_PI*m*z)*cos(M_PI*m*x);
+  result = 2.0*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(0.5*(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(pow(x, 2)*(2*x - 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) + 2.0*x*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 1.0*pow(z, 2)*pow(1 - z, 2)*(24.0*x - 12.0)) + 0.25*(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z))*(4*pow(x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 8*x*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 4*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z)) + 0.25*(-2*pow(z, 2)*(2*z - 2)*(12.0*pow(x, 2) - 12.0*x + 2.0) - 4*z*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x)))*1.0/(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2)) + 2.0*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x))*(0.5*(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(pow(x, 2)*pow(1 - x, 2)*(24.0*z - 12.0) - 1.0*pow(z, 2)*(2*z - 2)*(12.0*pow(x, 2) - 12.0*x + 2.0) - 2.0*z*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0)) + 0.25*(2*pow(x, 2)*(2*x - 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) + 4*x*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0))*(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z)) + 0.25*(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x))*(-4*pow(z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 8*z*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 4*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x)))*1.0/(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2)) + 2.0*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(-2*pow(z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 4*z*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x)) + 2.0*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(0.5*pow(x, 2)*(2*x - 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) + 1.0*x*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(24.0*x - 12.0));
   return(result);
 }
 static PetscScalar get_fp_stokes(PetscScalar x, PetscScalar z, PetscScalar eta0, PetscScalar eps0, PetscScalar np, PetscScalar phi_0, PetscScalar phi_s, PetscScalar p_s, PetscScalar psi_s, PetscScalar U_s, PetscScalar m, PetscScalar n, PetscScalar k_hat, PetscScalar R)
 { PetscScalar result;
-  result = 0;
+  result = pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) - pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x);
   return(result);
 }
 static PetscScalar get_fux_stokesdarcy(PetscScalar x, PetscScalar z, PetscScalar eta0, PetscScalar eps0, PetscScalar np, PetscScalar phi_0, PetscScalar phi_s, PetscScalar p_s, PetscScalar psi_s, PetscScalar U_s, PetscScalar m, PetscScalar n, PetscScalar k_hat, PetscScalar R)
 { PetscScalar result;
-  result = 2.0*M_PI*eta0*pow(sqrt(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*1.0/(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))*(-1.0*pow(M_PI, 3)*sin(M_PI*x)*pow(sin(2.0*M_PI*z), 2)*cos(M_PI*x) + 0.5625*pow(M_PI, 3)*sin(M_PI*x)*cos(M_PI*x)*pow(cos(2.0*M_PI*z), 2))*sin(2.0*M_PI*z)*cos(M_PI*x) + 1.5*M_PI*eta0*pow(sqrt(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*1.0/(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))*(-1.125*pow(M_PI, 3)*pow(sin(M_PI*x), 2)*sin(2.0*M_PI*z)*cos(2.0*M_PI*z) + 2.0*pow(M_PI, 3)*sin(2.0*M_PI*z)*pow(cos(M_PI*x), 2)*cos(2.0*M_PI*z))*sin(M_PI*x)*cos(2.0*M_PI*z) - 5.0*pow(M_PI, 2)*eta0*pow(sqrt(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))/eps0, -1 + 1.0/np)*sin(M_PI*x)*sin(2.0*M_PI*z) + M_PI*m*p_s*sin(M_PI*m*x)*cos(M_PI*m*z);
+  result = 2.0*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(0.5*(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(pow(x, 2)*pow(1 - x, 2)*(24.0*z - 12.0) - 1.0*pow(z, 2)*(2*z - 2)*(12.0*pow(x, 2) - 12.0*x + 2.0) - 2.0*z*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0)) + 0.25*(2*pow(x, 2)*(2*x - 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) + 4*x*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0))*(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z)) + 0.25*(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x))*(-4*pow(z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 8*z*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 4*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x)))*1.0/(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2)) + 2.0*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z))*(0.5*(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(pow(x, 2)*(2*x - 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) + 2.0*x*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 1.0*pow(z, 2)*pow(1 - z, 2)*(24.0*x - 12.0)) + 0.25*(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z))*(4*pow(x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 8*x*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 4*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z)) + 0.25*(-2*pow(z, 2)*(2*z - 2)*(12.0*pow(x, 2) - 12.0*x + 2.0) - 4*z*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x)))*1.0/(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2)) + 2.0*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(2*pow(x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 4*x*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z)) + 2.0*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(0.5*pow(x, 2)*pow(1 - x, 2)*(24.0*z - 12.0) - 0.5*pow(z, 2)*(2*z - 2)*(12.0*pow(x, 2) - 12.0*x + 2.0) - 1.0*z*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0)) + 2*x + (-0.66666666666666663*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np) + eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)/(phi_0*(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0)))*(2*pow(x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 4*x*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) - pow(z, 2)*(2*z - 2)*(12.0*pow(x, 2) - 12.0*x + 2.0) - 2*z*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0) + 2*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z)) + (M_PI*eta0*m*phi_s*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*sin(M_PI*m*x)*cos(M_PI*m*z)/(phi_0*pow(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0, 2)) - 0.66666666666666663*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*(0.5*(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(pow(x, 2)*(2*x - 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) + 2.0*x*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 1.0*pow(z, 2)*pow(1 - z, 2)*(24.0*x - 12.0)) + 0.25*(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z))*(4*pow(x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 8*x*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 4*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z)) + 0.25*(-2*pow(z, 2)*(2*z - 2)*(12.0*pow(x, 2) - 12.0*x + 2.0) - 4*z*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x)))*1.0/(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2)) + eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*(0.5*(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(pow(x, 2)*(2*x - 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) + 2.0*x*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 1.0*pow(z, 2)*pow(1 - z, 2)*(24.0*x - 12.0)) + 0.25*(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z))*(4*pow(x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 8*x*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 4*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z)) + 0.25*(-2*pow(z, 2)*(2*z - 2)*(12.0*pow(x, 2) - 12.0*x + 2.0) - 4*z*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x)))*1.0/(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/(phi_0*(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0)))*(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) - pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x)) - 1;
   return(result);
 }
 static PetscScalar get_fuz_stokesdarcy(PetscScalar x, PetscScalar z, PetscScalar eta0, PetscScalar eps0, PetscScalar np, PetscScalar phi_0, PetscScalar phi_s, PetscScalar p_s, PetscScalar psi_s, PetscScalar U_s, PetscScalar m, PetscScalar n, PetscScalar k_hat, PetscScalar R)
 { PetscScalar result;
-  result = 1.5*M_PI*eta0*pow(sqrt(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*1.0/(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))*(-1.0*pow(M_PI, 3)*sin(M_PI*x)*pow(sin(2.0*M_PI*z), 2)*cos(M_PI*x) + 0.5625*pow(M_PI, 3)*sin(M_PI*x)*cos(M_PI*x)*pow(cos(2.0*M_PI*z), 2))*sin(M_PI*x)*cos(2.0*M_PI*z) - 2.0*M_PI*eta0*pow(sqrt(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*1.0/(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))*(-1.125*pow(M_PI, 3)*pow(sin(M_PI*x), 2)*sin(2.0*M_PI*z)*cos(2.0*M_PI*z) + 2.0*pow(M_PI, 3)*sin(2.0*M_PI*z)*pow(cos(M_PI*x), 2)*cos(2.0*M_PI*z))*sin(2.0*M_PI*z)*cos(M_PI*x) - 2.5*pow(M_PI, 2)*eta0*pow(sqrt(0.5625*pow(M_PI, 2)*pow(sin(M_PI*x), 2)*pow(cos(2.0*M_PI*z), 2) + 1.0*pow(M_PI, 2)*pow(sin(2.0*M_PI*z), 2)*pow(cos(M_PI*x), 2))/eps0, -1 + 1.0/np)*cos(M_PI*x)*cos(2.0*M_PI*z) + k_hat*phi_0*(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0) + M_PI*m*p_s*sin(M_PI*m*z)*cos(M_PI*m*x);
+  result = 2.0*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(0.5*(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(pow(x, 2)*(2*x - 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) + 2.0*x*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 1.0*pow(z, 2)*pow(1 - z, 2)*(24.0*x - 12.0)) + 0.25*(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z))*(4*pow(x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 8*x*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 4*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z)) + 0.25*(-2*pow(z, 2)*(2*z - 2)*(12.0*pow(x, 2) - 12.0*x + 2.0) - 4*z*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x)))*1.0/(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2)) + 2.0*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x))*(0.5*(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(pow(x, 2)*pow(1 - x, 2)*(24.0*z - 12.0) - 1.0*pow(z, 2)*(2*z - 2)*(12.0*pow(x, 2) - 12.0*x + 2.0) - 2.0*z*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0)) + 0.25*(2*pow(x, 2)*(2*x - 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) + 4*x*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0))*(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z)) + 0.25*(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x))*(-4*pow(z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 8*z*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 4*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x)))*1.0/(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2)) + 2.0*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(-2*pow(z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 4*z*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x)) + 2.0*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(0.5*pow(x, 2)*(2*x - 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) + 1.0*x*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(24.0*x - 12.0)) + k_hat*phi_0*(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0) + (-0.66666666666666663*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np) + eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)/(phi_0*(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0)))*(pow(x, 2)*(2*x - 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) + 2*x*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 2*pow(z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 4*z*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x)) + (M_PI*eta0*m*phi_s*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*sin(M_PI*m*z)*cos(M_PI*m*x)/(phi_0*pow(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0, 2)) - 0.66666666666666663*eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*(0.5*(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(pow(x, 2)*pow(1 - x, 2)*(24.0*z - 12.0) - 1.0*pow(z, 2)*(2*z - 2)*(12.0*pow(x, 2) - 12.0*x + 2.0) - 2.0*z*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0)) + 0.25*(2*pow(x, 2)*(2*x - 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) + 4*x*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0))*(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z)) + 0.25*(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x))*(-4*pow(z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 8*z*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 4*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x)))*1.0/(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2)) + eta0*pow(sqrt(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/eps0, -1 + 1.0/np)*(-1 + 1.0/np)*(0.5*(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0))*(pow(x, 2)*pow(1 - x, 2)*(24.0*z - 12.0) - 1.0*pow(z, 2)*(2*z - 2)*(12.0*pow(x, 2) - 12.0*x + 2.0) - 2.0*z*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0)) + 0.25*(2*pow(x, 2)*(2*x - 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) + 4*x*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0))*(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z)) + 0.25*(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x))*(-4*pow(z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 8*z*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 4*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x)))*1.0/(1.0*pow(0.5*pow(x, 2)*pow(1 - x, 2)*(12.0*pow(z, 2) - 12.0*z + 2.0) - 0.5*pow(z, 2)*pow(1 - z, 2)*(12.0*pow(x, 2) - 12.0*x + 2.0), 2) + 0.5*pow(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z), 2) + 0.5*pow(-pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x), 2))/(phi_0*(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0)))*(pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) - pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x));
   return(result);
 }
 static PetscScalar get_fp_stokesdarcy(PetscScalar x, PetscScalar z, PetscScalar eta0, PetscScalar eps0, PetscScalar np, PetscScalar phi_0, PetscScalar phi_s, PetscScalar p_s, PetscScalar psi_s, PetscScalar U_s, PetscScalar m, PetscScalar n, PetscScalar k_hat, PetscScalar R)
 { PetscScalar result;
-  result = pow(R, 2)*(-pow(M_PI, 2)*pow(m, 2)*n*p_s*phi_s*pow(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0, n)*pow(sin(M_PI*m*x), 2)*pow(cos(M_PI*m*z), 2)/(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0) + 2*pow(M_PI, 2)*pow(m, 2)*p_s*pow(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0, n)*cos(M_PI*m*x)*cos(M_PI*m*z) + M_PI*m*n*phi_s*(-k_hat - M_PI*m*p_s*sin(M_PI*m*z)*cos(M_PI*m*x))*pow(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0, n)*sin(M_PI*m*z)*cos(M_PI*m*x)/(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0));
+  result = pow(R, 2)*(-M_PI*k_hat*m*n*phi_s*pow(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0, n)*sin(M_PI*m*z)*cos(M_PI*m*x)/(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0) + M_PI*m*n*phi_s*(1 - 2*x)*pow(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0, n)*sin(M_PI*m*x)*cos(M_PI*m*z)/(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0) + 2*pow(phi_s*cos(M_PI*m*x)*cos(M_PI*m*z) + 1.0, n)) + pow(x, 2)*(2*x - 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) + 2*x*pow(1 - x, 2)*(4.0*pow(z, 3) - 6.0*pow(z, 2) + 2.0*z) - pow(z, 2)*(2*z - 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x) - 2*z*pow(1 - z, 2)*(4.0*pow(x, 3) - 6.0*pow(x, 2) + 2.0*x);
   return(result);
 }
 
@@ -134,7 +151,7 @@ PetscErrorCode Numerical_solution(void *ctx, PetscInt test)
   UsrData       *usr = (UsrData*) ctx;
   FDPDE          fd;
   DM             dm;
-  Vec            x, xMMS;
+  Vec            x, xMMS, xepsMMS;
   PetscInt       nx, nz;
   PetscScalar    xmin, zmin, xmax, zmax;
   char           fout[FNAME_LENGTH];
@@ -159,8 +176,14 @@ PetscErrorCode Numerical_solution(void *ctx, PetscInt test)
   ierr = FDPDESetUp(fd);CHKERRQ(ierr);
   ierr = FDPDEGetDM(fd,&dm); CHKERRQ(ierr);
 
+  // Create DM/vec for strain rates
+  ierr = DMStagCreateCompatibleDMStag(dm,4,0,4,0,&usr->dmeps); CHKERRQ(ierr);
+  ierr = DMSetUp(usr->dmeps); CHKERRQ(ierr);
+  ierr = DMStagSetUniformCoordinatesProduct(usr->dmeps,xmin,xmax,zmin,zmax,0.0,0.0);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(usr->dmeps,&usr->xeps); CHKERRQ(ierr);
+
   // Create manufactured solution
-  ierr = ComputeManufacturedSolution(dm,&xMMS,usr); CHKERRQ(ierr);
+  ierr = ComputeManufacturedSolution(dm,&xMMS,&xepsMMS,usr); CHKERRQ(ierr);
 
   // Set BC evaluation function
   ierr = FDPDESetFunctionBCList(fd,FormBCList,"n/a",usr); CHKERRQ(ierr);
@@ -192,16 +215,23 @@ PetscErrorCode Numerical_solution(void *ctx, PetscInt test)
   if (test==2) { ierr = PetscSNPrintf(fout,sizeof(fout),"%s_stokesdarcy",usr->par->fname_out); }
   ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
 
+  if (test==1) { ierr = PetscSNPrintf(fout,sizeof(fout),"%s_strain_stokes",usr->par->fname_out); }
+  if (test==2) { ierr = PetscSNPrintf(fout,sizeof(fout),"%s_strain_stokesdarcy",usr->par->fname_out); }
+  ierr = DMStagViewBinaryPython(usr->dmeps,usr->xeps,fout);CHKERRQ(ierr);
+
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s_residual",usr->par->fname_out);
   ierr = DMStagViewBinaryPython(dm,fd->r,fout);CHKERRQ(ierr);
 
   // Compute norms
-  ierr = ComputeErrorNorms(dm,x,xMMS,test);CHKERRQ(ierr);
+  ierr = ComputeErrorNorms(dm,x,xMMS,xepsMMS,test,usr);CHKERRQ(ierr);
 
   // Destroy objects
   ierr = VecDestroy(&x);CHKERRQ(ierr);
   ierr = VecDestroy(&xMMS);CHKERRQ(ierr);
+  ierr = VecDestroy(&xepsMMS);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xeps);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
+  ierr = DMDestroy(&usr->dmeps);CHKERRQ(ierr);
   ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
@@ -260,6 +290,9 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->k_hat, 0.0, "k_hat", "Direction of unit vertical vector +/-1.0"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->R, 1.0, "R", "Compaction factor R = delta/h"); CHKERRQ(ierr);
 
+  par->etamax = 1.0e+5*par->eta0;
+  par->etamin = 1.0e-5*par->eta0;
+
   // Input/output 
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_solution","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
 
@@ -312,7 +345,7 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
-  Vec            coefflocal, xlocal;
+  Vec            coefflocal, xlocal, xepslocal;
   PetscScalar    **coordx,**coordz;
   PetscInt       iprev, inext, icenter;
   PetscScalar    eta0,eps0,np,R,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat;
@@ -334,6 +367,11 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
   n    = usr->par->n;
   k_hat= usr->par->k_hat;
 
+  // Strain rates
+  ierr = UpdateStrainRates(dm,x,usr); CHKERRQ(ierr);
+  ierr = DMGetLocalVector(usr->dmeps, &xepslocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (usr->dmeps, usr->xeps, INSERT_VALUES, xepslocal); CHKERRQ(ierr);
+
   // Get domain corners
   ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   ierr = DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL);CHKERRQ(ierr);
@@ -350,7 +388,7 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
 
   ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
-  
+
   // Loop over local domain - set initial density and viscosity
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
@@ -358,34 +396,34 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
 
       { // A = eta (center, c=1)
         DMStagStencil point;
-        PetscScalar   eta,epsII,exx,ezz,exz;
-        point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 1;
-        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        PetscScalar   eta,epsII;
 
-        // get effective viscosity
-        ierr = DMStagGetPointStrainRates(dm,xlocal,1,&point,&epsII,&exx,&ezz,&exz); CHKERRQ(ierr);
+        point.i = i; point.j = j; point.loc = ELEMENT; point.c = 3;
+        ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,1,&point,&epsII); CHKERRQ(ierr);
+
         eta = eta0*PetscPowScalar(epsII/eps0,1.0/np-1.0);
+        if      (eta > usr->par->etamax) eta = usr->par->etamax;
+        else if (eta < usr->par->etamin) eta = usr->par->etamin;
+        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, 1, &idx); CHKERRQ(ierr);
         c[j][i][idx] = eta;
       }
 
       { // A = eta (corner, c=0)
         DMStagStencil point[4];
-        PetscScalar   eta,epsII[4],exx[4],ezz[4],exz[4];
+        PetscScalar   eta,epsII[4];
         PetscInt      ii;
 
-        point[0].i = i; point[0].j = j; point[0].loc = DOWN_LEFT;  point[0].c = 0;
-        point[1].i = i; point[1].j = j; point[1].loc = DOWN_RIGHT; point[1].c = 0;
-        point[2].i = i; point[2].j = j; point[2].loc = UP_LEFT;    point[2].c = 0;
-        point[3].i = i; point[3].j = j; point[3].loc = UP_RIGHT;   point[3].c = 0;
-
-        // get effective viscosity
-        ierr = DMStagGetPointStrainRates(dm,xlocal,4,point,epsII,exx,ezz,exz); CHKERRQ(ierr);
+        point[0].i = i; point[0].j = j; point[0].loc = DOWN_LEFT;  point[0].c = 3;
+        point[1].i = i; point[1].j = j; point[1].loc = DOWN_RIGHT; point[1].c = 3;
+        point[2].i = i; point[2].j = j; point[2].loc = UP_LEFT;    point[2].c = 3;
+        point[3].i = i; point[3].j = j; point[3].loc = UP_RIGHT;   point[3].c = 3;
+        ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,4,point,epsII); CHKERRQ(ierr);
 
         for (ii = 0; ii < 4; ii++) {
-          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
-          // if (PetscAbsScalar(epsII[ii])>0) eta = eta0*PetscPowScalar(epsII[ii]/eps0,1.0/np-1.0);
-          // else eta = eta0;
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, 0, &idx); CHKERRQ(ierr);
           eta = eta0*PetscPowScalar(epsII[ii]/eps0,1.0/np-1.0);
+          if      (eta > usr->par->etamax) eta = usr->par->etamax;
+          else if (eta < usr->par->etamin) eta = usr->par->etamin;
           c[j][i][idx] = eta;
         }
       }
@@ -434,9 +472,10 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
   ierr = DMStagVecRestoreArrayDOF(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
-  
   ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
+
+  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(usr->dmeps,&xepslocal); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -449,8 +488,8 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
 PetscErrorCode FormCoefficient_StokesDarcy(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
-  PetscInt       i, j, sx, sz, nx, nz;
-  Vec            coefflocal, xlocal;
+  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
+  Vec            coefflocal, xlocal, xepslocal;
   PetscScalar    **coordx,**coordz;
   PetscInt       iprev, inext, icenter;
   PetscScalar    eta0,eps0,np,R,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat;
@@ -472,8 +511,14 @@ PetscErrorCode FormCoefficient_StokesDarcy(FDPDE fd, DM dm, Vec x, DM dmcoeff, V
   n    = usr->par->n;
   k_hat= usr->par->k_hat;
 
+  // Strain rates
+  ierr = UpdateStrainRates(dm,x,usr); CHKERRQ(ierr);
+  ierr = DMGetLocalVector(usr->dmeps, &xepslocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (usr->dmeps, usr->xeps, INSERT_VALUES, xepslocal); CHKERRQ(ierr);
+
   // Get domain corners
   ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL);CHKERRQ(ierr);
 
   // Get dm coordinates array
   ierr = DMStagGet1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -495,34 +540,34 @@ PetscErrorCode FormCoefficient_StokesDarcy(FDPDE fd, DM dm, Vec x, DM dmcoeff, V
 
       { // A = eta (center, c=1)
         DMStagStencil point;
-        PetscScalar   eta,epsII,exx,ezz,exz;
-        point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 1;
-        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        PetscScalar   eta,epsII;
 
-        // get effective viscosity
-        ierr = DMStagGetPointStrainRates(dm,xlocal,1,&point,&epsII,&exx,&ezz,&exz); CHKERRQ(ierr);
+        point.i = i; point.j = j; point.loc = ELEMENT; point.c = 3;
+        ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,1,&point,&epsII); CHKERRQ(ierr);
+
         eta = eta0*PetscPowScalar(epsII/eps0,1.0/np-1.0);
+        if      (eta > usr->par->etamax) eta = usr->par->etamax;
+        else if (eta < usr->par->etamin) eta = usr->par->etamin;
+        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, 1, &idx); CHKERRQ(ierr);
         c[j][i][idx] = eta;
       }
 
       { // A = eta (corner, c=0)
         DMStagStencil point[4];
-        PetscScalar   eta,epsII[4],exx[4],ezz[4],exz[4];
+        PetscScalar   eta,epsII[4];
         PetscInt      ii;
 
-        point[0].i = i; point[0].j = j; point[0].loc = DOWN_LEFT;  point[0].c = 0;
-        point[1].i = i; point[1].j = j; point[1].loc = DOWN_RIGHT; point[1].c = 0;
-        point[2].i = i; point[2].j = j; point[2].loc = UP_LEFT;    point[2].c = 0;
-        point[3].i = i; point[3].j = j; point[3].loc = UP_RIGHT;   point[3].c = 0;
-
-        // get effective viscosity
-        ierr = DMStagGetPointStrainRates(dm,xlocal,4,point,epsII,exx,ezz,exz); CHKERRQ(ierr);
+        point[0].i = i; point[0].j = j; point[0].loc = DOWN_LEFT;  point[0].c = 3;
+        point[1].i = i; point[1].j = j; point[1].loc = DOWN_RIGHT; point[1].c = 3;
+        point[2].i = i; point[2].j = j; point[2].loc = UP_LEFT;    point[2].c = 3;
+        point[3].i = i; point[3].j = j; point[3].loc = UP_RIGHT;   point[3].c = 3;
+        ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,4,point,epsII); CHKERRQ(ierr);
 
         for (ii = 0; ii < 4; ii++) {
-          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
-          // if (PetscAbsScalar(epsII[ii])>0) eta = eta0*PetscPowScalar(epsII[ii]/eps0,1.0/np-1.0);
-          // else eta = eta0;
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, 0, &idx); CHKERRQ(ierr);
           eta = eta0*PetscPowScalar(epsII[ii]/eps0,1.0/np-1.0);
+          if      (eta > usr->par->etamax) eta = usr->par->etamax;
+          else if (eta < usr->par->etamin) eta = usr->par->etamin;
           c[j][i][idx] = eta;
         }
       }
@@ -571,18 +616,20 @@ PetscErrorCode FormCoefficient_StokesDarcy(FDPDE fd, DM dm, Vec x, DM dmcoeff, V
 
       { // D1 = xi=zeta-2/3eta (center, c=2)
         DMStagStencil point;
-        PetscScalar   phi,xi,zeta,eta,epsII,exx,ezz,exz;
-        point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 2;
+        PetscScalar   phi,xi,zeta,eta,epsII;
 
-        // get effective viscosity
-        ierr = DMStagGetPointStrainRates(dm,xlocal,1,&point,&epsII,&exx,&ezz,&exz); CHKERRQ(ierr);
-        eta  = eta0*PetscPowScalar(epsII/eps0,1.0/np-1.0);
+        point.i = i; point.j = j; point.loc = ELEMENT; point.c = 3;
+        ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,1,&point,&epsII); CHKERRQ(ierr);
+
+        eta = eta0*PetscPowScalar(epsII/eps0,1.0/np-1.0);
+        if      (eta > usr->par->etamax) eta = usr->par->etamax;
+        else if (eta < usr->par->etamin) eta = usr->par->etamin;
 
         phi  = get_phi(coordx[i][icenter],coordz[j][icenter],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
         zeta = eta/phi;
         xi   = zeta-2.0/3.0*eta;
 
-        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, 2, &idx); CHKERRQ(ierr);
         c[j][i][idx] = xi;
       }
 
@@ -640,10 +687,11 @@ PetscErrorCode FormCoefficient_StokesDarcy(FDPDE fd, DM dm, Vec x, DM dmcoeff, V
 
   ierr = DMStagVecRestoreArrayDOF(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
-  
+  ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);  
   ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
+
+  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(usr->dmeps,&xepslocal); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -779,14 +827,15 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 // ---------------------------------------
 // Compute manufactured solution
 // ---------------------------------------
-PetscErrorCode ComputeManufacturedSolution(DM dm,Vec *_xMMS, void *ctx)
+PetscErrorCode ComputeManufacturedSolution(DM dm,Vec *_xMMS, Vec *_xepsMMS, void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
+  DM             dmeps;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, idx;
   PetscInt       iprev, inext, icenter;
-  PetscScalar    ***xxMMS;
+  PetscScalar    ***xxMMS, ***xxeps;
   PetscScalar    **coordx,**coordz;
-  Vec            xMMS, xMMSlocal;
+  Vec            xMMS, xMMSlocal, xeps, xepslocal;
   PetscScalar    eta0,eps0,np,R,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat;
   PetscErrorCode ierr;
 
@@ -805,10 +854,16 @@ PetscErrorCode ComputeManufacturedSolution(DM dm,Vec *_xMMS, void *ctx)
   n    = usr->par->n;
   k_hat= usr->par->k_hat;
 
+  dmeps = usr->dmeps;
+
   // Create local and global vectors for MMS solution
   ierr = DMCreateGlobalVector(dm,&xMMS     ); CHKERRQ(ierr);
   ierr = DMCreateLocalVector (dm,&xMMSlocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArrayDOF(dm,xMMSlocal,&xxMMS); CHKERRQ(ierr);
+
+  ierr = DMCreateGlobalVector(dmeps,&xeps     ); CHKERRQ(ierr);
+  ierr = DMCreateLocalVector (dmeps,&xepslocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayDOF(dmeps,xepslocal,&xxeps); CHKERRQ(ierr);
 
   // Get domain corners
   ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
@@ -823,6 +878,7 @@ PetscErrorCode ComputeManufacturedSolution(DM dm,Vec *_xMMS, void *ctx)
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
+      PetscScalar    exxc, ezzc, exzc, exxn[4], ezzn[4], exzn[4];
 
       // pressure
       ierr = DMStagGetLocationSlot(dm,ELEMENT,0,&idx); CHKERRQ(ierr);
@@ -845,6 +901,52 @@ PetscErrorCode ComputeManufacturedSolution(DM dm,Vec *_xMMS, void *ctx)
         ierr = DMStagGetLocationSlot(dm,UP,0,&idx); CHKERRQ(ierr);
         xxMMS[j][i][idx] = get_uz(coordx[i][icenter],coordz[j][inext],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
       }
+
+      // strain rates - center
+      exxc    = get_exx(coordx[i][icenter],coordz[j][icenter],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      ezzc    = get_ezz(coordx[i][icenter],coordz[j][icenter],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      exzc    = get_exz(coordx[i][icenter],coordz[j][icenter],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+
+      ierr = DMStagGetLocationSlot(dmeps,ELEMENT,0,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = exxc; 
+      ierr = DMStagGetLocationSlot(dmeps,ELEMENT,1,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = ezzc;
+      ierr = DMStagGetLocationSlot(dmeps,ELEMENT,2,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = exzc;
+      ierr = DMStagGetLocationSlot(dmeps,ELEMENT,3,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = 0.0;
+
+      // strain rates - corner
+      exxn[0] = get_exx(coordx[i][iprev  ],coordz[j][iprev  ],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      exxn[1] = get_exx(coordx[i][inext  ],coordz[j][iprev  ],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      exxn[2] = get_exx(coordx[i][iprev  ],coordz[j][inext  ],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      exxn[3] = get_exx(coordx[i][inext  ],coordz[j][inext  ],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+
+      ezzn[0] = get_ezz(coordx[i][iprev  ],coordz[j][iprev  ],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      ezzn[1] = get_ezz(coordx[i][inext  ],coordz[j][iprev  ],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      ezzn[2] = get_ezz(coordx[i][iprev  ],coordz[j][inext  ],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      ezzn[3] = get_ezz(coordx[i][inext  ],coordz[j][inext  ],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+
+      exzn[0] = get_exz(coordx[i][iprev  ],coordz[j][iprev  ],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      exzn[1] = get_exz(coordx[i][inext  ],coordz[j][iprev  ],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      exzn[2] = get_exz(coordx[i][iprev  ],coordz[j][inext  ],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      exzn[3] = get_exz(coordx[i][inext  ],coordz[j][inext  ],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+
+      ierr = DMStagGetLocationSlot(dmeps,DOWN_LEFT,0,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = exxn[0];
+      ierr = DMStagGetLocationSlot(dmeps,DOWN_LEFT,1,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = ezzn[0];
+      ierr = DMStagGetLocationSlot(dmeps,DOWN_LEFT,2,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = exzn[0];
+      ierr = DMStagGetLocationSlot(dmeps,DOWN_LEFT,3,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = 0.0;
+
+      ierr = DMStagGetLocationSlot(dmeps,DOWN_RIGHT,0,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = exxn[1];
+      ierr = DMStagGetLocationSlot(dmeps,DOWN_RIGHT,1,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = ezzn[1];
+      ierr = DMStagGetLocationSlot(dmeps,DOWN_RIGHT,2,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = exzn[1];
+      ierr = DMStagGetLocationSlot(dmeps,DOWN_RIGHT,3,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = 0.0;
+
+      ierr = DMStagGetLocationSlot(dmeps,UP_LEFT,0,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = exxn[2];
+      ierr = DMStagGetLocationSlot(dmeps,UP_LEFT,1,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = ezzn[2];
+      ierr = DMStagGetLocationSlot(dmeps,UP_LEFT,2,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = exzn[2];
+      ierr = DMStagGetLocationSlot(dmeps,UP_LEFT,3,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = 0.0;
+
+      ierr = DMStagGetLocationSlot(dmeps,UP_RIGHT,0,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = exxn[3]; 
+      ierr = DMStagGetLocationSlot(dmeps,UP_RIGHT,1,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = ezzn[3]; 
+      ierr = DMStagGetLocationSlot(dmeps,UP_RIGHT,2,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = exzn[3];
+      ierr = DMStagGetLocationSlot(dmeps,UP_RIGHT,3,&idx); CHKERRQ(ierr); xxeps[j][i][idx] = 0.0;
     }
   }
 
@@ -856,10 +958,148 @@ PetscErrorCode ComputeManufacturedSolution(DM dm,Vec *_xMMS, void *ctx)
   ierr = DMLocalToGlobalBegin(dm,xMMSlocal,INSERT_VALUES,xMMS); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dm,xMMSlocal,INSERT_VALUES,xMMS); CHKERRQ(ierr);
   ierr = VecDestroy(&xMMSlocal); CHKERRQ(ierr);
+
+  ierr = DMStagVecRestoreArrayDOF(dmeps,xepslocal,&xxeps); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dmeps,xepslocal,INSERT_VALUES,xeps); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dmeps,xepslocal,INSERT_VALUES,xeps); CHKERRQ(ierr);
+  ierr = VecDestroy(&xepslocal); CHKERRQ(ierr);
+
   ierr = DMStagViewBinaryPython(dm,xMMS,"out_mms_solution");CHKERRQ(ierr);
+  ierr = DMStagViewBinaryPython(dmeps,xeps,"out_mms_strain");CHKERRQ(ierr);
 
   // Assign pointers
-  *_xMMS  = xMMS;
+  *_xMMS    = xMMS;
+  *_xepsMMS = xeps;
+  
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// UpdateStrainRates
+// ---------------------------------------
+PetscErrorCode UpdateStrainRates(DM dm, Vec x, void *ctx)
+{
+  UsrData       *usr = (UsrData*) ctx;
+  DM             dmeps;
+  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, idx;
+  PetscInt       iprev, inext, icenter;
+  PetscScalar    ***xx;
+  PetscScalar    **coordx,**coordz;
+  Vec            xeps, xepslocal,xlocal;
+  PetscScalar    eta0,eps0,np,R,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  eta0 = usr->par->eta0;
+  eps0 = usr->par->eps0;
+  np   = usr->par->np;
+  R    = usr->par->R;
+  phi_0= usr->par->phi_0;
+  phi_s= usr->par->phi_s;
+  p_s  = usr->par->p_s;
+  psi_s= usr->par->psi_s;
+  U_s  = usr->par->U_s;
+  m    = usr->par->m;
+  n    = usr->par->n;
+  k_hat= usr->par->k_hat;
+
+  dmeps = usr->dmeps;
+  xeps  = usr->xeps;
+
+  // Local vectors
+  ierr = DMCreateLocalVector (dmeps,&xepslocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayDOF(dmeps,xepslocal,&xx); CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(dm,&xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal); CHKERRQ(ierr);
+
+  // Get domain corners
+  ierr = DMStagGetGlobalSizes(dmeps, &Nx, &Nz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetCorners(dmeps, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  
+  // Get dm coordinates array
+  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
+  ierr = DMStagGet1dCoordinateLocationSlot(dm,LEFT,&iprev);CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateLocationSlot(dm,RIGHT,&inext);CHKERRQ(ierr); 
+
+  // Loop over local domain
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      DMStagStencil  pointC, pointN[4];
+      PetscScalar    epsIIc, exxc, ezzc, exzc, epsIIn[4], exxn[4], ezzn[4], exzn[4], xp[4], zp[4];
+      PetscInt       ii;
+
+      // Strain rates: center
+      pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
+      ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
+
+      if ((i==0) || (i==Nx-1) || (j==0) || (j==Nz-1)) {
+        exzc = get_exz(coordx[i][icenter],coordz[j][icenter],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+        exxc = get_exx(coordx[i][icenter],coordz[j][icenter],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+        ezzc = get_ezz(coordx[i][icenter],coordz[j][icenter],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+        epsIIc = PetscPowScalar(0.5*(exxc*exxc + ezzc*ezzc + 2.0*exzc*exzc),0.5);
+      }
+
+      ierr = DMStagGetLocationSlot(dmeps,ELEMENT,0,&idx); CHKERRQ(ierr); xx[j][i][idx] = exxc;
+      ierr = DMStagGetLocationSlot(dmeps,ELEMENT,1,&idx); CHKERRQ(ierr); xx[j][i][idx] = ezzc;
+      ierr = DMStagGetLocationSlot(dmeps,ELEMENT,2,&idx); CHKERRQ(ierr); xx[j][i][idx] = exzc;
+      ierr = DMStagGetLocationSlot(dmeps,ELEMENT,3,&idx); CHKERRQ(ierr); xx[j][i][idx] = epsIIc;
+
+      // Strain rates: corner
+      pointN[0].i = i; pointN[0].j = j; pointN[0].loc = DOWN_LEFT;  pointN[0].c = 0;
+      pointN[1].i = i; pointN[1].j = j; pointN[1].loc = DOWN_RIGHT; pointN[1].c = 0;
+      pointN[2].i = i; pointN[2].j = j; pointN[2].loc = UP_LEFT;    pointN[2].c = 0;
+      pointN[3].i = i; pointN[3].j = j; pointN[3].loc = UP_RIGHT;   pointN[3].c = 0;
+      ierr = DMStagGetPointStrainRates(dm,xlocal,4,pointN,epsIIn,exxn,ezzn,exzn); CHKERRQ(ierr);
+
+      if ((i==0) || (i==Nx-1) || (j==0) || (j==Nz-1)) {
+        xp[0] = coordx[i][iprev]; zp[0] = coordz[j][iprev];
+        xp[1] = coordx[i][inext]; zp[1] = coordz[j][iprev];
+        xp[2] = coordx[i][iprev]; zp[2] = coordz[j][inext];
+        xp[3] = coordx[i][inext]; zp[3] = coordz[j][inext];
+
+        for (ii = 0; ii < 4; ii++) {
+          exxn[ii] = get_exx(xp[ii],zp[ii],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+          ezzn[ii] = get_ezz(xp[ii],zp[ii],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+          exzn[ii] = get_exz(xp[ii],zp[ii],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+          epsIIn[ii] = PetscPowScalar(0.5*(exxn[ii]*exxn[ii] + ezzn[ii]*ezzn[ii] + 2.0*exzn[ii]*exzn[ii]),0.5);
+        }
+      }
+
+      ierr = DMStagGetLocationSlot(dmeps,DOWN_LEFT,0,&idx); CHKERRQ(ierr); xx[j][i][idx] = exxn[0];
+      ierr = DMStagGetLocationSlot(dmeps,DOWN_LEFT,1,&idx); CHKERRQ(ierr); xx[j][i][idx] = ezzn[0];
+      ierr = DMStagGetLocationSlot(dmeps,DOWN_LEFT,2,&idx); CHKERRQ(ierr); xx[j][i][idx] = exzn[0];
+      ierr = DMStagGetLocationSlot(dmeps,DOWN_LEFT,3,&idx); CHKERRQ(ierr); xx[j][i][idx] = epsIIn[0];
+
+      ierr = DMStagGetLocationSlot(dmeps,DOWN_RIGHT,0,&idx); CHKERRQ(ierr); xx[j][i][idx] = exxn[1];
+      ierr = DMStagGetLocationSlot(dmeps,DOWN_RIGHT,1,&idx); CHKERRQ(ierr); xx[j][i][idx] = ezzn[1];
+      ierr = DMStagGetLocationSlot(dmeps,DOWN_RIGHT,2,&idx); CHKERRQ(ierr); xx[j][i][idx] = exzn[1];
+      ierr = DMStagGetLocationSlot(dmeps,DOWN_RIGHT,3,&idx); CHKERRQ(ierr); xx[j][i][idx] = epsIIn[1];
+
+      ierr = DMStagGetLocationSlot(dmeps,UP_LEFT,0,&idx); CHKERRQ(ierr); xx[j][i][idx] = exxn[2];
+      ierr = DMStagGetLocationSlot(dmeps,UP_LEFT,1,&idx); CHKERRQ(ierr); xx[j][i][idx] = ezzn[2];
+      ierr = DMStagGetLocationSlot(dmeps,UP_LEFT,2,&idx); CHKERRQ(ierr); xx[j][i][idx] = exzn[2];
+      ierr = DMStagGetLocationSlot(dmeps,UP_LEFT,3,&idx); CHKERRQ(ierr); xx[j][i][idx] = epsIIn[2];
+
+      ierr = DMStagGetLocationSlot(dmeps,UP_RIGHT,0,&idx); CHKERRQ(ierr); xx[j][i][idx] = exxn[3];
+      ierr = DMStagGetLocationSlot(dmeps,UP_RIGHT,1,&idx); CHKERRQ(ierr); xx[j][i][idx] = ezzn[3];
+      ierr = DMStagGetLocationSlot(dmeps,UP_RIGHT,2,&idx); CHKERRQ(ierr); xx[j][i][idx] = exzn[3];
+      ierr = DMStagGetLocationSlot(dmeps,UP_RIGHT,3,&idx); CHKERRQ(ierr); xx[j][i][idx] = epsIIn[3];
+    }
+  }
+
+  // Restore arrays
+  ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+
+  // Restore and map local to global
+  ierr = DMStagVecRestoreArrayDOF(dmeps,xepslocal,&xx); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dmeps,xepslocal,INSERT_VALUES,xeps); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dmeps,xepslocal,INSERT_VALUES,xeps); CHKERRQ(ierr);
+  ierr = VecDestroy(&xepslocal); CHKERRQ(ierr);
+
+  ierr = DMRestoreLocalVector(dm, &xlocal ); CHKERRQ(ierr);
   
   PetscFunctionReturn(0);
 }
@@ -867,16 +1107,33 @@ PetscErrorCode ComputeManufacturedSolution(DM dm,Vec *_xMMS, void *ctx)
 // ---------------------------------------
 // ComputeErrorNorms
 // ---------------------------------------
-PetscErrorCode ComputeErrorNorms(DM dm,Vec x,Vec xMMS,PetscInt test)
+PetscErrorCode ComputeErrorNorms(DM dm,Vec x,Vec xMMS,Vec xepsMMS,PetscInt test, void *ctx)
 {
+  UsrData       *usr = (UsrData*) ctx;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
   PetscScalar    xx[5], xa[5], dx, dz, dv;
-  PetscScalar    nrm2p, nrm2v, nrm2vx, nrm2vz, sum_err[3], gsum_err[3], sum_mms[3], gsum_mms[3];
-  Vec            xlocal, xalocal;
+  PetscScalar    nrm2p, nrm2v, nrm2vx, nrm2vz, nrm2ec[3], nrm2en[3], sum_err[9], gsum_err[9], sum_mms[9], gsum_mms[9];
+  Vec            xlocal, xalocal,xepsMMSlocal, xepslocal;
+  PetscScalar    eta0,eps0,np,R,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat;
+  PetscInt       iprev, inext, icenter, ii;
+  PetscScalar    **coordx,**coordz;
   MPI_Comm       comm;
-
   PetscErrorCode ierr;
+  
   PetscFunctionBegin;
+
+  eta0 = usr->par->eta0;
+  eps0 = usr->par->eps0;
+  np   = usr->par->np;
+  R    = usr->par->R;
+  phi_0= usr->par->phi_0;
+  phi_s= usr->par->phi_s;
+  p_s  = usr->par->p_s;
+  psi_s= usr->par->psi_s;
+  U_s  = usr->par->U_s;
+  m    = usr->par->m;
+  n    = usr->par->n;
+  k_hat= usr->par->k_hat;
 
   comm = PETSC_COMM_WORLD;
 
@@ -891,9 +1148,26 @@ PetscErrorCode ComputeErrorNorms(DM dm,Vec x,Vec xMMS,PetscInt test)
   ierr = DMGetLocalVector(dm, &xalocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dm, xMMS, INSERT_VALUES, xalocal); CHKERRQ(ierr);
 
+  ierr = DMGetLocalVector(usr->dmeps, &xepslocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (usr->dmeps, usr->xeps, INSERT_VALUES, xepslocal); CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(usr->dmeps, &xepsMMSlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (usr->dmeps, xepsMMS, INSERT_VALUES, xepsMMSlocal); CHKERRQ(ierr);
+
+  // Get dm coordinates array
+  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
+  ierr = DMStagGet1dCoordinateLocationSlot(dm,LEFT,&iprev);CHKERRQ(ierr);
+  ierr = DMStagGet1dCoordinateLocationSlot(dm,RIGHT,&inext);CHKERRQ(ierr); 
+
   // Initialize norms
-  sum_err[0] = 0.0; sum_err[1] = 0.0; sum_err[2] = 0.0;
-  sum_mms[0] = 0.0; sum_mms[1] = 0.0; sum_mms[2] = 0.0;
+  sum_err[0] = 0.0; sum_err[1] = 0.0; sum_err[2] = 0.0; 
+  sum_err[3] = 0.0; sum_err[4] = 0.0; sum_err[5] = 0.0;
+  sum_err[6] = 0.0; sum_err[7] = 0.0; sum_err[8] = 0.0;
+
+  sum_mms[0] = 0.0; sum_mms[1] = 0.0; sum_mms[2] = 0.0; 
+  sum_mms[3] = 0.0; sum_mms[4] = 0.0; sum_mms[5] = 0.0;
+  sum_mms[6] = 0.0; sum_mms[7] = 0.0; sum_mms[8] = 0.0;
 
   dx = 1.0/Nx;
   dz = 1.0/Nz;
@@ -903,7 +1177,11 @@ PetscErrorCode ComputeErrorNorms(DM dm,Vec x,Vec xMMS,PetscInt test)
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
       
-      PetscScalar    ve[4], pe, v[4], p;
+      PetscScalar    ve[4], pe, v[4], p, eps[4],epsa[4];
+      PetscScalar    exxc, ezzc, exzc, exxn[4], ezzn[4], exzn[4];
+      PetscScalar    exxac, ezzac, exzac, exxan[4], ezzan[4], exzan[4];
+      PetscScalar    exxc_err, ezzc_err, exzc_err, exxn_err[4], ezzn_err[4], exzn_err[4];
+      PetscScalar    exxc_mms, ezzc_mms, exzc_mms, exxn_mms[4], ezzn_mms[4], exzn_mms[4];
       DMStagStencil  point[5];
       
       // Get stencil values
@@ -912,12 +1190,40 @@ PetscErrorCode ComputeErrorNorms(DM dm,Vec x,Vec xMMS,PetscInt test)
       point[2].i = i; point[2].j = j; point[2].loc = DOWN;    point[2].c = 0; // Vz
       point[3].i = i; point[3].j = j; point[3].loc = UP;      point[3].c = 0; // Vz
       point[4].i = i; point[4].j = j; point[4].loc = ELEMENT; point[4].c = 0; // P
-
-      // Get numerical solution
+      
+      // Get numerical and MMS solutions
       ierr = DMStagVecGetValuesStencil(dm, xlocal, 5, point, xx); CHKERRQ(ierr);
+      ierr = DMStagVecGetValuesStencil(dm, xalocal,5, point, xa); CHKERRQ(ierr);
 
-      // Get analytical solution
-      ierr = DMStagVecGetValuesStencil(dm, xalocal, 5, point, xa); CHKERRQ(ierr);
+      // Strain rates: center
+      point[0].i = i; point[0].j = j; point[0].loc = ELEMENT; point[0].c = 0;
+      point[1].i = i; point[1].j = j; point[1].loc = ELEMENT; point[1].c = 1;
+      point[2].i = i; point[2].j = j; point[2].loc = ELEMENT; point[2].c = 2;
+
+      ierr = DMStagVecGetValuesStencil(usr->dmeps, xepslocal,   3, point,eps ); CHKERRQ(ierr);
+      ierr = DMStagVecGetValuesStencil(usr->dmeps, xepsMMSlocal,3, point,epsa); CHKERRQ(ierr);
+      exxc  = eps[0];  ezzc  = eps[1];  exzc  = eps[2];
+      exxac = epsa[0]; ezzac = epsa[1]; exzac = epsa[2];
+
+      // Strain rates: corner
+      point[0].i = i; point[0].j = j; point[0].loc = DOWN_LEFT;  point[0].c = 0;
+      point[1].i = i; point[1].j = j; point[1].loc = DOWN_RIGHT; point[1].c = 0;
+      point[2].i = i; point[2].j = j; point[2].loc = UP_LEFT;    point[2].c = 0;
+      point[3].i = i; point[3].j = j; point[3].loc = UP_RIGHT;   point[3].c = 0;
+
+      ierr = DMStagVecGetValuesStencil(usr->dmeps, xepslocal,   4, point,eps ); CHKERRQ(ierr);
+      ierr = DMStagVecGetValuesStencil(usr->dmeps, xepsMMSlocal,4, point,epsa); CHKERRQ(ierr);
+      for (ii = 0; ii < 4; ii++) { exxn[ii] = eps[ii]; exxan[ii] = epsa[ii]; }
+
+      for (ii = 0; ii < 4; ii++) point[ii].c = 1;
+      ierr = DMStagVecGetValuesStencil(usr->dmeps, xepslocal,   4, point,eps ); CHKERRQ(ierr);
+      ierr = DMStagVecGetValuesStencil(usr->dmeps, xepsMMSlocal,4, point,epsa); CHKERRQ(ierr);
+      for (ii = 0; ii < 4; ii++) { ezzn[ii] = eps[ii]; ezzan[ii] = epsa[ii]; }
+
+      for (ii = 0; ii < 4; ii++) point[ii].c = 2;
+      ierr = DMStagVecGetValuesStencil(usr->dmeps, xepslocal,   4, point,eps ); CHKERRQ(ierr);
+      ierr = DMStagVecGetValuesStencil(usr->dmeps, xepsMMSlocal,4, point,epsa); CHKERRQ(ierr);
+      for (ii = 0; ii < 4; ii++) { exzn[ii] = eps[ii]; exzan[ii] = epsa[ii]; }
 
       // Error vectors - squared
       ve[0] = (xx[0]-xa[0])*(xx[0]-xa[0]); // Left
@@ -926,12 +1232,50 @@ PetscErrorCode ComputeErrorNorms(DM dm,Vec x,Vec xMMS,PetscInt test)
       ve[3] = (xx[3]-xa[3])*(xx[3]-xa[3]); // Up
       pe    = (xx[4]-xa[4])*(xx[4]-xa[4]); // elem
 
+      exxc_err    = (exxc-exxac)*(exxc-exxac);
+      ezzc_err    = (ezzc-ezzac)*(ezzc-ezzac);
+      exzc_err    = (exzc-exzac)*(exzc-exzac);
+
+      exxn_err[0] = (exxn[0]-exxan[0])*(exxn[0]-exxan[0]);
+      exxn_err[1] = (exxn[1]-exxan[1])*(exxn[1]-exxan[1]);
+      exxn_err[2] = (exxn[2]-exxan[2])*(exxn[2]-exxan[2]);
+      exxn_err[3] = (exxn[3]-exxan[3])*(exxn[3]-exxan[3]);
+
+      ezzn_err[0] = (ezzn[0]-ezzan[0])*(ezzn[0]-ezzan[0]);
+      ezzn_err[1] = (ezzn[1]-ezzan[1])*(ezzn[1]-ezzan[1]);
+      ezzn_err[2] = (ezzn[2]-ezzan[2])*(ezzn[2]-ezzan[2]);
+      ezzn_err[3] = (ezzn[3]-ezzan[3])*(ezzn[3]-ezzan[3]);
+
+      exzn_err[0] = (exzn[0]-exzan[0])*(exzn[0]-exzan[0]);
+      exzn_err[1] = (exzn[1]-exzan[1])*(exzn[1]-exzan[1]);
+      exzn_err[2] = (exzn[2]-exzan[2])*(exzn[2]-exzan[2]);
+      exzn_err[3] = (exzn[3]-exzan[3])*(exzn[3]-exzan[3]);
+
       // MMS values - squared
       v[0] = xa[0]*xa[0]; // Left
       v[1] = xa[1]*xa[1]; // Right
       v[2] = xa[2]*xa[2]; // Down
       v[3] = xa[3]*xa[3]; // Up
       p    = xa[4]*xa[4]; // elem
+
+      exxc_mms    = exxac*exxac;
+      ezzc_mms    = ezzac*ezzac;
+      exzc_mms    = exzac*exzac;
+
+      exxn_mms[0] = exxan[0]*exxan[0];
+      exxn_mms[1] = exxan[1]*exxan[1];
+      exxn_mms[2] = exxan[2]*exxan[2];
+      exxn_mms[3] = exxan[3]*exxan[3];
+
+      ezzn_mms[0] = ezzan[0]*ezzan[0];
+      ezzn_mms[1] = ezzan[1]*ezzan[1];
+      ezzn_mms[2] = ezzan[2]*ezzan[2];
+      ezzn_mms[3] = ezzan[3]*ezzan[3];
+
+      exzn_mms[0] = exzan[0]*exzan[0];
+      exzn_mms[1] = exzan[1]*exzan[1];
+      exzn_mms[2] = exzan[2]*exzan[2];
+      exzn_mms[3] = exzan[3]*exzan[3];
 
       // Calculate sums for L2 norms as in Katz, ch 13 - but taking into account the staggered grid
       if      (i == 0   ) { sum_err[0] += ve[0]*dv*0.5; sum_err[0] += ve[1]*dv; }
@@ -951,12 +1295,103 @@ PetscErrorCode ComputeErrorNorms(DM dm,Vec x,Vec xMMS,PetscInt test)
       else if (j == Nz-1) sum_mms[1] += v[3]*dv*0.5;
       else                sum_mms[1] += v[3]*dv;
       sum_mms[2] += p*dv;
+
+      // strain rates - center
+      sum_err[3] += exxc_err*dv;
+      sum_mms[3] += exxc_mms*dv;
+
+      sum_err[4] += ezzc_err*dv;
+      sum_mms[4] += ezzc_mms*dv;
+
+      sum_err[5] += exzc_err*dv;
+      sum_mms[5] += exzc_mms*dv;
+
+      // strain rates - corner
+      if (j == 0) { 
+        if (i == 0) { 
+          sum_err[6] += exxn_err[0]*dv*0.25; sum_err[6] += exxn_err[1]*dv*0.5; sum_err[6] += exxn_err[2]*dv*0.5; sum_err[6] += exxn_err[3]*dv; 
+          sum_err[7] += ezzn_err[0]*dv*0.25; sum_err[7] += ezzn_err[1]*dv*0.5; sum_err[7] += ezzn_err[2]*dv*0.5; sum_err[7] += ezzn_err[3]*dv; 
+          sum_err[8] += exzn_err[0]*dv*0.25; sum_err[8] += exzn_err[1]*dv*0.5; sum_err[8] += exzn_err[2]*dv*0.5; sum_err[8] += exzn_err[3]*dv; 
+
+          sum_mms[6] += exxn_mms[0]*dv*0.25; sum_mms[6] += exxn_mms[1]*dv*0.5; sum_mms[6] += exxn_mms[2]*dv*0.5; sum_mms[6] += exxn_mms[3]*dv; 
+          sum_mms[7] += ezzn_mms[0]*dv*0.25; sum_mms[7] += ezzn_mms[1]*dv*0.5; sum_mms[7] += ezzn_mms[2]*dv*0.5; sum_mms[7] += ezzn_mms[3]*dv; 
+          sum_mms[8] += exzn_mms[0]*dv*0.25; sum_mms[8] += exzn_mms[1]*dv*0.5; sum_mms[8] += exzn_mms[2]*dv*0.5; sum_mms[8] += exzn_mms[3]*dv; 
+        } else if (i == Nx-1) { 
+          sum_err[6] += exxn_err[1]*dv*0.25; sum_err[6] += exxn_err[3]*dv*0.5; 
+          sum_err[7] += ezzn_err[1]*dv*0.25; sum_err[7] += ezzn_err[3]*dv*0.5; 
+          sum_err[8] += exzn_err[1]*dv*0.25; sum_err[8] += exzn_err[3]*dv*0.5; 
+
+          sum_mms[6] += exxn_mms[1]*dv*0.25; sum_mms[6] += exxn_mms[3]*dv*0.5; 
+          sum_mms[7] += ezzn_mms[1]*dv*0.25; sum_mms[7] += ezzn_mms[3]*dv*0.5; 
+          sum_mms[8] += exzn_mms[1]*dv*0.25; sum_mms[8] += exzn_mms[3]*dv*0.5; 
+        } else { 
+          sum_err[6] += exxn_err[1]*dv*0.5;  sum_err[6] += exxn_err[3]*dv; 
+          sum_err[7] += ezzn_err[1]*dv*0.5;  sum_err[7] += ezzn_err[3]*dv; 
+          sum_err[8] += exzn_err[1]*dv*0.5;  sum_err[8] += exzn_err[3]*dv;
+
+          sum_mms[6] += exxn_mms[1]*dv*0.5;  sum_mms[6] += exxn_mms[3]*dv; 
+          sum_mms[7] += ezzn_mms[1]*dv*0.5;  sum_mms[7] += ezzn_mms[3]*dv; 
+          sum_mms[8] += exzn_mms[1]*dv*0.5;  sum_mms[8] += exzn_mms[3]*dv;
+        }
+      } else if (j == Nz-1) { 
+        if (i == 0) { 
+          sum_err[6] += exxn_err[2]*dv*0.25; sum_err[6] += exxn_err[3]*dv*0.5; 
+          sum_err[7] += ezzn_err[2]*dv*0.25; sum_err[7] += ezzn_err[3]*dv*0.5; 
+          sum_err[8] += exzn_err[2]*dv*0.25; sum_err[8] += exzn_err[3]*dv*0.5; 
+
+          sum_mms[6] += exxn_mms[2]*dv*0.25; sum_mms[6] += exxn_mms[3]*dv*0.5; 
+          sum_mms[7] += ezzn_mms[2]*dv*0.25; sum_mms[7] += ezzn_mms[3]*dv*0.5; 
+          sum_mms[8] += exzn_mms[2]*dv*0.25; sum_mms[8] += exzn_mms[3]*dv*0.5; 
+        } else if (i == Nx-1) { 
+          sum_err[6] += exxn_err[3]*dv*0.25; 
+          sum_err[7] += ezzn_err[3]*dv*0.25; 
+          sum_err[8] += exzn_err[3]*dv*0.25; 
+
+          sum_mms[6] += exxn_mms[3]*dv*0.25; 
+          sum_mms[7] += ezzn_mms[3]*dv*0.25; 
+          sum_mms[8] += exzn_mms[3]*dv*0.25; 
+        } else {
+          sum_err[6] += exxn_err[3]*dv*0.5; 
+          sum_err[7] += ezzn_err[3]*dv*0.5; 
+          sum_err[8] += exzn_err[3]*dv*0.5; 
+
+          sum_mms[6] += exxn_mms[3]*dv*0.5; 
+          sum_mms[7] += ezzn_mms[3]*dv*0.5; 
+          sum_mms[8] += exzn_mms[3]*dv*0.5; 
+        }
+      } else {
+        if (i == 0) { 
+          sum_err[6] += exxn_err[2]*dv*0.5; sum_err[6] += exxn_err[3]*dv; 
+          sum_err[7] += ezzn_err[2]*dv*0.5; sum_err[7] += ezzn_err[3]*dv; 
+          sum_err[8] += exzn_err[2]*dv*0.5; sum_err[8] += exzn_err[3]*dv; 
+
+          sum_mms[6] += exxn_mms[2]*dv*0.5; sum_mms[6] += exxn_mms[3]*dv; 
+          sum_mms[7] += ezzn_mms[2]*dv*0.5; sum_mms[7] += ezzn_mms[3]*dv; 
+          sum_mms[8] += exzn_mms[2]*dv*0.5; sum_mms[8] += exzn_mms[3]*dv; 
+        } else if (i == Nx-1) { 
+          sum_err[6] += exxn_err[3]*dv*0.5; 
+          sum_err[7] += ezzn_err[3]*dv*0.5; 
+          sum_err[8] += exzn_err[3]*dv*0.5; 
+
+          sum_mms[6] += exxn_mms[3]*dv*0.5; 
+          sum_mms[7] += ezzn_mms[3]*dv*0.5; 
+          sum_mms[8] += exzn_mms[3]*dv*0.5; 
+        } else {
+          sum_err[6] += exxn_err[3]*dv;
+          sum_err[7] += ezzn_err[3]*dv;
+          sum_err[8] += exzn_err[3]*dv;
+
+          sum_mms[6] += exxn_mms[3]*dv;
+          sum_mms[7] += ezzn_mms[3]*dv;
+          sum_mms[8] += exzn_mms[3]*dv;
+        }
+      }
     }
   }
 
   // Collect data 
-  ierr = MPI_Allreduce(&sum_err, &gsum_err, 3, MPI_DOUBLE, MPI_SUM, comm); CHKERRQ(ierr);
-  ierr = MPI_Allreduce(&sum_mms, &gsum_mms, 3, MPI_DOUBLE, MPI_SUM, comm); CHKERRQ(ierr);
+  ierr = MPI_Allreduce(&sum_err, &gsum_err, 9, MPI_DOUBLE, MPI_SUM, comm); CHKERRQ(ierr);
+  ierr = MPI_Allreduce(&sum_mms, &gsum_mms, 9, MPI_DOUBLE, MPI_SUM, comm); CHKERRQ(ierr);
 
   // L2 error norm = sqrt(gsum_err/gsum_mms)
   nrm2vx = PetscSqrtScalar(gsum_err[0]/gsum_mms[0]);
@@ -964,15 +1399,28 @@ PetscErrorCode ComputeErrorNorms(DM dm,Vec x,Vec xMMS,PetscInt test)
   nrm2p  = PetscSqrtScalar(gsum_err[2]/gsum_mms[2]);
   nrm2v  = PetscSqrtScalar((gsum_err[0]+gsum_err[1])/(gsum_mms[0]+gsum_mms[1]));
 
+  nrm2ec[0] = PetscSqrtScalar(gsum_err[3]/gsum_mms[3]);
+  nrm2ec[1] = PetscSqrtScalar(gsum_err[4]/gsum_mms[4]);
+  nrm2ec[2] = PetscSqrtScalar(gsum_err[5]/gsum_mms[5]);
+
+  nrm2en[0] = PetscSqrtScalar(gsum_err[6]/gsum_mms[6]);
+  nrm2en[1] = PetscSqrtScalar(gsum_err[7]/gsum_mms[7]);
+  nrm2en[2] = PetscSqrtScalar(gsum_err[8]/gsum_mms[8]);
+
   // Restore arrays and vectors
   ierr = DMRestoreLocalVector(dm, &xlocal ); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dm, &xalocal ); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(usr->dmeps, &xepslocal ); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(usr->dmeps, &xepsMMSlocal ); CHKERRQ(ierr);
+  ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
 
   // Print information
   PetscPrintf(comm,"# --------------------------------------- #\n");
   PetscPrintf(comm,"# NORMS: \n");
   PetscPrintf(comm,"# Velocity test%d: norm2 = %1.12e norm2x = %1.12e norm2z = %1.12e \n",test,nrm2v,nrm2vx,nrm2vz);
   PetscPrintf(comm,"# Pressure test%d: norm2 = %1.12e\n",test,nrm2p);
+  PetscPrintf(comm,"# Strain rates CENTER test%d: norm2_exx = %1.12e norm2_ezz = %1.12e norm2_exz = %1.12e \n",test,nrm2ec[0],nrm2ec[1],nrm2ec[2]);
+  PetscPrintf(comm,"# Strain rates CORNER test%d: norm2_exx = %1.12e norm2_ezz = %1.12e norm2_exz = %1.12e \n",test,nrm2en[0],nrm2en[1],nrm2en[2]);
   PetscPrintf(comm,"# Grid info test%d: hx = %1.12e hz = %1.12e\n",test,dx,dz);
 
   PetscFunctionReturn(0);

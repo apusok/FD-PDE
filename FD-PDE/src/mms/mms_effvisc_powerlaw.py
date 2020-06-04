@@ -34,29 +34,37 @@ m     = Symbol('m')
 k_hat = Symbol('k_hat') # unit vector of gravity
 R     = Symbol('R')
 
-# Pressure
-p = p_s*cos(m*pi*x)*cos(m*pi*z)
+# MMS01 - Rhebergen et al 2014
+# p = p_s*cos(m*pi*x)*cos(m*pi*z)
 
-# Velocity using potential functions
-psi = psi_s*(1.0-cos(m*pi*x))*(1.0-cos(m*pi*z))
-U   = -U_s*cos(m*pi*x)*cos(m*pi*z)
+# dpdx = diff(p,x)
+# dpdz = diff(p,z)
 
-curl_psix = diff(psi,z)
-curl_psiz = -diff(psi,x)
-gradUx    = diff(U,x)
-gradUz    = diff(U,z)
+# k_us = 1.5
+# k_ls = 0.5
+# k = 0.25*(k_us-k_ls)/tanh(5.0)*( 2.0 + tanh(10.0*x-5.0) + tanh(10.0*z-5.0) + (2.0*(k_us-k_ls)-2.0*tanh(5.0)*(k_ls+k_us))/(k_ls-k_us) )
+
+# ux = k*dpdx + sin(pi*x)*sin(2.0*pi*z) + 2.0
+# uz = k*dpdz + 0.5*cos(pi*x)*cos(2.0*pi*z) + 2.0 
+
+# MMS02 - potential form
+# p = p_s*cos(m*pi*x)*cos(m*pi*z)
+
+# psi = psi_s*(1.0-cos(m*pi*x))*(1.0-cos(m*pi*z))
+# U   = -U_s*cos(m*pi*x)*cos(m*pi*z)
+
+# curl_psix = diff(psi,z)
+# curl_psiz = -diff(psi,x)
+# gradUx    = diff(U,x)
+# gradUz    = diff(U,z)
 
 # ux = curl_psix + gradUx
 # uz = curl_psiz + gradUz
 
-dpdx = diff(p,x)
-dpdz = diff(p,z)
-
-k_us = 0.5
-k_ls = 0.5
-k = 0.25*(k_us-k_ls)/tanh(5.0)*( 2.0 + tanh(10.0*x-5.0) + tanh(10.0*z-5.0) + (2.0*(k_us-k_ls)-2.0*tanh(5.0)*(k_ls+k_us))/(k_ls-k_us) )
-ux = k*dpdx + sin(pi*x)*sin(2.0*pi*z) + 2.0
-uz = k*dpdz + 0.5*cos(pi*x)*cos(2.0*pi*z) + 2.0
+# MMS03 - Donea and Huerta 2003
+p  =  x*(1-x)-1.0/6.0
+ux =  x**2*(1-x)**2*(2.0*z-6.0*z**2+4.0*z**3)
+uz = -z**2*(1-z)**2*(2.0*x-6.0*x**2+4.0*x**3)
 
 # porosity
 phi = phi_0*(1.0+phi_s*cos(m*pi*x)*cos(m*pi*z))
@@ -108,9 +116,10 @@ write_c_method(uz,'uz')
 write_c_method(phi,'phi')
 write_c_method(Kphi,'Kphi')
 
-# write_c_method(exx,'exx')
-# write_c_method(ezz,'ezz')
-# write_c_method(exz,'exz')
+write_c_method(exx,'exx')
+write_c_method(ezz,'ezz')
+write_c_method(exz,'exz')
+# write_c_method(epsII,'epsII')
 
 write_c_method(fux_stokes,'fux_stokes')
 write_c_method(fuz_stokes,'fuz_stokes')
