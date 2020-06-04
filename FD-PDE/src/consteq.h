@@ -12,9 +12,10 @@ PetscErrorCode DMStagGetPointStrainRates(DM,Vec,PetscInt,DMStagStencil*,PetscSca
 
 PetscErrorCode get_exx_center(DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
 PetscErrorCode get_ezz_center(DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
-PetscErrorCode get_exz_cornerSW(DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
-PetscErrorCode get_exz_cornerNW(DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
-PetscErrorCode get_exz_cornerSE(DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
-PetscErrorCode get_exz_cornerNE(DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
+PetscErrorCode get_exz_center(DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
+
+PetscErrorCode get_exx_corner(DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
+PetscErrorCode get_ezz_corner(DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
+PetscErrorCode get_exz_corner(DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*); // i,j - assumed DOWN_LEFT
 
 #endif
