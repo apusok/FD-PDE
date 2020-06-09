@@ -604,7 +604,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
       { // B = -phi*k_hat (edges, c=0)
         DMStagStencil point[4], pointQ[3];
         PetscScalar   Q[3], Qinterp;
-        PetscScalar   xp[4],zp[4],rhs[4],zQ[3];
+        PetscScalar   zp[4],rhs[4],zQ[3];
         PetscInt      ii;
 
         point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
@@ -612,10 +612,10 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
         point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 0;
         point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 0;
 
-        xp[0] = coordx[i][iprev  ]; zp[0] = coordz[j][icenter];
-        xp[1] = coordx[i][inext  ]; zp[1] = coordz[j][icenter];
-        xp[2] = coordx[i][icenter]; zp[2] = coordz[j][iprev  ];
-        xp[3] = coordx[i][icenter]; zp[3] = coordz[j][inext  ];
+        zp[0] = coordz[j][icenter];
+        zp[1] = coordz[j][icenter];
+        zp[2] = coordz[j][iprev  ];
+        zp[3] = coordz[j][inext  ];
 
         // Bx = 0
         rhs[0] = 0.0;

@@ -603,7 +603,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
 
       { // D3 = Kphi*e3 (edges, c=2) - numerical, Kphi = (phi/phi0)^n
         DMStagStencil point[4], pointQ[3];
-        PetscScalar   xp[4],zp[4],Qinterp, Q[3], rhs[4],zQ[3];
+        PetscScalar   zp[4],Qinterp, Q[3], rhs[4],zQ[3];
         PetscInt      ii;
 
         point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 2;
@@ -611,10 +611,10 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
         point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 2;
         point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 2;
 
-        xp[0] = coordx[i][iprev  ]; zp[0] = coordz[j][icenter];
-        xp[1] = coordx[i][inext  ]; zp[1] = coordz[j][icenter];
-        xp[2] = coordx[i][icenter]; zp[2] = coordz[j][iprev  ];
-        xp[3] = coordx[i][icenter]; zp[3] = coordz[j][inext  ];
+        zp[0] = coordz[j][icenter];
+        zp[1] = coordz[j][icenter];
+        zp[2] = coordz[j][iprev  ];
+        zp[3] = coordz[j][inext  ];
 
         rhs[0] = 0.0; // dir of gravity only
         rhs[1] = 0.0; 
@@ -668,7 +668,7 @@ PetscErrorCode FormBCList_PV(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       k,n_bc,*idx_bc;
   PetscScalar    *value_bc,*x_bc;
-  PetscScalar    t,eta,zeta,xi,phi_0,p_s,m,n,e3;
+  PetscScalar    t,eta,zeta,phi_0,p_s,m,n,e3;
   BCType         *type_bc;
   PetscErrorCode ierr;
   
@@ -681,7 +681,6 @@ PetscErrorCode FormBCList_PV(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   e3 = usr->par->e3;
   eta = usr->par->eta;
   zeta = usr->par->zeta;
-  xi = usr->par->xi;
   t  = usr->par->tprev;
 
   // LEFT Boundary - Vx
@@ -795,7 +794,7 @@ PetscErrorCode FormCoefficient_phi(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff
   DM             dmPV = NULL;
   Vec            coefflocal;
   PetscScalar    ***c, **coordx, **coordz;
-  PetscScalar    t,eta,zeta,xi,phi_0,p_s,m,n,e3;
+  PetscScalar    t,eta,zeta,phi_0,p_s,m,n,e3;
   Vec            xPV = NULL, xPVlocal;
   PetscErrorCode ierr;
 
@@ -808,7 +807,6 @@ PetscErrorCode FormCoefficient_phi(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff
   e3 = usr->par->e3;
   eta = usr->par->eta;
   zeta = usr->par->zeta;
-  xi = usr->par->xi;
   t  = usr->par->t;
 
   // Get dm and solution vector for Stokes velocity
@@ -911,7 +909,7 @@ PetscErrorCode FormBCList_phi(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   UsrData     *usr = (UsrData*)ctx;
   PetscInt    k,n_bc,*idx_bc;
   PetscScalar *value_bc,*x_bc;
-  PetscScalar t,eta,zeta,xi,phi_0,p_s,m,n,e3;
+  PetscScalar t,eta,zeta,phi_0,p_s,m,n,e3;
   BCType      *type_bc;
   PetscErrorCode ierr;
   PetscFunctionBegin;
@@ -923,7 +921,6 @@ PetscErrorCode FormBCList_phi(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   e3 = usr->par->e3;
   eta = usr->par->eta;
   zeta = usr->par->zeta;
-  xi = usr->par->xi;
   t  = usr->par->t;
   
   // Left = 1-phi
@@ -971,7 +968,7 @@ PetscErrorCode SetInitialPorosityProfile(DM dm, Vec x, void *ctx)
   UsrData       *usr = (UsrData*) ctx;
   Vec           xlocal;
   PetscInt      i,j, sx, sz, nx, nz, icenter;
-  PetscScalar   t,eta,zeta,xi,phi_0,p_s,m,n,e3;
+  PetscScalar   eta,zeta,phi_0,p_s,m,n,e3;
   PetscScalar   ***xx, **coordx, **coordz;
   PetscErrorCode ierr;
   PetscFunctionBegin;
@@ -984,8 +981,6 @@ PetscErrorCode SetInitialPorosityProfile(DM dm, Vec x, void *ctx)
   e3 = usr->par->e3;
   eta = usr->par->eta;
   zeta = usr->par->zeta;
-  xi = usr->par->xi;
-  t  = usr->par->t;
 
   // Get domain corners
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -1035,7 +1030,7 @@ PetscErrorCode SetInitialPorosityCoefficient(DM dmcoeff, Vec coeff, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       i, j, sx, sz, nx, nz,iprev,inext,icenter;
-  PetscScalar    t,eta,zeta,xi,phi_0,p_s,m,n,e3;
+  PetscScalar    t,eta,zeta,phi_0,p_s,m,n,e3;
   Vec            coefflocal;
   PetscScalar    ***c, **coordx, **coordz;
   PetscErrorCode ierr;
@@ -1049,7 +1044,6 @@ PetscErrorCode SetInitialPorosityCoefficient(DM dmcoeff, Vec coeff, void *ctx)
   e3 = usr->par->e3;
   eta = usr->par->eta;
   zeta = usr->par->zeta;
-  xi = usr->par->xi;
   t  = usr->par->t;
 
   // Get domain corners
@@ -1152,7 +1146,7 @@ PetscErrorCode ComputeManufacturedSolutionTimestep(DM dmPV,Vec *_xmms_PV, DM dmp
   PetscScalar    ***xxPV, ***xxphi;
   PetscScalar    **coordx,**coordz;
   Vec            xmms_PV,xmms_PVlocal,xmms_phi,xmms_philocal;
-  PetscScalar    eta,zeta,xi,phi_0,p_s,m,n,e3;
+  PetscScalar    eta,zeta,phi_0,p_s,m,n,e3;
   PetscScalar    t, tprev;
   PetscErrorCode ierr;
 
@@ -1165,7 +1159,6 @@ PetscErrorCode ComputeManufacturedSolutionTimestep(DM dmPV,Vec *_xmms_PV, DM dmp
   e3 = usr->par->e3;
   eta = usr->par->eta;
   zeta = usr->par->zeta;
-  xi = usr->par->xi;
   tprev = usr->par->tprev;
   t     = usr->par->t;
 

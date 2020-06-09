@@ -366,7 +366,7 @@ PetscErrorCode SetGaussianInitialGuess(DM dm, Vec xguess, void *ctx)
   UsrData       *usr = (UsrData*) ctx;
   Vec            xglocal;
   PetscInt       i,j, sx, sz, nx, nz, icenter;
-  PetscScalar    A, x0, z0, taox, taoz;
+  PetscScalar    A, x0, taox;//,z0, taoz;
   PetscScalar    ***xg, **coordx, **coordz;
 
   PetscErrorCode ierr;
@@ -375,9 +375,9 @@ PetscErrorCode SetGaussianInitialGuess(DM dm, Vec xguess, void *ctx)
   // Gaussian function parameters
   A    = usr->par->A;
   x0   = usr->par->x0;
-  z0   = usr->par->z0;
   taox = usr->par->taox;
-  taoz = usr->par->taoz;
+  // z0   = usr->par->z0;
+  // taoz = usr->par->taoz;
 
   // Get domain corners
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -394,13 +394,11 @@ PetscErrorCode SetGaussianInitialGuess(DM dm, Vec xguess, void *ctx)
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
       DMStagStencil point;
-      PetscScalar   xp, zp, fval = 0.0;
+      PetscScalar   xp, fval = 0.0;
       PetscInt      idx;
 
       point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0;
-
       xp = coordx[i][icenter]; 
-      zp = coordz[j][icenter];
 
       // fval = A*PetscExpReal(-( (xp-x0)*(xp-x0)/taox/taox + (zp-z0)*(zp-z0)/taoz/taoz )); 
       fval = A*PetscExpReal(-(xp-x0)*(xp-x0)/taox/taox ); 
@@ -619,7 +617,7 @@ PetscErrorCode Analytic_AdvTime(DM dm,void *ctx, PetscInt istep)
 {
   UsrData       *usr = (UsrData*) ctx;
   PetscInt       i, j, sx, sz, nx, nz, idx,icenter;
-  PetscScalar    A, x0, z0, taox, taoz, t, ux, uz;
+  PetscScalar    A, x0, taox, t, ux;// z0,taoz,uz;
   PetscScalar    ***xx;
   PetscScalar    **coordx,**coordz;
   char           fout[FNAME_LENGTH];
@@ -631,12 +629,12 @@ PetscErrorCode Analytic_AdvTime(DM dm,void *ctx, PetscInt istep)
   // Gaussian function parameters
   A    = usr->par->A;
   x0   = usr->par->x0;
-  z0   = usr->par->z0;
   taox = usr->par->taox;
-  taoz = usr->par->taoz;
   t    = usr->par->t;
   ux   = usr->par->ux;
-  uz   = usr->par->uz;
+  // z0   = usr->par->z0;
+  // taoz = usr->par->taoz;
+  // uz   = usr->par->uz;
 
   // Create local and global vector associated with DM
   ierr = DMCreateGlobalVector(dm, &x     ); CHKERRQ(ierr);
@@ -655,11 +653,9 @@ PetscErrorCode Analytic_AdvTime(DM dm,void *ctx, PetscInt istep)
   // Loop over local domain to calculate the SolCx analytical solution
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
-      PetscScalar  xp,zp, fval=0.0;
+      PetscScalar  xp, fval=0.0;
 
-      xp = coordx[i][icenter];
-      zp = coordz[j][icenter];
-      
+      xp = coordx[i][icenter];      
       fval = A*PetscExpReal(-(xp-x0-ux*t)*(xp-x0-ux*t)/taox/taox ); 
       ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &idx); CHKERRQ(ierr);
       xx[j][i][idx] = fval;

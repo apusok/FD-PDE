@@ -1158,26 +1158,12 @@ PetscErrorCode ComputeErrorNorms(DM dm,Vec x,Vec xMMS,Vec xepsMMS,PetscInt test,
   PetscScalar    xx[5], xa[5], dx, dz, dv;
   PetscScalar    nrm2p, nrm2v, nrm2vx, nrm2vz, nrm2ec[3], nrm2en[3], sum_err[9], gsum_err[9], sum_mms[9], gsum_mms[9];
   Vec            xlocal, xalocal,xepsMMSlocal, xepslocal;
-  PetscScalar    eta0,eps0,np,R,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat;
   PetscInt       iprev, inext, icenter, ii;
   PetscScalar    **coordx,**coordz;
   MPI_Comm       comm;
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
-
-  eta0 = usr->par->eta0;
-  eps0 = usr->par->eps0;
-  np   = usr->par->np;
-  R    = usr->par->R;
-  phi_0= usr->par->phi_0;
-  phi_s= usr->par->phi_s;
-  p_s  = usr->par->p_s;
-  psi_s= usr->par->psi_s;
-  U_s  = usr->par->U_s;
-  m    = usr->par->m;
-  n    = usr->par->n;
-  k_hat= usr->par->k_hat;
 
   comm = PETSC_COMM_WORLD;
 

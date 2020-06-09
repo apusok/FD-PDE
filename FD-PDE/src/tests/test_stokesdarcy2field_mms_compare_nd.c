@@ -709,7 +709,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       k,n_bc,*idx_bc;
   PetscScalar    *value_bc,*x_bc;
-  PetscScalar    alpha,R,R_alpha,phi_0,phi_s,p_s,psi_s,U_s,m,n,e3;
+  PetscScalar    alpha,R,phi_0,phi_s,p_s,psi_s,U_s,m,n,e3;
   BCType         *type_bc;
   PetscErrorCode ierr;
   
@@ -717,7 +717,6 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   alpha = usr->par->alpha;
   R     = usr->par->R;
-  R_alpha = usr->par->R_alpha;
   phi_0 = usr->par->phi_0;
   phi_s = usr->par->phi_s;
   p_s = usr->par->p_s;
@@ -837,14 +836,13 @@ PetscErrorCode ComputeManufacturedSolution(DM dm,Vec *_xMMS, void *ctx)
   PetscScalar    ***xxMMS;
   PetscScalar    **coordx,**coordz;
   Vec            xMMS, xMMSlocal;
-  PetscScalar    alpha,R,R_alpha,phi_0,phi_s,p_s,psi_s,U_s,m,n,e3;
+  PetscScalar    alpha,R,phi_0,phi_s,p_s,psi_s,U_s,m,n,e3;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
 
   alpha = usr->par->alpha;
   R     = usr->par->R;
-  R_alpha = usr->par->R_alpha;
   phi_0 = usr->par->phi_0;
   phi_s = usr->par->phi_s;
   p_s = usr->par->p_s;
@@ -1039,14 +1037,13 @@ PetscErrorCode ComputeExtraParameters(DM dm, void *ctx)
   PetscScalar    **coordx,**coordz;
   DM             dmextra;
   Vec            x, xlocal;
-  PetscScalar    alpha,R,R_alpha,phi_0,phi_s,p_s,psi_s,U_s,m,n,e3;
+  PetscScalar    alpha,R,phi_0,phi_s,p_s,psi_s,U_s,m,n,e3;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
 
   alpha = usr->par->alpha;
   R     = usr->par->R;
-  R_alpha = usr->par->R_alpha;
   phi_0 = usr->par->phi_0;
   phi_s = usr->par->phi_s;
   p_s = usr->par->p_s;
