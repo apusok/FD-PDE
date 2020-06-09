@@ -51,32 +51,32 @@ PetscErrorCode DMStagGetPointStrainRates(DM dm, Vec x, PetscInt n, DMStagStencil
 
       case DMSTAG_DOWN_LEFT:
       {
-        ierr = get_exx_corner(dm,x,coordx,coordz,i-1,j-1,info,&eps_xx);CHKERRQ(ierr);
-        ierr = get_ezz_corner(dm,x,coordx,coordz,i-1,j-1,info,&eps_zz);CHKERRQ(ierr);
+        ierr = get_exx_corner(dm,x,coordx,coordz,i  ,j  ,info,&eps_xx);CHKERRQ(ierr);
+        ierr = get_ezz_corner(dm,x,coordx,coordz,i  ,j  ,info,&eps_zz);CHKERRQ(ierr);
         ierr = get_exz_corner(dm,x,coordx,coordz,i  ,j  ,info,&eps_xz);CHKERRQ(ierr);
         break;
       }
 
       case DMSTAG_DOWN_RIGHT:
       {
-        ierr = get_exx_corner(dm,x,coordx,coordz,i  ,j-1,info,&eps_xx);CHKERRQ(ierr);
-        ierr = get_ezz_corner(dm,x,coordx,coordz,i  ,j-1,info,&eps_zz);CHKERRQ(ierr);
+        ierr = get_exx_corner(dm,x,coordx,coordz,i+1,j  ,info,&eps_xx);CHKERRQ(ierr);
+        ierr = get_ezz_corner(dm,x,coordx,coordz,i+1,j  ,info,&eps_zz);CHKERRQ(ierr);
         ierr = get_exz_corner(dm,x,coordx,coordz,i+1,j  ,info,&eps_xz);CHKERRQ(ierr);
         break;
       }
 
       case DMSTAG_UP_LEFT:
       {
-        ierr = get_exx_corner(dm,x,coordx,coordz,i-1,j  ,info,&eps_xx);CHKERRQ(ierr);
-        ierr = get_ezz_corner(dm,x,coordx,coordz,i-1,j  ,info,&eps_zz);CHKERRQ(ierr);
+        ierr = get_exx_corner(dm,x,coordx,coordz,i  ,j+1,info,&eps_xx);CHKERRQ(ierr);
+        ierr = get_ezz_corner(dm,x,coordx,coordz,i  ,j+1,info,&eps_zz);CHKERRQ(ierr);
         ierr = get_exz_corner(dm,x,coordx,coordz,i  ,j+1,info,&eps_xz);CHKERRQ(ierr);
         break;
       }
 
       case DMSTAG_UP_RIGHT:
       {
-        ierr = get_exx_corner(dm,x,coordx,coordz,i  ,j  ,info,&eps_xx);CHKERRQ(ierr);
-        ierr = get_ezz_corner(dm,x,coordx,coordz,i  ,j  ,info,&eps_zz);CHKERRQ(ierr);
+        ierr = get_exx_corner(dm,x,coordx,coordz,i+1,j+1,info,&eps_xx);CHKERRQ(ierr);
+        ierr = get_ezz_corner(dm,x,coordx,coordz,i+1,j+1,info,&eps_zz);CHKERRQ(ierr);
         ierr = get_exz_corner(dm,x,coordx,coordz,i+1,j+1,info,&eps_xz);CHKERRQ(ierr);
         break;
       }
@@ -176,27 +176,26 @@ PetscErrorCode get_exx_corner(DM dm, Vec x, PetscScalar **coordx,PetscScalar **c
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
-  ierr = get_exx_center(dm,x,coordx,coordz,i  ,j  ,info,&eps_xx_sw);CHKERRQ(ierr);
-  ierr = get_exx_center(dm,x,coordx,coordz,i+1,j  ,info,&eps_xx_se);CHKERRQ(ierr);
-  ierr = get_exx_center(dm,x,coordx,coordz,i  ,j+1,info,&eps_xx_nw);CHKERRQ(ierr);
-  ierr = get_exx_center(dm,x,coordx,coordz,i+1,j+1,info,&eps_xx_ne);CHKERRQ(ierr);
+  ierr = get_exx_center(dm,x,coordx,coordz,i-1,j-1,info,&eps_xx_sw);CHKERRQ(ierr);
+  ierr = get_exx_center(dm,x,coordx,coordz,i  ,j-1,info,&eps_xx_se);CHKERRQ(ierr);
+  ierr = get_exx_center(dm,x,coordx,coordz,i-1,j  ,info,&eps_xx_nw);CHKERRQ(ierr);
+  ierr = get_exx_center(dm,x,coordx,coordz,i  ,j  ,info,&eps_xx_ne);CHKERRQ(ierr);
   Nx = info[0]; Nz = info[1]; iprev = info[2]; inext = info[3]; icenter = info[4];
 
-  if (i < 0) xp = coordx[i+1][iprev];
-  else       xp = coordx[i  ][inext];
+  if (i == Nx) xp = coordx[i-1][inext];
+  else         xp = coordx[i  ][iprev];
+  if (j == Nz) zp = coordz[j-1][inext];
+  else         zp = coordz[j  ][iprev];
 
-  if (j < 0) zp = coordz[j+1][iprev];
-  else       zp = coordz[j  ][inext];
+  if (i == 0 ) xi[0] = 2.0*coordx[i][iprev]-coordx[i][icenter]; 
+  else         xi[0] = coordx[i-1][icenter]; 
+  if (i == Nx) xi[1] = 2.0*coordx[i-1][inext]-coordx[i-1][icenter]; 
+  else         xi[1] = coordx[i][icenter]; 
 
-  if (i < 0) xi[0] = 2.0*coordx[i+1][iprev]-coordx[i+1][icenter]; 
-  else       xi[0] = coordx[i][icenter]; 
-  if (i == Nx-1) xi[1] = 2.0*coordx[i][inext]-coordx[i][icenter]; 
-  else           xi[1] = coordx[i+1][icenter]; 
-
-  if (j < 0) zi[0] = 2.0*coordz[j+1][iprev]-coordz[j+1][icenter]; 
-  else       zi[0] = coordz[j][icenter]; 
-  if (j == Nz-1) zi[1] = 2.0*coordz[j][inext]-coordz[j][icenter]; 
-  else           zi[1] = coordz[j+1][icenter]; 
+  if (j == 0 ) zi[0] = 2.0*coordz[j][iprev]-coordz[j][icenter]; 
+  else         zi[0] = coordz[j-1][icenter]; 
+  if (j == Nz) zi[1] = 2.0*coordz[j-1][inext]-coordz[j-1][icenter]; 
+  else         zi[1] = coordz[j][icenter]; 
 
   eps = interp_bilinear(xp,zp,xi,zi,eps_xx_sw,eps_xx_nw,eps_xx_se,eps_xx_ne);
   *_eps = eps;
@@ -211,27 +210,26 @@ PetscErrorCode get_ezz_corner(DM dm, Vec x, PetscScalar **coordx,PetscScalar **c
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
-  ierr = get_ezz_center(dm,x,coordx,coordz,i  ,j  ,info,&eps_zz_sw);CHKERRQ(ierr);
-  ierr = get_ezz_center(dm,x,coordx,coordz,i+1,j  ,info,&eps_zz_se);CHKERRQ(ierr);
-  ierr = get_ezz_center(dm,x,coordx,coordz,i  ,j+1,info,&eps_zz_nw);CHKERRQ(ierr);
-  ierr = get_ezz_center(dm,x,coordx,coordz,i+1,j+1,info,&eps_zz_ne);CHKERRQ(ierr);
+  ierr = get_ezz_center(dm,x,coordx,coordz,i-1,j-1,info,&eps_zz_sw);CHKERRQ(ierr);
+  ierr = get_ezz_center(dm,x,coordx,coordz,i  ,j-1,info,&eps_zz_se);CHKERRQ(ierr);
+  ierr = get_ezz_center(dm,x,coordx,coordz,i-1,j  ,info,&eps_zz_nw);CHKERRQ(ierr);
+  ierr = get_ezz_center(dm,x,coordx,coordz,i  ,j  ,info,&eps_zz_ne);CHKERRQ(ierr);
   Nx = info[0]; Nz = info[1]; iprev = info[2]; inext = info[3]; icenter = info[4];
 
-  if (i < 0) xp = coordx[i+1][iprev];
-  else       xp = coordx[i  ][inext];
+  if (i == Nx) xp = coordx[i-1][inext];
+  else         xp = coordx[i  ][iprev];
+  if (j == Nz) zp = coordz[j-1][inext];
+  else         zp = coordz[j  ][iprev];
 
-  if (j < 0) zp = coordz[j+1][iprev];
-  else       zp = coordz[j  ][inext];
+  if (i == 0 ) xi[0] = 2.0*coordx[i][iprev]-coordx[i][icenter]; 
+  else         xi[0] = coordx[i-1][icenter]; 
+  if (i == Nx) xi[1] = 2.0*coordx[i-1][inext]-coordx[i-1][icenter]; 
+  else         xi[1] = coordx[i][icenter]; 
 
-  if (i < 0) xi[0] = 2.0*coordx[i+1][iprev]-coordx[i+1][icenter]; 
-  else       xi[0] = coordx[i][icenter]; 
-  if (i == Nx-1) xi[1] = 2.0*coordx[i][inext]-coordx[i][icenter]; 
-  else           xi[1] = coordx[i+1][icenter]; 
-
-  if (j < 0) zi[0] = 2.0*coordz[j+1][iprev]-coordz[j+1][icenter]; 
-  else       zi[0] = coordz[j][icenter]; 
-  if (j == Nz-1) zi[1] = 2.0*coordz[j][inext]-coordz[j][icenter]; 
-  else           zi[1] = coordz[j+1][icenter]; 
+  if (j == 0 ) zi[0] = 2.0*coordz[j][iprev]-coordz[j][icenter]; 
+  else         zi[0] = coordz[j-1][icenter]; 
+  if (j == Nz) zi[1] = 2.0*coordz[j-1][inext]-coordz[j-1][icenter]; 
+  else         zi[1] = coordz[j][icenter]; 
 
   eps = interp_bilinear(xp,zp,xi,zi,eps_zz_sw,eps_zz_nw,eps_zz_se,eps_zz_ne);
   *_eps = eps;
