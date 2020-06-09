@@ -104,6 +104,8 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   ierr = FDPDESetUp(fd);CHKERRQ(ierr);
   // User can modify the dm coordinates anywhere between FDPDESetUp() and FDPDESolve()
 
+  ierr = FDPDESetOption(fd,FDPDE_STOKES_LINEAR,PETSC_TRUE);CHKERRQ(ierr);
+
   // Set BC evaluation function
   ierr = FDPDESetFunctionBCList(fd,FormBCList,bc_description,NULL); CHKERRQ(ierr);
 

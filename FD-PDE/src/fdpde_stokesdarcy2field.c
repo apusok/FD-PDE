@@ -79,12 +79,14 @@ PetscErrorCode JacobianPreallocator_StokesDarcy2Field(FDPDE fd,Mat J)
   ierr = DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   
   // Zero entries
-  PetscInt      nEntries=23;
+  PetscInt      nEntries_true, nEntries=23;
   PetscScalar   xx[nEntries];
   DMStagStencil point[nEntries];
   ierr = PetscMemzero(xx,sizeof(PetscScalar)*nEntries); CHKERRQ(ierr);
 
-  // NOTE: Should take into account fd->bclist for BC
+  if (fd->linearsolve) nEntries_true = 23;
+  else                 nEntries_true = 11;
+
   // Get non-zero pattern for preallocator - Loop over all local elements 
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
@@ -95,20 +97,20 @@ PetscErrorCode JacobianPreallocator_StokesDarcy2Field(FDPDE fd,Mat J)
 
       // X-momentum equation - stencil remains the same as Stokes
       ierr = XMomentumStencil(i,j,Nx,Nz,point,0); CHKERRQ(ierr);
-      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       if (i==Nx-1){
         ierr = XMomentumStencil(i,j,Nx,Nz,point,1); CHKERRQ(ierr);
-        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
 
       // Z-momentum equation - stencil remains the same as Stokes
       ierr = ZMomentumStencil(i,j,Nx,Nz,point,0); CHKERRQ(ierr);
-      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       if (j==Nz-1){
         ierr = ZMomentumStencil(i,j,Nx,Nz,point,1); CHKERRQ(ierr);
-      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
     }
   }

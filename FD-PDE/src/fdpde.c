@@ -94,6 +94,7 @@ PetscErrorCode FDPDECreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   fd->data  = NULL;
   fd->user_context = NULL;
   fd->setupcalled = PETSC_FALSE;
+  fd->linearsolve = PETSC_FALSE;
 
   fd->description_bc = NULL;
   fd->description_coeff = NULL;
@@ -883,5 +884,37 @@ PetscErrorCode FDPDEFormCoefficient(FDPDE fd)
       ierr = fd->ops->form_coefficient(fd,fd->dmstag,fd->x,fd->dmcoeff,fd->coeff,fd->user_context);CHKERRQ(ierr);
     break;
   }
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+FDPDESetOption() - - Sets a parameter option for a fd-pde.
+
+Options:
+FDPDE_STOKES_LINEAR - allocate non-zero preallocation for a linear Stokes system 
+FDPDE_STOKESDARCY2FIELD_LINEAR - allocate non-zero preallocation for a linear Stokes-Darcy system 
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDESetOption"
+PetscErrorCode FDPDESetOption(FDPDE fd, FDPDEOption op, PetscBool flg)
+{
+  PetscFunctionBegin;
+
+  switch (op) {
+    case FDPDE_STOKES_LINEAR:
+      fd->linearsolve = flg;
+      break;
+    case FDPDE_STOKESDARCY2FIELD_LINEAR:
+      fd->linearsolve = flg;
+      break;
+    default:
+      SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"FDPDEOption requested not recognized!");
+      break;
+  }
+
   PetscFunctionReturn(0);
 }

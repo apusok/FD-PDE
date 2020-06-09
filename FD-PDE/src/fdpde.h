@@ -13,6 +13,9 @@
 // FD-PDE type
 typedef enum { FDPDE_UNINIT = 0, FDPDE_STOKES, FDPDE_ADVDIFF, FDPDE_STOKESDARCY2FIELD, FDPDE_COMPOSITE } FDPDEType;
 
+// FD-PDE options
+typedef enum { FDPDE_STOKES_LINEAR, FDPDE_STOKESDARCY2FIELD_LINEAR } FDPDEOption;
+
 // ---------------------------------------
 // Struct definitions
 // ---------------------------------------
@@ -48,7 +51,7 @@ struct _p_FDPDE {
   PetscInt        dof0,dof1,dof2;
   PetscInt        dofc0,dofc1,dofc2;
   PetscScalar     x0,x1,z0,z1;
-  PetscBool       setupcalled;
+  PetscBool       setupcalled,linearsolve;
   PetscInt        naux_global_vectors;
   Vec            *aux_global_vectors;
   PetscInt        refcount;
@@ -67,6 +70,7 @@ PetscErrorCode FDPDESolve(FDPDE,PetscBool*);
 
 PetscErrorCode FDPDESetFunctionBCList(FDPDE, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void*);
 PetscErrorCode FDPDESetFunctionCoefficient(FDPDE, PetscErrorCode (*form_coefficient)(FDPDE, DM,Vec,DM,Vec,void*), const char description[], void*);
+PetscErrorCode FDPDESetOption(FDPDE, FDPDEOption, PetscBool);
 
 PetscErrorCode FDPDEGetDM(FDPDE,DM*);
 PetscErrorCode FDPDEGetSolution(FDPDE,Vec*);
