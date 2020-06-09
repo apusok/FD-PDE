@@ -388,10 +388,10 @@ PetscErrorCode FDPDEAdvDiffComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
   eps = 1.0e-32; /* small shift to avoid dividing by zero */
 
   ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
 
-  ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,DMSTAG_LEFT,&iprev);CHKERRQ(ierr); 
-  ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_LEFT,&iprev);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
 
   // Loop over elements - velocity is located on edge and c=1
   for (j = sz; j<sz+nz; j++) {
@@ -421,7 +421,7 @@ PetscErrorCode FDPDEAdvDiffComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
   ierr = MPI_Allreduce(&domain_dt,&global_dt,1,MPI_DOUBLE,MPI_MIN,PetscObjectComm((PetscObject)dmcoeff));CHKERRQ(ierr);
 
   // Return vectors and arrays
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmcoeff,&coefflocal); CHKERRQ(ierr);
 
   // Return value

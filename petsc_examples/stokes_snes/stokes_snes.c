@@ -660,7 +660,7 @@ PetscErrorCode FormFunctionPV(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMCreateLocalVector(sol->dmPV, &flocal); CHKERRQ(ierr);
 
   // Get residual array
-  ierr = DMStagVecGetArrayDOF(sol->dmPV, flocal, &ff); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(sol->dmPV, flocal, &ff); CHKERRQ(ierr);
 
   // Loop over elements - Interior domain
   for (j = sz; j<sz+nz; ++j) {
@@ -834,7 +834,7 @@ PetscErrorCode FormFunctionPV(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMLocalToGlobalEnd  (sol->dmPV,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
 
   // Restore arrays, local vectors
-  ierr = DMStagVecRestoreArrayDOF(sol->dmPV,flocal,&ff); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(sol->dmPV,flocal,&ff); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(sol->dmCoeff,&coefflocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(sol->dmPV,   &xlocal    ); CHKERRQ(ierr);
 

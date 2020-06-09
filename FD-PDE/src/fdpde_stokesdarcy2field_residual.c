@@ -43,9 +43,9 @@ PetscErrorCode FormFunction_StokesDarcy2Field(SNES snes, Vec x, Vec f, void *ctx
 
   // Get local domain
   ierr = DMStagGetCorners(dmPV, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dmPV,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
-  ierr = DMStagGet1dCoordinateLocationSlot(dmPV,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dmPV,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
 
   // Save useful variables for residual calculations
   n[0] = Nx; n[1] = Nz; n[2] = icenter; n[3] = iprev; n[4] = inext;
@@ -58,11 +58,11 @@ PetscErrorCode FormFunction_StokesDarcy2Field(SNES snes, Vec x, Vec f, void *ctx
   ierr = DMGlobalToLocal (dmCoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
 
   // Get dm coordinates array
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
 
   // Create residual local vector
   ierr = DMCreateLocalVector(dmPV, &flocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayDOF(dmPV, flocal, &ff); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmPV, flocal, &ff); CHKERRQ(ierr);
 
   // Loop over elements
   for (j = sz; j<sz+nz; j++) {
@@ -98,8 +98,8 @@ PetscErrorCode FormFunction_StokesDarcy2Field(SNES snes, Vec x, Vec f, void *ctx
   ierr = DMStagBCListApplyElement_StokesDarcy2Field(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,n,ff);CHKERRQ(ierr);
 
   // Restore arrays, local vectors
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayDOF(dmPV,flocal,&ff); CHKERRQ(ierr);
+  ierr = DMStagRestoreProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dmPV,flocal,&ff); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmPV,&xlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmCoeff,&coefflocal); CHKERRQ(ierr);
 
@@ -381,7 +381,7 @@ PetscErrorCode DMStagBCListApplyFace_StokesDarcy2Field(DM dm, Vec xlocal,DM dmco
         ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dx;
       }
       if ((i == Nx-1) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // right dVx/dx = a
-        pointT[0].i = i-1; pointT[0].j = j; pointT[0].loc = DMSTAG_RIGHT; pointT[0].c = 0;
+        pointT[0].i = i  ; pointT[0].j = j; pointT[0].loc = DMSTAG_LEFT ; pointT[0].c = 0;
         pointT[1].i = i  ; pointT[1].j = j; pointT[1].loc = DMSTAG_RIGHT; pointT[1].c = 0;
         ierr = DMStagVecGetValuesStencil(dm,xlocal,2,pointT,xxT); CHKERRQ(ierr);
         dx = coordx[i][inext]-coordx[i][iprev];
@@ -392,14 +392,14 @@ PetscErrorCode DMStagBCListApplyFace_StokesDarcy2Field(DM dm, Vec xlocal,DM dmco
         pointT[1].i = i; pointT[1].j = j+1; pointT[1].loc = DMSTAG_DOWN; pointT[1].c = 0;
         ierr = DMStagVecGetValuesStencil(dm,xlocal,2,pointT,xxT); CHKERRQ(ierr);
         dz = coordz[j][inext]-coordz[j][iprev];
-        ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dz;
+        ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dx;
       }
       if ((j == Nz-1) && (bclist[ibc].point.loc == DMSTAG_UP)) { // up dVz/dz = a
         pointT[0].i = i; pointT[0].j = j-1; pointT[0].loc = DMSTAG_UP; pointT[0].c = 0;
         pointT[1].i = i; pointT[1].j = j  ; pointT[1].loc = DMSTAG_UP; pointT[1].c = 0;
         ierr = DMStagVecGetValuesStencil(dm,xlocal,2,pointT,xxT); CHKERRQ(ierr);
         dz = coordz[j][inext]-coordz[j][iprev];
-        ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dz;
+        ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dx;
       }
     }
   }

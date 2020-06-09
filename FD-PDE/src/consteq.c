@@ -31,10 +31,10 @@ PetscErrorCode DMStagGetPointStrainRates(DM dm, Vec x, PetscInt n, DMStagStencil
   if (dof1>1 ) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"More than 1 face field was detected!");
 
   ierr = DMStagGetGlobalSizes(dm,&info[0],&info[1],NULL);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_LEFT,&info[2]);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_RIGHT,&info[3]);CHKERRQ(ierr); 
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&info[4]);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&info[2]);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&info[3]);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&info[4]);CHKERRQ(ierr);
 
   for (ix = 0; ix < n; ix++) {
     i = point[ix].i;
@@ -94,7 +94,7 @@ PetscErrorCode DMStagGetPointStrainRates(DM dm, Vec x, PetscInt n, DMStagStencil
     epsIIs2 = 0.5*(eps_xx*eps_xx + eps_zz*eps_zz + 2.0*eps_xz*eps_xz);
     epsII[ix] = PetscPowScalar(epsIIs2,0.5);
   }
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

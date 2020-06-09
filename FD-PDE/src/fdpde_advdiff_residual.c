@@ -73,11 +73,11 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
   }
 
   // Get dm coordinates array
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
 
   // Create residual local vector
   ierr = DMCreateLocalVector(dm, &flocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayDOF(dm, flocal, &ff); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm, flocal, &ff); CHKERRQ(ierr);
 
   // Loop over elements
   for (j = sz; j<sz+nz; j++) {
@@ -92,8 +92,8 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMStagBCListApply_AdvDiff(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,ad,Nx,Nz,ff);CHKERRQ(ierr);
 
   // Restore arrays, local vectors
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayDOF(dm,flocal,&ff); CHKERRQ(ierr);
+  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dm,flocal,&ff); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmcoeff,&coefflocal); CHKERRQ(ierr);
 
@@ -171,7 +171,7 @@ PetscErrorCode AdvDiffSteadyStateOperator(DM dm, Vec xlocal, DM dmcoeff,Vec coef
 
   // Get variables
   ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr); 
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
 
   // Coefficients
   point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0; // A
