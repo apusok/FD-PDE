@@ -181,6 +181,81 @@ def plot_solution_mms_error(fname,nx,j):
   plt.savefig(fout+'.pdf')
   plt.close()
 
+
+# ---------------------------------------
+def plot_rhs_mms(fname,nx,j):
+
+  # Load data
+  fout = fname+'_rhs_stokes' # 1. Numerical solution stokes
+  imod = importlib.import_module(fout) 
+  data = imod._PETScBinaryLoad()
+  imod._PETScBinaryLoadReportNames(data)
+
+  mx = data['Nx'][0]
+  mz = data['Ny'][0]
+  xc = data['x1d_cell']
+  zc = data['y1d_cell']
+  xv = data['x1d_vertex']
+  zv = data['y1d_vertex']
+  vx1 = data['X_face_x']
+  vz1 = data['X_face_y']
+  p1 = data['X_cell']
+
+  fout = fname+'_rhs_stokesdarcy' # 2. Numerical solution stokesdarcy
+  imod = importlib.import_module(fout) 
+  data = imod._PETScBinaryLoad()
+  imod._PETScBinaryLoadReportNames(data)
+
+  vx2 = data['X_face_x']
+  vz2 = data['X_face_y']
+  p2  = data['X_cell']
+
+  pmax = max(max(p1),max(p2))
+  pmin = min(min(p1),min(p2))
+  vxmax = max(max(vx1),max(vx2))
+  vxmin = min(min(vx1),min(vx2))
+  vzmax = max(max(vz1),max(vz2))
+  vzmin = min(min(vz1),min(vz2))
+
+  # Plot all fields - rhs for P, ux, uz
+  fig = plt.figure(1,figsize=(9,12))
+  cmaps='RdBu_r' 
+
+  ax = plt.subplot(3,2,1)
+  im = ax.imshow(p1.reshape(mz,mx),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=pmin,vmax=pmax,cmap=cmaps)
+  ax.set_title(r'Stokes $P$ RHS')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.75)
+
+  ax = plt.subplot(3,2,2)
+  im = ax.imshow(p2.reshape(mz,mx),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=pmin,vmax=pmax,cmap=cmaps)
+  ax.set_title(r'Stokes-Darcy $P$ RHS')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.75)
+
+  ax = plt.subplot(3,2,3)
+  im = ax.imshow(vx1.reshape(mz,mx+1),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=vxmin,vmax=vxmax,cmap=cmaps)
+  ax.set_title(r'Stokes $v_x$ RHS')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.75)
+
+  ax = plt.subplot(3,2,4)
+  im = ax.imshow(vx2.reshape(mz,mx+1),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=vxmin,vmax=vxmax,cmap=cmaps)
+  ax.set_title(r'Stokes-Darcy $v_x$ RHS')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.75)
+
+  ax = plt.subplot(3,2,5)
+  im = ax.imshow(vz1.reshape(mz+1,mx),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=vzmin,vmax=vzmax,cmap=cmaps)
+  ax.set_title(r'Stokes $v_z$ RHS')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.75)
+
+  ax = plt.subplot(3,2,6)
+  im = ax.imshow(vz2.reshape(mz+1,mx),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=vzmin,vmax=vzmax,cmap=cmaps)
+  ax.set_title(r'Stokes-Darcy $v_z$ RHS')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.75)
+
+  plt.tight_layout() 
+  fout = fname+'_rhs'+'_npind'+str(j)+'_nx_'+str(nx)
+  plt.savefig(fout+'.pdf')
+  plt.close()
+
 # ---------------------------------------
 def plot_strain_rates_error(fname,nx,j):
 
@@ -611,8 +686,8 @@ print('# --------------------------------------- #')
 
 # Set main parameters and run test
 fname = 'out_effvisc'
-n  = [20, 40, 100, 120, 150, 200, 250, 300] # resolution [20, 40, 100, 150]#
-nexp = [1.0, 2.0, 3.0] # power-law exponent
+n  = [20, 40, 100, 120, 150, 200, 250, 300] #[21, 41, 101, 121, 151, 201, 251, 301] # resolution
+nexp = [1.0, 2.0, 3.0] #[1.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]  # [1.0, 5.0, 10.0, 15.0, 30.0] #power-law exponent
 
 # Prepare errors and convergence
 nrm_p1  = np.zeros((len(nexp),len(n))) # 1- stokes
@@ -676,6 +751,7 @@ for j in range(len(nexp)):
     # Plot solution and error
     plot_solution_mms_error(fname,nx,j)
     plot_strain_rates_error(fname,nx,j)
+    plot_rhs_mms(fname,nx,j)
 
 # Convergence plot
 plot_convergence_error(fname,nexp,hx,nrm_p1,nrm_v1,nrm_p2,nrm_v2)

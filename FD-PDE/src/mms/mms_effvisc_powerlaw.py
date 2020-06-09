@@ -35,7 +35,7 @@ k_hat = Symbol('k_hat') # unit vector of gravity
 R     = Symbol('R')
 
 # MMS01 - Rhebergen et al 2014
-# p = p_s*cos(m*pi*x)*cos(m*pi*z)
+# p = -p_s*cos(2.0*m*pi*x)*cos(m*pi*z)
 
 # dpdx = diff(p,x)
 # dpdz = diff(p,z)
@@ -48,23 +48,23 @@ R     = Symbol('R')
 # uz = k*dpdz + 0.5*cos(pi*x)*cos(2.0*pi*z) + 2.0 
 
 # MMS02 - potential form
-# p = p_s*cos(m*pi*x)*cos(m*pi*z)
+p = p_s*cos(m*pi*x)*cos(m*pi*z)
 
-# psi = psi_s*(1.0-cos(m*pi*x))*(1.0-cos(m*pi*z))
-# U   = -U_s*cos(m*pi*x)*cos(m*pi*z)
+psi = psi_s*(1.0-cos(m*pi*x))*(1.0-cos(m*pi*z))
+U   = -U_s*cos(m*pi*x)*cos(m*pi*z)
 
-# curl_psix = diff(psi,z)
-# curl_psiz = -diff(psi,x)
-# gradUx    = diff(U,x)
-# gradUz    = diff(U,z)
+curl_psix = diff(psi,z)
+curl_psiz = -diff(psi,x)
+gradUx    = diff(U,x)
+gradUz    = diff(U,z)
 
-# ux = curl_psix + gradUx
-# uz = curl_psiz + gradUz
+ux = curl_psix + gradUx
+uz = curl_psiz + gradUz
 
 # MMS03 - Donea and Huerta 2003
-p  =  x*(1-x)-1.0/6.0
-ux =  x**2*(1-x)**2*(2.0*z-6.0*z**2+4.0*z**3)
-uz = -z**2*(1-z)**2*(2.0*x-6.0*x**2+4.0*x**3)
+# p  =  x*(1-x)-1.0/6.0
+# ux =  x**2*(1-x)**2*(2.0*z-6.0*z**2+4.0*z**3)
+# uz = -z**2*(1-z)**2*(2.0*x-6.0*x**2+4.0*x**3)
 
 # porosity
 phi = phi_0*(1.0+phi_s*cos(m*pi*x)*cos(m*pi*z))
