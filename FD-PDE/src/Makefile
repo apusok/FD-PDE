@@ -5,8 +5,10 @@ include $(PETSC_DIR)/lib/petsc/conf/rules
 SRC := 	dmstagbclist.c \
 	dmstagoutput.c \
 	prealloc_helper.c \
+	consteq.c \
 	fdpde.c \
 	fdpde_stokes_residual.c fdpde_stokes.c \
+	fdpde_stokesdarcy2field_residual.c fdpde_stokesdarcy2field.c \
 	fdpde_advdiff_advect.c fdpde_advdiff_residual.c fdpde_advdiff.c \
 	fdpde_composite.c composite_prealloc_utils.c \
 	dmstag_utils.c material_point.c \
@@ -14,6 +16,7 @@ SRC := 	dmstagbclist.c \
 HDR := 	benchmark_solcx.h \
 	benchmark_cornerflow.h \
 	dmstagoutput.h \
+	consteq.h \
 	dmstagbclist.h \
 	prealloc_helper.h \
 	fdpde.h \
@@ -27,9 +30,16 @@ OBJ := $(patsubst %.c,%.o,$(SRC))
 TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_stokes_solcx_vargrid.c \
 		tests/test_stokes_mor.c \
+		tests/test_stokesdarcy2field_rhebergen-siam-2014.c \
+		tests/test_stokesdarcy2field_mms_katz_ch13.c \
+		tests/test_stokesdarcy2field_mms_compare_nd.c \
+		tests/test_stokesdarcy2field_mms_porosity.c \
 		tests/test_advdiff_laplace.c \
 		tests/test_advdiff_elman.c \
 		tests/test_advdiff_advtime.c \
+		tests/test_advdiff_mms_2d_diffusion.c \
+		tests/test_advdiff_mms_convergence.c \
+		tests/test_effvisc_mms.c \
 		tests/test_dmstagbclist.c \
 		tests/test_dmstagoutput.c \
 		tests/test_fdpde.c \
@@ -40,13 +50,18 @@ TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_stokes_rt.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,$(TEST_SRC))
-
 TEST_APP := $(patsubst %.c,%.app,$(TEST_SRC))
+
+MODEL_SRC = 	../models/mor/mor_mechanics.c \
+
+MODEL_OBJ := $(patsubst %.c,%.o,$(MODEL_SRC))
+MODEL_APP := $(patsubst %.c,%.app,$(MODEL_SRC))
 
 all: $(OBJ)
 
 tests: $(OBJ) $(TEST_APP)
 
+models: $(OBJ) $(MODEL_APP)
 
 %.o: %.c $(HDR)
 	-$(PCC) $(CFLAGS) -o $@ -c $< $(PETSC_CC_INCLUDES)
@@ -59,7 +74,6 @@ clean_tests:
 	@rm -rf $(TEST_OBJ)
 	@rm -rf $(TEST_APP)
 
-
 clean_all:
 	@echo "# -------------------------------- #"
 	@echo "#            Full clean            #"
@@ -67,5 +81,7 @@ clean_all:
 	@rm -rf $(OBJ)
 	@rm -rf $(TEST_OBJ)
 	@rm -rf $(TEST_APP)
+	@rm -rf $(MODEL_OBJ)
+	@rm -rf $(MODEL_APP)
 	@rm -rf *.dSYM ./tests/*.dSYM *.py *.vtr *.pbin *.info
 	@rm -rf ./tests/python/out_* ./tests/python/__pycache__

@@ -11,15 +11,16 @@ const char advdiff_description[] =
 "  Notes: \n"
 "  * Unknowns: Q - can be temperature. \n" 
 "  * The coefficients A,B,C,u need to be defined by the user. \n" 
-"        A = rho*cp (Density * Heat capacity) - defined in center, \n" 
-"        B = k (Thermal conductivity) - defined on edges, \n" 
-"        C = sources of heat production/sink - defined in center, \n" 
-"        u = velocity - defined on edges (can be solution from Stokes equations). \n";
+"        A (i.e., density * heat capacity) - defined in center, \n" 
+"        B (i.e., thermal conductivity) - defined on edges, \n" 
+"        C (i.e., sources of heat production/sink) - defined in center, \n" 
+"        u - velocity, defined on edges (can be solution from Stokes (-Darcy) equations). \n";
 
 const char *AdvectSchemeTypeNames[] = {
   "adv_uninit",
   "adv_none",
   "adv_upwind",
+  "adv_upwind2",
   "adv_fromm"
 };
 
@@ -387,10 +388,10 @@ PetscErrorCode FDPDEAdvDiffComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
   eps = 1.0e-32; /* small shift to avoid dividing by zero */
 
   ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
 
-  ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,DMSTAG_LEFT,&iprev);CHKERRQ(ierr); 
-  ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_LEFT,&iprev);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
 
   // Loop over elements - velocity is located on edge and c=1
   for (j = sz; j<sz+nz; j++) {
@@ -420,7 +421,7 @@ PetscErrorCode FDPDEAdvDiffComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
   ierr = MPI_Allreduce(&domain_dt,&global_dt,1,MPI_DOUBLE,MPI_MIN,PetscObjectComm((PetscObject)dmcoeff));CHKERRQ(ierr);
 
   // Return vectors and arrays
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmcoeff,&coefflocal); CHKERRQ(ierr);
 
   // Return value

@@ -18,6 +18,7 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
   Vec            xprevlocal, coeffprevlocal;
   PetscInt       Nx, Nz, sx, sz, nx, nz;
   PetscInt       i,j, idx,icenter;
+  PetscScalar    fval;
   DMStagBCList   bclist;
   PetscScalar    **coordx,**coordz;
   PetscScalar    ***ff;
@@ -31,6 +32,9 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
   dm    = fd->dmstag;
   dmcoeff = fd->dmcoeff;
   ad = fd->data;
+  
+  xprevlocal     = NULL;
+  coeffprevlocal = NULL;
 
   Nx = fd->Nx;
   Nz = fd->Nz;
@@ -69,48 +73,27 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
   }
 
   // Get dm coordinates array
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
 
   // Create residual local vector
   ierr = DMCreateLocalVector(dm, &flocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayDOF(dm, flocal, &ff); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm, flocal, &ff); CHKERRQ(ierr);
 
   // Loop over elements
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
-      PetscScalar   xx, xxprev;
-      PetscScalar   fval=0.0, fval0=0.0, fval1=0.0;
-      PetscScalar   A, A0, A1;
-      DMStagStencil point;
-
-      // if ((i > 0) && (i < Nx-1) && (j > 0) && (j < Nz-1)) {
-        if (ad->timesteptype == TS_NONE) {
-          // steady-state solution
-          ierr = EnergyResidual(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,&fval,&A); CHKERRQ(ierr);
-        } else { 
-          // time-dependent solution - provided the valid flags pass the error check above
-          ierr = EnergyResidual(dm,xprevlocal,dmcoeff,coeffprevlocal,coordx,coordz,i,j,ad->advtype,&fval0,&A0); CHKERRQ(ierr);
-          ierr = EnergyResidual(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,&fval1,&A1); CHKERRQ(ierr);
-
-          point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
-          ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&point,&xx); CHKERRQ(ierr);
-          ierr = DMStagVecGetValuesStencil(dm,xprevlocal,1,&point,&xxprev); CHKERRQ(ierr);
-
-          fval = xx - xxprev + ad->dt*(ad->theta*fval1/A1 + (1-ad->theta)*fval0/A0 );
-        }
-
-        ierr = DMStagGetLocationSlot(dm, DMSTAG_ELEMENT, 0, &idx); CHKERRQ(ierr);
-        ff[j][i][idx] = fval;
-      // }
+      ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j,-1,0.0,&fval); CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(dm, DMSTAG_ELEMENT, 0, &idx); CHKERRQ(ierr);
+      ff[j][i][idx] = fval;
     }
   }
 
   // Boundary conditions - only element dofs
-  ierr = DMStagBCListApply_AdvDiff(dm,xlocal,dmcoeff,coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,ff);CHKERRQ(ierr);
+  ierr = DMStagBCListApply_AdvDiff(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,ad,Nx,Nz,ff);CHKERRQ(ierr);
 
   // Restore arrays, local vectors
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayDOF(dm,flocal,&ff); CHKERRQ(ierr);
+  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dm,flocal,&ff); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmcoeff,&coefflocal); CHKERRQ(ierr);
 
@@ -130,12 +113,50 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
 
 // ---------------------------------------
 /*@
-EnergyResidual - (ADVDIFF) calculates the steady state advdiff residual per dof
+AdvDiffResidual - (ADVDIFF) calculates the steady state advdiff residual per dof
 
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, AdvectSchemeType advtype,PetscScalar *ff,PetscScalar *_A)
+PetscErrorCode AdvDiffResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Vec xprevlocal, Vec coeffprevlocal, PetscScalar **coordx, PetscScalar **coordz, AdvDiffData *ad, PetscInt i, PetscInt j, PetscInt bc_type, PetscScalar bc_val, PetscScalar *_fval)
+{
+  PetscScalar   xx, xxprev;
+  PetscScalar   fval=0.0, fval0=0.0, fval1=0.0;
+  PetscScalar   A, A0, A1;
+  DMStagStencil point;
+
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  if (ad->timesteptype == TS_NONE) {
+    // steady-state operator
+    ierr = AdvDiffSteadyStateOperator(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,bc_type,bc_val,&fval,&A); CHKERRQ(ierr);
+  } else { 
+    // time-dependent solution
+    ierr = AdvDiffSteadyStateOperator(dm,xprevlocal,dmcoeff,coeffprevlocal,coordx,coordz,i,j,ad->advtype,bc_type,bc_val,&fval0,&A0); CHKERRQ(ierr);
+    ierr = AdvDiffSteadyStateOperator(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,bc_type,bc_val,&fval1,&A1); CHKERRQ(ierr);
+
+    point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
+    ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&point,&xx); CHKERRQ(ierr);
+    ierr = DMStagVecGetValuesStencil(dm,xprevlocal,1,&point,&xxprev); CHKERRQ(ierr);
+
+    fval = xx - xxprev + ad->dt*(ad->theta*fval1/A1 + (1-ad->theta)*fval0/A0 );
+  }
+
+  *_fval = fval;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+AdvDiffSteadyStateOperator - (ADVDIFF) calculates the steady state advdiff residual per dof
+
+Use: internal
+@*/
+// ---------------------------------------
+PetscErrorCode AdvDiffSteadyStateOperator(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, AdvectSchemeType advtype,PetscInt bc_type, PetscScalar bc_val,PetscScalar *ff,PetscScalar *_A)
 {
   PetscScalar    ffi;
   PetscInt       Nx, Nz, icenter;
@@ -150,12 +171,12 @@ PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Pets
 
   // Get variables
   ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr); 
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
 
   // Coefficients
-  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0; // A = rho*cp
-  point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_ELEMENT; point[1].c = 1; // C = heat production/sink
-  point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_LEFT;    point[2].c = 0; // B_left = k
+  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0; // A
+  point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_ELEMENT; point[1].c = 1; // C
+  point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_LEFT;    point[2].c = 0; // B_left
   point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_RIGHT;   point[3].c = 0; // B_right
   point[4].i = i; point[4].j = j; point[4].loc = DMSTAG_DOWN;    point[4].c = 0; // B_down
   point[5].i = i; point[5].j = j; point[5].loc = DMSTAG_UP;      point[5].c = 0; // B_up
@@ -209,18 +230,28 @@ PetscErrorCode EnergyResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Pets
   point[7].i = i  ; point[7].j = j-2; point[7].loc = DMSTAG_ELEMENT; point[7].c = 0; // Qi,j-2 -SS
   point[8].i = i  ; point[8].j = j+2; point[8].loc = DMSTAG_ELEMENT; point[8].c = 0; // Qi,j+2 -NN
 
-  if (i == 1) point[5] = point[1];
-  if (j == 1) point[7] = point[3];
-  if (i == Nx-2) point[6] = point[2];
-  if (j == Nz-2) point[8] = point[4];
+  if (i == 1) point[5] = point[2];
+  if (j == 1) point[7] = point[4];
+  if (i == Nx-2) point[6] = point[1];
+  if (j == Nz-2) point[8] = point[3];
 
-  if (i == 0) { point[1] = point[0]; point[5] = point[0]; }
-  if (j == 0) { point[3] = point[0]; point[7] = point[0]; }
+  if (i == 0) { point[1] = point[0]; point[5] = point[2]; }
+  if (j == 0) { point[3] = point[0]; point[7] = point[4]; }
 
-  if (i == Nx-1) { point[2] = point[0]; point[6] = point[0]; }
-  if (j == Nz-1) { point[4] = point[0]; point[8] = point[0]; }
+  if (i == Nx-1) { point[2] = point[0]; point[6] = point[1]; }
+  if (j == Nz-1) { point[4] = point[0]; point[8] = point[3]; }
 
   ierr = DMStagVecGetValuesStencil(dm,xlocal,9,point,xx); CHKERRQ(ierr);
+
+  // add Neumann BC
+  if (bc_type == 0) { xx[1] = xx[0] - bc_val*dx[1]; xx[5] = xx[2] - 3.0*bc_val*dx[1]; } // left 
+  if (bc_type == 1) { xx[2] = xx[0] + bc_val*dx[0]; xx[6] = xx[1] + 3.0*bc_val*dx[0]; } // right
+  if (bc_type == 2) { xx[3] = xx[0] - bc_val*dz[1]; xx[7] = xx[4] - 3.0*bc_val*dz[1]; } // down
+  if (bc_type == 3) { xx[4] = xx[0] + bc_val*dz[0]; xx[8] = xx[3] + 3.0*bc_val*dz[0]; } // up
+  if (bc_type == 4) { xx[5] = xx[2] - 3.0*bc_val*dx[1]; } // left+1 
+  if (bc_type == 5) { xx[6] = xx[1] + 3.0*bc_val*dx[0]; } // right-1
+  if (bc_type == 6) { xx[7] = xx[4] - 3.0*bc_val*dz[1]; } // down+1
+  if (bc_type == 7) { xx[8] = xx[3] + 3.0*bc_val*dz[0]; } // up-1
 
   // Calculate diff residual
   dQ2dx = B_Right*(xx[2]-xx[0])/dx[0] - B_Left*(xx[0]-xx[1])/dx[1];
@@ -246,9 +277,9 @@ Use: internal
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "DMStagBCListApply_AdvDiff"
-PetscErrorCode DMStagBCListApply_AdvDiff(DM dm, Vec xlocal,DM dmcoeff, Vec coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz, PetscScalar ***ff)
+PetscErrorCode DMStagBCListApply_AdvDiff(DM dm, Vec xlocal,DM dmcoeff, Vec coefflocal, Vec xprevlocal, Vec coeffprevlocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz, AdvDiffData *ad, PetscInt Nx, PetscInt Nz, PetscScalar ***ff)
 {
-  PetscScalar    xx;
+  PetscScalar    xx, fval;
   PetscInt       i, j, ibc, idx;
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
@@ -266,10 +297,34 @@ PetscErrorCode DMStagBCListApply_AdvDiff(DM dm, Vec xlocal,DM dmcoeff, Vec coeff
     }
 
     if (bclist[ibc].type == BC_NEUMANN) {
+      // Add flux terms - for first and second points (needed for second order advection schemes)
+      i   = bclist[ibc].point.i;
+      j   = bclist[ibc].point.j;
+      idx = bclist[ibc].idx;
 
-      // Add flux terms - default zero terms
-      if (bclist[ibc].val!=0.0) {
-        SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"BC type NEUMANN for FDPDE_ADVDIFF is not yet implemented.");
+      if (i == 0) { // left
+        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i  ,j,0,bclist[ibc].val,&fval); CHKERRQ(ierr);
+        ff[j][i  ][idx] = fval;
+        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i+1,j,4,bclist[ibc].val,&fval); CHKERRQ(ierr);
+        ff[j][i+1][idx] = fval;
+      }
+      if (i == Nx-1) { // right
+        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i  ,j,1,bclist[ibc].val,&fval); CHKERRQ(ierr);
+        ff[j][i  ][idx] = fval;
+        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i-1,j,5,bclist[ibc].val,&fval); CHKERRQ(ierr);
+        ff[j][i-1][idx] = fval;
+      }
+      if (j == 0) { // down
+        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j  ,2,bclist[ibc].val,&fval); CHKERRQ(ierr);
+        ff[j  ][i][idx] = fval;
+        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j+1,6,bclist[ibc].val,&fval); CHKERRQ(ierr);
+        ff[j+1][i][idx] = fval;
+      }
+      if (j == Nz-1) { // up
+        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j  ,3,bclist[ibc].val,&fval); CHKERRQ(ierr);
+        ff[j  ][i][idx] = fval;
+        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j-1,7,bclist[ibc].val,&fval); CHKERRQ(ierr);
+        ff[j-1][i][idx] = fval;
       }
     }
   }

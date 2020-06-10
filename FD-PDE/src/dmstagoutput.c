@@ -98,9 +98,9 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char prefix[])
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   ierr = DMStagGetGlobalSizes(dm,&M,&N,&P);CHKERRQ(ierr);
   
-  ierr = PetscViewerBinaryWrite(v,(void*)&M,1,PETSC_INT,PETSC_FALSE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(v,(void*)&N,1,PETSC_INT,PETSC_FALSE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(v,(void*)&P,1,PETSC_INT,PETSC_FALSE);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryWrite(v,(void*)&M,1,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryWrite(v,(void*)&N,1,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryWrite(v,(void*)&P,1,PETSC_INT);CHKERRQ(ierr);
   
   pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['Nx'] = v\n");
   pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['Ny'] = v\n");
@@ -352,9 +352,9 @@ PetscErrorCode DMStagViewBinaryPython_MPI(DM dm,Vec X,const char prefix[])
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   ierr = DMStagGetGlobalSizes(dm,&M,&N,&P);CHKERRQ(ierr);
   
-  ierr = PetscViewerBinaryWrite(v,(void*)&M,1,PETSC_INT,PETSC_FALSE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(v,(void*)&N,1,PETSC_INT,PETSC_FALSE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(v,(void*)&P,1,PETSC_INT,PETSC_FALSE);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryWrite(v,(void*)&M,1,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryWrite(v,(void*)&N,1,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryWrite(v,(void*)&P,1,PETSC_INT);CHKERRQ(ierr);
   
   pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['Nx'] = v\n");
   pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['Ny'] = v\n");

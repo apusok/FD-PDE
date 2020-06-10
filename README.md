@@ -5,6 +5,8 @@ Magma-Assisted Tectonics: two-phase dynamics of oceanic and continental rifts
 
 Goal: create analytical and numerical tools to understand how magmatism promotes and shapes rifts in continental and oceanic lithosphere.
 
+The project roadmap can be found in [Overleaf](https://www.overleaf.com/read/hsrcbxxxspsh) (read only). 
+
 ### FD-PDE Framework
 
 This **[Wiki](https://adina@bitbucket.org/adina/rift-o-mat.git/wiki)** contains more information on the **FD-PDE framework**. 
@@ -13,19 +15,19 @@ This **[Wiki](https://adina@bitbucket.org/adina/rift-o-mat.git/wiki)** contains 
 In `FD-PDE/src/`:
 - Clean executables: `make clean_all`
 - Make tests: `make tests`
-- Run tests: 
-- Visualization: using python modules and examples in /utils/
+- Run tests (example): `./tests/test_fdpde.app`
+- Visualization: using python modules and examples in `/utils/`. More info in [Wiki](https://adina@bitbucket.org/adina/rift-o-mat.git/wiki).
 
 #### Documentation
 Compile LateX documentation in `/docs/` with: `make docs`. Currently, it requires Inkscape to compile illustrations (.svg) into pdf and include them in LaTeX documents. Install Inkscape through macports: `sudo port install inkscape`.
 
 #### Install PETSc
 
-The current Petsc version should be obtained from [petsc-bitbucket](https://bitbucket.org/petsc/petsc/src/master/):
+The current Petsc version (3.12) should be obtained from [petsc](https://gitlab.com/petsc/petsc.git):
 
-`git clone <petsc bitbucket>`
+`git clone -b maint https://gitlab.com/petsc/petsc.git petsc`
 
-`git checkout dmay/fix-MatPreallocator/maint-squash`
+Do `git pull` in the petsc directory anytime to obtain new patches that have been added.
 
 Configure options:
 

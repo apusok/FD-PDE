@@ -89,7 +89,7 @@ PetscErrorCode CreateSolCx(SolverCtx *sol,DM *_da,Vec *_x)
   ierr = DMCreateLocalVector (da, &xlocal); CHKERRQ(ierr);
 
   // Get array associated with vector
-  ierr = DMStagVecGetArrayDOF(da,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(da,xlocal,&xx); CHKERRQ(ierr);
 
   // Get domain corners
   ierr = DMStagGetCorners(da, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -168,7 +168,7 @@ PetscErrorCode CreateSolCx(SolverCtx *sol,DM *_da,Vec *_x)
   }
 
   // Restore array
-  ierr = DMStagVecRestoreArrayDOF(da,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(da,xlocal,&xx); CHKERRQ(ierr);
 
   // Map local to global
   ierr = DMLocalToGlobalBegin(da,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
@@ -433,7 +433,7 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
   ierr = DMCreateLocalVector (da, &xlocal); CHKERRQ(ierr);
 
   // Get array associated with vector
-  ierr = DMStagVecGetArrayDOF(da,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(da,xlocal,&xx); CHKERRQ(ierr);
 
   // Get domain corners
   ierr = DMStagGetCorners(da, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -538,7 +538,7 @@ PetscErrorCode CreateMORAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
   }
 
   // Restore array
-  ierr = DMStagVecRestoreArrayDOF(da,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(da,xlocal,&xx); CHKERRQ(ierr);
 
   // Map local to global
   ierr = DMLocalToGlobalBegin(da,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
@@ -584,7 +584,7 @@ PetscErrorCode CreateLaplaceAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
   ierr = DMCreateLocalVector (da, &xlocal); CHKERRQ(ierr);
 
   // Get array associated with vector
-  ierr = DMStagVecGetArrayDOF(da,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(da,xlocal,&xx); CHKERRQ(ierr);
 
   // Get domain corners
   ierr = DMStagGetCorners(da, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -609,7 +609,7 @@ PetscErrorCode CreateLaplaceAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
   }
 
   // Restore array
-  ierr = DMStagVecRestoreArrayDOF(da,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(da,xlocal,&xx); CHKERRQ(ierr);
 
   // Map local to global
   ierr = DMLocalToGlobalBegin(da,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
@@ -652,7 +652,7 @@ PetscErrorCode CreateADVDIFFAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
   ierr = DMCreateLocalVector (da, &xlocal); CHKERRQ(ierr);
 
   // Get array associated with vector
-  ierr = DMStagVecGetArrayDOF(da,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(da,xlocal,&xx); CHKERRQ(ierr);
 
   // Get domain corners
   ierr = DMStagGetCorners(da, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -676,7 +676,7 @@ PetscErrorCode CreateADVDIFFAnalytic(SolverCtx *sol,DM *_da,Vec *_x)
   }
 
   // Restore array
-  ierr = DMStagVecRestoreArrayDOF(da,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(da,xlocal,&xx); CHKERRQ(ierr);
 
   // Map local to global
   ierr = DMLocalToGlobalBegin(da,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);

@@ -1,6 +1,7 @@
 // ---------------------------------------
 // (ADVDIFF) Pure advection and time-stepping test
 // run: ./tests/test_advdiff_advtime.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// python test: ./tests/python/test_advdiff_advtime.py
 // ---------------------------------------
 static char help[] = "Application to solve advection of a Gaussian pulse in time (ADVDIFF) with FD-PDE \n\n";
 
@@ -365,7 +366,7 @@ PetscErrorCode SetGaussianInitialGuess(DM dm, Vec xguess, void *ctx)
   UsrData       *usr = (UsrData*) ctx;
   Vec            xglocal;
   PetscInt       i,j, sx, sz, nx, nz, icenter;
-  PetscScalar    A, x0, z0, taox, taoz;
+  PetscScalar    A, x0, taox;//,z0, taoz;
   PetscScalar    ***xg, **coordx, **coordz;
 
   PetscErrorCode ierr;
@@ -374,32 +375,30 @@ PetscErrorCode SetGaussianInitialGuess(DM dm, Vec xguess, void *ctx)
   // Gaussian function parameters
   A    = usr->par->A;
   x0   = usr->par->x0;
-  z0   = usr->par->z0;
   taox = usr->par->taox;
-  taoz = usr->par->taoz;
+  // z0   = usr->par->z0;
+  // taoz = usr->par->taoz;
 
   // Get domain corners
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
   // Get dm coordinates array
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr);
 
   // Create coefficient local vector
   ierr = DMCreateLocalVector(dm, &xglocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayDOF(dm, xglocal, &xg); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm, xglocal, &xg); CHKERRQ(ierr);
 
   // Loop over local domain - set initial density and viscosity
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
       DMStagStencil point;
-      PetscScalar   xp, zp, fval = 0.0;
+      PetscScalar   xp, fval = 0.0;
       PetscInt      idx;
 
       point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0;
-
       xp = coordx[i][icenter]; 
-      zp = coordz[j][icenter];
 
       // fval = A*PetscExpReal(-( (xp-x0)*(xp-x0)/taox/taox + (zp-z0)*(zp-z0)/taoz/taoz )); 
       fval = A*PetscExpReal(-(xp-x0)*(xp-x0)/taox/taox ); 
@@ -409,9 +408,9 @@ PetscErrorCode SetGaussianInitialGuess(DM dm, Vec xguess, void *ctx)
   }
 
   // Restore arrays, local vectors
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
 
-  ierr = DMStagVecRestoreArrayDOF(dm,xglocal,&xg);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dm,xglocal,&xg);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(dm,xglocal,INSERT_VALUES,xguess); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dm,xglocal,INSERT_VALUES,xguess); CHKERRQ(ierr);
   
@@ -451,7 +450,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
 
   // Create coefficient local vector
   ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayDOF(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
   
   // Loop over local domain - set initial density and viscosity
   for (j = sz; j < sz+nz; j++) {
@@ -512,7 +511,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   }
 
   // Restore arrays, local vectors
-  ierr = DMStagVecRestoreArrayDOF(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
   
@@ -542,8 +541,8 @@ PetscErrorCode FormBCList_Dirichlet(DM dm, Vec x, DMStagBCList bclist, void *ctx
   // Get the dm dimensions 
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr);
 
   // Map global vectors to local domain
   ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
@@ -605,7 +604,7 @@ PetscErrorCode FormBCList_Dirichlet(DM dm, Vec x, DMStagBCList bclist, void *ctx
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
  
   PetscFunctionReturn(0);
@@ -618,7 +617,7 @@ PetscErrorCode Analytic_AdvTime(DM dm,void *ctx, PetscInt istep)
 {
   UsrData       *usr = (UsrData*) ctx;
   PetscInt       i, j, sx, sz, nx, nz, idx,icenter;
-  PetscScalar    A, x0, z0, taox, taoz, t, ux, uz;
+  PetscScalar    A, x0, taox, t, ux;// z0,taoz,uz;
   PetscScalar    ***xx;
   PetscScalar    **coordx,**coordz;
   char           fout[FNAME_LENGTH];
@@ -630,35 +629,33 @@ PetscErrorCode Analytic_AdvTime(DM dm,void *ctx, PetscInt istep)
   // Gaussian function parameters
   A    = usr->par->A;
   x0   = usr->par->x0;
-  z0   = usr->par->z0;
   taox = usr->par->taox;
-  taoz = usr->par->taoz;
   t    = usr->par->t;
   ux   = usr->par->ux;
-  uz   = usr->par->uz;
+  // z0   = usr->par->z0;
+  // taoz = usr->par->taoz;
+  // uz   = usr->par->uz;
 
   // Create local and global vector associated with DM
   ierr = DMCreateGlobalVector(dm, &x     ); CHKERRQ(ierr);
   ierr = DMCreateLocalVector (dm, &xlocal); CHKERRQ(ierr);
 
   // Get array associated with vector
-  ierr = DMStagVecGetArrayDOF(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm,xlocal,&xx); CHKERRQ(ierr);
 
   // Get domain corners
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   
 // Get dm coordinates array
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
 
   // Loop over local domain to calculate the SolCx analytical solution
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
-      PetscScalar  xp,zp, fval=0.0;
+      PetscScalar  xp, fval=0.0;
 
-      xp = coordx[i][icenter];
-      zp = coordz[j][icenter];
-      
+      xp = coordx[i][icenter];      
       fval = A*PetscExpReal(-(xp-x0-ux*t)*(xp-x0-ux*t)/taox/taox ); 
       ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &idx); CHKERRQ(ierr);
       xx[j][i][idx] = fval;
@@ -666,8 +663,8 @@ PetscErrorCode Analytic_AdvTime(DM dm,void *ctx, PetscInt istep)
   }
 
   // Restore arrays
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayDOF(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
 
   // Map local to global
   ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
