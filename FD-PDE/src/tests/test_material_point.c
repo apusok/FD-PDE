@@ -116,7 +116,7 @@ PetscErrorCode test_advection_rk1(PetscInt nx,PetscInt ny)
     DMStagGetLocationSlot(dm,DMSTAG_DOWN,0,&slot_vy[0]);
     DMStagGetLocationSlot(dm,DMSTAG_UP,0,&slot_vy[1]);
     
-    DMStagVecGetArrayDOF(dm,Xl,(void*)&vel);
+    DMStagVecGetArray(dm,Xl,(void*)&vel);
     for (cj=es[1]; cj<es[1]+nele[1]; cj++) {
       for (ci=es[0]; ci<es[0]+nele[0]; ci++) {
         vel[cj][ci][slot_vx[0]] = 0.3;
@@ -126,7 +126,7 @@ PetscErrorCode test_advection_rk1(PetscInt nx,PetscInt ny)
         vel[cj][ci][slot_vy[1]] = 0.5;
       }
     }
-    DMStagVecRestoreArrayDOF(dm,Xl,(void*)&vel);
+    DMStagVecRestoreArray(dm,Xl,(void*)&vel);
     
     DMLocalToGlobalBegin(dm,Xl,INSERT_VALUES,X);
     DMLocalToGlobalEnd(dm,Xl,INSERT_VALUES,X);
