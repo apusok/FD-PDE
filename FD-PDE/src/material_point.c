@@ -210,8 +210,8 @@ PetscErrorCode v0_MPoint_ProjectQ1_arith_general(DM dmswarm,const char propname[
   ierr = DMCreateGlobalVector(dmcell,&cnt_global);CHKERRQ(ierr);
   ierr = DMCreateLocalVector(dmcell,&cnt_local);CHKERRQ(ierr);
   
-  ierr = DMStagVecGetArrayDOF(dmcell,cellcoeff_local,&coeff);CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayDOF(dmcell,cnt_local,&cnt);CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmcell,cellcoeff_local,&coeff);CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmcell,cnt_local,&cnt);CHKERRQ(ierr);
 
   for (p=0; p<npoints; p++) {
     PetscInt cellid = -1;
@@ -226,8 +226,8 @@ PetscErrorCode v0_MPoint_ProjectQ1_arith_general(DM dmswarm,const char propname[
     }
   }
   
-  ierr = DMStagVecRestoreArrayDOF(dmcell,cnt_local,&cnt);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayDOF(dmcell,cellcoeff_local,&coeff);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dmcell,cnt_local,&cnt);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dmcell,cellcoeff_local,&coeff);CHKERRQ(ierr);
 
   ierr = DMSwarmRestoreField(dmswarm,propname,NULL,NULL,(void**)&pfield);CHKERRQ(ierr);
   ierr = DMSwarmRestoreField(dmswarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&pcellid);CHKERRQ(ierr);
@@ -339,8 +339,8 @@ PetscErrorCode MPoint_ProjectQ1_arith_general(DM dmswarm,const char propname[],
   ierr = DMCreateGlobalVector(compat,&cnt_global);CHKERRQ(ierr);
   ierr = DMCreateLocalVector(compat,&cnt_local);CHKERRQ(ierr);
   
-  ierr = DMStagVecGetArrayDOF(compat,sum_local,&coeff);CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayDOF(compat,cnt_local,&cnt);CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(compat,sum_local,&coeff);CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(compat,cnt_local,&cnt);CHKERRQ(ierr);
   
   for (p=0; p<npoints; p++) {
     PetscInt cellid = -1;
@@ -355,8 +355,8 @@ PetscErrorCode MPoint_ProjectQ1_arith_general(DM dmswarm,const char propname[],
     }
   }
   
-  ierr = DMStagVecRestoreArrayDOF(compat,cnt_local,&cnt);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayDOF(compat,sum_local,&coeff);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(compat,cnt_local,&cnt);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(compat,sum_local,&coeff);CHKERRQ(ierr);
   
   ierr = DMSwarmRestoreField(dmswarm,propname,NULL,NULL,(void**)&pfield);CHKERRQ(ierr);
   ierr = DMSwarmRestoreField(dmswarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&pcellid);CHKERRQ(ierr);

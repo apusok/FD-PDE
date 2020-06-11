@@ -1,5 +1,5 @@
 // ---------------------------------------
-// run: ./tests/test_stokes_rt.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// run: ./tests/test_stokes_rt.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10 -snes_type ksponly -snes_fd_color -nt 800
 // ---------------------------------------
 static char help[] = "Application to solve an RT instability\n\n";
 
@@ -89,7 +89,7 @@ static PetscErrorCode DumpSolution(DM dmStokes,Vec x)
    DMStagVecGetArray() and related functions */
   ierr = DMStagCreateCompatibleDMStag(dmStokes,0,0,2,0,&dmVelAvg);CHKERRQ(ierr); /* 2 dof per element */
   ierr = DMSetUp(dmVelAvg);CHKERRQ(ierr);
-  ierr = DMStagSetUniformCoordinatesExplicit(dmVelAvg,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
+  ierr = DMStagSetUniformCoordinatesProduct(dmVelAvg,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(dmVelAvg,&velAvg);CHKERRQ(ierr);
   {
     PetscInt ex,ey,startx,starty,nx,ny;
@@ -426,10 +426,10 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
   // Get dm coordinates array
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,RIGHT,&inext);CHKERRQ(ierr); 
-  ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,LEFT,&iprev);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,RIGHT,&inext);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter);CHKERRQ(ierr);
 
   // Create coefficient local vector
   ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
@@ -437,7 +437,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   ierr = DMGlobalToLocalBegin(dmcoeff,coeff,INSERT_VALUES,coefflocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd  (dmcoeff,coeff,INSERT_VALUES,coefflocal); CHKERRQ(ierr);
   
-  ierr = DMStagVecGetArrayDOF(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
   
   // Loop over local domain - set initial density and viscosity
   for (j = sz; j < sz+nz; j++) {
@@ -511,9 +511,9 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   }
 
   // Restore arrays, local vectors
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
 
-  ierr = DMStagVecRestoreArrayDOF(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
   

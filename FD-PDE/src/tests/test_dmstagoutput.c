@@ -27,10 +27,10 @@ PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscIn
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
   // Map global vectors to local domain
-  ierr = DMStagVecGetArrayDOF(dm, xlocal, &xx); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
 
   // Get dm coordinates array
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&cx,&cz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dm,&cx,&cz,NULL);CHKERRQ(ierr);
   
   // vertex data - create dummy data (ct values)
   if (dof0) {
@@ -53,8 +53,8 @@ PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscIn
   // face data - create dummy data (coordinates)
   if (dof1) {
     PetscInt iprev=-1, inext=-1;
-    ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
-    ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr);
+    ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
+    ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr);
 
     for (ii = 0; ii<dof1; ii++) {
       for (j = sz; j<sz+nz; j++) {
@@ -75,7 +75,7 @@ PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscIn
   // element data - create dummy data (coordinates)
   if (dof2) {
     PetscInt icenter=-1;
-    ierr = DMStagGet1dCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr);
+    ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr);
 
     for (ii = 0; ii<dof2; ii++) {
       for (j = sz; j<sz+nz; j++) {
@@ -88,8 +88,8 @@ PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscIn
   }
 
   // Restore arrays, local vectors
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&cx,&cz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayDOF(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&cx,&cz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
 
   // Local to global
   ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);

@@ -42,9 +42,9 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
 
   // Get local domain
   ierr = DMStagGetCorners(dmPV, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dmPV,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
-  ierr = DMStagGet1dCoordinateLocationSlot(dmPV,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dmPV,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
 
   // Save useful variables for residual calculations
   n[0] = Nx; n[1] = Nz; n[2] = icenter; n[3] = iprev; n[4] = inext;
@@ -57,11 +57,11 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMGlobalToLocal (dmCoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
 
   // Get dm coordinates array
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
 
   // Create residual local vector
   ierr = DMCreateLocalVector(dmPV, &flocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayDOF(dmPV, flocal, &ff); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmPV, flocal, &ff); CHKERRQ(ierr);
 
   // Loop over elements
   for (j = sz; j<sz+nz; j++) {
@@ -94,8 +94,8 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMStagBCListApplyElement_Stokes(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,n,ff);CHKERRQ(ierr);
 
   // Restore arrays, local vectors
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayDOF(dmPV,flocal,&ff); CHKERRQ(ierr);
+  ierr = DMStagRestoreProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dmPV,flocal,&ff); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmPV,&xlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmCoeff,&coefflocal); CHKERRQ(ierr);
 
@@ -362,42 +362,42 @@ PetscErrorCode DMStagBCListApplyFace_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec co
         point.i = i; point.j = j; point.loc = DMSTAG_DOWN_LEFT; point.c = 0;
         ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Down); CHKERRQ(ierr);
         dz = coordz[j][inext]-coordz[j][iprev];
-        ff[j][i][idx] += -2.0*A_Down*bclist[ibc].val/dz;
+        ff[j][i][idx] += -A_Down*bclist[ibc].val/dz;
       }
 
       if ((j == 0) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx down-special case
         point.i = i; point.j = j; point.loc = DMSTAG_DOWN_RIGHT; point.c = 0;
         ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Down); CHKERRQ(ierr);
         dz = coordz[j][inext]-coordz[j][iprev];
-        ff[j][i][idx] += -2.0*A_Down*bclist[ibc].val/dz;
+        ff[j][i][idx] += -A_Down*bclist[ibc].val/dz;
       }
 
       if ((j == Nz-1) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx up
         point.i = i; point.j = j; point.loc = DMSTAG_UP_LEFT; point.c = 0;
         ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Up); CHKERRQ(ierr);
         dz = coordz[j][inext]-coordz[j][iprev];
-        ff[j][i][idx] += 2.0*A_Up*bclist[ibc].val/dz;
+        ff[j][i][idx] += A_Up*bclist[ibc].val/dz;
       }
 
       if ((j == Nz-1) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx up - special case
         point.i = i; point.j = j; point.loc = DMSTAG_UP_RIGHT; point.c = 0;
         ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Up); CHKERRQ(ierr);
         dz = coordz[j][inext]-coordz[j][iprev];
-        ff[j][i][idx] += 2.0*A_Up*bclist[ibc].val/dz;
+        ff[j][i][idx] += A_Up*bclist[ibc].val/dz;
       }
 
       if ((i == 0) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz left
         point.i = i; point.j = j; point.loc = DMSTAG_DOWN_LEFT; point.c = 0;
         ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Left); CHKERRQ(ierr);
         dx = coordx[i][inext]-coordx[i][iprev];
-        ff[j][i][idx] += -2.0*A_Left*bclist[ibc].val/dx;
+        ff[j][i][idx] += -A_Left*bclist[ibc].val/dx;
       }
 
       if ((i == Nx-1) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz right
         point.i = i; point.j = j; point.loc = DMSTAG_DOWN_RIGHT; point.c = 0;
         ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Right); CHKERRQ(ierr);
         dx = coordx[i][inext]-coordx[i][iprev];
-        ff[j][i][idx] += 2.0*A_Right*bclist[ibc].val/dx;
+        ff[j][i][idx] += A_Right*bclist[ibc].val/dx;
       }
     }
   }

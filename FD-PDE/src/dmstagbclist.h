@@ -6,7 +6,7 @@
 #include "petsc.h"
 
 // BC type
-typedef enum { BC_NULL = 0, BC_DIRICHLET, BC_NEUMANN, BC_ROBIN } BCType;
+typedef enum { BC_NULL = 0, BC_DIRICHLET, BC_NEUMANN, BC_NEUMANN_T } BCType;
 
 // ---------------------------------------
 // Struct definitions

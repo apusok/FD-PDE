@@ -37,7 +37,7 @@ PetscErrorCode FormFunctionPV(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMCreateLocalVector(sol->dmPV, &flocal); CHKERRQ(ierr);
 
   // Get residual array
-  ierr = DMStagVecGetArrayDOF(sol->dmPV, flocal, &ff); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(sol->dmPV, flocal, &ff); CHKERRQ(ierr);
 
   // ---------------------------------------
   // Interior domain
@@ -95,7 +95,7 @@ PetscErrorCode FormFunctionPV(SNES snes, Vec x, Vec f, void *ctx)
   }
 
   // Restore arrays, local vectors
-  ierr = DMStagVecRestoreArrayDOF(sol->dmPV,flocal,&ff); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(sol->dmPV,flocal,&ff); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(sol->dmCoeff,&coefflocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(sol->dmPV,   &xlocal    ); CHKERRQ(ierr);
 
@@ -146,7 +146,7 @@ PetscErrorCode FormFunctionHT(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMGlobalToLocal (sol->dmPV, sol->x, INSERT_VALUES, pvlocal); CHKERRQ(ierr);
 
   // Get residual array
-  ierr = DMStagVecGetArrayDOF(sol->dmHT, flocal, &ff); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(sol->dmHT, flocal, &ff); CHKERRQ(ierr);
 
   // ---------------------------------------
   // Interior domain
@@ -171,7 +171,7 @@ PetscErrorCode FormFunctionHT(SNES snes, Vec x, Vec f, void *ctx)
   ierr = BoundaryConditionsTemp(sol, xlocal, ff); CHKERRQ(ierr);
 
   // Restore arrays, local vectors
-  ierr = DMStagVecRestoreArrayDOF(sol->dmHT,flocal,&ff); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(sol->dmHT,flocal,&ff); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(sol->dmHT,   &xlocal    ); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(sol->dmCoeff,&coefflocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(sol->dmPV,   &pvlocal   ); CHKERRQ(ierr);

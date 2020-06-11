@@ -295,10 +295,10 @@ PetscErrorCode MantleConvectionDiagnostics(DM dmPV, Vec xPV, DM dmT, Vec xT, voi
   ierr = DMStagGetGlobalSizes(dmPV,&Nx,&Nz,NULL);CHKERRQ(ierr);
 
   // Get dm coordinates array
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dmPV,ELEMENT,&icenter);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dmPV,LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dmPV,RIGHT,&inext);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,ELEMENT,&icenter);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,LEFT,&iprev);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,RIGHT,&inext);CHKERRQ(ierr);
 
   // Parameters
   dx = coordx[0][inext]-coordx[0][iprev];
@@ -421,7 +421,7 @@ PetscErrorCode MantleConvectionDiagnostics(DM dmPV, Vec xPV, DM dmT, Vec xT, voi
   } 
 
   // Restore arrays, local vectors
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagRestoreProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmPV,&xPVlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmT,&xTlocal); CHKERRQ(ierr);
 
@@ -456,12 +456,12 @@ PetscErrorCode SetInitialTempProfile(DM dm, Vec x, void *ctx)
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
   // Get dm coordinates array
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr);
 
   // Create local vector
   ierr = DMCreateLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayDOF(dm, xlocal, &xx); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
 
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
@@ -480,9 +480,9 @@ PetscErrorCode SetInitialTempProfile(DM dm, Vec x, void *ctx)
   }
 
   // Restore arrays, local vectors
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
 
-  ierr = DMStagVecRestoreArrayDOF(dm,xlocal,&xx);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dm,xlocal,&xx);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
   
@@ -516,7 +516,7 @@ PetscErrorCode SetInitialTempCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, vo
 
   // Create coefficient local vector
   ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayDOF(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
   
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
@@ -573,7 +573,7 @@ PetscErrorCode SetInitialTempCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   }
 
   // Restore arrays, local vectors
-  ierr = DMStagVecRestoreArrayDOF(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
   ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
@@ -628,14 +628,14 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
   ierr = DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL);CHKERRQ(ierr);
   
   // Get dmcoeff coordinates array
-  ierr = DMStagGet1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,RIGHT,&inext);CHKERRQ(ierr);
-  ierr = DMStagGet1dCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,LEFT,&iprev);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,RIGHT,&inext);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter);CHKERRQ(ierr);
 
   // Create coefficient local vector
   ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayDOF(dmcoeff, coefflocal, &cx); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmcoeff, coefflocal, &cx); CHKERRQ(ierr);
   
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
@@ -757,8 +757,8 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
   }
 
   // Restore arrays, local vectors
-  ierr = DMStagRestore1dCoordinateArraysDOFRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayDOF(dmcoeff,coefflocal,&cx);CHKERRQ(ierr);
+  ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&cx);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
   ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
@@ -886,7 +886,7 @@ PetscErrorCode FormCoefficient_Temp(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coef
 
   // Create coefficient local vector
   ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayDOF(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
   
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
@@ -947,7 +947,7 @@ PetscErrorCode FormCoefficient_Temp(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coef
   }
 
   // Restore arrays, local vectors
-  ierr = DMStagVecRestoreArrayDOF(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
   ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
