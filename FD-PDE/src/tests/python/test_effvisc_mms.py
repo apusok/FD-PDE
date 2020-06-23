@@ -16,6 +16,8 @@ def parse_log_file(fname):
   try: # try to open directory
     # Parse output and save norm info
     line_ind = 6
+    iconv = 0
+    conv  = np.zeros(4)
     f = open(fname, 'r')
     for line in f:
       if 'Velocity test1:' in line:
@@ -44,9 +46,22 @@ def parse_log_file(fname):
           nrm_exzn2_num = float(line[103:103+18])
       if 'Grid info test1:' in line:
           hx_num = float(line[18+line_ind:36+line_ind])
+      if 'Nonlinear solve' in line:
+        if 'CONVERGED_FNORM_RELATIVE' in line:
+          conv[iconv] = 1
+        if 'CONVERGED_SNORM_RELATIVE' in line:
+          conv[iconv] = 2
+        if 'DIVERGED_LINE_SEARCH' in line:
+          conv[iconv] = -1
+        if 'DIVERGED_MAX_IT' in line:
+          conv[iconv] = -2
+        iconv += 1
     f.close()
 
-    return nrm_v1_num, nrm_p1_num, nrm_exxc1_num, nrm_ezzc1_num, nrm_exzc1_num, nrm_exxn1_num, nrm_ezzn1_num, nrm_exzn1_num, nrm_v2_num, nrm_p2_num, nrm_exxc2_num, nrm_ezzc2_num, nrm_exzc2_num, nrm_exxn2_num, nrm_ezzn2_num, nrm_exzn2_num, hx_num
+    conv1 = conv[1]
+    conv2 = conv[3]
+
+    return nrm_v1_num, nrm_p1_num, nrm_exxc1_num, nrm_ezzc1_num, nrm_exzc1_num, nrm_exxn1_num, nrm_ezzn1_num, nrm_exzn1_num, nrm_v2_num, nrm_p2_num, nrm_exxc2_num, nrm_ezzc2_num, nrm_exzc2_num, nrm_exxn2_num, nrm_ezzn2_num, nrm_exzn2_num, hx_num, conv1, conv2
   except OSError:
     print('Cannot open:', fdir)
     return tstep
@@ -511,7 +526,7 @@ def plot_strain_rates_error(fname,nx,j):
   plt.close()
 
 # ---------------------------------------
-def plot_convergence_error(fname,nexp,hx,nrm_p1,nrm_v1,nrm_p2,nrm_v2):
+def plot_convergence_error(fname,nexp,hx,nrm_p1,nrm_v1,nrm_p2,nrm_v2,conv1,conv2):
   hx_log    = np.log10(hx)
   nrmp1_log = np.log10(nrm_p1)
   nrmv1_log = np.log10(nrm_v1)
@@ -523,12 +538,16 @@ def plot_convergence_error(fname,nexp,hx,nrm_p1,nrm_v1,nrm_p2,nrm_v2):
   slp2 = np.zeros(len(nexp))
   slv2 = np.zeros(len(nexp))
 
-  # Perform linear regression
+  # Perform linear regression - only on converged values
   for j in range(len(nexp)):
-    slp1[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,:], nrmp1_log[j,:])
-    slv1[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,:], nrmv1_log[j,:])
-    slp2[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,:], nrmp2_log[j,:])
-    slv2[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,:], nrmv2_log[j,:])
+    ind1 = np.where(conv1[j,:]>0)
+    ind2 = np.where(conv2[j,:]>0)
+    if np.size(ind1)>1:
+      slp1[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,ind1[0]], nrmp1_log[j,ind1[0]])
+      slv1[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,ind1[0]], nrmv1_log[j,ind1[0]])
+    if np.size(ind2)>1:
+      slp2[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,ind2[0]], nrmp2_log[j,ind2[0]])
+      slv2[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,ind2[0]], nrmv2_log[j,ind2[0]])
 
   colors = plt.cm.viridis(np.linspace(0,1,len(nexp)))
   plt.figure(1,figsize=(12,6))
@@ -537,35 +556,60 @@ def plot_convergence_error(fname,nexp,hx,nrm_p1,nrm_v1,nrm_p2,nrm_v2):
   plt.grid(color='lightgray', linestyle=':')
 
   for j in range(len(nexp)):
-    plt.plot(hx[j,:],nrm_p1[j,:],'o--',color=colors[j],label='np='+str(nexp[j])+' P sl='+str(round(slp1[j],5)))
-    plt.plot(hx[j,:],nrm_v1[j,:],'+--',color=colors[j],label='np='+str(nexp[j])+' v sl='+str(round(slv1[j],5)))
+    ind1 = np.where(conv1[j,:]>0)
+    plt.plot(hx[j,:],nrm_p1[j,:],'o',color=colors[j])
+    plt.plot(hx[j,:],nrm_v1[j,:],'+',color=colors[j])
+    hx0 = np.zeros(np.size(ind1))
+    p10 = np.zeros(np.size(ind1))
+    v10 = np.zeros(np.size(ind1))
+
+    for i in range(np.size(ind1)):
+      hx0[i] =     hx[j,ind1[0][i]]
+      p10[i] = nrm_p1[j,ind1[0][i]]
+      v10[i] = nrm_v1[j,ind1[0][i]]
+
+    plt.plot(hx0,p10,'o--',color=colors[j],label='np='+str(nexp[j])+' P sl='+str(round(slp1[j],5)))
+    plt.plot(hx0,v10,'+--',color=colors[j],label='np='+str(nexp[j])+' v sl='+str(round(slv1[j],5)))
 
   plt.xscale("log")
   plt.yscale("log")
   plt.xlabel('log10(h)',fontweight='bold',fontsize=12)
   plt.ylabel(r'$E(P), E(v)$',fontweight='bold',fontsize=12)
   plt.title('a) Stokes',fontweight='bold',fontsize=12)
-  plt.legend()
+  plt.legend(loc='lower right')
 
   plt.subplot(122)
   plt.grid(color='lightgray', linestyle=':')
 
   for j in range(len(nexp)):
-    plt.plot(hx[j,:],nrm_p2[j,:],'o--',color=colors[j],label='np='+str(nexp[j])+' P sl='+str(round(slp2[j],5)))
-    plt.plot(hx[j,:],nrm_v2[j,:],'+--',color=colors[j],label='np='+str(nexp[j])+' v sl='+str(round(slv2[j],5)))
+    ind2 = np.where(conv2[j,:]>0)
+    plt.plot(hx[j,:],nrm_p2[j,:],'o',color=colors[j])
+    plt.plot(hx[j,:],nrm_v2[j,:],'+',color=colors[j])
+
+    hx0 = np.zeros(np.size(ind2))
+    p10 = np.zeros(np.size(ind2))
+    v10 = np.zeros(np.size(ind2))
+
+    for i in range(np.size(ind2)):
+      hx0[i] =     hx[j,ind2[0][i]]
+      p10[i] = nrm_p2[j,ind2[0][i]]
+      v10[i] = nrm_v2[j,ind2[0][i]]
+
+    plt.plot(hx0,p10,'o--',color=colors[j],label='np='+str(nexp[j])+' P sl='+str(round(slp2[j],5)))
+    plt.plot(hx0,v10,'+--',color=colors[j],label='np='+str(nexp[j])+' v sl='+str(round(slv2[j],5)))
 
   plt.xscale("log")
   plt.yscale("log")
   plt.xlabel('log10(h)',fontweight='bold',fontsize=12)
   plt.ylabel(r'$E(P), E(v)$',fontweight='bold',fontsize=12)
   plt.title('b) Stokes-Darcy',fontweight='bold',fontsize=12)
-  plt.legend()
+  plt.legend(loc='lower right')
 
   plt.savefig(fname+'_error_hx_L2.pdf')
   plt.close()
 
 # ---------------------------------------
-def plot_convergence_error_strain_rate(fname,nexp,hx,nrm_exxc1,nrm_ezzc1,nrm_exzc1,nrm_exxn1,nrm_ezzn1,nrm_exzn1,nrm_exxc2,nrm_ezzc2,nrm_exzc2,nrm_exxn2,nrm_ezzn2,nrm_exzn2):
+def plot_convergence_error_strain_rate(fname,nexp,hx,nrm_exxc1,nrm_ezzc1,nrm_exzc1,nrm_exxn1,nrm_ezzn1,nrm_exzn1,nrm_exxc2,nrm_ezzc2,nrm_exzc2,nrm_exxn2,nrm_ezzn2,nrm_exzn2,conv1,conv2):
   hx_log    = np.log10(hx)
   nrmexxc1_log = np.log10(nrm_exxc1)
   nrmezzc1_log = np.log10(nrm_ezzc1)
@@ -597,19 +641,25 @@ def plot_convergence_error_strain_rate(fname,nexp,hx,nrm_exxc1,nrm_ezzc1,nrm_exz
 
   # Perform linear regression
   for j in range(len(nexp)):
-    slexxc1[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,:], nrmexxc1_log[j,:])
-    slezzc1[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,:], nrmezzc1_log[j,:])
-    slexzc1[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,:], nrmexzc1_log[j,:])
-    slexxc2[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,:], nrmexxc2_log[j,:])
-    slezzc2[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,:], nrmezzc2_log[j,:])
-    slexzc2[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,:], nrmexzc2_log[j,:])
+    ind1 = np.where(conv1[j,:]>0)
+    ind2 = np.where(conv2[j,:]>0)
+    if np.size(ind1)>1:
+      slexxc1[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,ind1[0]], nrmexxc1_log[j,ind1[0]])
+      slezzc1[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,ind1[0]], nrmezzc1_log[j,ind1[0]])
+      slexzc1[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,ind1[0]], nrmexzc1_log[j,ind1[0]])
 
-    slexxn1[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,:], nrmexxn1_log[j,:])
-    slezzn1[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,:], nrmezzn1_log[j,:])
-    slexzn1[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,:], nrmexzn1_log[j,:])
-    slexxn2[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,:], nrmexxn2_log[j,:])
-    slezzn2[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,:], nrmezzn2_log[j,:])
-    slexzn2[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,:], nrmexzn2_log[j,:])
+      slexxn1[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,ind1[0]], nrmexxn1_log[j,ind1[0]])
+      slezzn1[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,ind1[0]], nrmezzn1_log[j,ind1[0]])
+      slexzn1[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,ind1[0]], nrmexzn1_log[j,ind1[0]])
+    
+    if np.size(ind2)>1:
+      slexxc2[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,ind2[0]], nrmexxc2_log[j,ind2[0]])
+      slezzc2[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,ind2[0]], nrmezzc2_log[j,ind2[0]])
+      slexzc2[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,ind2[0]], nrmexzc2_log[j,ind2[0]])
+
+      slexxn2[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,ind2[0]], nrmexxn2_log[j,ind2[0]])
+      slezzn2[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,ind2[0]], nrmezzn2_log[j,ind2[0]])
+      slexzn2[j], intercept, r_value, p_value, std_err = linregress(hx_log[j,ind2[0]], nrmexzn2_log[j,ind2[0]])
 
   colors = plt.cm.viridis(np.linspace(0,1,len(nexp)))
   plt.figure(1,figsize=(12,12))
@@ -618,61 +668,127 @@ def plot_convergence_error_strain_rate(fname,nexp,hx,nrm_exxc1,nrm_ezzc1,nrm_exz
   plt.grid(color='lightgray', linestyle=':')
 
   for j in range(len(nexp)):
-    plt.plot(hx[j,:],nrm_exxc1[j,:],'o-',color=colors[j],label='np='+str(nexp[j])+' exx sl='+str(round(slexxc1[j],5)))
-    plt.plot(hx[j,:],nrm_ezzc1[j,:],'+--',color=colors[j],label='np='+str(nexp[j])+' ezz sl='+str(round(slezzc1[j],5)))
-    plt.plot(hx[j,:],nrm_exzc1[j,:],'s:',color=colors[j],label='np='+str(nexp[j])+' exz* sl='+str(round(slexzc1[j],5)))
+    ind1 = np.where(conv1[j,:]>0)
+
+    plt.plot(hx[j,:],nrm_exxc1[j,:],'o',color=colors[j])
+    plt.plot(hx[j,:],nrm_ezzc1[j,:],'+',color=colors[j])
+    plt.plot(hx[j,:],nrm_exzc1[j,:],'s',color=colors[j])
+
+    hx0 = np.zeros(np.size(ind1))
+    exx0 = np.zeros(np.size(ind1))
+    ezz0 = np.zeros(np.size(ind1))
+    exz0 = np.zeros(np.size(ind1))
+
+    for i in range(np.size(ind1)):
+      hx0[i] =         hx[j,ind1[0][i]]
+      exx0[i] = nrm_exxc1[j,ind1[0][i]]
+      ezz0[i] = nrm_ezzc1[j,ind1[0][i]]
+      exz0[i] = nrm_exzc1[j,ind1[0][i]]
+
+    plt.plot(hx0,exx0,'o-',color=colors[j],label='np='+str(nexp[j])+' exx sl='+str(round(slexxc1[j],5)))
+    plt.plot(hx0,ezz0,'+--',color=colors[j],label='np='+str(nexp[j])+' ezz sl='+str(round(slezzc1[j],5)))
+    plt.plot(hx0,exz0,'s:',color=colors[j],label='np='+str(nexp[j])+' exz* sl='+str(round(slexzc1[j],5)))
 
   plt.xscale("log")
   plt.yscale("log")
   plt.xlabel('log10(h)',fontweight='bold',fontsize=12)
   plt.ylabel(r'$E(\epsilon_{xx}), E(\epsilon_{zz}), E(\epsilon_{xz})$',fontweight='bold',fontsize=12)
   plt.title('a) Stokes - CENTER',fontweight='bold',fontsize=12)
-  plt.legend()
+  plt.legend(loc='lower right')
 
   plt.subplot(222)
   plt.grid(color='lightgray', linestyle=':')
 
   for j in range(len(nexp)):
-    plt.plot(hx[j,:],nrm_exxc2[j,:],'o-',color=colors[j],label='np='+str(nexp[j])+' exx sl='+str(round(slexxc2[j],5)))
-    plt.plot(hx[j,:],nrm_ezzc2[j,:],'+--',color=colors[j],label='np='+str(nexp[j])+' ezz sl='+str(round(slezzc2[j],5)))
-    plt.plot(hx[j,:],nrm_exzc2[j,:],'s:',color=colors[j],label='np='+str(nexp[j])+' exz* sl='+str(round(slexzc2[j],5)))
+    ind2 = np.where(conv2[j,:]>0)
+
+    plt.plot(hx[j,:],nrm_exxc2[j,:],'o',color=colors[j])
+    plt.plot(hx[j,:],nrm_ezzc2[j,:],'+',color=colors[j])
+    plt.plot(hx[j,:],nrm_exzc2[j,:],'s',color=colors[j])
+
+    hx0 = np.zeros(np.size(ind2))
+    exx0 = np.zeros(np.size(ind2))
+    ezz0 = np.zeros(np.size(ind2))
+    exz0 = np.zeros(np.size(ind2))
+
+    for i in range(np.size(ind2)):
+      hx0[i] =         hx[j,ind2[0][i]]
+      exx0[i] = nrm_exxc2[j,ind2[0][i]]
+      ezz0[i] = nrm_ezzc2[j,ind2[0][i]]
+      exz0[i] = nrm_exzc2[j,ind2[0][i]]
+    
+    plt.plot(hx0,exx0,'o-',color=colors[j],label='np='+str(nexp[j])+' exx sl='+str(round(slexxc2[j],5)))
+    plt.plot(hx0,ezz0,'+--',color=colors[j],label='np='+str(nexp[j])+' ezz sl='+str(round(slezzc2[j],5)))
+    plt.plot(hx0,exz0,'s:',color=colors[j],label='np='+str(nexp[j])+' exz* sl='+str(round(slexzc2[j],5)))
 
   plt.xscale("log")
   plt.yscale("log")
   plt.xlabel('log10(h)',fontweight='bold',fontsize=12)
   plt.ylabel(r'$E(\epsilon_{xx}), E(\epsilon_{zz}), E(\epsilon_{xz})$',fontweight='bold',fontsize=12)
   plt.title('b) Stokes-Darcy - CENTER',fontweight='bold',fontsize=12)
-  plt.legend()
+  plt.legend(loc='lower right')
 
   plt.subplot(223)
   plt.grid(color='lightgray', linestyle=':')
 
   for j in range(len(nexp)):
-    plt.plot(hx[j,:],nrm_exxn1[j,:],'o-',color=colors[j],label='np='+str(nexp[j])+' exx* sl='+str(round(slexxn1[j],5)))
-    plt.plot(hx[j,:],nrm_ezzn1[j,:],'+--',color=colors[j],label='np='+str(nexp[j])+' ezz* sl='+str(round(slezzn1[j],5)))
-    plt.plot(hx[j,:],nrm_exzn1[j,:],'s:',color=colors[j],label='np='+str(nexp[j])+' exz sl='+str(round(slexzn1[j],5)))
+    ind1 = np.where(conv1[j,:]>0)
+    plt.plot(hx[j,:],nrm_exxn1[j,:],'o',color=colors[j])
+    plt.plot(hx[j,:],nrm_ezzn1[j,:],'+',color=colors[j])
+    plt.plot(hx[j,:],nrm_exzn1[j,:],'s',color=colors[j])
+
+    hx0 = np.zeros(np.size(ind1))
+    exx0 = np.zeros(np.size(ind1))
+    ezz0 = np.zeros(np.size(ind1))
+    exz0 = np.zeros(np.size(ind1))
+
+    for i in range(np.size(ind1)):
+      hx0[i] =         hx[j,ind1[0][i]]
+      exx0[i] = nrm_exxn1[j,ind1[0][i]]
+      ezz0[i] = nrm_ezzn1[j,ind1[0][i]]
+      exz0[i] = nrm_exzn1[j,ind1[0][i]]
+    
+    plt.plot(hx0,exx0,'o-',color=colors[j],label='np='+str(nexp[j])+' exx* sl='+str(round(slexxn1[j],5)))
+    plt.plot(hx0,ezz0,'+--',color=colors[j],label='np='+str(nexp[j])+' ezz* sl='+str(round(slezzn1[j],5)))
+    plt.plot(hx0,exz0,'s:',color=colors[j],label='np='+str(nexp[j])+' exz sl='+str(round(slexzn1[j],5)))
 
   plt.xscale("log")
   plt.yscale("log")
   plt.xlabel('log10(h)',fontweight='bold',fontsize=12)
   plt.ylabel(r'$E(\epsilon_{xx}), E(\epsilon_{zz}), E(\epsilon_{xz})$',fontweight='bold',fontsize=12)
   plt.title('c) Stokes - CORNER',fontweight='bold',fontsize=12)
-  plt.legend()
+  plt.legend(loc='lower right')
 
   plt.subplot(224)
   plt.grid(color='lightgray', linestyle=':')
 
   for j in range(len(nexp)):
-    plt.plot(hx[j,:],nrm_exxn2[j,:],'o-',color=colors[j],label='np='+str(nexp[j])+' exx* sl='+str(round(slexxn2[j],5)))
-    plt.plot(hx[j,:],nrm_ezzn2[j,:],'+--',color=colors[j],label='np='+str(nexp[j])+' ezz* sl='+str(round(slezzn2[j],5)))
-    plt.plot(hx[j,:],nrm_exzn2[j,:],'s:',color=colors[j],label='np='+str(nexp[j])+' exz sl='+str(round(slexzn2[j],5)))
+    ind2 = np.where(conv2[j,:]>0)
+    plt.plot(hx[j,:],nrm_exxn2[j,:],'o',color=colors[j])
+    plt.plot(hx[j,:],nrm_ezzn2[j,:],'+',color=colors[j])
+    plt.plot(hx[j,:],nrm_exzn2[j,:],'s',color=colors[j])
+
+    hx0 = np.zeros(np.size(ind2))
+    exx0 = np.zeros(np.size(ind2))
+    ezz0 = np.zeros(np.size(ind2))
+    exz0 = np.zeros(np.size(ind2))
+
+    for i in range(np.size(ind2)):
+      hx0[i] =         hx[j,ind2[0][i]]
+      exx0[i] = nrm_exxn2[j,ind2[0][i]]
+      ezz0[i] = nrm_ezzn2[j,ind2[0][i]]
+      exz0[i] = nrm_exzn2[j,ind2[0][i]]
+    
+    plt.plot(hx0,exx0,'o-',color=colors[j],label='np='+str(nexp[j])+' exx* sl='+str(round(slexxn2[j],5)))
+    plt.plot(hx0,ezz0,'+--',color=colors[j],label='np='+str(nexp[j])+' ezz* sl='+str(round(slezzn2[j],5)))
+    plt.plot(hx0,exz0,'s:',color=colors[j],label='np='+str(nexp[j])+' exz sl='+str(round(slexzn2[j],5)))
 
   plt.xscale("log")
   plt.yscale("log")
   plt.xlabel('log10(h)',fontweight='bold',fontsize=12)
   plt.ylabel(r'$E(\epsilon_{xx}), E(\epsilon_{zz}), E(\epsilon_{xz})$',fontweight='bold',fontsize=12)
   plt.title('d) Stokes-Darcy - CORNER',fontweight='bold',fontsize=12)
-  plt.legend()
+  plt.legend(loc='lower right')
 
   plt.savefig(fname+'_error_strain_rate_hx_L2.pdf')
   plt.close()
@@ -686,8 +802,8 @@ print('# --------------------------------------- #')
 
 # Set main parameters and run test
 fname = 'out_effvisc'
-n  = [20, 40, 100, 120, 150, 200, 250, 300] #[21, 41, 101, 121, 151, 201, 251, 301] # resolution
-nexp = [1.0, 2.0, 3.0] #[1.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]  # [1.0, 5.0, 10.0, 15.0, 30.0] #power-law exponent
+n  = [40, 100, 120, 150, 200, 250, 300] #[41, 101, 121, 151, 201, 251, 301] # resolution
+nexp = [1.0, 2.0, 3.0] #[1.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0] #[1.0, 5.0, 10.0, 15.0, 30.0]    # power-law exponent
 
 # Prepare errors and convergence
 nrm_p1  = np.zeros((len(nexp),len(n))) # 1- stokes
@@ -695,6 +811,8 @@ nrm_p2  = np.zeros((len(nexp),len(n))) # 2- stokes-darcy
 nrm_v1  = np.zeros((len(nexp),len(n)))
 nrm_v2  = np.zeros((len(nexp),len(n)))
 hx      = np.zeros((len(nexp),len(n)))
+conv1   = np.zeros((len(nexp),len(n)))
+conv2   = np.zeros((len(nexp),len(n)))
 
 nrm_exxc1 = np.zeros((len(nexp),len(n)))
 nrm_ezzc1 = np.zeros((len(nexp),len(n)))
@@ -724,15 +842,17 @@ for j in range(len(nexp)):
         ' -nexp '+str(inp)+ \
         ' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout
     print(str1)
-    os.system(str1)
+    # os.system(str1)
 
     # Parse variables
-    nrm_v1_num, nrm_p1_num, nrm_exxc1_num, nrm_ezzc1_num, nrm_exzc1_num, nrm_exxn1_num, nrm_ezzn1_num, nrm_exzn1_num, nrm_v2_num, nrm_p2_num, nrm_exxc2_num, nrm_ezzc2_num, nrm_exzc2_num, nrm_exxn2_num, nrm_ezzn2_num, nrm_exzn2_num, hx_num = parse_log_file(fout)
+    nrm_v1_num, nrm_p1_num, nrm_exxc1_num, nrm_ezzc1_num, nrm_exzc1_num, nrm_exxn1_num, nrm_ezzn1_num, nrm_exzn1_num, nrm_v2_num, nrm_p2_num, nrm_exxc2_num, nrm_ezzc2_num, nrm_exzc2_num, nrm_exxn2_num, nrm_ezzn2_num, nrm_exzn2_num, hx_num, conv1_num, conv2_num = parse_log_file(fout)
     nrm_p1[j,i] = nrm_p1_num
     nrm_v1[j,i] = nrm_v1_num
     nrm_p2[j,i] = nrm_p2_num
     nrm_v2[j,i] = nrm_v2_num
     hx[j,i]     = hx_num
+    conv1[j,i]  = conv1_num
+    conv2[j,i]  = conv2_num
 
     nrm_exxc1[j,i] = nrm_exxc1_num
     nrm_ezzc1[j,i] = nrm_ezzc1_num
@@ -749,12 +869,12 @@ for j in range(len(nexp)):
     nrm_exzn2[j,i] = nrm_exzn2_num
 
     # Plot solution and error
-    plot_solution_mms_error(fname,nx,j)
-    plot_strain_rates_error(fname,nx,j)
-    plot_rhs_mms(fname,nx,j)
+    # plot_solution_mms_error(fname,nx,j)
+    # plot_strain_rates_error(fname,nx,j)
+    # plot_rhs_mms(fname,nx,j)
 
 # Convergence plot
-plot_convergence_error(fname,nexp,hx,nrm_p1,nrm_v1,nrm_p2,nrm_v2)
-plot_convergence_error_strain_rate(fname,nexp,hx,nrm_exxc1,nrm_ezzc1,nrm_exzc1,nrm_exxn1,nrm_ezzn1,nrm_exzn1,nrm_exxc2,nrm_ezzc2,nrm_exzc2,nrm_exxn2,nrm_ezzn2,nrm_exzn2)
+plot_convergence_error(fname,nexp,hx,nrm_p1,nrm_v1,nrm_p2,nrm_v2,conv1,conv2)
+plot_convergence_error_strain_rate(fname,nexp,hx,nrm_exxc1,nrm_ezzc1,nrm_exzc1,nrm_exxn1,nrm_ezzn1,nrm_exzn1,nrm_exxc2,nrm_ezzc2,nrm_exzc2,nrm_exxn2,nrm_ezzn2,nrm_exzn2,conv1,conv2)
 
 os.system('rm -r __pycache__')
