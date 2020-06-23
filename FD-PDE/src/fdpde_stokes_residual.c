@@ -330,10 +330,10 @@ Use: internal
 #define __FUNCT__ "DMStagBCListApplyFace_Stokes"
 PetscErrorCode DMStagBCListApplyFace_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscScalar ***ff)
 {
-  PetscScalar    xx, dx, dz;
+  PetscScalar    xx, xxT[2], dx, dz;
   PetscScalar    A_Left, A_Right, A_Up, A_Down;
   PetscInt       i, j, ibc, idx, iprev, inext, Nx, Nz;
-  DMStagStencil  point;
+  DMStagStencil  point, pointT[2];
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
 
@@ -398,6 +398,41 @@ PetscErrorCode DMStagBCListApplyFace_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec co
         ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Right); CHKERRQ(ierr);
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] += A_Right*bclist[ibc].val/dx;
+      }
+    }
+
+    if (bclist[ibc].type == BC_NEUMANN_T) { // of the form dvi/dxi
+      i   = bclist[ibc].point.i;
+      j   = bclist[ibc].point.j;
+      idx = bclist[ibc].idx;
+
+      if ((i == 0) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // left dVx/dx = a
+        pointT[0].i = i  ; pointT[0].j = j; pointT[0].loc = DMSTAG_LEFT; pointT[0].c = 0;
+        pointT[1].i = i+1; pointT[1].j = j; pointT[1].loc = DMSTAG_LEFT; pointT[1].c = 0;
+        ierr = DMStagVecGetValuesStencil(dm,xlocal,2,pointT,xxT); CHKERRQ(ierr);
+        dx = coordx[i][inext]-coordx[i][iprev];
+        ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dx;
+      }
+      if ((i == Nx-1) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // right dVx/dx = a
+        pointT[0].i = i  ; pointT[0].j = j; pointT[0].loc = DMSTAG_LEFT ; pointT[0].c = 0;
+        pointT[1].i = i  ; pointT[1].j = j; pointT[1].loc = DMSTAG_RIGHT; pointT[1].c = 0;
+        ierr = DMStagVecGetValuesStencil(dm,xlocal,2,pointT,xxT); CHKERRQ(ierr);
+        dx = coordx[i][inext]-coordx[i][iprev];
+        ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dx;
+      }
+      if ((j == 0) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // down dVz/dz = a
+        pointT[0].i = i; pointT[0].j = j  ; pointT[0].loc = DMSTAG_DOWN; pointT[0].c = 0;
+        pointT[1].i = i; pointT[1].j = j+1; pointT[1].loc = DMSTAG_DOWN; pointT[1].c = 0;
+        ierr = DMStagVecGetValuesStencil(dm,xlocal,2,pointT,xxT); CHKERRQ(ierr);
+        dz = coordz[j][inext]-coordz[j][iprev];
+        ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dx;
+      }
+      if ((j == Nz-1) && (bclist[ibc].point.loc == DMSTAG_UP)) { // up dVz/dz = a
+        pointT[0].i = i; pointT[0].j = j-1; pointT[0].loc = DMSTAG_UP; pointT[0].c = 0;
+        pointT[1].i = i; pointT[1].j = j  ; pointT[1].loc = DMSTAG_UP; pointT[1].c = 0;
+        ierr = DMStagVecGetValuesStencil(dm,xlocal,2,pointT,xxT); CHKERRQ(ierr);
+        dz = coordz[j][inext]-coordz[j][iprev];
+        ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dx;
       }
     }
   }

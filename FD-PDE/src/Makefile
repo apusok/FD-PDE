@@ -48,6 +48,7 @@ TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_coupling.c \
 		tests/test_material_point.c \
 		tests/test_stokes_rt.c \
+		tests/test_plastic_indenter.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,$(TEST_SRC))
 TEST_APP := $(patsubst %.c,%.app,$(TEST_SRC))

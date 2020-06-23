@@ -24,6 +24,7 @@ python test_advdiff_mms_convergence.py
 python test_stokesdarcy2field_mms_porosity.py
 python test_decoupled_convection.py
 python test_effvisc_mms.py
+python test_plastic_indenter.py
 
 # Models
 # python run_mor_mechanics.py
