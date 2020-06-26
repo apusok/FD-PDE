@@ -726,6 +726,8 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
   for (k=0; k<n; k++) {
     xc[2*k+0] = bc[ idx[k] ].coord[0];
     xc[2*k+1] = bc[ idx[k] ].coord[1];
+    v[k]      = bc[ idx[k] ].val;
+    t[k]      = bc[ idx[k] ].type;
   }
   *_n = n;  *_idx = idx;  *_value = v;  *_type = t;
   if (_xc) { *_xc = xc; }
