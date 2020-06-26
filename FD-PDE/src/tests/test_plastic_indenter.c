@@ -132,6 +132,8 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = VecDestroy(&xguess);CHKERRQ(ierr);
   usr->par->plasticity = PETSC_TRUE;
 
+  // MatView(fd->J,PETSC_VIEWER_STDOUT_WORLD);
+
   // FD SNES Solver
   PetscPrintf(PETSC_COMM_WORLD,"\n# SNES SOLVE #\n");
   ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
@@ -222,7 +224,8 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
           ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&pointP,&P); CHKERRQ(ierr);
 
           // plastic yield criterion
-          Y = usr->par->C + P*PetscSinScalar(PETSC_PI*usr->par->phi/180);
+          Y = usr->par->C;
+          // Y = usr->par->C + P*PetscSinScalar(PETSC_PI*usr->par->phi/180);
           eta_P = Y/(2.0*epsII);
 
           // Effective viscosity
@@ -287,7 +290,8 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
 
           if (usr->par->plasticity) {
             // plastic yield criterion
-            Y = usr->par->C + Pinterp[ii]*PetscSinScalar(PETSC_PI*usr->par->phi/180);
+            Y = usr->par->C;
+            // Y = usr->par->C + Pinterp[ii]*PetscSinScalar(PETSC_PI*usr->par->phi/180);
             eta_P = Y/(2.0*epsII[ii]);
 
             // Effective viscosity
@@ -460,7 +464,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   UsrData       *usr = (UsrData*) ctx;
   PetscInt       sx, sz, nx, nz, Nx, Nz;
   PetscInt       i,k,n_bc,*idx_bc, iprev,icenter,inext;
-  PetscScalar    *value_bc,*x_bc, xx[2], dx;
+  PetscScalar    *value_bc,*x_bc, xx[2], dx, ps, pe;
   PetscScalar    **coordx,**coordz;
   Vec            xlocal;
   BCType         *type_bc;
@@ -468,6 +472,9 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
+
+  ps = (2*usr->par->xmin+usr->par->L)/2 - usr->par->p/2;
+  pe = (2*usr->par->xmin+usr->par->L)/2 + usr->par->p/2;
 
   // Get solution dm/vector
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -489,14 +496,6 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
     type_bc[k] = BC_NEUMANN;
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
-
-  // Vx=0 on left boundary (w)
-  ierr = DMStagBCListGetValues(bclist,'w','-',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    value_bc[k] = 0.0;
-    type_bc[k] = BC_DIRICHLET;
-  }
-  ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   
   // RIGHT: free slip
   // dVz/dx=0 on right boundary (e)
@@ -506,14 +505,6 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
     type_bc[k] = BC_NEUMANN;
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
-
-  // Vx=0 on right boundary (e)
-  ierr = DMStagBCListGetValues(bclist,'e','-',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    value_bc[k] = 0.0;
-    type_bc[k] = BC_DIRICHLET;
-  }
-  ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // DOWN: no slip
   // Vx=0 on bottom boundary (s)
@@ -538,7 +529,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   // indenter Dirichlet BC
   for (k=0; k<n_bc; k++) {
-    if ((x_bc[2*k]>=-usr->par->p*0.5) && (x_bc[2*k]<=usr->par->p*0.5)) {
+    if ((x_bc[2*k]>=ps) && (x_bc[2*k]<=pe)) {
       if (!usr->par->smooth) { // rough or smooth
         value_bc[k] = 0.0;
         type_bc[k] = BC_DIRICHLET;
@@ -546,32 +537,34 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
     } 
   }
 
- // Outside indenter: vx=0
-  for (k=0; k<n_bc; k++) {
-    if ((x_bc[2*k]<-usr->par->p*0.5) || (x_bc[2*k]>usr->par->p*0.5)) {
-      value_bc[k] = 0;
-      type_bc[k] = BC_DIRICHLET;
+//  // Outside indenter: vx=0
+//   for (k=0; k<n_bc; k++) {
+//     if ((x_bc[2*k]<ps) || (x_bc[2*k]>pe)) {
+//       value_bc[k] = 0;
+//       type_bc[k] = BC_DIRICHLET;
+//     }
+//   }
+
+  // PetscPrintf(PETSC_COMM_WORLD,"# ITERATION %f %f#\n",ps, pe);
+  // Outside indenter: no shear stress dVx/dz=-dVz/dx
+  for (k=1; k<n_bc; k++) {
+    if ((x_bc[2*k]<ps) || (x_bc[2*k]>pe)) { 
+      for (i = sx; i < sx+nx; i++) {
+        if (x_bc[2*k]==coordx[i][iprev]){//} || (x_bc[2*k]==coordx[i][inext])) {
+          // PetscPrintf(PETSC_COMM_WORLD,"# id %d coord=%f #\n",i,x_bc[2*k]);
+          point[0].i = i-1; point[0].j = Nz-1; point[0].loc = UP; point[0].c = 0;
+          point[1].i = i  ; point[1].j = Nz-1; point[1].loc = UP; point[1].c = 0;
+          if (i==0   ) point[0] = point[1];
+          if (i==Nx-1) point[0] = point[1];
+          ierr = DMStagVecGetValuesStencil(dm,xlocal,2,point,xx); CHKERRQ(ierr);
+          if (i==0) dx = 2.0*(coordx[i][icenter] - coordx[i][iprev]);
+          else      dx = coordx[i][icenter] - coordx[i-1][icenter];
+          value_bc[k] = -(xx[1]-xx[0])/dx;
+          type_bc[k] = BC_NEUMANN;
+        }
+      }
     }
   }
-
-  // // Outside indenter: no shear stress dVx/dz=-dVz/dx
-  // for (k=0; k<n_bc; k++) {
-  //   if ((x_bc[2*k]<-usr->par->p*0.5) || (x_bc[2*k]>usr->par->p*0.5)) { 
-  //     for (i = sx; i < sx+nx; i++) {
-  //       if ((x_bc[2*k]==coordx[i][iprev]) || (x_bc[2*k]==coordx[i][inext])) {
-  //         point[0].i = i-1; point[0].j = Nz-1; point[0].loc = UP; point[0].c = 0;
-  //         point[1].i = i  ; point[1].j = Nz-1; point[1].loc = UP; point[1].c = 0;
-  //         if (i==0   ) point[0] = point[1];
-  //         if (i==Nx-1) point[0] = point[1];
-  //         ierr = DMStagVecGetValuesStencil(dm,xlocal,2,point,xx); CHKERRQ(ierr);
-  //         if (i==0) dx = 2.0*(coordx[i][icenter] - coordx[i][iprev]);
-  //         else      dx = coordx[i][icenter] - coordx[i-1][icenter];
-  //         value_bc[k] = -(xx[1]-xx[0])/dx;
-  //         type_bc[k] = BC_NEUMANN;
-  //       }
-  //     }
-  //   }
-  // }
   ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // 2. Vz on top boundary (n)
@@ -579,25 +572,15 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   // indenter Dirichlet BC
   for (k=0; k<n_bc; k++) {
-    if ((x_bc[2*k]>=-usr->par->p*0.5) && (x_bc[2*k]<=usr->par->p*0.5)) {
+    if ((x_bc[2*k]>=ps) && (x_bc[2*k]<=pe)) {
       value_bc[k] = -usr->par->vp;
       type_bc[k] = BC_DIRICHLET;
     } 
   }
 
-  // // Outside indenter: constant outflow
-  // PetscScalar vout;
-  // vout = usr->par->vp*usr->par->p/(usr->par->L-usr->par->p);
-  // for (k=0; k<n_bc; k++) {
-  //   if ((x_bc[2*k]<-usr->par->p*0.5) || (x_bc[2*k]>usr->par->p*0.5)) { 
-  //     value_bc[k] = vout;
-  //     type_bc[k] = BC_DIRICHLET;
-  //   }
-  // }
-
   // Outside indenter: no normal stress dVz/dz=0 
   for (k=0; k<n_bc; k++) {
-    if ((x_bc[2*k]<-usr->par->p*0.5) || (x_bc[2*k]>usr->par->p*0.5)) { 
+    if ((x_bc[2*k]<ps) || (x_bc[2*k]>pe)) { 
       value_bc[k] = 0.0;
       type_bc[k] = BC_NEUMANN_T;
     }
@@ -607,12 +590,28 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   // 3. P=0 on top boundary (n)
   ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    if ((x_bc[2*k]<-usr->par->p*0.5) || (x_bc[2*k]>usr->par->p*0.5)) {
+    if ((x_bc[2*k]<ps) || (x_bc[2*k]>pe)) {
       value_bc[k] = 0.0;
       type_bc[k] = BC_DIRICHLET;
     }
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+
+  // Vx=0 on right boundary (e)
+  ierr = DMStagBCListGetValues(bclist,'e','-',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = 0.0;
+    type_bc[k] = BC_DIRICHLET;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+
+  // Vx=0 on left boundary (w)
+  ierr = DMStagBCListGetValues(bclist,'w','-',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = 0.0;
+    type_bc[k] = BC_DIRICHLET;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // restore
   ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -652,7 +651,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   par = usr->par;
 
   // Initialize domain variables
-  ierr = PetscBagRegisterInt(bag, &par->nx, 4, "nx", "Element count in the x-dir"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->nx, 5, "nx", "Element count in the x-dir"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->nz, 5, "nz", "Element count in the z-dir"); CHKERRQ(ierr);
 
   ierr = PetscBagRegisterScalar(bag, &par->xmin, -0.5, "xmin", "Start coordinate of domain in x-dir"); CHKERRQ(ierr);
