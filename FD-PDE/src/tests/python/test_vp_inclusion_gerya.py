@@ -12,13 +12,17 @@ import os
 # ---------------------------------------
 # Function definitions
 # ---------------------------------------
-def plot_solution(fname,nx,initial):
+def plot_solution(fname,nx,initial,dim):
 
   # Load data
   if (initial == 0):
     fout = fname+'_solution_initial'
   else:
     fout = fname+'_solution' 
+  
+  if (dim == 1):
+    fout = fout+'_dim' 
+  
   imod = importlib.import_module(fout) 
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
@@ -37,6 +41,10 @@ def plot_solution(fname,nx,initial):
     fout = fname+'_coefficient_initial'
   else:
     fout = fname+'_coefficient'
+  
+  if (dim == 1):
+    fout = fout+'_dim' 
+  
   imod = importlib.import_module(fout) 
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
@@ -64,6 +72,12 @@ def plot_solution(fname,nx,initial):
 
   velmax = max(max(vx),max(vz))
   velmin = min(min(vx),min(vz))
+  if (dim==0):
+    etamax = 3
+    etamin =-3
+  else:
+    etamax = 23
+    etamin = 17
 
   # Plot all fields - P, vx, vz, v, etac, etan
   fig = plt.figure(1,figsize=(12,8))
@@ -91,12 +105,12 @@ def plot_solution(fname,nx,initial):
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
 
   ax = plt.subplot(2,3,5)
-  im = ax.imshow(np.log10(etac.reshape(mz,mx)),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=-3,vmax=3,cmap=cmaps,origin='lower')
+  im = ax.imshow(np.log10(etac.reshape(mz,mx)),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=etamin,vmax=etamax,cmap=cmaps,origin='lower')
   ax.set_title(r'$\eta_{center}$')
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
 
   ax = plt.subplot(2,3,6)
-  im = ax.imshow(np.log10(etan.reshape(mz+1,mx+1)),extent=[min(xv), max(xv), min(zv), max(zv)],vmin=-3,vmax=3,cmap=cmaps,origin='lower')
+  im = ax.imshow(np.log10(etan.reshape(mz+1,mx+1)),extent=[min(xv), max(xv), min(zv), max(zv)],vmin=etamin,vmax=etamax,cmap=cmaps,origin='lower')
   ax.set_title(r'$\eta_{corner}$')
   ax.set_ylabel('z')
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
@@ -106,14 +120,21 @@ def plot_solution(fname,nx,initial):
     fout = fname+'_solution_initial'+'_nx_'+str(nx)
   else:
     fout = fname+'_solution'+'_nx_'+str(nx)
+
+  if (dim == 1):
+    fout = fout+'_dim' 
+  
   plt.savefig(fout+'.pdf')
   plt.close()
 
 # ---------------------------------------
-def plot_strain_rates(fname,nx):
+def plot_strain_rates(fname,nx,dim):
 
   # Load data
   fout = fname+'_strain' # 1. Numerical solution stokes - strain rates
+  if (dim == 1):
+    fout = fout+'_dim' 
+
   imod = importlib.import_module(fout) 
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
@@ -195,15 +216,20 @@ def plot_strain_rates(fname,nx):
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
 
   plt.tight_layout() 
-  fout = fname+'_strain'+'_nx_'+str(nx)
+  fout = fname+'_strain'
+  if (dim == 1):
+    fout = fout+'_dim' 
+  fout = fout +'_nx_'+str(nx)
   plt.savefig(fout+'.pdf')
   plt.close()
 
 # ---------------------------------------
-def plot_stress(fname,nx):
+def plot_stress(fname,nx,dim):
 
   # Load data
   fout = fname+'_stress' # 1. Numerical solution stokes - stress components
+  if (dim == 1):
+    fout = fout+'_dim' 
   imod = importlib.import_module(fout) 
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
@@ -217,6 +243,16 @@ def plot_stress(fname,nx):
   s1n = data['X_vertex']
   s1c = data['X_cell']
 
+  fout = fname+'_yield' # yield stress
+  if (dim == 1):
+    fout = fout+'_dim' 
+  imod = importlib.import_module(fout) 
+  data = imod._PETScBinaryLoad()
+  imod._PETScBinaryLoadReportNames(data)
+
+  sy1n = data['X_vertex']
+  sy1c = data['X_cell']
+
   # split into dofs
   dof = 4
   sxx1c = s1c[0::dof]
@@ -229,6 +265,9 @@ def plot_stress(fname,nx):
   sxz1n = s1n[2::dof]
   sII1n = s1n[3::dof]
 
+  syc = sy1c[0::dof]
+  syn = sy1n[0::dof]
+
   sxxmax = max(max(sxx1c),max(sxx1n))
   sxxmin = min(min(sxx1c),min(sxx1n))
   szzmax = max(max(szz1c),max(szz1n))
@@ -237,55 +276,70 @@ def plot_stress(fname,nx):
   sxzmin = min(min(sxz1c),min(sxz1n))
   sIImax = max(max(sII1c),max(sII1n))
   sIImin = min(min(sII1c),min(sII1n))
+  symax = max(max(syc),max(syn))
+  symin = min(min(syc),min(syn))
 
   # Plot all fields 
-  fig = plt.figure(1,figsize=(16,8))
+  fig = plt.figure(1,figsize=(20,8))
   cmaps='RdBu_r' 
 
-  ax = plt.subplot(2,4,1)
+  ax = plt.subplot(2,5,1)
   im = ax.imshow(sxx1c.reshape(mz,mx),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=sxxmin,vmax=sxxmax,cmap=cmaps,origin='lower')
-  ax.set_title(r'$\sigma_{xx}^{CENTER}$')
+  ax.set_title(r'$\tau_{xx}^{CENTER}$')
   ax.set_ylabel('z')
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
 
-  ax = plt.subplot(2,4,2)
+  ax = plt.subplot(2,5,2)
   im = ax.imshow(szz1c.reshape(mz,mx),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=szzmin,vmax=szzmax,cmap=cmaps,origin='lower')
-  ax.set_title(r'$\sigma_{zz}^{CENTER}$')
+  ax.set_title(r'$\tau_{zz}^{CENTER}$')
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
 
-  ax = plt.subplot(2,4,3)
+  ax = plt.subplot(2,5,3)
   im = ax.imshow(sxz1c.reshape(mz,mx),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=sxzmin,vmax=sxzmax,cmap=cmaps,origin='lower')
-  ax.set_title(r'$\sigma_{xz}^{CENTER}$')
+  ax.set_title(r'$\tau_{xz}^{CENTER}$')
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
 
-  ax = plt.subplot(2,4,4)
+  ax = plt.subplot(2,5,4)
   im = ax.imshow(sII1c.reshape(mz,mx),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=sIImin,vmax=sIImax,cmap=cmaps,origin='lower')
-  ax.set_title(r'$\sigma_{II}^{CENTER}$')
+  ax.set_title(r'$\tau_{II}^{CENTER}$')
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
 
-  ax = plt.subplot(2,4,5)
+  ax = plt.subplot(2,5,5)
+  im = ax.imshow(syc.reshape(mz,mx),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=symin,vmax=symax,cmap=cmaps,origin='lower')
+  ax.set_title(r'$\tau_{yield}^{CENTER}$')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.75)
+
+  ax = plt.subplot(2,5,6)
   im = ax.imshow(sxx1n.reshape(mz+1,mx+1),extent=[min(xv), max(xv), min(zv), max(zv)],vmin=sxxmin,vmax=sxxmax,cmap=cmaps,origin='lower')
-  ax.set_title(r'$\sigma_{xx}^{CORNER}$')
+  ax.set_title(r'$\tau_{xx}^{CORNER}$')
   ax.set_ylabel('z')
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
 
-  ax = plt.subplot(2,4,6)
+  ax = plt.subplot(2,5,7)
   im = ax.imshow(szz1n.reshape(mz+1,mx+1),extent=[min(xv), max(xv), min(zv), max(zv)],vmin=szzmin,vmax=szzmax,cmap=cmaps,origin='lower')
-  ax.set_title(r'$\sigma_{zz}^{CORNER}$')
+  ax.set_title(r'$\tau_{zz}^{CORNER}$')
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
 
-  ax = plt.subplot(2,4,7)
+  ax = plt.subplot(2,5,8)
   im = ax.imshow(sxz1n.reshape(mz+1,mx+1),extent=[min(xv), max(xv), min(zv), max(zv)],vmin=sxzmin,vmax=sxzmax,cmap=cmaps,origin='lower')
-  ax.set_title(r'$\sigma_{xz}^{CORNER}$')
+  ax.set_title(r'$\tau_{xz}^{CORNER}$')
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
 
-  ax = plt.subplot(2,4,8)
+  ax = plt.subplot(2,5,9)
   im = ax.imshow(sII1n.reshape(mz+1,mx+1),extent=[min(xv), max(xv), min(zv), max(zv)],vmin=sIImin,vmax=sIImax,cmap=cmaps,origin='lower')
-  ax.set_title(r'$\sigma_{II}^{CORNER}$')
+  ax.set_title(r'$\tau_{II}^{CORNER}$')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.75)
+
+  ax = plt.subplot(2,5,10)
+  im = ax.imshow(syn.reshape(mz+1,mx+1),extent=[min(xv), max(xv), min(zv), max(zv)],vmin=symin,vmax=symax,cmap=cmaps,origin='lower')
+  ax.set_title(r'$\tau_{yield}^{CORNER}$')
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
 
   plt.tight_layout() 
-  fout = fname+'_stress'+'_nx_'+str(nx)
+  fout = fname+'_stress'
+  if (dim == 1):
+    fout = fout+'_dim' 
+  fout = fout +'_nx_'+str(nx)
   plt.savefig(fout+'.pdf')
   plt.close()
 
@@ -345,7 +399,7 @@ fname = 'out_vp_inclusion_gerya'
 nx    = 101 # resolution
 fout = fname+'_'+str(nx)+'.out'
 harmonic = 0
-C  = 1e8
+C  = 1e10
 vcomp = 5e-9
 
 # Run simulation
@@ -359,10 +413,15 @@ print(str1)
 os.system(str1)
 
 # Plot solution and error
-plot_solution(fname,nx,0)
-plot_solution(fname,nx,1)
-plot_strain_rates(fname,nx)
-plot_stress(fname,nx)
+plot_solution(fname,nx,0,0)
+plot_solution(fname,nx,0,1)
+plot_solution(fname,nx,1,0)
+plot_solution(fname,nx,1,1)
+
+plot_strain_rates(fname,nx,0)
+plot_strain_rates(fname,nx,1)
+plot_stress(fname,nx,0)
+plot_stress(fname,nx,1)
 plot_residuals(fname,nx)
 
 os.system('rm -r __pycache__')

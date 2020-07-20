@@ -46,7 +46,7 @@ typedef struct {
   MPI_Comm       comm;
   PetscMPIInt    rank;
   DM             dm, dmeps;
-  Vec            xeps,xsigma;
+  Vec            xeps,xtau,xyield;
 } UsrData;
 
 // ---------------------------------------
@@ -58,6 +58,9 @@ PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
 PetscErrorCode UpdateStrainRates(DM,Vec,void*);
+PetscErrorCode ScaleSolution(DM,Vec,Vec*,void*);
+PetscErrorCode ScaleCoefficient(DM,Vec,Vec*,void*);
+PetscErrorCode ScaleVectorUniform(DM,Vec,Vec*,PetscScalar);
 
 const char coeff_description[] =
 "  << Stokes Coefficients >> \n"
@@ -81,7 +84,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   UsrData       *usr = (UsrData*) ctx;
   FDPDE          fd;
   DM             dm, dmcoeff;
-  Vec            x, xguess, xcoeff;
+  Vec            x, xguess, xcoeff, xscaled;
   PetscInt       nx, nz;
   PetscScalar    xmin, zmin, xmax, zmax;
   char           fout[FNAME_LENGTH];
@@ -109,7 +112,8 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = DMSetUp(usr->dmeps); CHKERRQ(ierr);
   ierr = DMStagSetUniformCoordinatesProduct(usr->dmeps,xmin,xmax,zmin,zmax,0.0,0.0);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(usr->dmeps,&usr->xeps); CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(usr->dmeps,&usr->xsigma); CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(usr->dmeps,&usr->xtau); CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(usr->dmeps,&usr->xyield); CHKERRQ(ierr);
 
   // Set coefficients and BC evaluation function
   ierr = FDPDESetFunctionBCList(fd,FormBCList,bc_description,usr); CHKERRQ(ierr);
@@ -124,9 +128,19 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s_solution_initial",usr->par->fname_out);
   ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
 
+  ierr = ScaleSolution(dm,x,&xscaled,usr);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_solution_initial_dim",usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(dm,xscaled,fout);CHKERRQ(ierr);
+  ierr = VecDestroy(&xscaled);CHKERRQ(ierr);
+
   ierr = FDPDEGetCoefficient(fd,&dmcoeff,&xcoeff);CHKERRQ(ierr);
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s_coefficient_initial",usr->par->fname_out);
   ierr = DMStagViewBinaryPython(dmcoeff,xcoeff,fout);CHKERRQ(ierr);
+
+  ierr = ScaleCoefficient(dmcoeff,xcoeff,&xscaled,usr);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_coefficient_initial_dim",usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(dmcoeff,xscaled,fout);CHKERRQ(ierr);
+  ierr = VecDestroy(&xscaled);CHKERRQ(ierr);
 
   ierr = FDPDEGetSolutionGuess(fd,&xguess); CHKERRQ(ierr); 
   ierr = VecCopy(x,xguess);CHKERRQ(ierr);
@@ -145,11 +159,34 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s_solution",usr->par->fname_out);
   ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
 
+  ierr = ScaleSolution(dm,x,&xscaled,usr);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_solution_dim",usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(dm,xscaled,fout);CHKERRQ(ierr);
+  ierr = VecDestroy(&xscaled);CHKERRQ(ierr);
+
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s_strain",usr->par->fname_out);
   ierr = DMStagViewBinaryPython(usr->dmeps,usr->xeps,fout);CHKERRQ(ierr);
 
+  ierr = ScaleVectorUniform(usr->dmeps,usr->xeps,&xscaled,usr->par->stress/usr->par->visc);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_strain_dim",usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(usr->dmeps,xscaled,fout);CHKERRQ(ierr);
+  ierr = VecDestroy(&xscaled);CHKERRQ(ierr);
+
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s_stress",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmeps,usr->xsigma,fout);CHKERRQ(ierr);
+  ierr = DMStagViewBinaryPython(usr->dmeps,usr->xtau,fout);CHKERRQ(ierr);
+
+  ierr = ScaleVectorUniform(usr->dmeps,usr->xtau,&xscaled,usr->par->stress);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_stress_dim",usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(usr->dmeps,xscaled,fout);CHKERRQ(ierr);
+  ierr = VecDestroy(&xscaled);CHKERRQ(ierr);
+
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_yield",usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(usr->dmeps,usr->xyield,fout);CHKERRQ(ierr);
+
+  ierr = ScaleVectorUniform(usr->dmeps,usr->xyield,&xscaled,usr->par->stress);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_yield_dim",usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(usr->dmeps,xscaled,fout);CHKERRQ(ierr);
+  ierr = VecDestroy(&xscaled);CHKERRQ(ierr);
 
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s_residual",usr->par->fname_out);
   ierr = DMStagViewBinaryPython(dm,fd->r,fout);CHKERRQ(ierr);
@@ -158,10 +195,16 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s_coefficient",usr->par->fname_out);
   ierr = DMStagViewBinaryPython(dmcoeff,xcoeff,fout);CHKERRQ(ierr);
 
+  ierr = ScaleCoefficient(dmcoeff,xcoeff,&xscaled,usr);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_coefficient_dim",usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(dmcoeff,xscaled,fout);CHKERRQ(ierr);
+  ierr = VecDestroy(&xscaled);CHKERRQ(ierr);
+
   // Destroy objects
   ierr = VecDestroy(&x);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xeps);CHKERRQ(ierr);
-  ierr = VecDestroy(&usr->xsigma);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xtau);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xyield);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
   ierr = DMDestroy(&usr->dmeps);CHKERRQ(ierr);
   ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
@@ -178,11 +221,11 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
-  Vec            coefflocal, xlocal, xepslocal, xsigmalocal;
+  Vec            coefflocal, xlocal, xepslocal, xtaulocal, xyieldlocal;
   PetscScalar    **coordx,**coordz;
   PetscScalar    zblock_s, zblock_e, xis, xie, zis, zie;
   PetscInt       iprev, inext, icenter;
-  PetscScalar    ***c, ***xxs;
+  PetscScalar    ***c, ***xxs, ***xxy;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -201,8 +244,11 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   ierr = DMGlobalToLocal (usr->dmeps, usr->xeps, INSERT_VALUES, xepslocal); CHKERRQ(ierr);
 
   // Local vectors
-  ierr = DMCreateLocalVector (usr->dmeps,&xsigmalocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(usr->dmeps,xsigmalocal,&xxs); CHKERRQ(ierr);
+  ierr = DMCreateLocalVector (usr->dmeps,&xtaulocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(usr->dmeps,xtaulocal,&xxs); CHKERRQ(ierr);
+
+  ierr = DMCreateLocalVector (usr->dmeps,&xyieldlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(usr->dmeps,xyieldlocal,&xxy); CHKERRQ(ierr);
 
   // Get domain corners
   ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -229,7 +275,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
 
       { // A = eta (center, c=1)
         DMStagStencil point, pointP;
-        PetscScalar   Y,eta,eta_P,eta_VP,epsII,P,inv_eta, inv_eta_VP,exx,ezz,exz,sxx,szz,sxz,sigmaII;
+        PetscScalar   Y,eta,eta_P,eta_VP,epsII,P,inv_eta, inv_eta_VP,exx,ezz,exz,txx,tzz,txz,tauII;
 
         if ((coordz[j][icenter]<zblock_s) || (coordz[j][icenter]>zblock_e)) { 
           eta = usr->par->nd_eta_w; // top/bottom layer
@@ -258,10 +304,10 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&pointP,&P); CHKERRQ(ierr);
 
         // second invariant of stress
-        sxx = -P+2.0*eta*exx;
-        szz = -P+2.0*eta*ezz;
-        sxz = 2.0*eta*exz;
-        sigmaII = PetscPowScalar(0.5*(sxx*sxx + szz*szz + 2.0*sxz*sxz),0.5);
+        txx = 2.0*eta*exx;
+        tzz = 2.0*eta*ezz;
+        txz = 2.0*eta*exz;
+        tauII = PetscPowScalar(0.5*(txx*txx + tzz*tzz + 2.0*txz*txz),0.5);
 
         if (usr->par->plasticity) {
           // eta_P = Y/(2.0*epsII);
@@ -272,7 +318,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
           // if (eta_P>usr->par->etamax) eta_P = usr->par->etamax;
           // eta=eta_P;
 
-          if (sigmaII > Y) {
+          if (tauII > Y) {
             eta_P = Y/(2.0*epsII);
 
             // Effective viscosity
@@ -292,16 +338,16 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         c[j][i][idx] = eta;
 
         // save stresses for output
-        ierr = DMStagGetLocationSlot(usr->dmeps,ELEMENT,0,&idx); CHKERRQ(ierr); xxs[j][i][idx] = sxx;
-        ierr = DMStagGetLocationSlot(usr->dmeps,ELEMENT,1,&idx); CHKERRQ(ierr); xxs[j][i][idx] = szz;
-        ierr = DMStagGetLocationSlot(usr->dmeps,ELEMENT,2,&idx); CHKERRQ(ierr); xxs[j][i][idx] = sxz;
-        ierr = DMStagGetLocationSlot(usr->dmeps,ELEMENT,3,&idx); CHKERRQ(ierr); xxs[j][i][idx] = sigmaII;
+        ierr = DMStagGetLocationSlot(usr->dmeps,ELEMENT,0,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txx; xxy[j][i][idx] = Y;
+        ierr = DMStagGetLocationSlot(usr->dmeps,ELEMENT,1,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tzz;
+        ierr = DMStagGetLocationSlot(usr->dmeps,ELEMENT,2,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txz;
+        ierr = DMStagGetLocationSlot(usr->dmeps,ELEMENT,3,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tauII;
       }
 
       { // A = eta (corner, c=0)
         DMStagStencil point[4],pointP[9];
-        PetscScalar   eta,epsII[4],P[9], Pinterp[4], Y, eta_P, eta_VP, inv_eta, inv_eta_VP, xp[4],zp[4];
-        PetscScalar   exx[4],ezz[4],exz[4],sxx[4],szz[4],sxz[4],sigmaII[4];
+        PetscScalar   eta,epsII[4],P[9], Pinterp[4], Y[4], eta_P, eta_VP, inv_eta, inv_eta_VP, xp[4],zp[4];
+        PetscScalar   exx[4],ezz[4],exz[4],txx[4],tzz[4],txz[4],tauII[4];
         PetscInt      ii;
 
         // second invariant of strain rate
@@ -358,23 +404,23 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         for (ii = 0; ii < 4; ii++) {
           if ((zp[ii]<zblock_s) || (zp[ii]>zblock_e)) { 
             eta = usr->par->nd_eta_w; // top/bottom layer
-            Y   = usr->par->nd_C*usr->par->C_factor; // plastic yield criterion
+            Y[ii] = usr->par->nd_C*usr->par->C_factor; // plastic yield criterion
           } else if ((xp[ii]>=xis) && (xp[ii]<=xie) && (zp[ii]>=zis) && (zp[ii]<=zie)) {
             eta = usr->par->nd_eta_w; // inclusion
-            Y   = usr->par->nd_C*usr->par->C_factor; // plastic yield criterion
+            Y[ii] = usr->par->nd_C*usr->par->C_factor; // plastic yield criterion
           } else {
             // linear viscous
             eta = usr->par->nd_eta0;
             // plastic yield criterion
-            Y = usr->par->nd_C;
+            Y[ii] = usr->par->nd_C;
             // Y = usr->par->C + Pinterp[ii]*PetscSinScalar(PETSC_PI*usr->par->phi/180);
           }
 
           // second invariant of stress
-          sxx[ii] = -Pinterp[ii]+2.0*eta*exx[ii];
-          szz[ii] = -Pinterp[ii]+2.0*eta*ezz[ii];
-          sxz[ii] = 2.0*eta*exz[ii];
-          sigmaII[ii] = PetscPowScalar(0.5*(sxx[ii]*sxx[ii] + szz[ii]*szz[ii] + 2.0*sxz[ii]*sxz[ii]),0.5);
+          txx[ii] = 2.0*eta*exx[ii];
+          tzz[ii] = 2.0*eta*ezz[ii];
+          txz[ii] = 2.0*eta*exz[ii];
+          tauII[ii] = PetscPowScalar(0.5*(txx[ii]*txx[ii] + tzz[ii]*tzz[ii] + 2.0*txz[ii]*txz[ii]),0.5);
 
           if (usr->par->plasticity) {
             // eta_P = Y/(2.0*epsII[ii]);
@@ -385,8 +431,8 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
             // if (eta_P>usr->par->etamax) eta_P = usr->par->etamax;
             // eta=eta_P;
 
-            if (sigmaII[ii] > Y) {
-              eta_P = Y/(2.0*epsII[ii]);
+            if (tauII[ii] > Y[ii]) {
+              eta_P = Y[ii]/(2.0*epsII[ii]);
 
               // Effective viscosity
               if (usr->par->harmonic) { // Harmonic averaging
@@ -405,25 +451,25 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         }
 
         // save stresses
-        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_LEFT,0,&idx); CHKERRQ(ierr); xxs[j][i][idx] = sxx[0];
-        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_LEFT,1,&idx); CHKERRQ(ierr); xxs[j][i][idx] = szz[0];
-        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_LEFT,2,&idx); CHKERRQ(ierr); xxs[j][i][idx] = sxz[0];
-        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_LEFT,3,&idx); CHKERRQ(ierr); xxs[j][i][idx] = sigmaII[0];
+        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_LEFT,0,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txx[0]; xxy[j][i][idx] = Y[0];
+        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_LEFT,1,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tzz[0];
+        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_LEFT,2,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txz[0];
+        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_LEFT,3,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tauII[0];
 
-        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_RIGHT,0,&idx); CHKERRQ(ierr); xxs[j][i][idx] = sxx[1];
-        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_RIGHT,1,&idx); CHKERRQ(ierr); xxs[j][i][idx] = szz[1];
-        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_RIGHT,2,&idx); CHKERRQ(ierr); xxs[j][i][idx] = sxz[1];
-        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_RIGHT,3,&idx); CHKERRQ(ierr); xxs[j][i][idx] = sigmaII[1];
+        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_RIGHT,0,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txx[1]; xxy[j][i][idx] = Y[1];
+        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_RIGHT,1,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tzz[1];
+        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_RIGHT,2,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txz[1];
+        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_RIGHT,3,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tauII[1];
 
-        ierr = DMStagGetLocationSlot(usr->dmeps,UP_LEFT,0,&idx); CHKERRQ(ierr); xxs[j][i][idx] = sxx[2];
-        ierr = DMStagGetLocationSlot(usr->dmeps,UP_LEFT,1,&idx); CHKERRQ(ierr); xxs[j][i][idx] = szz[2];
-        ierr = DMStagGetLocationSlot(usr->dmeps,UP_LEFT,2,&idx); CHKERRQ(ierr); xxs[j][i][idx] = sxz[2];
-        ierr = DMStagGetLocationSlot(usr->dmeps,UP_LEFT,3,&idx); CHKERRQ(ierr); xxs[j][i][idx] = sigmaII[2];
+        ierr = DMStagGetLocationSlot(usr->dmeps,UP_LEFT,0,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txx[2]; xxy[j][i][idx] = Y[2];
+        ierr = DMStagGetLocationSlot(usr->dmeps,UP_LEFT,1,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tzz[2];
+        ierr = DMStagGetLocationSlot(usr->dmeps,UP_LEFT,2,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txz[2];
+        ierr = DMStagGetLocationSlot(usr->dmeps,UP_LEFT,3,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tauII[2];
 
-        ierr = DMStagGetLocationSlot(usr->dmeps,UP_RIGHT,0,&idx); CHKERRQ(ierr); xxs[j][i][idx] = sxx[3];
-        ierr = DMStagGetLocationSlot(usr->dmeps,UP_RIGHT,1,&idx); CHKERRQ(ierr); xxs[j][i][idx] = szz[3];
-        ierr = DMStagGetLocationSlot(usr->dmeps,UP_RIGHT,2,&idx); CHKERRQ(ierr); xxs[j][i][idx] = sxz[3];
-        ierr = DMStagGetLocationSlot(usr->dmeps,UP_RIGHT,3,&idx); CHKERRQ(ierr); xxs[j][i][idx] = sigmaII[3];
+        ierr = DMStagGetLocationSlot(usr->dmeps,UP_RIGHT,0,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txx[3]; xxy[j][i][idx] = Y[3];
+        ierr = DMStagGetLocationSlot(usr->dmeps,UP_RIGHT,1,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tzz[3];
+        ierr = DMStagGetLocationSlot(usr->dmeps,UP_RIGHT,2,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txz[3];
+        ierr = DMStagGetLocationSlot(usr->dmeps,UP_RIGHT,3,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tauII[3];
       }
 
       { // B = -rho*g (edges, c=0)
@@ -465,10 +511,15 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
 
   // Restore and map local to global
-  ierr = DMStagVecRestoreArray(usr->dmeps,xsigmalocal,&xxs); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(usr->dmeps,xsigmalocal,INSERT_VALUES,usr->xsigma); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (usr->dmeps,xsigmalocal,INSERT_VALUES,usr->xsigma); CHKERRQ(ierr);
-  ierr = VecDestroy(&xsigmalocal); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(usr->dmeps,xtaulocal,&xxs); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(usr->dmeps,xtaulocal,INSERT_VALUES,usr->xtau); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (usr->dmeps,xtaulocal,INSERT_VALUES,usr->xtau); CHKERRQ(ierr);
+  ierr = VecDestroy(&xtaulocal); CHKERRQ(ierr);
+
+  ierr = DMStagVecRestoreArray(usr->dmeps,xyieldlocal,&xxy); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(usr->dmeps,xyieldlocal,INSERT_VALUES,usr->xyield); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (usr->dmeps,xyieldlocal,INSERT_VALUES,usr->xyield); CHKERRQ(ierr);
+  ierr = VecDestroy(&xyieldlocal); CHKERRQ(ierr);
 
   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(usr->dmeps,&xepslocal); CHKERRQ(ierr);
@@ -614,6 +665,206 @@ PetscErrorCode UpdateStrainRates(DM dm, Vec x, void *ctx)
   ierr = VecDestroy(&xepslocal); CHKERRQ(ierr);
 
   ierr = DMRestoreLocalVector(dm, &xlocal ); CHKERRQ(ierr);
+  
+  PetscFunctionReturn(0);
+}
+// ---------------------------------------
+// Dimensionalize
+// ---------------------------------------
+PetscErrorCode ScaleSolution(DM dm, Vec x, Vec *_x, void *ctx)
+{
+  UsrData       *usr = (UsrData*) ctx;
+  PetscInt       i, j, sx, sz, nx, nz,idx;
+  PetscScalar    ***xxnew, ***xx;
+  Vec            xnew, xnewlocal, xlocal;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  // Create local and global vector associated with DM
+  ierr = VecDuplicate(x,&xnew);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dm,&xnewlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm,xnewlocal,&xxnew); CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(dm,&xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm,xlocal,&xx); CHKERRQ(ierr);
+
+  // Get domain corners
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      ierr = DMStagGetLocationSlot(dm,ELEMENT,0,&idx); CHKERRQ(ierr); 
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->stress;
+
+      ierr = DMStagGetLocationSlot(dm,LEFT,0,&idx); CHKERRQ(ierr); 
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->vel;
+
+      ierr = DMStagGetLocationSlot(dm,RIGHT,0,&idx); CHKERRQ(ierr); 
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->vel;
+
+      ierr = DMStagGetLocationSlot(dm,DOWN,0,&idx); CHKERRQ(ierr); 
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->vel;
+
+      ierr = DMStagGetLocationSlot(dm,UP,0,&idx); CHKERRQ(ierr); 
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->vel;
+    }
+  }
+
+  // Restore arrays
+  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+
+  // Map local to global
+  ierr = DMLocalToGlobalBegin(dm,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
+  ierr = VecDestroy(&xnewlocal); CHKERRQ(ierr);
+
+  // Assign pointers
+  *_x  = xnew;
+  
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode ScaleCoefficient(DM dm, Vec x, Vec *_x, void *ctx)
+{
+  UsrData       *usr = (UsrData*) ctx;
+  PetscInt       i, j, sx, sz, nx, nz,idx;
+  PetscScalar    ***xxnew, ***xx;
+  Vec            xnew, xnewlocal, xlocal;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  // Create local and global vector associated with DM
+  ierr = VecDuplicate(x,&xnew);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dm,&xnewlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm,xnewlocal,&xxnew); CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(dm,&xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm,xlocal,&xx); CHKERRQ(ierr);
+
+  // Get domain corners
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      ierr = DMStagGetLocationSlot(dm,ELEMENT,0,&idx); CHKERRQ(ierr); // C
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->vel/usr->par->length;
+
+      ierr = DMStagGetLocationSlot(dm,ELEMENT,1,&idx); CHKERRQ(ierr); // A=eta
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->visc;
+
+      ierr = DMStagGetLocationSlot(dm,LEFT,0,&idx); CHKERRQ(ierr); // Bx
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->stress/usr->par->length;
+
+      ierr = DMStagGetLocationSlot(dm,RIGHT,0,&idx); CHKERRQ(ierr); // Bx
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->stress/usr->par->length;
+
+      ierr = DMStagGetLocationSlot(dm,DOWN,0,&idx); CHKERRQ(ierr); //Bz
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->stress/usr->par->length;
+
+      ierr = DMStagGetLocationSlot(dm,UP,0,&idx); CHKERRQ(ierr); // Bz
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->stress/usr->par->length;
+
+      ierr = DMStagGetLocationSlot(dm,DOWN_LEFT,0,&idx); CHKERRQ(ierr); // A corner
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->visc;
+
+      ierr = DMStagGetLocationSlot(dm,DOWN_RIGHT,0,&idx); CHKERRQ(ierr);
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->visc;
+
+      ierr = DMStagGetLocationSlot(dm,UP_LEFT,0,&idx); CHKERRQ(ierr);
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->visc;
+
+      ierr = DMStagGetLocationSlot(dm,UP_RIGHT,0,&idx); CHKERRQ(ierr);
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->visc;
+    }
+  }
+
+  // Restore arrays
+  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+
+  // Map local to global
+  ierr = DMLocalToGlobalBegin(dm,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
+  ierr = VecDestroy(&xnewlocal); CHKERRQ(ierr);
+
+  // Assign pointers
+  *_x  = xnew;
+  
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode ScaleVectorUniform(DM dm, Vec x, Vec *_x, PetscScalar scal)
+{
+  PetscInt       i, j, sx, sz, nx, nz,idx,dof0,dof1,dof2, ii;
+  PetscScalar    ***xxnew, ***xx;
+  Vec            xnew, xnewlocal, xlocal;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  // Create local and global vector associated with DM
+  ierr = VecDuplicate(x,&xnew);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dm,&xnewlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm,xnewlocal,&xxnew); CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(dm,&xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm,xlocal,&xx); CHKERRQ(ierr);
+
+  // Get domain corners
+  ierr = DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      for (ii = 0; ii <dof2; ii++) {
+        ierr = DMStagGetLocationSlot(dm,ELEMENT,ii,&idx); CHKERRQ(ierr); // element
+        xxnew[j][i][idx] = xx[j][i][idx]*scal;
+      }
+
+      for (ii = 0; ii <dof1; ii++) { // faces
+        ierr = DMStagGetLocationSlot(dm,LEFT,ii,&idx); CHKERRQ(ierr);
+        xxnew[j][i][idx] = xx[j][i][idx]*scal;
+
+        ierr = DMStagGetLocationSlot(dm,RIGHT,ii,&idx); CHKERRQ(ierr);
+        xxnew[j][i][idx] = xx[j][i][idx]*scal;
+
+        ierr = DMStagGetLocationSlot(dm,DOWN,ii,&idx); CHKERRQ(ierr);
+        xxnew[j][i][idx] = xx[j][i][idx]*scal;
+
+        ierr = DMStagGetLocationSlot(dm,UP,ii,&idx); CHKERRQ(ierr);
+        xxnew[j][i][idx] = xx[j][i][idx]*scal;
+      }
+
+      for (ii = 0; ii <dof0; ii++) { // nodes
+        ierr = DMStagGetLocationSlot(dm,DOWN_LEFT,ii,&idx); CHKERRQ(ierr);
+        xxnew[j][i][idx] = xx[j][i][idx]*scal;
+
+        ierr = DMStagGetLocationSlot(dm,DOWN_RIGHT,ii,&idx); CHKERRQ(ierr);
+        xxnew[j][i][idx] = xx[j][i][idx]*scal;
+
+        ierr = DMStagGetLocationSlot(dm,UP_LEFT,ii,&idx); CHKERRQ(ierr);
+        xxnew[j][i][idx] = xx[j][i][idx]*scal;
+
+        ierr = DMStagGetLocationSlot(dm,UP_RIGHT,ii,&idx); CHKERRQ(ierr);
+        xxnew[j][i][idx] = xx[j][i][idx]*scal;
+      }
+    }
+  }
+
+  // Restore arrays
+  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+
+  // Map local to global
+  ierr = DMLocalToGlobalBegin(dm,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
+  ierr = VecDestroy(&xnewlocal); CHKERRQ(ierr);
+
+  // Assign pointers
+  *_x  = xnew;
   
   PetscFunctionReturn(0);
 }
@@ -786,7 +1037,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterInt(bag, &par->harmonic, 0, "harmonic", "0-no 1-yes harmonic averaging"); CHKERRQ(ierr);
   
   // scales
-  par->stress = par->C;
+  par->stress = 1e8;
   par->length = par->H;
   par->visc   = 1e20;
   par->vel    = par->stress*par->length/par->visc; // stokes velocity
@@ -807,7 +1058,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   par->etamax = par->nd_eta0;
   par->etamin = par->nd_eta_w;
-  par->C_factor = 1.0e8/par->C;
+  par->C_factor = 1.0e7/par->C;
 
   par->plasticity = PETSC_FALSE;
 
