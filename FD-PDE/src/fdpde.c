@@ -542,12 +542,12 @@ PetscErrorCode FDPDEGetSolutionGuess(FDPDE fd, Vec *xguess)
 
 PetscErrorCode FDPDESolveReport(FDPDE fd,PetscViewer viewer)
 {
-  PetscErrorCode ierr;
-  char filename[PETSC_MAX_PATH_LEN];
-  const char *prefix;
-  Vec F,X,dX;
+  PetscErrorCode      ierr;
+  char                filename[PETSC_MAX_PATH_LEN];
+  const char          *prefix;
+  Vec                 F,X,dX;
   SNESConvergedReason reason;
-  PetscViewer fview;
+  PetscViewer         fview;
   
   PetscFunctionBegin;
   ierr = SNESGetOptionsPrefix(fd->snes,&prefix);CHKERRQ(ierr);
@@ -571,7 +571,7 @@ PetscErrorCode FDPDESolveReport(FDPDE fd,PetscViewer viewer)
   
   PetscViewerASCIIPrintf(viewer,"[SNES failure summary]\n");
   PetscViewerASCIIPushTab(viewer);
-  PetscViewerASCIIPrintf(viewer,"reason %D (error code) ->\n",(PetscInt)reason);
+  PetscViewerASCIIPrintf(viewer,"reason: %D (error code) ->\n",(PetscInt)reason);
   ierr = SNESReasonView(fd->snes,viewer);CHKERRQ(ierr);
   {
     PetscInt its;
@@ -593,14 +593,18 @@ PetscErrorCode FDPDESolveReport(FDPDE fd,PetscViewer viewer)
   }
   
   {
-    PetscInt i,n,*its;
-    PetscReal *nrm;
+    PetscInt  i,n,*its = NULL;
+    PetscReal *nrm = NULL;
     ierr = SNESGetConvergenceHistory(fd->snes,&nrm,&its,&n);CHKERRQ(ierr);
     PetscViewerASCIIPrintf(viewer,"[convergence history]\n");
     PetscViewerASCIIPushTab(viewer);
-    PetscViewerASCIIPrintf(viewer,"#SNES its. ||F||_2            #KSP its.\n");
-    for (i=0; i<n; i++) {
-      PetscViewerASCIIPrintf(viewer,"%.4D       %1.12e %.4D\n",i,nrm[i],its[i]);
+    if (nrm && its) {
+      PetscViewerASCIIPrintf(viewer,"#SNES its. ||F||_2            #KSP its.\n");
+      for (i=0; i<n; i++) {
+        PetscViewerASCIIPrintf(viewer,"%.4D       %1.12e %.4D\n",i,nrm[i],its[i]);
+      }
+    } else {
+      PetscViewerASCIIPrintf(viewer,"nonlinear residual history is unavailable - must call SNESSetConvergenceHistory() to activate logging\n");
     }
     PetscViewerASCIIPopTab(viewer);
   }
@@ -678,11 +682,11 @@ PetscErrorCode FDPDESolve(FDPDE fd, PetscBool *converged)
 
   /* force abort of application if convergence fails - too brutal and does not let us catch and report when an error occurs */
   /*ierr = SNESSetErrorIfNotConverged(fd->snes,PETSC_TRUE);CHKERRQ(ierr);*/
+  /* Activate a logger which records norm of F and number of KSP iterations at each SNES iteration */
   {
     PetscInt maxit;
     
     ierr = SNESGetTolerances(fd->snes,NULL,NULL,NULL,&maxit,NULL);CHKERRQ(ierr);
-    
     ierr = SNESSetConvergenceHistory(fd->snes,NULL,NULL,maxit+1,PETSC_TRUE);CHKERRQ(ierr);
   }
   
@@ -694,8 +698,8 @@ PetscErrorCode FDPDESolve(FDPDE fd, PetscBool *converged)
   ierr = SNESGetConvergedReason(fd->snes,&reason); CHKERRQ(ierr);
 
   if (reason < 0) {
-    const char *prefix;
-    char filename[PETSC_MAX_PATH_LEN];
+    const char  *prefix;
+    char        filename[PETSC_MAX_PATH_LEN];
     PetscViewer viewer;
     
     //viewer = PETSC_VIEWER_STDOUT_WORLD
@@ -708,7 +712,6 @@ PetscErrorCode FDPDESolve(FDPDE fd, PetscBool *converged)
     ierr = FDPDESolveReport(fd,viewer);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
   }
-  
   
   // Analyze convergence
   if (reason > 0) { // reason = 0 implies SNES_CONVERGED_ITERATING (which can never be true after SNESSolve executes)
