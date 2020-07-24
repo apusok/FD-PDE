@@ -904,6 +904,8 @@ PetscErrorCode FDPDESetOption(FDPDE fd, FDPDEOption op, PetscBool flg)
 {
   PetscFunctionBegin;
 
+  if (fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDESetOption() before FDPDESetUp()");
+
   switch (op) {
     case FDPDE_STOKES_LINEAR:
       fd->linearsolve = flg;
