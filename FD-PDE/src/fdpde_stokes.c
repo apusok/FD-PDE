@@ -67,7 +67,7 @@ PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd,Mat J)
   PetscInt       i, j, sx, sz, nx, nz; // local variables
   Mat            preallocator = NULL;
   PetscInt       nEntries_true;
-  const PetscInt nEntries=23;
+  const PetscInt nEntries=STENCIL_STOKES_MOMENTUM_NONLIN;
   PetscScalar    *xx;
   DMStagStencil  *point;
   PetscErrorCode ierr;
@@ -87,18 +87,18 @@ PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd,Mat J)
   ierr = PetscCalloc1(nEntries,&xx); CHKERRQ(ierr);
   ierr = PetscCalloc1(nEntries,&point); CHKERRQ(ierr);
 
-  if (!fd->linearsolve) nEntries_true = 23;
-  else                  nEntries_true = 11;
+  if (!fd->linearsolve) nEntries_true = STENCIL_STOKES_MOMENTUM_NONLIN;
+  else                  nEntries_true = STENCIL_STOKES_MOMENTUM_LIN;
 
   // Get non-zero pattern for preallocator - Loop over all local elements 
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
 
-      // Continuity equation (P) : V_x + V_z = 0
+      // Continuity equation 
       ierr = ContinuityStencil(i,j,point); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,5,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
-      // X-momentum equation : (u_xx + u_zz) - p_x = rhog^x (rhog_x=0)
+      // X-momentum equation 
       ierr = XMomentumStencil(i,j,Nx,Nz,point,0); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
@@ -107,7 +107,7 @@ PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd,Mat J)
         ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
 
-      // Z-momentum equation : (u_xx + u_zz) - p_z = rhog^z
+      // Z-momentum equation 
       ierr = ZMomentumStencil(i,j,Nx,Nz,point,0); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
@@ -203,6 +203,12 @@ PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, 
   point[21].i = i-1; point[21].j = j+1; point[21].loc = DMSTAG_LEFT;    point[21].c   = 0;
   point[22].i = i-1; point[22].j = j+1; point[22].loc = DMSTAG_UP;      point[22].c   = 0;
 
+  // extra-pressure
+  point[23].i = i-1; point[23].j = j-1; point[23].loc = DMSTAG_ELEMENT; point[23].c   = 0;
+  point[24].i = i  ; point[24].j = j-1; point[24].loc = DMSTAG_ELEMENT; point[24].c   = 0;
+  point[25].i = i-1; point[25].j = j+1; point[25].loc = DMSTAG_ELEMENT; point[25].c   = 0;
+  point[26].i = i  ; point[26].j = j+1; point[26].loc = DMSTAG_ELEMENT; point[26].c   = 0;
+
   // left
   if (i == 0) {
     point[3] = point[0];
@@ -216,6 +222,9 @@ PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, 
     point[14] = point[0];
     point[21] = point[0];
     point[22] = point[0];
+
+    point[23] = point[0];
+    point[25] = point[0];
   } 
 
   if (i == 1) {
@@ -254,6 +263,11 @@ PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, 
     point[20] = point[0];
     point[21].i = i  ; point[21].j = j+1; point[21].loc = DMSTAG_LEFT;    point[21].c   = 0;
     point[22].i = i  ; point[22].j = j+1; point[22].loc = DMSTAG_UP;      point[22].c   = 0;
+
+    point[23].i = i  ; point[23].j = j-1; point[23].loc = DMSTAG_ELEMENT; point[23].c   = 0;
+    point[24] = point[0];
+    point[25].i = i  ; point[25].j = j+1; point[25].loc = DMSTAG_ELEMENT; point[25].c   = 0;
+    point[26] = point[0];
   }
 
   // down/up boundary
@@ -263,12 +277,16 @@ PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, 
     point[14] = point[0];
     point[15] = point[0];
     point[16] = point[0];
+    point[23] = point[0];
+    point[24] = point[0];
   } else if (j == Nz-1) {
     point[2]  = point[0];
     point[19] = point[0];
     point[20] = point[0];
     point[21] = point[0];
     point[22] = point[0];
+    point[25] = point[0];
+    point[26] = point[0];
   }
 
   PetscFunctionReturn(0);
@@ -310,6 +328,12 @@ PetscErrorCode ZMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, 
   point[21].i = i  ; point[21].j = j+1; point[21].loc = DMSTAG_RIGHT;  point[21].c   = 0;
   point[22].i = i  ; point[22].j = j+1; point[22].loc = DMSTAG_LEFT;   point[22].c   = 0;
 
+  // extra-pressure
+  point[23].i = i-1; point[23].j = j-1; point[23].loc = DMSTAG_ELEMENT; point[23].c   = 0;
+  point[24].i = i-1; point[24].j = j  ; point[24].loc = DMSTAG_ELEMENT; point[24].c   = 0;
+  point[25].i = i+1; point[25].j = j-1; point[25].loc = DMSTAG_ELEMENT; point[25].c   = 0;
+  point[26].i = i+1; point[26].j = j  ; point[26].loc = DMSTAG_ELEMENT; point[26].c   = 0;
+
   if (j == 0) { // down
     point[1] = point[0]; 
     point[5] = point[7];
@@ -322,6 +346,9 @@ PetscErrorCode ZMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, 
     point[16] = point[0]; 
     point[17] = point[0]; 
     point[18] = point[0]; 
+
+    point[23] = point[0]; 
+    point[25] = point[0]; 
   } 
 
   if (j == 1) {
@@ -359,6 +386,11 @@ PetscErrorCode ZMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, 
     point[20] = point[0]; 
     point[21] = point[0]; 
     point[22] = point[0]; 
+
+    point[23].i = i-1; point[23].j = j  ; point[23].loc = DMSTAG_ELEMENT; point[23].c   = 0;
+    point[24] = point[0]; 
+    point[25].i = i+1; point[25].j = j  ; point[25].loc = DMSTAG_ELEMENT; point[25].c   = 0;
+    point[26] = point[0]; 
   }
 
   // left/right boundary
@@ -368,12 +400,16 @@ PetscErrorCode ZMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, 
     point[12] = point[0];
     point[13] = point[0]; 
     point[14] = point[0]; 
+    point[23] = point[0]; 
+    point[24] = point[0]; 
   } else if (i == Nx-1) {
     point[4] = point[0];
     point[17] = point[0]; 
     point[18] = point[0];
     point[19] = point[0]; 
     point[20] = point[0]; 
+    point[25] = point[0]; 
+    point[26] = point[0]; 
   }
   PetscFunctionReturn(0);
 }

@@ -65,7 +65,7 @@ PetscErrorCode JacobianPreallocator_StokesDarcy2Field(FDPDE fd,Mat J)
   PetscInt       i, j, sx, sz, nx, nz; // local variables
   Mat            preallocator = NULL;
   PetscInt       nEntries_true;
-  const PetscInt nEntries=23;
+  const PetscInt nEntries=STENCIL_STOKES_MOMENTUM_NONLIN;
   PetscScalar    *xx;
   DMStagStencil  *point;
   PetscErrorCode ierr;
@@ -85,8 +85,8 @@ PetscErrorCode JacobianPreallocator_StokesDarcy2Field(FDPDE fd,Mat J)
   ierr = PetscCalloc1(nEntries,&xx); CHKERRQ(ierr);
   ierr = PetscCalloc1(nEntries,&point); CHKERRQ(ierr);
 
-  if (!fd->linearsolve) nEntries_true = 23;
-  else                  nEntries_true = 11;
+  if (!fd->linearsolve) nEntries_true = STENCIL_STOKES_MOMENTUM_NONLIN;
+  else                  nEntries_true = STENCIL_STOKES_MOMENTUM_LIN;
 
   // Get non-zero pattern for preallocator - Loop over all local elements 
   for (j = sz; j<sz+nz; j++) {

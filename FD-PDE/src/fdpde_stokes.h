@@ -6,6 +6,9 @@
 #include "petsc.h"
 #include "fdpde.h"
 
+#define STENCIL_STOKES_MOMENTUM_LIN    11
+#define STENCIL_STOKES_MOMENTUM_NONLIN 27
+
 // ---------------------------------------
 // Function definitions
 // ---------------------------------------
