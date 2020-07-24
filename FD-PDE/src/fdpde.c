@@ -889,34 +889,17 @@ PetscErrorCode FDPDEFormCoefficient(FDPDE fd)
 
 // ---------------------------------------
 /*@
-FDPDESetOption() - - Sets a parameter option for a fd-pde.
-
-Options:
-FDPDE_STOKES_LINEAR - allocate non-zero preallocation for a linear Stokes system 
-FDPDE_STOKESDARCY2FIELD_LINEAR - allocate non-zero preallocation for a linear Stokes-Darcy system 
+FDPDESetLinearSolve() - Allocate non-zero preallocation for a linear system
 
 Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDPDESetOption"
-PetscErrorCode FDPDESetOption(FDPDE fd, FDPDEOption op, PetscBool flg)
+#define __FUNCT__ "FDPDESetLinearSolve"
+PetscErrorCode FDPDESetLinearSolve(FDPDE fd, PetscBool flg)
 {
   PetscFunctionBegin;
-
-  if (fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDESetOption() before FDPDESetUp()");
-
-  switch (op) {
-    case FDPDE_STOKES_LINEAR:
-      fd->linearsolve = flg;
-      break;
-    case FDPDE_STOKESDARCY2FIELD_LINEAR:
-      fd->linearsolve = flg;
-      break;
-    default:
-      SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"FDPDEOption requested not recognized!");
-      break;
-  }
-
+  if (fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDESetLinearSolve() before FDPDESetUp()");
+  fd->linearsolve = flg;
   PetscFunctionReturn(0);
 }

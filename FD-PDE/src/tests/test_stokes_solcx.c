@@ -101,7 +101,7 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
 
   // Create the FD-pde object
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKES,&fd);CHKERRQ(ierr);
-  ierr = FDPDESetOption(fd,FDPDE_STOKES_LINEAR,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = FDPDESetLinearSolve(fd,PETSC_TRUE);CHKERRQ(ierr);
   ierr = FDPDESetUp(fd);CHKERRQ(ierr);
   // User can modify the dm coordinates anywhere between FDPDESetUp() and FDPDESolve()
 
