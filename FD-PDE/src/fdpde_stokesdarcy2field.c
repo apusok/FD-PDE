@@ -64,6 +64,10 @@ PetscErrorCode JacobianPreallocator_StokesDarcy2Field(FDPDE fd,Mat J)
   PetscInt       Nx, Nz;               // global variables
   PetscInt       i, j, sx, sz, nx, nz; // local variables
   Mat            preallocator = NULL;
+  PetscInt       nEntries_true;
+  const PetscInt nEntries=23;
+  PetscScalar    *xx;
+  DMStagStencil  *point;
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -78,14 +82,11 @@ PetscErrorCode JacobianPreallocator_StokesDarcy2Field(FDPDE fd,Mat J)
   // Get local domain
   ierr = DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   
-  // Zero entries
-  PetscInt      nEntries_true, nEntries=23;
-  PetscScalar   xx[nEntries];
-  DMStagStencil point[nEntries];
-  ierr = PetscMemzero(xx,sizeof(PetscScalar)*nEntries); CHKERRQ(ierr);
+  ierr = PetscCalloc1(nEntries,&xx); CHKERRQ(ierr);
+  ierr = PetscCalloc1(nEntries,&point); CHKERRQ(ierr);
 
-  if (fd->linearsolve) nEntries_true = 23;
-  else                 nEntries_true = 11;
+  if (!fd->linearsolve) nEntries_true = 23;
+  else                  nEntries_true = 11;
 
   // Get non-zero pattern for preallocator - Loop over all local elements 
   for (j = sz; j<sz+nz; j++) {
@@ -121,6 +122,9 @@ PetscErrorCode JacobianPreallocator_StokesDarcy2Field(FDPDE fd,Mat J)
   // Matrix assembly
   ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
   ierr = MatAssemblyEnd  (J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+
+  ierr = PetscFree(xx);CHKERRQ(ierr);
+  ierr = PetscFree(point);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

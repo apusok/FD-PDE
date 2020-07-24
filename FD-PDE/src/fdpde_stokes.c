@@ -66,8 +66,8 @@ PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd,Mat J)
   PetscInt       Nx, Nz;               // global variables
   PetscInt       i, j, sx, sz, nx, nz; // local variables
   Mat            preallocator = NULL;
-  // Zero entries
-  PetscInt       nEntries_true, nEntries=23;
+  PetscInt       nEntries_true;
+  const PetscInt nEntries=23;
   PetscScalar    *xx;
   DMStagStencil  *point;
   PetscErrorCode ierr;
