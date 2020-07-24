@@ -644,6 +644,12 @@ PetscErrorCode FDPDESolveReport(FDPDE fd,PetscViewer viewer)
   ierr = VecView(dX,fview);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
   
+  PetscViewerASCIIPrintf(viewer,"[PDE summary]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"pde: %s\n",FDPDETypeNames[(int)fd->type]);
+  PetscViewerASCIIPrintf(viewer,"description: %s\n",fd->description);
+  PetscViewerASCIIPopTab(viewer);
+  
   PetscFunctionReturn(0);
 }
 
