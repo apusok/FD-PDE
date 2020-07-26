@@ -889,17 +889,18 @@ PetscErrorCode FDPDEFormCoefficient(FDPDE fd)
 
 // ---------------------------------------
 /*@
-FDPDESetLinearSolve() - Allocate non-zero preallocation for a linear system
+FDPDESetLinearPreallocatorStencil() - Allocate non-zero preallocation for a linear system
 
 Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDPDESetLinearSolve"
-PetscErrorCode FDPDESetLinearSolve(FDPDE fd, PetscBool flg)
+#define __FUNCT__ "FDPDESetLinearPreallocatorStencil"
+PetscErrorCode FDPDESetLinearPreallocatorStencil(FDPDE fd, PetscBool flg)
 {
   PetscFunctionBegin;
-  if (fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDESetLinearSolve() before FDPDESetUp()");
+  if (fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDESetLinearPreallocatorStencil() before FDPDESetUp()");
+  if (fd->type == FDPDE_ADVDIFF) PetscPrintf(PETSC_COMM_WORLD,"WARNING: This routine has no effect for FD-PDE Type = ADVDIFF! Only linear preallocator implemented.\n");
   fd->linearsolve = flg;
   PetscFunctionReturn(0);
 }

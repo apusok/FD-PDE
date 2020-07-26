@@ -67,7 +67,7 @@ PetscErrorCode FDPDESolve(FDPDE,PetscBool*);
 
 PetscErrorCode FDPDESetFunctionBCList(FDPDE, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void*);
 PetscErrorCode FDPDESetFunctionCoefficient(FDPDE, PetscErrorCode (*form_coefficient)(FDPDE, DM,Vec,DM,Vec,void*), const char description[], void*);
-PetscErrorCode FDPDESetLinearSolve(FDPDE, PetscBool);
+PetscErrorCode FDPDESetLinearPreallocatorStencil(FDPDE, PetscBool);
 
 PetscErrorCode FDPDEGetDM(FDPDE,DM*);
 PetscErrorCode FDPDEGetSolution(FDPDE,Vec*);
