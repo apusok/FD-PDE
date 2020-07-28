@@ -32,9 +32,9 @@ typedef struct {
   PetscInt       nx, nz, smooth, harmonic;
   PetscScalar    L, H;
   PetscScalar    xmin, zmin;
-  PetscScalar    eta0, eta_w, rho0, g, vi, C, phi, P;
+  PetscScalar    eta_b, eta_w, eta_i, rho0, g, vi, C_b, C_w, C_i, P;
   PetscScalar    stress, vel, length, visc; // scales
-  PetscScalar    nd_eta0, nd_eta_w, nd_vi, nd_C, etamax, etamin, nd_P, C_factor; // non-dimensional
+  PetscScalar    nd_eta_b, nd_eta_w, nd_eta_i, nd_vi, nd_C_b, nd_C_w, nd_C_i, etamax, etamin, nd_P; // non-dimensional
   PetscBool      plasticity;
   char           fname_out[FNAME_LENGTH]; 
 } Params;
@@ -119,6 +119,9 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = FDPDESetFunctionBCList(fd,FormBCList,bc_description,usr); CHKERRQ(ierr);
   ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient,coeff_description,usr); CHKERRQ(ierr);
   ierr = FDPDEView(fd); CHKERRQ(ierr);
+
+  // Pin pressure
+  // ierr = FDPDEStokesPinPressure(fd,usr->par->nd_P,PETSC_TRUE); CHKERRQ(ierr);
 
   // Create initial guess with a linear viscous
   PetscPrintf(PETSC_COMM_WORLD,"\n# INITIAL GUESS #\n");
@@ -267,7 +270,6 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
 
-  // PetscPrintf(PETSC_COMM_WORLD,"\n# ITERATION #\n");
   // Loop over local domain - set initial density and viscosity
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
@@ -279,17 +281,13 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
 
         if ((coordz[j][icenter]<zblock_s) || (coordz[j][icenter]>zblock_e)) { 
           eta = usr->par->nd_eta_w; // top/bottom layer
-          Y   = usr->par->nd_C*usr->par->C_factor; // plastic yield criterion
+          Y   = usr->par->nd_C_w; // plastic yield criterion
         } else if ((coordx[i][icenter]>=xis) && (coordx[i][icenter]<=xie) && (coordz[j][icenter]>=zis) && (coordz[j][icenter]<=zie)) {
-          eta = usr->par->nd_eta_w; // inclusion
-          Y   = usr->par->nd_C*usr->par->C_factor; // plastic yield criterion
+          eta = usr->par->nd_eta_i; // inclusion
+          Y   = usr->par->nd_C_i; // plastic yield criterion
         } else {
-          // initialize non-plasticity viscosity
-          eta = usr->par->nd_eta0;
-
-          // plastic yield criterion
-          Y = usr->par->nd_C;
-          // Y = usr->par->nd_C + P*PetscSinScalar(PETSC_PI*usr->par->phi/180);
+          eta = usr->par->nd_eta_b; // block
+          Y = usr->par->nd_C_b; // plastic yield criterion
         }
 
         // second invariant of strain rate
@@ -310,14 +308,6 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         tauII = PetscPowScalar(0.5*(txx*txx + tzz*tzz + 2.0*txz*txz),0.5);
 
         if (usr->par->plasticity) {
-          // eta_P = Y/(2.0*epsII);
-          // if (eta_P>eta) {
-          //   eta_P=eta;
-          // }
-          // if (eta_P<usr->par->etamin) eta_P = usr->par->etamin;
-          // if (eta_P>usr->par->etamax) eta_P = usr->par->etamax;
-          // eta=eta_P;
-
           if (tauII > Y) {
             eta_P = Y/(2.0*epsII);
 
@@ -404,16 +394,13 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         for (ii = 0; ii < 4; ii++) {
           if ((zp[ii]<zblock_s) || (zp[ii]>zblock_e)) { 
             eta = usr->par->nd_eta_w; // top/bottom layer
-            Y[ii] = usr->par->nd_C*usr->par->C_factor; // plastic yield criterion
+            Y[ii] = usr->par->nd_C_w; // plastic yield criterion
           } else if ((xp[ii]>=xis) && (xp[ii]<=xie) && (zp[ii]>=zis) && (zp[ii]<=zie)) {
-            eta = usr->par->nd_eta_w; // inclusion
-            Y[ii] = usr->par->nd_C*usr->par->C_factor; // plastic yield criterion
+            eta = usr->par->nd_eta_i; // inclusion
+            Y[ii] = usr->par->nd_C_i; // plastic yield criterion
           } else {
-            // linear viscous
-            eta = usr->par->nd_eta0;
-            // plastic yield criterion
-            Y[ii] = usr->par->nd_C;
-            // Y = usr->par->C + Pinterp[ii]*PetscSinScalar(PETSC_PI*usr->par->phi/180);
+            eta = usr->par->nd_eta_b; //block
+            Y[ii] = usr->par->nd_C_b; // plastic yield criterion
           }
 
           // second invariant of stress
@@ -423,14 +410,6 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
           tauII[ii] = PetscPowScalar(0.5*(txx[ii]*txx[ii] + tzz[ii]*tzz[ii] + 2.0*txz[ii]*txz[ii]),0.5);
 
           if (usr->par->plasticity) {
-            // eta_P = Y/(2.0*epsII[ii]);
-            // if (eta_P>eta) {
-            //   eta_P=eta;
-            // }
-            // if (eta_P<usr->par->etamin) eta_P = usr->par->etamin;
-            // if (eta_P>usr->par->etamax) eta_P = usr->par->etamax;
-            // eta=eta_P;
-
             if (tauII[ii] > Y[ii]) {
               eta_P = Y[ii]/(2.0*epsII[ii]);
 
@@ -573,13 +552,6 @@ PetscErrorCode UpdateStrainRates(DM dm, Vec x, void *ctx)
       pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
       ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
 
-      // if ((i==0) || (i==Nx-1) || (j==0) || (j==Nz-1)) { // boundaries
-      //   exzc = 0.0;
-      //   exxc = 0.0;
-      //   ezzc = 0.0;
-      //   epsIIc = PetscPowScalar(0.5*(exxc*exxc + ezzc*ezzc + 2.0*exzc*exzc),0.5);
-      // }
-
       ierr = DMStagGetLocationSlot(dmeps,ELEMENT,0,&idx); CHKERRQ(ierr); xx[j][i][idx] = exxc;
       ierr = DMStagGetLocationSlot(dmeps,ELEMENT,1,&idx); CHKERRQ(ierr); xx[j][i][idx] = ezzc;
       ierr = DMStagGetLocationSlot(dmeps,ELEMENT,2,&idx); CHKERRQ(ierr); xx[j][i][idx] = exzc;
@@ -596,35 +568,30 @@ PetscErrorCode UpdateStrainRates(DM dm, Vec x, void *ctx)
         pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
         ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
         ezzn[0] = ezzc;
-        // PetscPrintf(PETSC_COMM_WORLD,"# L Strain [%d %d]: exx=%f ezz=%f exz=%f eII=%f #\n",i,j,exxn[0],ezzn[0],exzn[0],epsIIn[0]);
       }
 
       if (i==Nx-1) { // boundaries
         pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
         ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
         ezzn[1] = ezzc;
-        // PetscPrintf(PETSC_COMM_WORLD,"# R Strain [%d %d]: exx=%f ezz=%f exz=%f eII=%f #\n",i,j,exxn[1],ezzn[1],exzn[1],epsIIn[1]);
       }
 
       if (j==0) { // boundaries
         pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
         ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
         exxn[0] = exxc;
-        // PetscPrintf(PETSC_COMM_WORLD,"# D Strain [%d %d]: exx=%f ezz=%f exz=%f eII=%f #\n",i,j,exxn[0],ezzn[0],exzn[0],epsIIn[0]);
       }
 
       if (j==Nz-1) { // boundaries
         pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
         ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
         exxn[2] = exxc;
-        // PetscPrintf(PETSC_COMM_WORLD,"# U Strain [%d %d]: exx=%f ezz=%f exz=%f eII=%f #\n",i,j,exxn[2],ezzn[2],exzn[2],epsIIn[2]);
       }
 
       if ((i==Nx-1) && (j==Nz-1)) { // boundaries
         pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
         ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
         exxn[3] = exxc;
-        // PetscPrintf(PETSC_COMM_WORLD,"# U Strain [%d %d]: exx=%f ezz=%f exz=%f eII=%f #\n",i,j,exxn[2],ezzn[2],exzn[2],epsIIn[2]);
       }
 
       if ((i==0) || (i==Nx-1) || (j==0) || (j==Nz-1)) { // boundaries
@@ -948,36 +915,12 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  // // P=1 on left boundary (w)
-  // ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  // for (k=0; k<n_bc; k++) {
-  //   value_bc[k] = usr->par->nd_P;
-  //   type_bc[k] = BC_DIRICHLET;
-  // }
-  // ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-
-  // // P=1 on right boundary (e)
-  // ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  // for (k=0; k<n_bc; k++) {
-  //   value_bc[k] = usr->par->nd_P;
-  //   type_bc[k] = BC_DIRICHLET;
-  // }
-  // ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-
-  // P=1 on bottom boundary (s)
+  // P on bottom boundary (s)
   ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    value_bc[k] = usr->par->nd_P;
-    type_bc[k] = BC_DIRICHLET;
-  }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-
-  // P=1 on top boundary (n)
-  ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    value_bc[k] = usr->par->nd_P;
-    type_bc[k] = BC_DIRICHLET;
-  }
+  // for (k=0; k<n_bc; k++) {
+    value_bc[0] = usr->par->nd_P;
+    type_bc[0] = BC_DIRICHLET;
+  // }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
@@ -1024,14 +967,20 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->H, 1.0e5, "H", "Height of domain in z-dir [m]"); CHKERRQ(ierr);
 
   // Physical and material parameters
-  ierr = PetscBagRegisterScalar(bag, &par->eta0, 1.0e23, "eta0", "Block shear viscosity [Pa.s]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->eta_b, 1.0e23, "eta_b", "Block shear viscosity [Pa.s]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->eta_i, 1.0e17, "eta_i", "Inclusion shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta_w, 1.0e17, "eta_w", "Weak zone shear viscosity [Pa.s]"); CHKERRQ(ierr);
+
   ierr = PetscBagRegisterScalar(bag, &par->vi, 5.0e-9, "vi", "Extension/compression velocity [m/s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->rho0, 3000, "rho0", "Reference density [kg/m3]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->g, 0.0, "g", "Gravitational acceleration [m/s2]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->C, 1.0e8, "C", "Cohesion [Pa]"); CHKERRQ(ierr);
+
+  ierr = PetscBagRegisterScalar(bag, &par->C_b, 1.0e8, "C_b", "Block Cohesion [Pa]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->C_i, 1.0e7, "C_i", "Inclusion Cohesion [Pa]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->C_w, 1.0e7, "C_w", "Weak zone Cohesion [Pa]"); CHKERRQ(ierr);
+
   ierr = PetscBagRegisterScalar(bag, &par->P, 1.0e8, "P", "Boundary pressure [Pa]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->phi, 37.0, "phi", "Angle of internal friction sin(phi) = 0.6 [deg]"); CHKERRQ(ierr);
+  // ierr = PetscBagRegisterScalar(bag, &par->phi, 37.0, "phi", "Angle of internal friction sin(phi) = 0.6 [deg]"); CHKERRQ(ierr);
 
   ierr = PetscBagRegisterInt(bag, &par->smooth, 0, "smooth", "0-rough punch, 1-smooth punch (Hill's)"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->harmonic, 0, "harmonic", "0-no 1-yes harmonic averaging"); CHKERRQ(ierr);
@@ -1048,17 +997,19 @@ PetscErrorCode InputParameters(UsrData **_usr)
   // par->stress = par->vel*par->visc/par->length;
 
   // non-dimensionalize
-  par->nd_eta0  = par->eta0/par->visc;
+  par->nd_eta_b  = par->eta_b/par->visc;
   par->nd_eta_w = par->eta_w/par->visc;
+  par->nd_eta_i = par->eta_i/par->visc;
   par->nd_vi    = par->vi/par->vel;
-  par->nd_C     = par->C/par->stress;
+  par->nd_C_b   = par->C_b/par->stress;
+  par->nd_C_w   = par->C_w/par->stress;
+  par->nd_C_i   = par->C_i/par->stress;
   par->nd_P     = par->P/par->stress;
   par->L        = par->L/par->length;
   par->H        = par->H/par->length;
 
-  par->etamax = par->nd_eta0;
+  par->etamax = par->nd_eta_b;
   par->etamin = par->nd_eta_w;
-  par->C_factor = 1.0e7/par->C;
 
   par->plasticity = PETSC_FALSE;
 

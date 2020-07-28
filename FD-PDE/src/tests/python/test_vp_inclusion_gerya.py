@@ -398,15 +398,28 @@ print('# --------------------------------------- #')
 fname = 'out_vp_inclusion_gerya'
 nx    = 101 # resolution
 fout = fname+'_'+str(nx)+'.out'
-harmonic = 0
-C  = 1e10
+harmonic = 1
+
+eta_b  = 1e23
+eta_w  = 1e20
+eta_i  = 1e17
+
+C_b  = 1e8
+C_w  = 1e7
+C_i  = 1e7
+
 vcomp = 5e-9
 
 # Run simulation
-str1 = '../test_vp_inclusion_gerya.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor_true_residual -ksp_monitor_true_residual -snes_converged_reason -ksp_converged_reason'+ \
+str1 = '../test_vp_inclusion_gerya.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -snes_monitor_true_residual -ksp_monitor_true_residual -snes_converged_reason -ksp_converged_reason'+ \
     ' -output_file '+fname+ \
     ' -harmonic '+str(harmonic)+ \
-    ' -C '+str(C)+ \
+    ' -C_b '+str(C_b)+ \
+    ' -C_w '+str(C_w)+ \
+    ' -C_i '+str(C_i)+ \
+    ' -eta_b '+str(eta_b)+ \
+    ' -eta_w '+str(eta_w)+ \
+    ' -eta_i '+str(eta_i)+ \
     ' -vi '+str(vcomp)+ \
     ' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout
 print(str1)
