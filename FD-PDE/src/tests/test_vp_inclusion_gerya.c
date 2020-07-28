@@ -1,10 +1,10 @@
 // ---------------------------------------
-// Shortening of a visco-(elasto)-plastic block in the absence of gravity
+// Shortening of a visco-plastic (von Mises criterion) block in the absence of gravity
 // Setup from T. Gerya, 2018, Ch. 13, ex. 13.2
 // run: ./tests/test_vp_inclusion_gerya.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -ksp_monitor -nx 20 -nz 20
 // python test: ./tests/python/test_vp_inclusion_gerya.py
 // ---------------------------------------
-static char help[] = "Application for shortening of a visco-(elasto)-plastic block in the absence of gravity \n\n";
+static char help[] = "Application for shortening of a visco-plastic block in the absence of gravity \n\n";
 
 // define convenient names for DMStagStencilLocation
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
@@ -32,7 +32,7 @@ typedef struct {
   PetscInt       nx, nz, smooth, harmonic;
   PetscScalar    L, H;
   PetscScalar    xmin, zmin;
-  PetscScalar    eta_b, eta_w, eta_i, rho0, g, vi, C_b, C_w, C_i, P;
+  PetscScalar    eta_b, eta_w, eta_i, vi, C_b, C_w, C_i, P;
   PetscScalar    stress, vel, length, visc; // scales
   PetscScalar    nd_eta_b, nd_eta_w, nd_eta_i, nd_vi, nd_C_b, nd_C_w, nd_C_i, etamax, etamin, nd_P; // non-dimensional
   PetscBool      plasticity;
@@ -45,7 +45,7 @@ typedef struct {
   PetscBag       bag;
   MPI_Comm       comm;
   PetscMPIInt    rank;
-  DM             dm, dmeps;
+  DM             dmeps;
   Vec            xeps,xtau,xyield;
 } UsrData;
 
@@ -66,7 +66,7 @@ const char coeff_description[] =
 "  << Stokes Coefficients >> \n"
 "  eta_n/eta_c = eta_eff\n"
 "  fux = 0 \n" 
-"  fuz = rho*g \n" 
+"  fuz = 0 (no body forces) \n" 
 "  fp = 0 (incompressible)\n";
 
 const char bc_description[] =
@@ -224,7 +224,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
-  Vec            coefflocal, xlocal, xepslocal, xtaulocal, xyieldlocal;
+  Vec            coefflocal, xepslocal, xtaulocal, xyieldlocal;
   PetscScalar    **coordx,**coordz;
   PetscScalar    zblock_s, zblock_e, xis, xie, zis, zie;
   PetscInt       iprev, inext, icenter;
@@ -267,17 +267,14 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
 
-  ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
-
   // Loop over local domain - set initial density and viscosity
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
       PetscInt idx;
 
       { // A = eta (center, c=1)
-        DMStagStencil point, pointP;
-        PetscScalar   Y,eta,eta_P,eta_VP,epsII,P,inv_eta, inv_eta_VP,exx,ezz,exz,txx,tzz,txz,tauII;
+        DMStagStencil point;//, pointP;
+        PetscScalar   Y,eta,eta_P,eta_VP,epsII,inv_eta, inv_eta_VP,exx,ezz,exz,txx,tzz,txz,tauII;
 
         if ((coordz[j][icenter]<zblock_s) || (coordz[j][icenter]>zblock_e)) { 
           eta = usr->par->nd_eta_w; // top/bottom layer
@@ -296,10 +293,6 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         point.c = 1; ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,1,&point,&ezz); CHKERRQ(ierr);
         point.c = 2; ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,1,&point,&exz); CHKERRQ(ierr);
         point.c = 3; ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,1,&point,&epsII); CHKERRQ(ierr);
-
-        // pressure
-        pointP.i = i; pointP.j = j; pointP.loc = ELEMENT; pointP.c = 0;
-        ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&pointP,&P); CHKERRQ(ierr);
 
         // second invariant of stress
         txx = 2.0*eta*exx;
@@ -335,8 +328,8 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
       }
 
       { // A = eta (corner, c=0)
-        DMStagStencil point[4],pointP[9];
-        PetscScalar   eta,epsII[4],P[9], Pinterp[4], Y[4], eta_P, eta_VP, inv_eta, inv_eta_VP, xp[4],zp[4];
+        DMStagStencil point[4];
+        PetscScalar   eta,epsII[4], Y[4], eta_P, eta_VP, inv_eta, inv_eta_VP, xp[4],zp[4];
         PetscScalar   exx[4],ezz[4],exz[4],txx[4],tzz[4],txz[4],tauII[4];
         PetscInt      ii;
 
@@ -356,34 +349,6 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         // second invariant of strain rate
         for (ii = 0; ii < 4; ii++) {point[ii].c = 3;}
         ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,4,point,epsII); CHKERRQ(ierr);
-
-        // pressure
-        pointP[0].i = i-1; pointP[0].j = j-1; pointP[0].loc = ELEMENT; pointP[0].c = 0;
-        pointP[1].i = i  ; pointP[1].j = j-1; pointP[1].loc = ELEMENT; pointP[1].c = 0;
-        pointP[2].i = i+1; pointP[2].j = j-1; pointP[2].loc = ELEMENT; pointP[2].c = 0;
-        pointP[3].i = i-1; pointP[3].j = j  ; pointP[3].loc = ELEMENT; pointP[3].c = 0;
-        pointP[4].i = i  ; pointP[4].j = j  ; pointP[4].loc = ELEMENT; pointP[4].c = 0;
-        pointP[5].i = i+1; pointP[5].j = j  ; pointP[5].loc = ELEMENT; pointP[5].c = 0;
-        pointP[6].i = i-1; pointP[6].j = j+1; pointP[6].loc = ELEMENT; pointP[6].c = 0;
-        pointP[7].i = i  ; pointP[7].j = j+1; pointP[7].loc = ELEMENT; pointP[7].c = 0;
-        pointP[8].i = i+1; pointP[8].j = j+1; pointP[8].loc = ELEMENT; pointP[8].c = 0;
-
-        // borders
-        if (i==0   ) { pointP[0] = pointP[1]; pointP[3] = pointP[4]; pointP[6] = pointP[7]; } 
-        if (i==Nx-1) { pointP[2] = pointP[1]; pointP[5] = pointP[4]; pointP[8] = pointP[7]; } 
-        if (j==0   ) { pointP[0] = pointP[3]; pointP[1] = pointP[4]; pointP[2] = pointP[5]; } 
-        if (j==Nz-1) { pointP[6] = pointP[3]; pointP[7] = pointP[4]; pointP[8] = pointP[5]; } 
-        if ((i==0   ) && (j==0   )) {pointP[0] = pointP[4]; pointP[1] = pointP[4]; pointP[3] = pointP[4];}
-        if ((i==Nx-1) && (j==0   )) {pointP[1] = pointP[4]; pointP[2] = pointP[4]; pointP[5] = pointP[4];}
-        if ((i==0   ) && (j==Nz-1)) {pointP[3] = pointP[4]; pointP[6] = pointP[4]; pointP[7] = pointP[4];}
-        if ((i==Nx-1) && (j==Nz-1)) {pointP[5] = pointP[4]; pointP[7] = pointP[4]; pointP[8] = pointP[4];}
-        ierr = DMStagVecGetValuesStencil(dm,xlocal,9,pointP,P); CHKERRQ(ierr);
-
-        // interpolate - assume constant grid spacing -> should be replaced with interpolation routines for every field
-        Pinterp[0] = 0.25*(P[0]+P[1]+P[3]+P[4]);
-        Pinterp[1] = 0.25*(P[1]+P[2]+P[4]+P[5]);
-        Pinterp[2] = 0.25*(P[3]+P[4]+P[6]+P[7]);
-        Pinterp[3] = 0.25*(P[4]+P[5]+P[7]+P[8]);
 
         // coordinates
         xp[0] = coordx[i][iprev]; zp[0] = coordz[j][iprev]; 
@@ -451,7 +416,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         ierr = DMStagGetLocationSlot(usr->dmeps,UP_RIGHT,3,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tauII[3];
       }
 
-      { // B = -rho*g (edges, c=0)
+      { // B = 0.0 (edges, c=0)
         DMStagStencil point[4];
         PetscScalar   rhs[4];
         PetscInt      ii;
@@ -463,8 +428,8 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
 
         rhs[0] = 0.0;
         rhs[1] = 0.0;
-        rhs[2] = -usr->par->rho0*usr->par->g;
-        rhs[3] = -usr->par->rho0*usr->par->g;
+        rhs[2] = 0.0;
+        rhs[3] = 0.0;
 
         for (ii = 0; ii < 4; ii++) {
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
@@ -500,7 +465,6 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   ierr = DMLocalToGlobalEnd  (usr->dmeps,xyieldlocal,INSERT_VALUES,usr->xyield); CHKERRQ(ierr);
   ierr = VecDestroy(&xyieldlocal); CHKERRQ(ierr);
 
-  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(usr->dmeps,&xepslocal); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
@@ -681,6 +645,7 @@ PetscErrorCode ScaleSolution(DM dm, Vec x, Vec *_x, void *ctx)
 
   // Restore arrays
   ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm, &xlocal ); CHKERRQ(ierr);
 
   // Map local to global
   ierr = DMLocalToGlobalBegin(dm,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
@@ -751,6 +716,7 @@ PetscErrorCode ScaleCoefficient(DM dm, Vec x, Vec *_x, void *ctx)
 
   // Restore arrays
   ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm, &xlocal ); CHKERRQ(ierr);
 
   // Map local to global
   ierr = DMLocalToGlobalBegin(dm,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
@@ -824,6 +790,7 @@ PetscErrorCode ScaleVectorUniform(DM dm, Vec x, Vec *_x, PetscScalar scal)
 
   // Restore arrays
   ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm, &xlocal ); CHKERRQ(ierr);
 
   // Map local to global
   ierr = DMLocalToGlobalBegin(dm,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
@@ -845,7 +812,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
   PetscInt       k,n_bc,*idx_bc;
-  PetscScalar    *value_bc;//,*x_bc;
+  PetscScalar    *value_bc;
   BCType         *type_bc;
   PetscErrorCode ierr;
   
@@ -915,14 +882,6 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  // // P on bottom boundary (s)
-  // ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  // // for (k=0; k<n_bc; k++) {
-  //   value_bc[0] = usr->par->nd_P;
-  //   type_bc[0] = BC_DIRICHLET;
-  // // }
-  // ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
@@ -970,19 +929,11 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->eta_b, 1.0e23, "eta_b", "Block shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta_i, 1.0e17, "eta_i", "Inclusion shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta_w, 1.0e17, "eta_w", "Weak zone shear viscosity [Pa.s]"); CHKERRQ(ierr);
-
   ierr = PetscBagRegisterScalar(bag, &par->vi, 5.0e-9, "vi", "Extension/compression velocity [m/s]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->rho0, 3000, "rho0", "Reference density [kg/m3]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->g, 0.0, "g", "Gravitational acceleration [m/s2]"); CHKERRQ(ierr);
-
   ierr = PetscBagRegisterScalar(bag, &par->C_b, 1.0e8, "C_b", "Block Cohesion [Pa]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->C_i, 1.0e7, "C_i", "Inclusion Cohesion [Pa]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->C_w, 1.0e7, "C_w", "Weak zone Cohesion [Pa]"); CHKERRQ(ierr);
-
   ierr = PetscBagRegisterScalar(bag, &par->P, 1.0e8, "P", "Boundary pressure [Pa]"); CHKERRQ(ierr);
-  // ierr = PetscBagRegisterScalar(bag, &par->phi, 37.0, "phi", "Angle of internal friction sin(phi) = 0.6 [deg]"); CHKERRQ(ierr);
-
-  ierr = PetscBagRegisterInt(bag, &par->smooth, 0, "smooth", "0-rough punch, 1-smooth punch (Hill's)"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->harmonic, 0, "harmonic", "0-no 1-yes harmonic averaging"); CHKERRQ(ierr);
   
   // scales
