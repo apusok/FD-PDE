@@ -121,7 +121,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = FDPDEView(fd); CHKERRQ(ierr);
 
   // Pin pressure
-  // ierr = FDPDEStokesPinPressure(fd,usr->par->nd_P,PETSC_TRUE); CHKERRQ(ierr);
+  ierr = FDPDEStokesPinPressure(fd,usr->par->nd_P,PETSC_TRUE); CHKERRQ(ierr);
 
   // Create initial guess with a linear viscous
   PetscPrintf(PETSC_COMM_WORLD,"\n# INITIAL GUESS #\n");
@@ -845,7 +845,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
   PetscInt       k,n_bc,*idx_bc;
-  PetscScalar    *value_bc,*x_bc;
+  PetscScalar    *value_bc;//,*x_bc;
   BCType         *type_bc;
   PetscErrorCode ierr;
   
@@ -915,13 +915,13 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  // P on bottom boundary (s)
-  ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  // for (k=0; k<n_bc; k++) {
-    value_bc[0] = usr->par->nd_P;
-    type_bc[0] = BC_DIRICHLET;
-  // }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  // // P on bottom boundary (s)
+  // ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  // // for (k=0; k<n_bc; k++) {
+  //   value_bc[0] = usr->par->nd_P;
+  //   type_bc[0] = BC_DIRICHLET;
+  // // }
+  // ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

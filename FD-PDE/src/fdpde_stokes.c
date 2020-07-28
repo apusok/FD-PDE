@@ -31,6 +31,7 @@ Use: internal
 #define __FUNCT__ "FDPDECreate_Stokes"
 PetscErrorCode FDPDECreate_Stokes(FDPDE fd)
 {
+  StokesData     *data;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
@@ -45,9 +46,36 @@ PetscErrorCode FDPDECreate_Stokes(FDPDE fd)
   fd->ops->form_function      = FormFunction_Stokes;
   fd->ops->form_jacobian      = NULL;
   fd->ops->create_jacobian    = JacobianCreate_Stokes;
-  // fd->ops->setup              = NULL;
   fd->ops->view               = NULL;
-  fd->ops->destroy            = NULL;
+  fd->ops->destroy            = FDPDEDestroy_Stokes;
+
+  // pinpoint pressure
+  ierr = PetscCalloc1(1,&data);CHKERRQ(ierr);
+  data->pinpoint = PETSC_FALSE;
+  data->pinvalue = 0.0;
+
+  fd->data = data;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+FDPDEDestroy_Stokes - destroys the data structures for FDPDEType = STOKES
+
+Use: internal
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEDestroy_Stokes"
+PetscErrorCode FDPDEDestroy_Stokes(FDPDE fd)
+{
+  StokesData    *data;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  data = fd->data;
+  ierr = PetscFree(data);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -411,5 +439,26 @@ PetscErrorCode ZMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, 
     point[25] = point[0]; 
     point[26] = point[0]; 
   }
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+ FDPDEStokesPinPressure - set a pinpoint value for pressure for FDPDEType = FDPDE_STOKES
+ 
+ Use: user
+ @*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEStokesPinPressure"
+PetscErrorCode FDPDEStokesPinPressure(FDPDE fd, PetscScalar val, PetscBool flg)
+{
+  StokesData    *data;
+  PetscFunctionBegin;
+  if (fd->type != FDPDE_STOKES) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = STOKES!");
+  if (!fd->data) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"The FD-PDE context data has not been set up. Call FDPDESetUp() first.");
+  data = fd->data;
+  data->pinpoint = flg;
+  data->pinvalue = val;
   PetscFunctionReturn(0);
 }

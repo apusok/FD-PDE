@@ -19,6 +19,7 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   PetscInt       iprev, inext, icenter;
   PetscScalar    ***ff;
   PetscScalar    **coordx,**coordz;
+  StokesData    *data;
   DMStagBCList   bclist;
   PetscErrorCode ierr;
 
@@ -35,6 +36,13 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   bclist = fd->bclist;
   if (fd->bclist->evaluate) {
     ierr = fd->bclist->evaluate(dmPV,x,bclist,bclist->data);CHKERRQ(ierr);
+  }
+
+  data = fd->data;
+  // pin pressure 
+  if (data->pinpoint) {
+    bclist->bc_e[0].type = BC_DIRICHLET;
+    bclist->bc_e[0].val  = data->pinvalue;
   }
 
   // Update coefficients
@@ -471,5 +479,6 @@ PetscErrorCode DMStagBCListApplyElement_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec
       SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"BC type NEUMANN for FDPDE_STOKES [ELEMENT] is not yet implemented.");
     }
   }
+
   PetscFunctionReturn(0);
 }

@@ -9,12 +9,17 @@
 #define STENCIL_STOKES_MOMENTUM_LIN    11
 #define STENCIL_STOKES_MOMENTUM_NONLIN 27
 
+// user defined and model-dependent variables
+typedef struct {
+  PetscBool    pinpoint; // flag to pinpoint pressure dof
+  PetscScalar  pinvalue; // value to pinpoint pressure dof
+} StokesData;
+
 // ---------------------------------------
 // Function definitions
 // ---------------------------------------
 PetscErrorCode FDPDECreate_Stokes(FDPDE);
-
-// Function pointers
+PetscErrorCode FDPDEDestroy_Stokes(FDPDE);
 PetscErrorCode JacobianPreallocator_Stokes(FDPDE,Mat);
 PetscErrorCode JacobianCreate_Stokes(FDPDE,Mat*);
 
@@ -32,5 +37,8 @@ PetscErrorCode ZMomentumResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,Petsc
 PetscErrorCode FormFunction_Stokes(SNES, Vec, Vec, void*);
 PetscErrorCode DMStagBCListApplyFace_Stokes(DM, Vec,DM, Vec, DMStagBC*, PetscInt, PetscScalar**, PetscScalar**,PetscInt[], PetscScalar***);
 PetscErrorCode DMStagBCListApplyElement_Stokes(DM, Vec,DM, Vec, DMStagBC*, PetscInt, PetscScalar**, PetscScalar**,PetscInt[], PetscScalar***);
+
+// Set functions
+PetscErrorCode FDPDEStokesPinPressure(FDPDE,PetscScalar,PetscBool);
 
 #endif
