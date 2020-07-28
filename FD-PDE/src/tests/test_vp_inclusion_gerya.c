@@ -644,6 +644,7 @@ PetscErrorCode ScaleSolution(DM dm, Vec x, Vec *_x, void *ctx)
   }
 
   // Restore arrays
+  ierr = DMStagVecRestoreArray(dm,xnewlocal,&xxnew); CHKERRQ(ierr);
   ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dm, &xlocal ); CHKERRQ(ierr);
 
@@ -715,6 +716,7 @@ PetscErrorCode ScaleCoefficient(DM dm, Vec x, Vec *_x, void *ctx)
   }
 
   // Restore arrays
+  ierr = DMStagVecRestoreArray(dm,xnewlocal,&xxnew); CHKERRQ(ierr);
   ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dm, &xlocal ); CHKERRQ(ierr);
 
@@ -789,6 +791,7 @@ PetscErrorCode ScaleVectorUniform(DM dm, Vec x, Vec *_x, PetscScalar scal)
   }
 
   // Restore arrays
+  ierr = DMStagVecRestoreArray(dm,xnewlocal,&xxnew); CHKERRQ(ierr);
   ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dm, &xlocal ); CHKERRQ(ierr);
 
