@@ -540,7 +540,7 @@ PetscErrorCode FDPDEGetSolutionGuess(FDPDE fd, Vec *xguess)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode FDPDESolveReport(FDPDE fd,PetscViewer viewer)
+static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
 {
   PetscErrorCode      ierr;
   char                filename[PETSC_MAX_PATH_LEN];
@@ -709,14 +709,16 @@ PetscErrorCode FDPDESolve(FDPDE fd, PetscBool *converged)
     char        filename[PETSC_MAX_PATH_LEN];
     PetscViewer viewer;
     
-    //viewer = PETSC_VIEWER_STDOUT_WORLD
-    //ierr = FDPDESolveReport(fd,viewer);CHKERRQ(ierr);
-    
+    /*// Example demonstrating usage of dumping report to stdout
+    viewer = PETSC_VIEWER_STDOUT_WORLD
+    ierr = FDPDESolveReport_Failure(fd,viewer);CHKERRQ(ierr);
+    */
+     
     ierr = SNESGetOptionsPrefix(fd->snes,&prefix);CHKERRQ(ierr);
     if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure-%D.report",prefix,fd->solves_performed);
     else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure-%D.report",fd->solves_performed);
     ierr = PetscViewerASCIIOpen(fd->comm,filename,&viewer);CHKERRQ(ierr);
-    ierr = FDPDESolveReport(fd,viewer);CHKERRQ(ierr);
+    ierr = FDPDESolveReport_Failure(fd,viewer);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
   }
   
