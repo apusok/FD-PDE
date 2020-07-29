@@ -371,6 +371,8 @@ PetscErrorCode FormBCList_MOR(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   u0 = usr->par->u0;
   eta0 = usr->par->eta0;
 
+  // NOTES: the first and last points for each interior boundary are actually resting ON the two adjacent boundaries, so loop from 1 to n_bc-2 instead of from 0 to n_bc-1 for interior boundaries.
+  
   // LEFT Boundary - Vx
   ierr = DMStagBCListGetValues(bclist,'w','-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
@@ -382,7 +384,7 @@ PetscErrorCode FormBCList_MOR(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   // LEFT Boundary - Vz
   ierr = DMStagBCListGetValues(bclist,'w','|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
+  for (k=1; k<n_bc-1; k++) {
     evaluate_CornerFlow_MOR(C1, C4, u0, eta0, usr->par->xmin , x_bc[2*k+1], v, &p);
     //evaluate_CornerFlow_MOR(C1, C4, u0, eta0, x_bc[2*k], x_bc[2*k+1], v, &p);
     value_bc[k] = v[1];
@@ -410,7 +412,7 @@ PetscErrorCode FormBCList_MOR(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   // RIGHT Boundary - Vz
   ierr = DMStagBCListGetValues(bclist,'e','|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
+  for (k=1; k<n_bc-1; k++) {
     evaluate_CornerFlow_MOR(C1, C4, u0, eta0, usr->par->xmin + usr->par->L, x_bc[2*k+1], v, &p);
     //evaluate_CornerFlow_MOR(C1, C4, u0, eta0, x_bc[2*k], x_bc[2*k+1], v, &p);
     value_bc[k] = v[1];
@@ -456,7 +458,6 @@ PetscErrorCode FormBCList_MOR(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   */
   // UP Boundary - Vx
-  // NOTES: the first point for Vx of UP boundary is actually resting on the left boundary, so that use the trick to move the interior boundary points up to the actual boundary for evaluating analytical solutions will cause zero radius at this point. As Vx at this actual point is considered on the left, loop from k = 1 to skip it.
   ierr = DMStagBCListGetValues(bclist,'n','-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=1; k<n_bc-1; k++) {
     evaluate_CornerFlow_MOR(C1, C4, u0, eta0, x_bc[2*k], usr->par->zmin + usr->par->H, v, &p);
