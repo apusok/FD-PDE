@@ -620,7 +620,8 @@ static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
   PetscViewerASCIIPushTab(viewer);
   PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
   PetscViewerASCIIPopTab(viewer);
-  ierr = PetscViewerASCIIOpen(fd->comm,filename,&fview);CHKERRQ(ierr);
+  /*ierr = PetscViewerASCIIOpen(fd->comm,filename,&fview);CHKERRQ(ierr);*/
+  ierr = PetscViewerBinaryOpen(fd->comm,filename,FILE_MODE_WRITE,&fview);CHKERRQ(ierr);
   ierr = VecView(F,fview);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
   
@@ -630,7 +631,8 @@ static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
   PetscViewerASCIIPushTab(viewer);
   PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
   PetscViewerASCIIPopTab(viewer);
-  ierr = PetscViewerASCIIOpen(fd->comm,filename,&fview);CHKERRQ(ierr);
+  /*ierr = PetscViewerASCIIOpen(fd->comm,filename,&fview);CHKERRQ(ierr);*/
+  ierr = PetscViewerBinaryOpen(fd->comm,filename,FILE_MODE_WRITE,&fview);CHKERRQ(ierr);
   ierr = VecView(X,fview);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
   
@@ -640,7 +642,8 @@ static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
   PetscViewerASCIIPushTab(viewer);
   PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
   PetscViewerASCIIPopTab(viewer);
-  ierr = PetscViewerASCIIOpen(fd->comm,filename,&fview);CHKERRQ(ierr);
+  /*ierr = PetscViewerASCIIOpen(fd->comm,filename,&fview);CHKERRQ(ierr);*/
+  ierr = PetscViewerBinaryOpen(fd->comm,filename,FILE_MODE_WRITE,&fview);CHKERRQ(ierr);
   ierr = VecView(dX,fview);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
   
