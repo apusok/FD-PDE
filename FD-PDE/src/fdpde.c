@@ -614,8 +614,8 @@ static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
   ierr = SNESView(fd->snes,viewer);CHKERRQ(ierr);
   PetscViewerASCIIPopTab(viewer);
   
-  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_F.vec",prefix);
-  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_F.vec");
+  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_F-%D.vec",prefix,fd->solves_performed);
+  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_F-%D.vec",fd->solves_performed);
   PetscViewerASCIIPrintf(viewer,"[residual file]\n");
   PetscViewerASCIIPushTab(viewer);
   PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
@@ -624,8 +624,8 @@ static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
   ierr = VecView(F,fview);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
   
-  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_X.vec",prefix);
-  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_X.vec");
+  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_X-%D.vec",prefix,fd->solves_performed);
+  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_X-%D.vec",fd->solves_performed);
   PetscViewerASCIIPrintf(viewer,"[solution file]\n");
   PetscViewerASCIIPushTab(viewer);
   PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
@@ -634,8 +634,8 @@ static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
   ierr = VecView(X,fview);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
   
-  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_dX.vec",prefix);
-  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_dX.vec");
+  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_dX-%D.vec",prefix,fd->solves_performed);
+  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_dX-%D.vec",fd->solves_performed);
   PetscViewerASCIIPrintf(viewer,"[solution correction file]\n");
   PetscViewerASCIIPushTab(viewer);
   PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
