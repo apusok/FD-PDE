@@ -646,6 +646,26 @@ static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
   ierr = PetscViewerBinaryOpen(fd->comm,filename,FILE_MODE_WRITE,&fview);CHKERRQ(ierr);
   ierr = VecView(dX,fview);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
+
+  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_fdpde_coeff-%D.vec",prefix,fd->solves_performed);
+  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_fdpde_coeff-%D.vec",fd->solves_performed);
+  PetscViewerASCIIPrintf(viewer,"[FDPDE coefficient file]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
+  PetscViewerASCIIPopTab(viewer);
+  ierr = PetscViewerBinaryOpen(fd->comm,filename,FILE_MODE_WRITE,&fview);CHKERRQ(ierr);
+  ierr = VecView(fd->coeff,fview);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
+
+  PetscViewerASCIIPrintf(viewer,"[DMStag summary]\n");
+  PetscViewerASCIIPushTab(viewer);
+  ierr = DMView(fd->dmstag,viewer);CHKERRQ(ierr);
+  PetscViewerASCIIPopTab(viewer);
+
+  PetscViewerASCIIPrintf(viewer,"[DMCoeff summary]\n");
+  PetscViewerASCIIPushTab(viewer);
+  ierr = DMView(fd->dmcoeff,viewer);CHKERRQ(ierr);
+  PetscViewerASCIIPopTab(viewer);
   
   PetscViewerASCIIPrintf(viewer,"[PDE summary]\n");
   PetscViewerASCIIPushTab(viewer);
