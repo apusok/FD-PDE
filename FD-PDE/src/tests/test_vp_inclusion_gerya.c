@@ -163,11 +163,12 @@ PetscErrorCode Numerical_solution(void *ctx)
     DM   dmref,dm;
     
     PetscPrintf(PETSC_COMM_WORLD,"\n# PICARD SOLVE #\n");
-    
-    ierr = fd->ops->create_jacobian(fd,&J);CHKERRQ(ierr);
-    
+
     ierr = FDPDEGetDM(fd,&dmref);CHKERRQ(ierr);
     ierr = DMClone(dmref,&dm);CHKERRQ(ierr);
+
+    ierr = fd->ops->create_jacobian(fd,&J);CHKERRQ(ierr);
+    
     ierr = SNESCreate(fd->comm,&snes_picard);CHKERRQ(ierr);
     ierr = SNESSetOptionsPrefix(snes_picard,"p_");CHKERRQ(ierr);
     ierr = SNESSetDM(snes_picard,dm);CHKERRQ(ierr); /* attach a clone of the DM stag - see note on manpage for SNESSetDM() */
@@ -196,6 +197,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     
     ierr = SNESDestroy(&snes_picard);CHKERRQ(ierr);
     ierr = DMDestroy(&dm);CHKERRQ(ierr);
+    ierr = MatDestroy(&J);CHKERRQ(ierr);
   }
   
   ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr);
