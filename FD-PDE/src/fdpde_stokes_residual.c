@@ -116,6 +116,113 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode FormFunctionSplit_Stokes(SNES snes, Vec x, Vec x2, Vec f, void *ctx)
+{
+  FDPDE          fd = (FDPDE)ctx;
+  DM             dmPV, dmCoeff;
+  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
+  Vec            xlocal, flocal, coefflocal;
+  PetscInt       idx, n[5];
+  PetscInt       iprev, inext, icenter;
+  PetscScalar    ***ff;
+  PetscScalar    **coordx,**coordz;
+  StokesData    *data;
+  DMStagBCList   bclist;
+  PetscErrorCode ierr;
+  
+  PetscFunctionBegin;
+  if (!fd->ops->form_coefficient) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Form coefficient function pointer is NULL. Must call FDPDESetFunctionCoefficient() and provide a non-NULL function pointer.");
+  
+  // Assign pointers and other variables
+  dmPV    = fd->dmstag;
+  dmCoeff = fd->dmcoeff;
+  Nx = fd->Nx;
+  Nz = fd->Nz;
+  
+  // Update BC list
+  bclist = fd->bclist;
+  if (fd->bclist->evaluate) {
+    ierr = fd->bclist->evaluate(dmPV,x,bclist,bclist->data);CHKERRQ(ierr);
+  }
+  
+  data = fd->data;
+  // pin pressure
+  if (data->pinpoint) {
+    bclist->bc_e[0].type = BC_DIRICHLET;
+    bclist->bc_e[0].val  = data->pinvalue;
+  }
+  
+  // Update coefficients
+  ierr = fd->ops->form_coefficient_split(fd,dmPV,x,x2,dmCoeff,fd->coeff,fd->user_context);CHKERRQ(ierr);
+  
+  // Get local domain
+  ierr = DMStagGetCorners(dmPV, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,DMSTAG_RIGHT,&inext);CHKERRQ(ierr);
+  
+  // Save useful variables for residual calculations
+  n[0] = Nx; n[1] = Nz; n[2] = icenter; n[3] = iprev; n[4] = inext;
+  
+  // Map global vectors to local domain
+  ierr = DMGetLocalVector(dmPV, &xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmPV, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  
+  ierr = DMGetLocalVector(dmCoeff, &coefflocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmCoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
+  
+  // Get dm coordinates array
+  ierr = DMStagGetProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  
+  // Create residual local vector
+  ierr = DMCreateLocalVector(dmPV, &flocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmPV, flocal, &ff); CHKERRQ(ierr);
+  
+  // Loop over elements
+  for (j = sz; j<sz+nz; j++) {
+    for (i = sx; i<sx+nx; i++) {
+      PetscScalar fval;
+      
+      // 1) Continuity equation
+      ierr = ContinuityResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(dmPV, DMSTAG_ELEMENT, 0, &idx); CHKERRQ(ierr);
+      ff[j][i][idx] = fval;
+      
+      // 2) X-Momentum equation
+      if (i > 0) {
+        ierr = XMomentumResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
+        ierr = DMStagGetLocationSlot(dmPV, DMSTAG_LEFT, 0, &idx); CHKERRQ(ierr);
+        ff[j][i][idx] = fval;
+      }
+      
+      // 3) Z-Momentum equation
+      if (j > 0) {
+        ierr = ZMomentumResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
+        ierr = DMStagGetLocationSlot(dmPV, DMSTAG_DOWN, 0, &idx); CHKERRQ(ierr);
+        ff[j][i][idx] = fval;
+      }
+    }
+  }
+  
+  // Boundary conditions - edges and element
+  ierr = DMStagBCListApplyFace_Stokes(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,ff);CHKERRQ(ierr);
+  ierr = DMStagBCListApplyElement_Stokes(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,n,ff);CHKERRQ(ierr);
+  
+  // Restore arrays, local vectors
+  ierr = DMStagRestoreProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dmPV,flocal,&ff); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmPV,&xlocal); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmCoeff,&coefflocal); CHKERRQ(ierr);
+  
+  // Map local to global
+  ierr = DMLocalToGlobalBegin(dmPV,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dmPV,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
+  
+  ierr = VecDestroy(&flocal); CHKERRQ(ierr);
+  
+  PetscFunctionReturn(0);
+}
+
 // ---------------------------------------
 /*@
 ContinuityResidual - (STOKES) calculates the continuity residual per dof

@@ -438,6 +438,21 @@ PetscErrorCode FDPDESetFunctionCoefficient(FDPDE fd, PetscErrorCode (*form_coeff
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode FDPDESetFunctionCoefficientSplit(FDPDE fd, PetscErrorCode (*form_coefficient)(FDPDE fd,DM,Vec,Vec,DM,Vec,void*), const char description[], void *data)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  
+  fd->ops->form_coefficient_split = form_coefficient;
+  fd->user_context = data;
+  
+  /* free any existing name set by previous call */
+  if (fd->description_coeff) { ierr = PetscFree(fd->description_coeff); CHKERRQ(ierr); }
+  if (description) { ierr = PetscStrallocpy(description,&fd->description_coeff); CHKERRQ(ierr); }
+  
+  PetscFunctionReturn(0);
+}
+
 // ---------------------------------------
 /*@
 FDPDEGetSolution - retrieves the solution vector from the FD-PDE object. 

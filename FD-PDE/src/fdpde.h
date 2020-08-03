@@ -22,8 +22,10 @@ typedef struct _p_FDPDE *FDPDE;
 
 struct _FDPDEOps {
   PetscErrorCode (*form_function)(SNES,Vec,Vec,void*);
+  PetscErrorCode (*form_function_split)(SNES,Vec,Vec,Vec,void*);
   PetscErrorCode (*form_jacobian)(SNES,Vec,Mat,Mat,void*);
   PetscErrorCode (*form_coefficient)(FDPDE,DM,Vec,DM,Vec,void*);
+  PetscErrorCode (*form_coefficient_split)(FDPDE,DM,Vec,Vec,DM,Vec,void*);
   PetscErrorCode (*create_jacobian)(FDPDE,Mat*);
   PetscErrorCode (*create)(FDPDE);
   PetscErrorCode (*view)(FDPDE);
@@ -67,6 +69,7 @@ PetscErrorCode FDPDESolve(FDPDE,PetscBool*);
 
 PetscErrorCode FDPDESetFunctionBCList(FDPDE, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void*);
 PetscErrorCode FDPDESetFunctionCoefficient(FDPDE, PetscErrorCode (*form_coefficient)(FDPDE, DM,Vec,DM,Vec,void*), const char description[], void*);
+PetscErrorCode FDPDESetFunctionCoefficientSplit(FDPDE, PetscErrorCode (*form_coefficient)(FDPDE, DM,Vec,Vec,DM,Vec,void*), const char description[], void*);
 PetscErrorCode FDPDESetLinearPreallocatorStencil(FDPDE, PetscBool);
 
 PetscErrorCode FDPDEGetDM(FDPDE,DM*);
