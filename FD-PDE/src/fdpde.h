@@ -66,6 +66,7 @@ PetscErrorCode FDPDESetUp(FDPDE);
 PetscErrorCode FDPDEDestroy(FDPDE*);
 PetscErrorCode FDPDEView(FDPDE);
 PetscErrorCode FDPDESolve(FDPDE,PetscBool*);
+PetscErrorCode FDPDESolvePicard(FDPDE,PetscBool*);
 
 PetscErrorCode FDPDESetFunctionBCList(FDPDE, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void*);
 PetscErrorCode FDPDESetFunctionCoefficient(FDPDE, PetscErrorCode (*form_coefficient)(FDPDE, DM,Vec,DM,Vec,void*), const char description[], void*);
