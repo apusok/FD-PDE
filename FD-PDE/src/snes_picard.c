@@ -9,17 +9,7 @@ typedef struct {
 } SNES_PICARDLS;
 
 
-PetscErrorCode _EvalF_Newton(SNES snes, Vec x, Vec f, void *ctx)
-{
-  SNES_PICARDLS  *picard = (SNES_PICARDLS*)snes->data;
-  PetscErrorCode ierr;
-  
-  PetscFunctionBegin;
-  ierr = picard->split_f(snes, x, x, f, ctx);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode _EvalF_Picard(SNES snes, Vec x, Vec f, void *ctx)
+PetscErrorCode SNESPicardComputeFunctionDefault(SNES snes, Vec x, Vec f, void *ctx)
 {
   SNES_PICARDLS  *picard = (SNES_PICARDLS*)snes->data;
   PetscErrorCode ierr;
@@ -29,7 +19,7 @@ PetscErrorCode _EvalF_Picard(SNES snes, Vec x, Vec f, void *ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode SNESPicardComputeFunctionNewton(SNES snes,Vec x,Vec f)
+static PetscErrorCode SNESPicardComputeFunction_Consistent(SNES snes,Vec x,Vec f)
 {
   SNES_PICARDLS  *picard = (SNES_PICARDLS*)snes->data;
   DM             dm;
@@ -40,7 +30,7 @@ PetscErrorCode SNESPicardComputeFunctionNewton(SNES snes,Vec x,Vec f)
   ierr = SNESGetDM(snes,&dm);CHKERRQ(ierr);
   ierr = DMSNESGetFunction(dm,NULL,&ctx);CHKERRQ(ierr);
   ierr = VecZeroEntries(f);CHKERRQ(ierr);
-  ierr = _EvalF_Newton(snes,x,f,ctx);CHKERRQ(ierr);
+  ierr = picard->split_f(snes, x, x, f, ctx);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -64,7 +54,6 @@ PetscErrorCode SNESPicardLSSetSplitFunction(SNES snes,Vec F,
   PetscErrorCode ierr;
   PetscFunctionBegin;
   picard->split_f = f;
-  //ierr = SNESSetFunction(snes,F,_EvalF_Picard,ctx);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -100,8 +89,7 @@ PetscErrorCode SNESSolve_PicardLS(SNES snes)
   ierr = SNESGetLineSearch(snes, &linesearch);CHKERRQ(ierr);
 
   if (!snes->vec_func_init_set) {
-    //ierr = SNESComputeFunction(snes,X,F);CHKERRQ(ierr);
-    ierr = SNESPicardComputeFunctionNewton(snes,X,F);CHKERRQ(ierr);
+    ierr = SNESPicardComputeFunction_Consistent(snes,X,F);CHKERRQ(ierr);
   } else snes->vec_func_init_set = PETSC_FALSE;
 
   ierr = VecNorm(F,NORM_2,&fnorm);CHKERRQ(ierr);        /* fnorm <- ||F||  */
@@ -121,6 +109,7 @@ PetscErrorCode SNESSolve_PicardLS(SNES snes)
     /* apply the nonlinear preconditioner */
     
     /* Solve J Y = F, where J is Jacobian matrix */
+    ierr = SNESComputeFunction(snes,X,F);CHKERRQ(ierr);
     ierr = SNESComputeJacobian(snes,X,snes->jacobian,snes->jacobian_pre);CHKERRQ(ierr);
     ierr = KSPSetOperators(snes->ksp,snes->jacobian,snes->jacobian_pre);CHKERRQ(ierr);
     ierr = KSPSolve(snes->ksp,F,Y);CHKERRQ(ierr);
@@ -134,7 +123,7 @@ PetscErrorCode SNESSolve_PicardLS(SNES snes)
      X <- X - lambda*Y
      and evaluate F = function(X) (depends on the line search).
      */
-#if 0
+#if 1
     gnorm = fnorm;
     ierr  = SNESLineSearchApply(linesearch, X, F, &fnorm, Y);CHKERRQ(ierr);
     ierr  = SNESLineSearchGetReason(linesearch, &lssucceed);CHKERRQ(ierr);
@@ -150,21 +139,23 @@ PetscErrorCode SNESSolve_PicardLS(SNES snes)
       if (++snes->numFailures >= snes->maxFailures) {
         PetscBool ismin;
         snes->reason = SNES_DIVERGED_LINE_SEARCH;
-        ierr         = SNESNEWTONLSCheckLocalMin_Private(snes,snes->jacobian,F,fnorm,&ismin);CHKERRQ(ierr);
-        if (ismin) snes->reason = SNES_DIVERGED_LOCAL_MIN;
+        //ierr         = SNESNEWTONLSCheckLocalMin_Private(snes,snes->jacobian,F,fnorm,&ismin);CHKERRQ(ierr);
+        //if (ismin) snes->reason = SNES_DIVERGED_LOCAL_MIN;
         break;
       }
     }
 #endif
-
+#if 0
     ierr = VecScale(Y,-1.0);CHKERRQ(ierr);
     ierr = VecAXPY(X,1.0,Y);CHKERRQ(ierr);
+#endif
     
-    ierr = SNESPicardComputeFunctionNewton(snes,X,F);CHKERRQ(ierr);
+    ierr = VecCopy(X,picard->X2);CHKERRQ(ierr); /* update cached state */
+    
+    ierr = SNESPicardComputeFunction_Consistent(snes,X,F);CHKERRQ(ierr); /* compute true residual - used for stopping condition */
     ierr = VecNorm(F,NORM_2,&fnorm);CHKERRQ(ierr);        /* fnorm <- ||F||  */
     SNESCheckFunctionNorm(snes,fnorm);
 
-  
     /* Monitor convergence */
     snes->iter = i+1;
     snes->norm = fnorm;
@@ -229,7 +220,7 @@ PetscErrorCode SNESCreate_PicardLS(SNES snes)
   
   ierr = SNESGetLineSearch(snes, &linesearch);CHKERRQ(ierr);
   if (!((PetscObject)linesearch)->type_name) {
-    ierr = SNESLineSearchSetType(linesearch, SNESLINESEARCHBT);CHKERRQ(ierr);
+    ierr = SNESLineSearchSetType(linesearch, SNESLINESEARCHBASIC);CHKERRQ(ierr);
   }
   
   snes->alwayscomputesfinalresidual = PETSC_TRUE;
