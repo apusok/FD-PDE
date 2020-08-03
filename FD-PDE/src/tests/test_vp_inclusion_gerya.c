@@ -22,7 +22,7 @@ static char help[] = "Application for shortening of a visco-plastic block in the
 #include "../consteq.h"
 #include "../dmstagoutput.h"
 
-PetscErrorCode _EvalF_Picard(SNES snes, Vec x, Vec f, void *ctx);
+PetscErrorCode SNESPicardComputeFunctionDefault(SNES snes, Vec x, Vec f, void *ctx);
 PetscErrorCode SNESPicardLSGetAuxillarySolution(SNES snes,Vec *x);
 PetscErrorCode SNESPicardLSSetSplitFunction(SNES snes,Vec F,
                                             PetscErrorCode (*f)(SNES,Vec,Vec,Vec,void*));
@@ -177,7 +177,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = SNESSetSolution(snes_picard,fd->x);CHKERRQ(ierr); // for FD colouring to function correctly
     
     //ierr = SNESSetFunction(snes_picard,fd->r,fd->ops->form_function_split,(void*)fd);CHKERRQ(ierr);
-    ierr = SNESSetFunction(snes_picard,fd->r,_EvalF_Picard,(void*)fd);CHKERRQ(ierr);
+    ierr = SNESSetFunction(snes_picard,fd->r,SNESPicardComputeFunctionDefault,(void*)fd);CHKERRQ(ierr);
     
     ierr = SNESSetJacobian(snes_picard,J,J,SNESComputeJacobianDefaultColor,NULL);CHKERRQ(ierr);
     
