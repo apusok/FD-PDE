@@ -157,18 +157,20 @@ PetscErrorCode Numerical_solution(void *ctx)
 
   // MatView(fd->J,PETSC_VIEWER_STDOUT_WORLD);
 
-#if 1
   {
     SNES snes_picard;
-    Mat J;
+    Mat  J;
+    DM   dmref,dm;
     
     PetscPrintf(PETSC_COMM_WORLD,"\n# PICARD SOLVE #\n");
     
     ierr = fd->ops->create_jacobian(fd,&J);CHKERRQ(ierr);
     
+    ierr = FDPDEGetDM(fd,&dmref);CHKERRQ(ierr);
+    ierr = DMClone(dmref,&dm);CHKERRQ(ierr);
     ierr = SNESCreate(fd->comm,&snes_picard);CHKERRQ(ierr);
     ierr = SNESSetOptionsPrefix(snes_picard,"p_");CHKERRQ(ierr);
-    //ierr = SNESSetDM(snes_picard,fd->dmstag);CHKERRQ(ierr); /* attaching the same DM multiple times sinces to break PETSc - PETSc bug! */
+    ierr = SNESSetDM(snes_picard,dm);CHKERRQ(ierr); /* attach a clone of the DM stag - see note on manpage for SNESSetDM() */
     ierr = SNESSetSolution(snes_picard,fd->x);CHKERRQ(ierr); // for FD colouring to function correctly
     
     ierr = SNESSetFunction(snes_picard,fd->r,SNESPicardComputeFunctionDefault,(void*)fd);CHKERRQ(ierr);
@@ -192,11 +194,9 @@ PetscErrorCode Numerical_solution(void *ctx)
     
     ierr = SNESSolve(snes_picard,NULL,fd->x);CHKERRQ(ierr);
     
-    ierr = SNESView(snes_picard,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-    
     ierr = SNESDestroy(&snes_picard);CHKERRQ(ierr);
+    ierr = DMDestroy(&dm);CHKERRQ(ierr);
   }
-#endif
   
   ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr);
   ierr = FDPDEGetSolutionGuess(fd,&xguess); CHKERRQ(ierr);
