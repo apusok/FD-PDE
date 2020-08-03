@@ -21,12 +21,7 @@ static char help[] = "Application for shortening of a visco-plastic block in the
 #include "../fdpde_stokes.h"
 #include "../consteq.h"
 #include "../dmstagoutput.h"
-
-PetscErrorCode SNESPicardComputeFunctionDefault(SNES snes, Vec x, Vec f, void *ctx);
-PetscErrorCode SNESPicardLSGetAuxillarySolution(SNES snes,Vec *x);
-PetscErrorCode SNESPicardLSSetSplitFunction(SNES snes,Vec F,
-                                            PetscErrorCode (*f)(SNES,Vec,Vec,Vec,void*));
-PetscErrorCode SNESCreate_PicardLS(SNES snes);
+#include "../snes_picard.h"
 
 
 // ---------------------------------------

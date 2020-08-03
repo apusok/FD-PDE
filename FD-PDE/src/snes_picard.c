@@ -2,6 +2,7 @@
 #include <petsc.h>
 #include <petscsnes.h>
 #include <petsc/private/snesimpl.h>
+#include "snes_picard.h"
 
 typedef struct {
   Vec             X2;
@@ -63,7 +64,7 @@ PetscErrorCode SNESPicardLSSetSplitFunction(SNES snes,Vec F,
 
 
 
-PetscErrorCode SNESSolve_PicardLS(SNES snes)
+static PetscErrorCode SNESSolve_PicardLS(SNES snes)
 {
   SNES_PICARDLS        *picard = (SNES_PICARDLS*)snes->data;
   PetscErrorCode       ierr;
@@ -181,7 +182,7 @@ PetscErrorCode SNESSolve_PicardLS(SNES snes)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode SNESSetUp_PicardLS(SNES snes)
+static PetscErrorCode SNESSetUp_PicardLS(SNES snes)
 {
   SNES_PICARDLS  *picard = (SNES_PICARDLS*)snes->data;
   PetscErrorCode ierr;
@@ -196,7 +197,7 @@ PetscErrorCode SNESSetUp_PicardLS(SNES snes)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode SNESDestroy_PicardLS(SNES snes)
+static PetscErrorCode SNESDestroy_PicardLS(SNES snes)
 {
   SNES_PICARDLS  *picard = (SNES_PICARDLS*)snes->data;
   PetscErrorCode ierr;
