@@ -21,7 +21,6 @@ static char help[] = "Application for shortening of a visco-plastic block in the
 #include "../fdpde_stokes.h"
 #include "../consteq.h"
 #include "../dmstagoutput.h"
-#include "../snes_picard.h"
 
 
 // ---------------------------------------
@@ -157,6 +156,7 @@ PetscErrorCode Numerical_solution(void *ctx)
 
   // MatView(fd->J,PETSC_VIEWER_STDOUT_WORLD);
 
+#if 0
   {
     SNES snes_picard;
     Mat  J;
@@ -199,6 +199,10 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = DMDestroy(&dm);CHKERRQ(ierr);
     ierr = MatDestroy(&J);CHKERRQ(ierr);
   }
+#endif
+  
+  PetscPrintf(PETSC_COMM_WORLD,"\n# PICARD SOLVE #\n");
+  ierr = FDPDESolvePicard(fd,NULL);CHKERRQ(ierr);
   
   ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr);
   ierr = FDPDEGetSolutionGuess(fd,&xguess); CHKERRQ(ierr);
