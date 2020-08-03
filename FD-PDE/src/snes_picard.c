@@ -15,6 +15,9 @@ PetscErrorCode SNESPicardComputeFunctionDefault(SNES snes, Vec x, Vec f, void *c
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
+#if defined(PETSC_USE_DEBUG)
+  if (!picard->split_f) SETERRQ(PetscObjectComm((PetscObject)snes),PETSC_ERR_ARG_NULL,"Must call SNESPicardLSSetSplitFunction() before a residual can be computed");
+#endif
   ierr = picard->split_f(snes, x, picard->X2, f, ctx);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -22,13 +25,14 @@ PetscErrorCode SNESPicardComputeFunctionDefault(SNES snes, Vec x, Vec f, void *c
 static PetscErrorCode SNESPicardComputeFunction_Consistent(SNES snes,Vec x,Vec f)
 {
   SNES_PICARDLS  *picard = (SNES_PICARDLS*)snes->data;
-  DM             dm;
   void           *ctx;
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
-  ierr = SNESGetDM(snes,&dm);CHKERRQ(ierr);
-  ierr = DMSNESGetFunction(dm,NULL,&ctx);CHKERRQ(ierr);
+#if defined(PETSC_USE_DEBUG)
+  if (!picard->split_f) SETERRQ(PetscObjectComm((PetscObject)snes),PETSC_ERR_ARG_NULL,"Must call SNESPicardLSSetSplitFunction() before a residual can be computed");
+#endif
+  ierr = SNESGetFunction(snes,NULL,NULL,&ctx);CHKERRQ(ierr);
   ierr = VecZeroEntries(f);CHKERRQ(ierr);
   ierr = picard->split_f(snes, x, x, f, ctx);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -123,7 +127,7 @@ PetscErrorCode SNESSolve_PicardLS(SNES snes)
      X <- X - lambda*Y
      and evaluate F = function(X) (depends on the line search).
      */
-#if 1
+#if 1 /* line search */
     gnorm = fnorm;
     ierr  = SNESLineSearchApply(linesearch, X, F, &fnorm, Y);CHKERRQ(ierr);
     ierr  = SNESLineSearchGetReason(linesearch, &lssucceed);CHKERRQ(ierr);
@@ -133,11 +137,13 @@ PetscErrorCode SNESSolve_PicardLS(SNES snes)
     SNESCheckFunctionNorm(snes,fnorm);
     if (lssucceed) {
       if (snes->stol*xnorm > ynorm) {
+        ierr = VecCopy(X,picard->X2);CHKERRQ(ierr); /* update cached state */
+
         snes->reason = SNES_CONVERGED_SNORM_RELATIVE;
         PetscFunctionReturn(0);
       }
       if (++snes->numFailures >= snes->maxFailures) {
-        PetscBool ismin;
+        //PetscBool ismin;
         snes->reason = SNES_DIVERGED_LINE_SEARCH;
         //ierr         = SNESNEWTONLSCheckLocalMin_Private(snes,snes->jacobian,F,fnorm,&ismin);CHKERRQ(ierr);
         //if (ismin) snes->reason = SNES_DIVERGED_LOCAL_MIN;
@@ -145,7 +151,7 @@ PetscErrorCode SNESSolve_PicardLS(SNES snes)
       }
     }
 #endif
-#if 0
+#if 0 /* By-pass linesearch and take full step */
     ierr = VecScale(Y,-1.0);CHKERRQ(ierr);
     ierr = VecAXPY(X,1.0,Y);CHKERRQ(ierr);
 #endif
