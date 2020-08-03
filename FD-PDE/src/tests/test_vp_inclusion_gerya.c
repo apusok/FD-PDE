@@ -173,10 +173,9 @@ PetscErrorCode Numerical_solution(void *ctx)
     
     ierr = SNESCreate(fd->comm,&snes_picard);CHKERRQ(ierr);
     ierr = SNESSetOptionsPrefix(snes_picard,"p_");CHKERRQ(ierr);
-    ierr = SNESSetDM(snes_picard,fd->dmstag);CHKERRQ(ierr);
+    //ierr = SNESSetDM(snes_picard,fd->dmstag);CHKERRQ(ierr); /* attaching the same DM multiple times sinces to break PETSc - PETSc bug! */
     ierr = SNESSetSolution(snes_picard,fd->x);CHKERRQ(ierr); // for FD colouring to function correctly
     
-    //ierr = SNESSetFunction(snes_picard,fd->r,fd->ops->form_function_split,(void*)fd);CHKERRQ(ierr);
     ierr = SNESSetFunction(snes_picard,fd->r,SNESPicardComputeFunctionDefault,(void*)fd);CHKERRQ(ierr);
     
     ierr = SNESSetJacobian(snes_picard,J,J,SNESComputeJacobianDefaultColor,NULL);CHKERRQ(ierr);
@@ -203,6 +202,13 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = SNESDestroy(&snes_picard);CHKERRQ(ierr);
   }
 #endif
+  
+  ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr);
+  ierr = FDPDEGetSolutionGuess(fd,&xguess); CHKERRQ(ierr);
+  ierr = VecCopy(x,xguess);CHKERRQ(ierr);
+  ierr = VecDestroy(&xguess);CHKERRQ(ierr);
+  ierr = VecDestroy(&x);CHKERRQ(ierr);
+
   
   // FD SNES Solver
   PetscPrintf(PETSC_COMM_WORLD,"\n# SNES SOLVE #\n");
