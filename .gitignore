@@ -8,6 +8,9 @@
 /StagRidge/src/stagridge_advdiff
 *.app
 
+# SNES REPORTS
+snes_failure*
+
 # TESTS
 out_*
 
