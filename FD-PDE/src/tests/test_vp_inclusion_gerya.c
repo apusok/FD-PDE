@@ -1332,7 +1332,7 @@ int main (int argc,char **argv)
     
   // Initialize application
   ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return ierr;
-  ierr = SNESRegister(SNESNPICARDLS,SNESCreate_PicardLS);CHKERRQ(ierr);
+  ierr = SNESRegister(SNESPICARDLS,SNESCreate_PicardLS);CHKERRQ(ierr);
   
   // Load command line or input file if required
   ierr = PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL); CHKERRQ(ierr);

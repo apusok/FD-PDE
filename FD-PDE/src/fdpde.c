@@ -639,7 +639,7 @@ PetscErrorCode FDPDESolvePicard(FDPDE fd, PetscBool *converged)
   
   ierr = SNESSetJacobian(snes_picard,J,J,SNESComputeJacobianDefaultColor,NULL);CHKERRQ(ierr);
   
-  ierr = SNESSetType(snes_picard,"picard");CHKERRQ(ierr);
+  ierr = SNESSetType(snes_picard,SNESPICARDLS);CHKERRQ(ierr);
   ierr = SNESSetFromOptions(snes_picard);CHKERRQ(ierr);
   ierr = SNESSetUp(snes_picard);CHKERRQ(ierr);
 
