@@ -894,3 +894,27 @@ PetscErrorCode DMStagBCListView(DMStagBCList list)
   }
   PetscFunctionReturn(0);
 }
+
+// ---------------------------------------
+/*@
+DMStagBCListPinSingleValue - pinpoint a single boundary dof
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "DMStagBCListPinSingleValue"
+PetscErrorCode DMStagBCListPinSingleValue(DMStagBCList list, const char domain_face,const char label, PetscInt dof, PetscScalar val)
+{
+  PetscInt       n_bc,*idx_bc;
+  PetscScalar    *value_bc;
+  BCType         *type_bc;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = DMStagBCListGetValues(list,domain_face,label,dof,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  value_bc[0] = val;
+  type_bc[0]  = BC_DIRICHLET;
+  ierr = DMStagBCListInsertValues(list,label,dof,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
