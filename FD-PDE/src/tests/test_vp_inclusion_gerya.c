@@ -294,12 +294,6 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         point.c = 2; ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,1,&point,&exz); CHKERRQ(ierr);
         point.c = 3; ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,1,&point,&epsII); CHKERRQ(ierr);
 
-        // second invariant of stress
-        txx = 2.0*eta*exx;
-        tzz = 2.0*eta*ezz;
-        txz = 2.0*eta*exz;
-        tauII = PetscPowScalar(0.5*(txx*txx + tzz*tzz + 2.0*txz*txz),0.5);
-
         if (usr->par->plasticity) {
           // Effective viscosity
           eta_P = Y/(2.0*epsII);
@@ -309,6 +303,12 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         point.i = i; point.j = j; point.loc = ELEMENT; point.c = 1;
         ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
         c[j][i][idx] = eta;
+
+        // second invariant of stress
+        txx = 2.0*eta*exx;
+        tzz = 2.0*eta*ezz;
+        txz = 2.0*eta*exz;
+        tauII = PetscPowScalar(0.5*(txx*txx + tzz*tzz + 2.0*txz*txz),0.5);
 
         // save stresses for output
         ierr = DMStagGetLocationSlot(usr->dmeps,ELEMENT,0,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txx; xxy[j][i][idx] = Y;
@@ -358,17 +358,17 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
             Y[ii] = usr->par->nd_C_b; // plastic yield criterion
           }
 
-          // second invariant of stress
-          txx[ii] = 2.0*eta*exx[ii];
-          tzz[ii] = 2.0*eta*ezz[ii];
-          txz[ii] = 2.0*eta*exz[ii];
-          tauII[ii] = PetscPowScalar(0.5*(txx[ii]*txx[ii] + tzz[ii]*tzz[ii] + 2.0*txz[ii]*txz[ii]),0.5);
-
           if (usr->par->plasticity) {
             // Effective viscosity
             eta_P = Y[ii]/(2.0*epsII[ii]);
             eta = usr->par->etamin + 1.0/(1.0/eta_P + 1.0/eta + 1.0/usr->par->etamax); 
           }
+
+          // second invariant of stress
+          txx[ii] = 2.0*eta*exx[ii];
+          tzz[ii] = 2.0*eta*ezz[ii];
+          txz[ii] = 2.0*eta*exz[ii];
+          tauII[ii] = PetscPowScalar(0.5*(txx[ii]*txx[ii] + tzz[ii]*tzz[ii] + 2.0*txz[ii]*txz[ii]),0.5);
 
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, 0, &idx); CHKERRQ(ierr);
           c[j][i][idx] = eta;
