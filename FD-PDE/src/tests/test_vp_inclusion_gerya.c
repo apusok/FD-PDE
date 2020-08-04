@@ -178,7 +178,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     
     ierr = SNESSetJacobian(snes_picard,J,J,SNESComputeJacobianDefaultColor,NULL);CHKERRQ(ierr);
     
-    ierr = SNESSetType(snes_picard,"picard");CHKERRQ(ierr);
+    ierr = SNESSetType(snes_picard,SNESNPICARDLS);CHKERRQ(ierr);
     ierr = SNESSetFromOptions(snes_picard);CHKERRQ(ierr);
     ierr = SNESSetUp(snes_picard);CHKERRQ(ierr);
 
@@ -1332,7 +1332,7 @@ int main (int argc,char **argv)
     
   // Initialize application
   ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return ierr;
-  ierr = SNESRegister("picard",SNESCreate_PicardLS);CHKERRQ(ierr);
+  ierr = SNESRegister(SNESNPICARDLS,SNESCreate_PicardLS);CHKERRQ(ierr);
   
   // Load command line or input file if required
   ierr = PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL); CHKERRQ(ierr);

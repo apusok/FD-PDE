@@ -5,6 +5,8 @@
 #include <petscvec.h>
 #include <petscsnes.h>
 
+#define SNESNPICARDLS "picardls"
+
 PetscErrorCode SNESPicardComputeFunctionDefault(SNES snes, Vec x, Vec f, void *ctx);
 PetscErrorCode SNESPicardLSGetAuxillarySolution(SNES snes,Vec *x);
 PetscErrorCode SNESPicardLSSetSplitFunction(SNES snes,Vec F,
