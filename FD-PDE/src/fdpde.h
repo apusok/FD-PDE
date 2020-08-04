@@ -6,6 +6,7 @@
 #include "petsc.h"
 #include "prealloc_helper.h"
 #include "dmstagbclist.h"
+#include "snes_picard.h"
 
 // ---------------------------------------
 // Enum definitions
