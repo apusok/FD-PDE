@@ -29,7 +29,7 @@ static char help[] = "Application for shortening of a visco-plastic block in the
 
 // parameters (bag)
 typedef struct {
-  PetscInt       nx, nz, smooth, harmonic;
+  PetscInt       nx, nz, harmonic, scaling;
   PetscScalar    L, H;
   PetscScalar    xmin, zmin;
   PetscScalar    eta_b, eta_w, eta_i, vi, C_b, C_w, C_i, P;
@@ -937,18 +937,21 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->C_i, 1.0e7, "C_i", "Inclusion Cohesion [Pa]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->C_w, 1.0e7, "C_w", "Weak zone Cohesion [Pa]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->P, 1.0e8, "P", "Boundary pressure [Pa]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->harmonic, 0, "harmonic", "0-no 1-yes harmonic averaging"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->harmonic, 1, "harmonic", "0-no 1-yes harmonic averaging"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->scaling, 1, "scaling", "0-set stress 1-set velocity"); CHKERRQ(ierr);
   
   // scales
-  par->stress = 1e8;
-  par->length = par->H;
-  par->visc   = 1e20;
-  par->vel    = par->stress*par->length/par->visc; // stokes velocity
-
-  // par->length = par->H;
-  // par->visc   = 1e20;
-  // par->vel    = par->vi; 
-  // par->stress = par->vel*par->visc/par->length;
+  if (par->scaling) { // set velocity
+    par->length = par->H;
+    par->visc   = 1e20;
+    par->vel    = par->vi; 
+    par->stress = par->vel*par->visc/par->length;
+  } else { // set stress
+    par->stress = 1e8;
+    par->length = par->H;
+    par->visc   = 1e20;
+    par->vel    = par->stress*par->length/par->visc;
+  }
 
   // non-dimensionalize
   par->nd_eta_b  = par->eta_b/par->visc;

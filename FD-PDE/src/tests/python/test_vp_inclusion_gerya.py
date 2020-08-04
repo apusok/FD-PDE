@@ -12,6 +12,50 @@ import os
 # ---------------------------------------
 # Function definitions
 # ---------------------------------------
+def plot_norm_iteration(fname):
+  try: # try to open directory
+    # parse number of iterations
+    f = open(fname, 'r')
+    i0=0
+    for line in f:
+      if '# SNES SOLVE #' in line:
+        i0=0
+      if 'SNES Function norm' in line:
+        i0+=1
+    f.close()
+    nit = i0
+
+    nrm = np.zeros(nit)
+
+    # Parse solver info
+    f = open(fname, 'r')
+    i0=-1
+    for line in f:
+      if '# SNES SOLVE #' in line:
+        i0=-1
+      if 'SNES Function norm' in line:
+        i0+=1
+        nrm[i0] = float(line[23:43])
+    f.close()
+
+    # Plot iterations number
+    plt.figure(1,figsize=(6,6))
+    plt.grid(color='lightgray', linestyle=':')
+
+    plt.plot(range(0,nit),nrm,'k*-')
+    plt.yscale("log")
+
+    plt.ylabel('SNES norm',fontweight='bold',fontsize=12)
+    plt.xlabel('it',fontweight='bold',fontsize=12)
+    # plt.legend()
+    print(nrm)
+
+    plt.savefig(fname[:-4]+'_nrm_it.pdf')
+    plt.close()
+
+  except OSError:
+    print('Cannot open:', fname)
+
 def plot_solution(fname,nx,initial,dim):
 
   # Load data
@@ -398,7 +442,8 @@ print('# --------------------------------------- #')
 fname = 'out_vp_inclusion_gerya'
 nx    = 101 # resolution
 fout = fname+'_'+str(nx)+'.out'
-harmonic = 1
+harmonic = 1  # 0-no, 1-yes
+scaling = 0   # 0-set stress 1-set velocity
 
 eta_b  = 1e23
 eta_w  = 1e20
@@ -410,8 +455,12 @@ C_i  = 1e7
 
 vcomp = 5e-9
 
+# solver = ''
+solver = ' -python_snes_failed_report'
+
 # Run simulation
 str1 = '../test_vp_inclusion_gerya.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -snes_monitor_true_residual -ksp_monitor_true_residual -snes_converged_reason -ksp_converged_reason'+ \
+    solver+ \
     ' -output_file '+fname+ \
     ' -harmonic '+str(harmonic)+ \
     ' -C_b '+str(C_b)+ \
@@ -436,5 +485,6 @@ plot_strain_rates(fname,nx,1)
 plot_stress(fname,nx,0)
 plot_stress(fname,nx,1)
 plot_residuals(fname,nx)
+plot_norm_iteration(fout)
 
 os.system('rm -r __pycache__')
