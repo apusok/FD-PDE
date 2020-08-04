@@ -330,7 +330,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         xp[1] = coordx[i][icenter]; zp[1] = coordz[j][inext  ];
 
         for (ii = 0; ii < 2; ii++) {
-          fval = 0.0; //g*PetscSinScalar(PETSC_PI*zp[ii]) * PetscCosScalar(PETSC_PI*xp[ii]); 
+          fval = g*PetscSinScalar(PETSC_PI*zp[ii]) * PetscCosScalar(PETSC_PI*xp[ii]); 
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           c[j][i][idx] = fval;
         }
@@ -339,14 +339,10 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
       { // fp = 0.0
         DMStagStencil point;
         PetscInt      idx;
-	PetscScalar p;
 
         point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 0;
         ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
 
-	// Get stencil values
-	ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &point, &p); CHKERRQ(ierr);
-	
         c[j][i][idx] = 0.0; //p/1.e4;
       }
 
