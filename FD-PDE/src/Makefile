@@ -2,6 +2,9 @@
 include $(PETSC_DIR)/lib/petsc/conf/variables
 include $(PETSC_DIR)/lib/petsc/conf/rules
 
+TEST_DIR = ./tests
+PYTHON_DIR = ./tests/python
+
 SRC := 	dmstagbclist.c \
 	dmstagoutput.c \
 	prealloc_helper.c \
@@ -85,5 +88,7 @@ clean_all:
 	@rm -rf $(TEST_APP)
 	@rm -rf $(MODEL_OBJ)
 	@rm -rf $(MODEL_APP)
-	@rm -rf *.dSYM ./tests/*.dSYM *.py *.vtr *.pbin *.info
-	@rm -rf ./tests/python/out_* ./tests/python/__pycache__
+	@rm -rf *.dSYM $(TEST_DIR)/*.dSYM *.py *.vtr *.pbin *.info
+	@rm -rf out_* $(TEST_DIR)/out_* $(PYTHON_DIR)/out_*
+	@rm -rf snes_failure* $(TEST_DIR)/snes_failure* $(PYTHON_DIR)/snes_failure*
+	@rm -rf __pycache__ $(TEST_DIR)/__pycache__ $(PYTHON_DIR)/__pycache__
