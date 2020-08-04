@@ -274,7 +274,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
 
       { // A = eta (center, c=1)
         DMStagStencil point;//, pointP;
-        PetscScalar   Y,eta,eta_P,eta_VP,epsII,inv_eta, inv_eta_VP,exx,ezz,exz,txx,tzz,txz,tauII;
+        PetscScalar   Y,eta,eta_P,epsII,inv_eta, inv_eta_VP,exx,ezz,exz,txx,tzz,txz,tauII;
 
         if ((coordz[j][icenter]<zblock_s) || (coordz[j][icenter]>zblock_e)) { 
           eta = usr->par->nd_eta_w; // top/bottom layer
@@ -301,18 +301,26 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         tauII = PetscPowScalar(0.5*(txx*txx + tzz*tzz + 2.0*txz*txz),0.5);
 
         if (usr->par->plasticity) {
-          if (tauII > Y) {
-            eta_P = Y/(2.0*epsII);
+          // Effective viscosity
+          eta_P = Y/(2.0*epsII);
 
-            // Effective viscosity
-            if (usr->par->harmonic) { // Harmonic averaging
+          switch (usr->par->harmonic) {
+            case 1:
+              // 1. As in Glerum et al. 2018 with eta_min/eta_max guard 
               inv_eta_VP = 1.0/eta_P + 1.0/eta;
               inv_eta = 1.0/usr->par->etamax + inv_eta_VP;
-              eta = usr->par->etamin + 1.0/inv_eta;
-            } else {
-              eta_VP = PetscMin(eta_P,eta);
-              eta = PetscMin(PetscMax(eta_VP,usr->par->etamin),usr->par->etamax);
-            }
+              eta = usr->par->etamin + 1.0/inv_eta; 
+              break;
+            case 2:
+              // 2. As in Fraters et al. 2019 with eta_min/eta_max guard
+              eta = usr->par->etamin + 1.0/(1.0/eta_P + 1.0/eta + 1.0/usr->par->etamax); 
+              break;
+            case 3:
+              // 3. Without eta_min/eta_max guard (Spiegelman et al. 2016)
+              eta = 1.0/(1.0/eta_P + 1.0/eta); 
+              break;
+            default:
+              SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"Unknown harmonic averaging!");
           }
         }
 
@@ -329,7 +337,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
 
       { // A = eta (corner, c=0)
         DMStagStencil point[4];
-        PetscScalar   eta,epsII[4], Y[4], eta_P, eta_VP, inv_eta, inv_eta_VP, xp[4],zp[4];
+        PetscScalar   eta,epsII[4], Y[4], eta_P, inv_eta, inv_eta_VP, xp[4],zp[4];
         PetscScalar   exx[4],ezz[4],exz[4],txx[4],tzz[4],txz[4],tauII[4];
         PetscInt      ii;
 
@@ -375,18 +383,26 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
           tauII[ii] = PetscPowScalar(0.5*(txx[ii]*txx[ii] + tzz[ii]*tzz[ii] + 2.0*txz[ii]*txz[ii]),0.5);
 
           if (usr->par->plasticity) {
-            if (tauII[ii] > Y[ii]) {
-              eta_P = Y[ii]/(2.0*epsII[ii]);
+            // Effective viscosity
+            eta_P = Y[ii]/(2.0*epsII[ii]);
 
-              // Effective viscosity
-              if (usr->par->harmonic) { // Harmonic averaging
+            switch (usr->par->harmonic) {
+              case 1:
+                // 1. As in Glerum et al. 2018 with eta_min/eta_max guard 
                 inv_eta_VP = 1.0/eta_P + 1.0/eta;
                 inv_eta = 1.0/usr->par->etamax + inv_eta_VP;
-                eta = usr->par->etamin + 1.0/inv_eta;
-              } else {
-                eta_VP = PetscMin(eta_P,eta);
-                eta = PetscMin(PetscMax(eta_VP,usr->par->etamin),usr->par->etamax);
-              }
+                eta = usr->par->etamin + 1.0/inv_eta; 
+                break;
+              case 2:
+                // 2. As in Fraters et al. 2019 with eta_min/eta_max guard
+                eta = usr->par->etamin + 1.0/(1.0/eta_P + 1.0/eta + 1.0/usr->par->etamax); 
+                break;
+              case 3:
+                // 3. Without eta_min/eta_max guard (Spiegelman et al. 2016)
+                eta = 1.0/(1.0/eta_P + 1.0/eta); 
+                break;
+              default:
+                SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"Unknown harmonic averaging!");
             }
           }
 
@@ -937,7 +953,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->C_i, 1.0e7, "C_i", "Inclusion Cohesion [Pa]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->C_w, 1.0e7, "C_w", "Weak zone Cohesion [Pa]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->P, 1.0e8, "P", "Boundary pressure [Pa]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->harmonic, 1, "harmonic", "0-no 1-yes harmonic averaging"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->harmonic, 1, "harmonic", "1-with eta_min/max guard (v1), 2-with eta_min/max guard (v2), 3-no eta_min/max guard"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->scaling, 1, "scaling", "0-set stress 1-set velocity"); CHKERRQ(ierr);
   
   // scales

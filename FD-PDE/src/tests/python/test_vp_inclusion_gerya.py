@@ -48,7 +48,6 @@ def plot_norm_iteration(fname):
     plt.ylabel('SNES norm',fontweight='bold',fontsize=12)
     plt.xlabel('it',fontweight='bold',fontsize=12)
     # plt.legend()
-    print(nrm)
 
     plt.savefig(fname[:-4]+'_nrm_it.pdf')
     plt.close()
@@ -442,25 +441,27 @@ print('# --------------------------------------- #')
 fname = 'out_vp_inclusion_gerya'
 nx    = 101 # resolution
 fout = fname+'_'+str(nx)+'.out'
-harmonic = 1  # 0-no, 1-yes
-scaling = 0   # 0-set stress 1-set velocity
+harmonic = 1  # 1-with eta_min/max guard (v1), 2-with eta_min/max guard (v2), 3-no eta_min/max guard
+scaling = 1   # 0-set stress 1-set velocity
 
 eta_b  = 1e23
 eta_w  = 1e20
-eta_i  = 1e17
+eta_i  = 1e20
 
 C_b  = 1e8
-C_w  = 1e7
-C_i  = 1e7
+C_w  = 1e40
+C_i  = 1e40
 
 vcomp = 5e-9
 
 # solver = ''
-solver = ' -python_snes_failed_report'
+solver = ' -python_snes_failed_report -snes_atol 1e-10 -snes_rtol 1e-50'
+solver1= ' -snes_mf_operator'
+solver1 = ''
 
 # Run simulation
 str1 = '../test_vp_inclusion_gerya.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -snes_monitor_true_residual -ksp_monitor_true_residual -snes_converged_reason -ksp_converged_reason'+ \
-    solver+ \
+    solver+solver1+ \
     ' -output_file '+fname+ \
     ' -harmonic '+str(harmonic)+ \
     ' -C_b '+str(C_b)+ \
