@@ -2,6 +2,7 @@
 
 #include "fdpde.h"
 #include "fdpde_composite.h"
+#include "dmstagoutput.h"
 
 const char *FDPDETypeNames[] = {
   "uninit",
@@ -543,11 +544,12 @@ PetscErrorCode FDPDEGetSolutionGuess(FDPDE fd, Vec *xguess)
 static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
 {
   PetscErrorCode      ierr;
-  char                filename[PETSC_MAX_PATH_LEN];
+  char                filename[PETSC_MAX_PATH_LEN],filename_bin[PETSC_MAX_PATH_LEN];
   const char          *prefix;
   Vec                 F,X,dX;
   SNESConvergedReason reason;
   PetscViewer         fview;
+  PetscBool           out_python = PETSC_FALSE;
   
   PetscFunctionBegin;
   ierr = SNESGetOptionsPrefix(fd->snes,&prefix);CHKERRQ(ierr);
@@ -563,6 +565,8 @@ static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
     PetscPrintf(fd->comm,"====  %s\n",vname);
   }
   PetscPrintf(fd->comm,"=====================================================================\n");
+
+  ierr = PetscOptionsGetBool(NULL,NULL,"-python_snes_failed_report",&out_python,NULL);CHKERRQ(ierr);
   
   ierr = SNESGetSolution(fd->snes,&X);CHKERRQ(ierr);
   ierr = SNESGetSolutionUpdate(fd->snes,&dX);CHKERRQ(ierr);
@@ -614,48 +618,69 @@ static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
   ierr = SNESView(fd->snes,viewer);CHKERRQ(ierr);
   PetscViewerASCIIPopTab(viewer);
   
-  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_F-%D.vec",prefix,fd->solves_performed);
-  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_F-%D.vec",fd->solves_performed);
+  // output residual
+  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_F-%D",prefix,fd->solves_performed);
+  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_F-%D",fd->solves_performed);
   PetscViewerASCIIPrintf(viewer,"[residual file]\n");
   PetscViewerASCIIPushTab(viewer);
   PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
   PetscViewerASCIIPopTab(viewer);
-  /*ierr = PetscViewerASCIIOpen(fd->comm,filename,&fview);CHKERRQ(ierr);*/
-  ierr = PetscViewerBinaryOpen(fd->comm,filename,FILE_MODE_WRITE,&fview);CHKERRQ(ierr);
-  ierr = VecView(F,fview);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
+  if (out_python) { ierr = DMStagViewBinaryPython(fd->dmstag,F,filename);CHKERRQ(ierr); }
+  else {
+    PetscSNPrintf(filename_bin,PETSC_MAX_PATH_LEN-1,"%s.vec",filename);
+    /*ierr = PetscViewerASCIIOpen(fd->comm,filename,&fview);CHKERRQ(ierr);*/
+    ierr = PetscViewerBinaryOpen(fd->comm,filename_bin,FILE_MODE_WRITE,&fview);CHKERRQ(ierr);
+    ierr = VecView(F,fview);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
+  }
   
-  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_X-%D.vec",prefix,fd->solves_performed);
-  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_X-%D.vec",fd->solves_performed);
+  
+  // output solution
+  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_X-%D",prefix,fd->solves_performed);
+  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_X-%D",fd->solves_performed);
   PetscViewerASCIIPrintf(viewer,"[solution file]\n");
   PetscViewerASCIIPushTab(viewer);
   PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
   PetscViewerASCIIPopTab(viewer);
-  /*ierr = PetscViewerASCIIOpen(fd->comm,filename,&fview);CHKERRQ(ierr);*/
-  ierr = PetscViewerBinaryOpen(fd->comm,filename,FILE_MODE_WRITE,&fview);CHKERRQ(ierr);
-  ierr = VecView(X,fview);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
-  
-  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_dX-%D.vec",prefix,fd->solves_performed);
-  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_dX-%D.vec",fd->solves_performed);
+  if (out_python) { ierr = DMStagViewBinaryPython(fd->dmstag,X,filename);CHKERRQ(ierr); }
+  else {
+    PetscSNPrintf(filename_bin,PETSC_MAX_PATH_LEN-1,"%s.vec",filename);
+    /*ierr = PetscViewerASCIIOpen(fd->comm,filename,&fview);CHKERRQ(ierr);*/
+    ierr = PetscViewerBinaryOpen(fd->comm,filename_bin,FILE_MODE_WRITE,&fview);CHKERRQ(ierr);
+    ierr = VecView(X,fview);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
+  }
+
+  // output solution increment
+  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_dX-%D",prefix,fd->solves_performed);
+  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_dX-%D",fd->solves_performed);
   PetscViewerASCIIPrintf(viewer,"[solution correction file]\n");
   PetscViewerASCIIPushTab(viewer);
   PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
   PetscViewerASCIIPopTab(viewer);
-  /*ierr = PetscViewerASCIIOpen(fd->comm,filename,&fview);CHKERRQ(ierr);*/
-  ierr = PetscViewerBinaryOpen(fd->comm,filename,FILE_MODE_WRITE,&fview);CHKERRQ(ierr);
-  ierr = VecView(dX,fview);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
+  if (out_python) { ierr = DMStagViewBinaryPython(fd->dmstag,dX,filename);CHKERRQ(ierr); }
+  else {
+    PetscSNPrintf(filename_bin,PETSC_MAX_PATH_LEN-1,"%s.vec",filename);
+    /*ierr = PetscViewerASCIIOpen(fd->comm,filename,&fview);CHKERRQ(ierr);*/
+    ierr = PetscViewerBinaryOpen(fd->comm,filename_bin,FILE_MODE_WRITE,&fview);CHKERRQ(ierr);
+    ierr = VecView(dX,fview);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
+  }
 
-  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_fdpde_coeff-%D.vec",prefix,fd->solves_performed);
-  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_fdpde_coeff-%D.vec",fd->solves_performed);
+  // output coefficient
+  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_fdpde_coeff-%D",prefix,fd->solves_performed);
+  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_fdpde_coeff-%D",fd->solves_performed);
   PetscViewerASCIIPrintf(viewer,"[FDPDE coefficient file]\n");
   PetscViewerASCIIPushTab(viewer);
   PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
   PetscViewerASCIIPopTab(viewer);
-  ierr = PetscViewerBinaryOpen(fd->comm,filename,FILE_MODE_WRITE,&fview);CHKERRQ(ierr);
-  ierr = VecView(fd->coeff,fview);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
+  if (out_python) { ierr = DMStagViewBinaryPython(fd->dmcoeff,fd->coeff,filename);CHKERRQ(ierr); }
+  else {
+    PetscSNPrintf(filename_bin,PETSC_MAX_PATH_LEN-1,"%s.vec",filename);
+    ierr = PetscViewerBinaryOpen(fd->comm,filename_bin,FILE_MODE_WRITE,&fview);CHKERRQ(ierr);
+    ierr = VecView(fd->coeff,fview);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
+  }
 
   PetscViewerASCIIPrintf(viewer,"[DMStag summary]\n");
   PetscViewerASCIIPushTab(viewer);
