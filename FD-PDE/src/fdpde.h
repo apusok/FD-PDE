@@ -51,7 +51,7 @@ struct _p_FDPDE {
   PetscBool       setupcalled,linearsolve;
   PetscInt        naux_global_vectors;
   Vec            *aux_global_vectors;
-  PetscInt        refcount;
+  PetscInt        refcount,solves_performed;
 };
 
 // ---------------------------------------

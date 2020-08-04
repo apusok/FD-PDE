@@ -540,6 +540,142 @@ PetscErrorCode FDPDEGetSolutionGuess(FDPDE fd, Vec *xguess)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
+{
+  PetscErrorCode      ierr;
+  char                filename[PETSC_MAX_PATH_LEN];
+  const char          *prefix;
+  Vec                 F,X,dX;
+  SNESConvergedReason reason;
+  PetscViewer         fview;
+  
+  PetscFunctionBegin;
+  ierr = SNESGetOptionsPrefix(fd->snes,&prefix);CHKERRQ(ierr);
+  ierr = SNESGetConvergedReason(fd->snes,&reason); CHKERRQ(ierr);
+  PetscPrintf(fd->comm,"=====================================================================\n");
+  if (prefix) PetscPrintf(fd->comm,"====  SNES (prefix = %s) has failed to converge\n",prefix);
+  else PetscPrintf(fd->comm,"====  SNES has failed to converge\n");
+  
+  if (viewer != PETSC_VIEWER_STDOUT_WORLD) {
+    const char *vname;
+    ierr = PetscViewerFileGetName(viewer,&vname);CHKERRQ(ierr);
+    PetscPrintf(fd->comm,"====  Please inspect the following file to diagnose the problem\n");
+    PetscPrintf(fd->comm,"====  %s\n",vname);
+  }
+  PetscPrintf(fd->comm,"=====================================================================\n");
+  
+  ierr = SNESGetSolution(fd->snes,&X);CHKERRQ(ierr);
+  ierr = SNESGetSolutionUpdate(fd->snes,&dX);CHKERRQ(ierr);
+  ierr = SNESGetFunction(fd->snes,&F,NULL,NULL);CHKERRQ(ierr);
+  ierr = SNESComputeFunction(fd->snes,X,F);CHKERRQ(ierr);
+  
+  PetscViewerASCIIPrintf(viewer,"[SNES failure summary]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"reason: %D (error code) ->\n",(PetscInt)reason);
+  ierr = SNESReasonView(fd->snes,viewer);CHKERRQ(ierr);
+  {
+    PetscInt its;
+    ierr = SNESGetIterationNumber(fd->snes,&its);CHKERRQ(ierr);
+    PetscViewerASCIIPrintf(viewer,"iterations performed: %D\n",its);
+  }
+  PetscViewerASCIIPopTab(viewer);
+  
+  PetscViewerASCIIPrintf(viewer,"[residual summary]\n");
+  {
+    PetscReal val;
+    PetscInt loc;
+    PetscViewerASCIIPushTab(viewer);
+    ierr = VecMax(F,&loc,&val);CHKERRQ(ierr);
+    PetscViewerASCIIPrintf(viewer,"max(F) %+1.12e [location %D]\n",val,loc);
+    ierr = VecMin(F,&loc,&val);CHKERRQ(ierr);
+    PetscViewerASCIIPrintf(viewer,"min(F) %+1.12e [location %D]\n",val,loc);
+    PetscViewerASCIIPopTab(viewer);
+  }
+  
+  {
+    PetscInt  i,n,*its = NULL;
+    PetscReal *nrm = NULL;
+    ierr = SNESGetConvergenceHistory(fd->snes,&nrm,&its,&n);CHKERRQ(ierr);
+    PetscViewerASCIIPrintf(viewer,"[convergence history]\n");
+    PetscViewerASCIIPushTab(viewer);
+    if (nrm && its) {
+      PetscViewerASCIIPrintf(viewer,"#SNES its. ||F||_2            #KSP its.\n");
+      for (i=0; i<n; i++) {
+        PetscViewerASCIIPrintf(viewer,"%.4D       %1.12e %.4D\n",i,nrm[i],its[i]);
+      }
+    } else {
+      PetscViewerASCIIPrintf(viewer,"nonlinear residual history is unavailable - must call SNESSetConvergenceHistory() to activate logging\n");
+    }
+    PetscViewerASCIIPopTab(viewer);
+  }
+  
+  PetscViewerASCIIPrintf(viewer,"[SNES view]\n");
+  PetscViewerASCIIPushTab(viewer);
+  ierr = SNESView(fd->snes,viewer);CHKERRQ(ierr);
+  PetscViewerASCIIPopTab(viewer);
+  
+  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_F-%D.vec",prefix,fd->solves_performed);
+  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_F-%D.vec",fd->solves_performed);
+  PetscViewerASCIIPrintf(viewer,"[residual file]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
+  PetscViewerASCIIPopTab(viewer);
+  /*ierr = PetscViewerASCIIOpen(fd->comm,filename,&fview);CHKERRQ(ierr);*/
+  ierr = PetscViewerBinaryOpen(fd->comm,filename,FILE_MODE_WRITE,&fview);CHKERRQ(ierr);
+  ierr = VecView(F,fview);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
+  
+  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_X-%D.vec",prefix,fd->solves_performed);
+  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_X-%D.vec",fd->solves_performed);
+  PetscViewerASCIIPrintf(viewer,"[solution file]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
+  PetscViewerASCIIPopTab(viewer);
+  /*ierr = PetscViewerASCIIOpen(fd->comm,filename,&fview);CHKERRQ(ierr);*/
+  ierr = PetscViewerBinaryOpen(fd->comm,filename,FILE_MODE_WRITE,&fview);CHKERRQ(ierr);
+  ierr = VecView(X,fview);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
+  
+  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_dX-%D.vec",prefix,fd->solves_performed);
+  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_dX-%D.vec",fd->solves_performed);
+  PetscViewerASCIIPrintf(viewer,"[solution correction file]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
+  PetscViewerASCIIPopTab(viewer);
+  /*ierr = PetscViewerASCIIOpen(fd->comm,filename,&fview);CHKERRQ(ierr);*/
+  ierr = PetscViewerBinaryOpen(fd->comm,filename,FILE_MODE_WRITE,&fview);CHKERRQ(ierr);
+  ierr = VecView(dX,fview);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
+
+  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_fdpde_coeff-%D.vec",prefix,fd->solves_performed);
+  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_fdpde_coeff-%D.vec",fd->solves_performed);
+  PetscViewerASCIIPrintf(viewer,"[FDPDE coefficient file]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
+  PetscViewerASCIIPopTab(viewer);
+  ierr = PetscViewerBinaryOpen(fd->comm,filename,FILE_MODE_WRITE,&fview);CHKERRQ(ierr);
+  ierr = VecView(fd->coeff,fview);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&fview);CHKERRQ(ierr);
+
+  PetscViewerASCIIPrintf(viewer,"[DMStag summary]\n");
+  PetscViewerASCIIPushTab(viewer);
+  ierr = DMView(fd->dmstag,viewer);CHKERRQ(ierr);
+  PetscViewerASCIIPopTab(viewer);
+
+  PetscViewerASCIIPrintf(viewer,"[DMCoeff summary]\n");
+  PetscViewerASCIIPushTab(viewer);
+  ierr = DMView(fd->dmcoeff,viewer);CHKERRQ(ierr);
+  PetscViewerASCIIPopTab(viewer);
+  
+  PetscViewerASCIIPrintf(viewer,"[PDE summary]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"pde: %s\n",FDPDETypeNames[(int)fd->type]);
+  PetscViewerASCIIPrintf(viewer,"description: %s\n",fd->description);
+  PetscViewerASCIIPopTab(viewer);
+  
+  PetscFunctionReturn(0);
+}
+
 // ---------------------------------------
 /*@
 FDPDESolve - solve the associated system of equations contained in an FD-PDE object.
@@ -573,6 +709,17 @@ PetscErrorCode FDPDESolve(FDPDE fd, PetscBool *converged)
   // Overwrite default options from command line
   ierr = SNESSetFromOptions(fd->snes); CHKERRQ(ierr);
 
+  /* force abort of application if convergence fails - too brutal and does not let us catch and report when an error occurs */
+  /*ierr = SNESSetErrorIfNotConverged(fd->snes,PETSC_TRUE);CHKERRQ(ierr);*/
+  
+  /* Activate a logger which records norm of F and number of KSP iterations at each SNES iteration */
+  {
+    PetscInt maxit;
+    
+    ierr = SNESGetTolerances(fd->snes,NULL,NULL,NULL,&maxit,NULL);CHKERRQ(ierr);
+    ierr = SNESSetConvergenceHistory(fd->snes,NULL,NULL,maxit+1,PETSC_TRUE);CHKERRQ(ierr);
+  }
+  
   // Copy initial guess to solution
   ierr = VecCopy(fd->xguess,fd->x);CHKERRQ(ierr);
 
@@ -580,6 +727,24 @@ PetscErrorCode FDPDESolve(FDPDE fd, PetscBool *converged)
   ierr = SNESSolve(fd->snes,0,fd->x);             CHKERRQ(ierr);
   ierr = SNESGetConvergedReason(fd->snes,&reason); CHKERRQ(ierr);
 
+  if (reason < 0) {
+    const char  *prefix;
+    char        filename[PETSC_MAX_PATH_LEN];
+    PetscViewer viewer;
+    
+    /*// Example demonstrating usage of dumping report to stdout
+    viewer = PETSC_VIEWER_STDOUT_WORLD
+    ierr = FDPDESolveReport_Failure(fd,viewer);CHKERRQ(ierr);
+    */
+     
+    ierr = SNESGetOptionsPrefix(fd->snes,&prefix);CHKERRQ(ierr);
+    if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure-%D.report",prefix,fd->solves_performed);
+    else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure-%D.report",fd->solves_performed);
+    ierr = PetscViewerASCIIOpen(fd->comm,filename,&viewer);CHKERRQ(ierr);
+    ierr = FDPDESolveReport_Failure(fd,viewer);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  }
+  
   // Analyze convergence
   if (reason > 0) { // reason = 0 implies SNES_CONVERGED_ITERATING (which can never be true after SNESSolve executes)
     // converged - copy initial guess for next timestep
@@ -590,7 +755,8 @@ PetscErrorCode FDPDESolve(FDPDE fd, PetscBool *converged)
     *converged = PETSC_TRUE;
     if (reason < 0) *converged = PETSC_FALSE;
   }
-
+  fd->solves_performed++;
+  
   PetscFunctionReturn(0);
 }
 
