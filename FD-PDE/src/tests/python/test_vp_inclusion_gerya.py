@@ -441,7 +441,6 @@ print('# --------------------------------------- #')
 fname = 'out_vp_inclusion_gerya'
 nx    = 101 # resolution
 fout = fname+'_'+str(nx)+'.out'
-harmonic = 1  # 1-with eta_min/max guard (v1), 2-with eta_min/max guard (v2), 3-no eta_min/max guard
 scaling = 1   # 0-set stress 1-set velocity
 
 eta_b  = 1e23
@@ -463,7 +462,6 @@ solver1 = ''
 str1 = '../test_vp_inclusion_gerya.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -snes_monitor_true_residual -ksp_monitor_true_residual -snes_converged_reason -ksp_converged_reason'+ \
     solver+solver1+ \
     ' -output_file '+fname+ \
-    ' -harmonic '+str(harmonic)+ \
     ' -C_b '+str(C_b)+ \
     ' -C_w '+str(C_w)+ \
     ' -C_i '+str(C_i)+ \
