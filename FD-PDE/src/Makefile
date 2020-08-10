@@ -54,7 +54,6 @@ TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_stokes_rt.c \
 		tests/test_plastic_indenter.c \
 		tests/test_vp_inclusion_gerya.c \
-		tests/test_vp_inclusion_gerya_picard.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,$(TEST_SRC))
 TEST_APP := $(patsubst %.c,%.app,$(TEST_SRC))

@@ -453,14 +453,32 @@ C_i  = 1e40
 
 vcomp = 5e-9
 
-# solver = ''
-solver = ' -python_snes_failed_report -snes_atol 1e-10 -snes_rtol 1e-50 -snes_stol 1e-10 -snes_max_it 200'
-solver1= ' -snes_mf_operator'
-solver1 = ''
+# solver
+picard = ' -p_pc_factor_mat_solver_type umfpack'+ \
+        ' -p_pc_type lu'+ \
+        ' -p_snes_linesearch_damping 1.0'+ \
+        ' -p_snes_linesearch_type basic'+ \
+        ' -p_snes_max_it 0 -p_snes_monitor'
+
+newton = ' -pc_factor_mat_solver_type umfpack'+ \
+        ' -pc_type lu'+ \
+        ' -snes_atol 1e-10'+ \
+        ' -snes_rtol 1e-50'+ \
+        ' -snes_stol 1e-10'+ \
+        ' -snes_max_it 200'+ \
+        ' -snes_monitor'+ \
+        ' -snes_view'+ \
+        ' -snes_monitor_true_residual'+ \
+        ' -ksp_monitor_true_residual'+ \
+        ' -snes_converged_reason'+ \
+        ' -ksp_converged_reason'+ \
+        ' -python_snes_failed_report'
+
+solver= ' -snes_mf_operator'
+solver = ''
 
 # Run simulation
-str1 = '../test_vp_inclusion_gerya.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -snes_monitor_true_residual -ksp_monitor_true_residual -snes_converged_reason -ksp_converged_reason'+ \
-    solver+solver1+ \
+str1 = '../test_vp_inclusion_gerya.app'+ picard + newton + solver + \
     ' -output_file '+fname+ \
     ' -C_b '+str(C_b)+ \
     ' -C_w '+str(C_w)+ \
