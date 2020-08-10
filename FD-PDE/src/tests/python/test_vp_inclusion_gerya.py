@@ -454,7 +454,7 @@ C_i  = 1e40
 vcomp = 5e-9
 
 # solver = ''
-solver = ' -python_snes_failed_report -snes_atol 1e-10 -snes_rtol 1e-50'
+solver = ' -python_snes_failed_report -snes_atol 1e-10 -snes_rtol 1e-50 -snes_stol 1e-10 -snes_max_it 200'
 solver1= ' -snes_mf_operator'
 solver1 = ''
 
