@@ -15,6 +15,7 @@ SRC := 	dmstagbclist.c \
 	fdpde_advdiff_advect.c fdpde_advdiff_residual.c fdpde_advdiff.c \
 	fdpde_composite.c composite_prealloc_utils.c \
 	dmstag_utils.c material_point.c \
+        snes_picard.c \
 
 HDR := 	benchmark_solcx.h \
 	benchmark_cornerflow.h \

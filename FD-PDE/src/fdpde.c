@@ -3,6 +3,7 @@
 #include "fdpde.h"
 #include "fdpde_composite.h"
 #include "dmstagoutput.h"
+#include "snes_picard.h"
 
 const char *FDPDETypeNames[] = {
   "uninit",
@@ -439,6 +440,21 @@ PetscErrorCode FDPDESetFunctionCoefficient(FDPDE fd, PetscErrorCode (*form_coeff
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode FDPDESetFunctionCoefficientSplit(FDPDE fd, PetscErrorCode (*form_coefficient)(FDPDE fd,DM,Vec,Vec,DM,Vec,void*), const char description[], void *data)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  
+  fd->ops->form_coefficient_split = form_coefficient;
+  fd->user_context = data;
+  
+  /* free any existing name set by previous call */
+  if (fd->description_coeff) { ierr = PetscFree(fd->description_coeff); CHKERRQ(ierr); }
+  if (description) { ierr = PetscStrallocpy(description,&fd->description_coeff); CHKERRQ(ierr); }
+  
+  PetscFunctionReturn(0);
+}
+
 // ---------------------------------------
 /*@
 FDPDEGetSolution - retrieves the solution vector from the FD-PDE object. 
@@ -782,6 +798,65 @@ PetscErrorCode FDPDESolve(FDPDE fd, PetscBool *converged)
   }
   fd->solves_performed++;
   
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode FDPDESolvePicard(FDPDE fd, PetscBool *converged)
+{
+  SNESConvergedReason reason;
+  SNES                snes_picard;
+  Mat                 J;
+  DM                  dmref,dm;
+  PetscErrorCode      ierr;
+  
+  PetscFunctionBegin;
+  if (!fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDESetUp() first!");
+  if (!fd->ops->form_function_split) SETERRQ(fd->comm,PETSC_ERR_SUP,"FDPDE does not support split residual evaluation. Require that fd->ops->form_function_split() be defined");
+  if (!fd->ops->form_coefficient_split) SETERRQ(fd->comm,PETSC_ERR_SUP,"FDPDE does not support split residual evaluation. Require that fd->ops->form_coefficient_split() be defined");
+  
+  ierr = VecCopy(fd->xguess,fd->x);CHKERRQ(ierr);
+
+  ierr = FDPDEGetDM(fd,&dmref);CHKERRQ(ierr);
+  ierr = DMClone(dmref,&dm);CHKERRQ(ierr);
+  
+  ierr = fd->ops->create_jacobian(fd,&J);CHKERRQ(ierr);
+  
+  ierr = SNESCreate(fd->comm,&snes_picard);CHKERRQ(ierr);
+  ierr = SNESSetOptionsPrefix(snes_picard,"p_");CHKERRQ(ierr);
+  ierr = SNESSetDM(snes_picard,dm);CHKERRQ(ierr); /* attach a clone of the DM stag - see note on manpage for SNESSetDM() */
+  ierr = SNESSetSolution(snes_picard,fd->x);CHKERRQ(ierr); // for FD colouring to function correctly
+  
+  ierr = SNESSetFunction(snes_picard,fd->r,SNESPicardComputeFunctionDefault,(void*)fd);CHKERRQ(ierr);
+  
+  ierr = SNESSetJacobian(snes_picard,J,J,SNESComputeJacobianDefaultColor,NULL);CHKERRQ(ierr);
+  
+  ierr = SNESSetType(snes_picard,SNESPICARDLS);CHKERRQ(ierr);
+  ierr = SNESSetFromOptions(snes_picard);CHKERRQ(ierr);
+  ierr = SNESSetUp(snes_picard);CHKERRQ(ierr);
+
+  ierr = SNESPicardLSSetSplitFunction(snes_picard,fd->r,fd->ops->form_function_split);CHKERRQ(ierr);
+
+  {
+    Vec x2;
+    
+    ierr = SNESPicardLSGetAuxillarySolution(snes_picard,&x2);CHKERRQ(ierr);
+    ierr = VecCopy(fd->x,x2);CHKERRQ(ierr);
+  }
+
+  ierr = SNESSolve(snes_picard,0,fd->x);CHKERRQ(ierr);
+  
+  ierr = VecCopy(fd->x, fd->xguess); CHKERRQ(ierr);
+  
+  ierr = SNESGetConvergedReason(snes_picard,&reason); CHKERRQ(ierr);
+  if (converged) {
+    *converged = PETSC_TRUE;
+    if (reason < 0) *converged = PETSC_FALSE;
+  }
+
+  ierr = SNESDestroy(&snes_picard);CHKERRQ(ierr);
+  ierr = DMDestroy(&dm);CHKERRQ(ierr);
+  ierr = MatDestroy(&J);CHKERRQ(ierr);
+
   PetscFunctionReturn(0);
 }
 

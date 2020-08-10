@@ -43,11 +43,12 @@ PetscErrorCode FDPDECreate_Stokes(FDPDE fd)
   fd->dofc0 = 1; fd->dofc1 = 1; fd->dofc2 = 2;
 
   // Evaluation functions
-  fd->ops->form_function      = FormFunction_Stokes;
-  fd->ops->form_jacobian      = NULL;
-  fd->ops->create_jacobian    = JacobianCreate_Stokes;
-  fd->ops->view               = NULL;
-  fd->ops->destroy            = FDPDEDestroy_Stokes;
+  fd->ops->form_function       = FormFunction_Stokes;
+  fd->ops->form_function_split = FormFunctionSplit_Stokes;
+  fd->ops->form_jacobian       = NULL;
+  fd->ops->create_jacobian     = JacobianCreate_Stokes;
+  fd->ops->view                = NULL;
+  fd->ops->destroy             = FDPDEDestroy_Stokes;
 
   // pinpoint pressure
   ierr = PetscCalloc1(1,&data);CHKERRQ(ierr);
