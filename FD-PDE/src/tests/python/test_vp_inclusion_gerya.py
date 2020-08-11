@@ -443,13 +443,37 @@ nx    = 101 # resolution
 fout = fname+'_'+str(nx)+'.out'
 scaling = 1   # 0-set stress 1-set velocity
 
+# case 1
 eta_b  = 1e23
 eta_w  = 1e20
 eta_i  = 1e20
-
 C_b  = 1e8
 C_w  = 1e40
 C_i  = 1e40
+
+# # case 2
+# eta_b  = 1e23
+# eta_w  = 1e20
+# eta_i  = 1e20
+# C_b  = 1e8
+# C_w  = 1e7
+# C_i  = 1e7
+
+# # case 3
+# eta_b  = 1e23
+# eta_w  = 1e20
+# eta_i  = 1e17
+# C_b  = 1e8
+# C_w  = 1e7
+# C_i  = 1e7
+
+# # case 4
+# eta_b  = 1e23
+# eta_w  = 1e17
+# eta_i  = 1e17
+# C_b  = 1e8
+# C_w  = 1e7
+# C_i  = 1e7
 
 vcomp = 5e-9
 
