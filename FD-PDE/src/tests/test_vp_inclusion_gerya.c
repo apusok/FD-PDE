@@ -120,9 +120,6 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient,coeff_description,usr); CHKERRQ(ierr);
   ierr = FDPDEView(fd); CHKERRQ(ierr);
 
-  // Pin pressure
-  // ierr = FDPDEStokesPinPressure(fd,usr->par->nd_P,PETSC_TRUE); CHKERRQ(ierr);
-
   // Create initial guess with a linear viscous
   PetscPrintf(PETSC_COMM_WORLD,"\n# INITIAL GUESS #\n");
   ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
