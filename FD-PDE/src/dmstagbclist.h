@@ -45,6 +45,7 @@ PetscErrorCode DMStagBCListGetElementBCs(DMStagBCList,PetscInt*,DMStagBC**);
 
 PetscErrorCode DMStagBCListGetValues(DMStagBCList,const char,const char,PetscInt,PetscInt*,PetscInt**,PetscScalar**,PetscScalar**,BCType**);
 PetscErrorCode DMStagBCListInsertValues(DMStagBCList,const char,PetscInt,PetscInt*,PetscInt**,PetscScalar**,PetscScalar**,BCType**);
-PetscErrorCode DMStagBCListPinSingleValue(DMStagBCList, const char,const char, PetscInt, PetscScalar);
+PetscErrorCode DMStagBCListPinValue(DMStagBCList,const char,PetscInt,PetscScalar);
+PetscErrorCode DMStagBCListPinCornerValue(DMStagBCList,DMStagStencilLocation,const char,PetscInt,PetscScalar);
 
 #endif
