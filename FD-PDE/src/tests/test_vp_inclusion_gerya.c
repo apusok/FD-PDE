@@ -883,7 +883,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // pin pressure dof
-  ierr = DMStagBCListPinSingleValue(bclist,'w','o',0,usr->par->nd_P); CHKERRQ(ierr);
+  ierr = DMStagBCListPinCornerValue(bclist,DMSTAG_DOWN_LEFT,'o',0,usr->par->nd_P); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
