@@ -153,51 +153,7 @@ PetscErrorCode Numerical_solution(void *ctx)
 
   // MatView(fd->J,PETSC_VIEWER_STDOUT_WORLD);
 
-#if 0
-  {
-    SNES snes_picard;
-    Mat  J;
-    DM   dmref,dm;
-    
-    PetscPrintf(PETSC_COMM_WORLD,"\n# PICARD SOLVE #\n");
-
-    ierr = FDPDEGetDM(fd,&dmref);CHKERRQ(ierr);
-    ierr = DMClone(dmref,&dm);CHKERRQ(ierr);
-
-    ierr = fd->ops->create_jacobian(fd,&J);CHKERRQ(ierr);
-    
-    ierr = SNESCreate(fd->comm,&snes_picard);CHKERRQ(ierr);
-    ierr = SNESSetOptionsPrefix(snes_picard,"p_");CHKERRQ(ierr);
-    ierr = SNESSetDM(snes_picard,dm);CHKERRQ(ierr); /* attach a clone of the DM stag - see note on manpage for SNESSetDM() */
-    ierr = SNESSetSolution(snes_picard,fd->x);CHKERRQ(ierr); // for FD colouring to function correctly
-    
-    ierr = SNESSetFunction(snes_picard,fd->r,SNESPicardComputeFunctionDefault,(void*)fd);CHKERRQ(ierr);
-    
-    ierr = SNESSetJacobian(snes_picard,J,J,SNESComputeJacobianDefaultColor,NULL);CHKERRQ(ierr);
-    
-    ierr = SNESSetType(snes_picard,SNESNPICARDLS);CHKERRQ(ierr);
-    ierr = SNESSetFromOptions(snes_picard);CHKERRQ(ierr);
-    ierr = SNESSetUp(snes_picard);CHKERRQ(ierr);
-
-    ierr = SNESPicardLSSetSplitFunction(snes_picard,fd->r,fd->ops->form_function_split);CHKERRQ(ierr);
-
-    {
-      Vec xguess,x2;
-      
-      ierr = FDPDEGetSolutionGuess(fd,&xguess); CHKERRQ(ierr);
-      ierr = SNESPicardLSGetAuxillarySolution(snes_picard,&x2);CHKERRQ(ierr);
-      ierr = VecCopy(xguess,x2);CHKERRQ(ierr);
-      ierr = VecDestroy(&xguess);CHKERRQ(ierr);
-    }
-    
-    ierr = SNESSolve(snes_picard,NULL,fd->x);CHKERRQ(ierr);
-    
-    ierr = SNESDestroy(&snes_picard);CHKERRQ(ierr);
-    ierr = DMDestroy(&dm);CHKERRQ(ierr);
-    ierr = MatDestroy(&J);CHKERRQ(ierr);
-  }
-#endif
-  
+  // PICARD SNES Solver
   PetscPrintf(PETSC_COMM_WORLD,"\n# PICARD SOLVE #\n");
   ierr = FDPDESolvePicard(fd,NULL);CHKERRQ(ierr);
   
