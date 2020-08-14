@@ -34,7 +34,7 @@ typedef struct {
   PetscScalar    H;
   PetscScalar    eta_b, eta_w, vi, C_b;
   PetscScalar    stress, vel, length, visc; // scales
-  PetscScalar    nd_H, nd_eta_b, nd_eta_w, nd_vi, nd_C_b, nd_C_w, nd_C_i, etamax, etamin, nd_P; // non-dimensional
+  PetscScalar    nd_H, nd_eta_b, nd_eta_w, nd_vi, nd_C_b, nd_C_w, etamax, etamin, nd_P; // non-dimensional
   PetscBool      plasticity;
   char           fname_out[FNAME_LENGTH]; 
 } Params;
@@ -292,7 +292,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
           Y   = usr->par->nd_C_w; // plastic yield criterion
         } else if ((coordx[i][icenter]>=xis) && (coordx[i][icenter]<=xie) && (coordz[j][icenter]>=zis) && (coordz[j][icenter]<=zie)) {
           eta = usr->par->nd_eta_w; // inclusion
-          Y   = usr->par->nd_C_i; // plastic yield criterion
+          Y   = usr->par->nd_C_w; // plastic yield criterion
         } else {
           eta = usr->par->nd_eta_b; // block
           Y = usr->par->nd_C_b; // plastic yield criterion
@@ -363,7 +363,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
             Y[ii] = usr->par->nd_C_w; // plastic yield criterion
           } else if ((xp[ii]>=xis) && (xp[ii]<=xie) && (zp[ii]>=zis) && (zp[ii]<=zie)) {
             eta = usr->par->nd_eta_w; // inclusion
-            Y[ii] = usr->par->nd_C_i; // plastic yield criterion
+            Y[ii] = usr->par->nd_C_w; // plastic yield criterion
           } else {
             eta = usr->par->nd_eta_b; //block
             Y[ii] = usr->par->nd_C_b; // plastic yield criterion
@@ -522,7 +522,7 @@ PetscErrorCode FormCoefficientSplit(FDPDE fd, DM dm, Vec x, Vec x2, DM dmcoeff, 
           Y   = usr->par->nd_C_w; // plastic yield criterion
         } else if ((coordx[i][icenter]>=xis) && (coordx[i][icenter]<=xie) && (coordz[j][icenter]>=zis) && (coordz[j][icenter]<=zie)) {
           eta = usr->par->nd_eta_w; // inclusion
-          Y   = usr->par->nd_C_i; // plastic yield criterion
+          Y   = usr->par->nd_C_w; // plastic yield criterion
         } else {
           eta = usr->par->nd_eta_b; // block
           Y = usr->par->nd_C_b; // plastic yield criterion
@@ -593,7 +593,7 @@ PetscErrorCode FormCoefficientSplit(FDPDE fd, DM dm, Vec x, Vec x2, DM dmcoeff, 
             Y[ii] = usr->par->nd_C_w; // plastic yield criterion
           } else if ((xp[ii]>=xis) && (xp[ii]<=xie) && (zp[ii]>=zis) && (zp[ii]<=zie)) {
             eta = usr->par->nd_eta_w; // inclusion
-            Y[ii] = usr->par->nd_C_i; // plastic yield criterion
+            Y[ii] = usr->par->nd_C_w; // plastic yield criterion
           } else {
             eta = usr->par->nd_eta_b; //block
             Y[ii] = usr->par->nd_C_b; // plastic yield criterion
@@ -1162,7 +1162,6 @@ PetscErrorCode InputParameters(UsrData **_usr)
   par->nd_vi    = par->vi/par->vel;
   par->nd_C_b   = par->C_b/par->stress;
   par->nd_C_w   = 1e40/par->stress;
-  par->nd_C_i   = 1e40/par->stress;
   par->nd_P     = 0;
   par->nd_H     = par->H/par->length;
 
@@ -1230,6 +1229,8 @@ int main (int argc,char **argv)
   ierr = SNESRegister(SNESPICARDLS,SNESCreate_PicardLS);CHKERRQ(ierr);
   
   // Load command line or input file if required
+  ierr = PetscOptionsSetValue(NULL,"-snes_monitor",NULL);
+  ierr = PetscOptionsSetValue(NULL,"-p_snes_monitor",NULL);
   ierr = PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL); CHKERRQ(ierr);
 
   // Input user parameters and print
