@@ -1003,6 +1003,7 @@ static PetscErrorCode _DMStagBCListPinValue(DMStagBCList list,
   if (found == 0) SETERRQ(comm,PETSC_ERR_SUP,"No pin-point was identified on any sub-domain");
   if (found > 1) SETERRQ(comm,PETSC_ERR_SUP,"A target pin-points was identified on more than one sub-domain");
   
+  /*
   if (bcpoint) {
     printf("[Pin-point BC]\n");
     printf("  pin point: i,j   %d %d <rank %d>\n",bcpoint->point.i,bcpoint->point.j,(int)rank);
@@ -1010,7 +1011,7 @@ static PetscErrorCode _DMStagBCListPinValue(DMStagBCList list,
     printf("  pin point: coor  %+1.4e %+1.4e\n",bcpoint->coord[0],bcpoint->coord[1]);
     printf("  pin point: val   %+1.4e\n",bcpoint->val);
   }
-  
+  */
   PetscFunctionReturn(0);
 }
 
