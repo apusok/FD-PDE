@@ -2,6 +2,9 @@
 include $(PETSC_DIR)/lib/petsc/conf/variables
 include $(PETSC_DIR)/lib/petsc/conf/rules
 
+TEST_DIR = ./tests
+PYTHON_DIR = ./tests/python
+
 SRC := 	dmstagbclist.c \
 	dmstagoutput.c \
 	prealloc_helper.c \
@@ -12,6 +15,7 @@ SRC := 	dmstagbclist.c \
 	fdpde_advdiff_advect.c fdpde_advdiff_residual.c fdpde_advdiff.c \
 	fdpde_composite.c composite_prealloc_utils.c \
 	dmstag_utils.c material_point.c \
+        snes_picard.c \
 
 HDR := 	benchmark_solcx.h \
 	benchmark_cornerflow.h \
@@ -48,6 +52,8 @@ TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_coupling.c \
 		tests/test_material_point.c \
 		tests/test_stokes_rt.c \
+		tests/test_plastic_indenter.c \
+		tests/test_vp_inclusion_gerya.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,$(TEST_SRC))
 TEST_APP := $(patsubst %.c,%.app,$(TEST_SRC))
@@ -83,5 +89,7 @@ clean_all:
 	@rm -rf $(TEST_APP)
 	@rm -rf $(MODEL_OBJ)
 	@rm -rf $(MODEL_APP)
-	@rm -rf *.dSYM ./tests/*.dSYM *.py *.vtr *.pbin *.info
-	@rm -rf ./tests/python/out_* ./tests/python/__pycache__
+	@rm -rf *.dSYM $(TEST_DIR)/*.dSYM *.py *.vtr *.pbin *.info
+	@rm -rf out_* $(TEST_DIR)/out_* $(PYTHON_DIR)/out_*
+	@rm -rf snes_failure* $(TEST_DIR)/snes_failure* $(PYTHON_DIR)/snes_failure*
+	@rm -rf __pycache__ $(TEST_DIR)/__pycache__ $(PYTHON_DIR)/__pycache__
