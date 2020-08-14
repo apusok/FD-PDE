@@ -894,3 +894,178 @@ PetscErrorCode DMStagBCListView(DMStagBCList list)
   }
   PetscFunctionReturn(0);
 }
+
+/*
+ Performs a search over the relevent boundary list (element, face, vertex).
+ The search is terminated when
+   (i) Values for bc.i, bc.j matche the input `target_cell_i`, `target_cell_j`.
+   (ii) The bc location matches the relevent stencil location associated with `label`.
+        e.g. if location = '|' we check either DMSTAG_UP or DMSTAG_DOWN
+   (iii) The bc dof (bc.c) matches the target value for `dof`
+ All sub-domains conduct the search over their sub-domain. 
+ By definition only a single pin-point BC must be defined over the entire domain.
+ Hence after the search is completed a global reduction is performed to ensure that 
+ one and only one sub-domain has identified a pin-point. An error is emitted if
+ none or several sub-domains identified a pin-point.
+ 
+ Developer note:
+   - Currently a pin-point BC is defined as type BC_DIRICHLET.
+   This is completely correct, however in future we may wish to distinguish pin-point BCs from
+   normal Dirichlet constraints. For example: we may wish to apply a special scaling to pin-point
+   BCs to improve the condition number of the matrix; we may wish to ignore / filter pin-point BCs,
+   for and instead prescribe a constant null-space removal function.
+*/
+static PetscErrorCode _DMStagBCListPinValue(DMStagBCList list,
+                                            PetscInt target_cell_i,PetscInt target_cell_j,
+                                            const char label,PetscInt dof,PetscScalar val)
+{
+  PetscErrorCode ierr;
+  PetscInt       k,d,ndof,stag_dof[] = {0,0,0},len = 0;
+  MPI_Comm       comm;
+  PetscMPIInt    rank;
+  int            found = 0;
+  DMStagBC       *bcpoint = NULL;
+  DMStagBC       *bc = NULL;
+  DMStagStencilLocation locset[] = {DMSTAG_NULL_LOCATION,DMSTAG_NULL_LOCATION,DMSTAG_NULL_LOCATION,DMSTAG_NULL_LOCATION};
+  
+  PetscFunctionBegin;
+  ierr = PetscObjectGetComm((PetscObject)(list->dm),&comm);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+  
+  ierr = DMStagGetDOF(list->dm,&stag_dof[0],&stag_dof[1],&stag_dof[2],NULL);CHKERRQ(ierr);
+
+  if (label == 'o') {
+    len = list->nbc_element;
+    bc = list->bc_e;
+    ndof = stag_dof[2];
+    locset[0] = DMSTAG_ELEMENT;
+  }
+  
+  if (label == '-') {
+    len = list->nbc_face;
+    bc = list->bc_f;
+    ndof = stag_dof[1];
+    locset[0] = DMSTAG_LEFT;
+    locset[1] = DMSTAG_RIGHT;
+  }
+  
+  if (label == '|') {
+    len = list->nbc_face;
+    bc = list->bc_f;
+    ndof = stag_dof[1];
+    locset[0] = DMSTAG_UP;
+    locset[1] = DMSTAG_DOWN;
+  }
+
+  if (label == '.') {
+    len = list->nbc_vertex;
+    bc = list->bc_v;
+    ndof = stag_dof[0];
+    locset[0] = DMSTAG_UP_LEFT;
+    locset[1] = DMSTAG_UP_RIGHT;
+    locset[2] = DMSTAG_DOWN_RIGHT;
+    locset[3] = DMSTAG_DOWN_LEFT;
+  }
+
+  found = 0;
+  for (k=0; k<len; k++) {
+    if (found == 1) break; /* exit loop if pin-point located */
+    if ((bc[k].point.i == target_cell_i) && (bc[k].point.j == target_cell_j)) { /* locate cell */
+
+      /* check location is consistent with label, else skip to next bc point */
+      if (label == '.') { /* vertices require comparison with four potential locations */
+        if (   (bc[k].point.loc != locset[0])
+            && (bc[k].point.loc != locset[1])
+            && (bc[k].point.loc != locset[2])
+            && (bc[k].point.loc != locset[3])
+            ) continue;
+      } else if (label == '-' || label == '|') { /* faces require comparison with two potential locations */
+        if ((bc[k].point.loc != locset[0]) && (bc[k].point.loc != locset[1])) continue;
+      } else if (label == 'o') { /* cells require comparison with on potential location */
+        if (bc[k].point.loc != locset[0]) continue;
+      }
+      
+      /* check `dof` matches the dof index associated with bc point */
+      for (d=0; d<ndof; d++) {
+        if (bc[k].point.c == dof) {
+          found = 1; /* flag successful identification of the pin-point */
+          bc[k].val  = val;
+          bc[k].type = BC_DIRICHLET;
+          bcpoint = &bc[k]; /* get pointer to matching bc point for reporting */
+          break;
+        }
+      }
+    }
+  }
+  
+  /* Check that one and only one sub-domain identified a pin-point */
+  ierr = MPI_Allreduce(MPI_IN_PLACE,&found,1,MPI_INT,MPI_SUM,comm);CHKERRQ(ierr);
+  if (found == 0) SETERRQ(comm,PETSC_ERR_SUP,"No pin-point was identified on any sub-domain");
+  if (found > 1) SETERRQ(comm,PETSC_ERR_SUP,"A target pin-points was identified on more than one sub-domain");
+  
+  if (bcpoint) {
+    printf("[Pin-point BC]\n");
+    printf("  pin point: i,j   %d %d <rank %d>\n",bcpoint->point.i,bcpoint->point.j,(int)rank);
+    printf("  pin point: c     %d\n",bcpoint->point.c);
+    printf("  pin point: coor  %+1.4e %+1.4e\n",bcpoint->coord[0],bcpoint->coord[1]);
+    printf("  pin point: val   %+1.4e\n",bcpoint->val);
+  }
+  
+  PetscFunctionReturn(0);
+}
+
+/*
+ Default pin-point boundary condition specification.
+ Always pin the dof associated with the cell located in the lower left corner.
+ 
+ Input:
+ list  - The DMStagBCList object.
+ label - DOF location identifier. One of {'o', '.', '|', '-'}.
+ dof   - The index of the degree-of-freedom associated with `label` to constrain.
+ val   - The value assigned to the constraint.
+*/
+PetscErrorCode DMStagBCListPinValue(DMStagBCList list,const char label,PetscInt dof,PetscScalar val)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  ierr = _DMStagBCListPinValue(list,0,0,label,dof,val);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*
+ Custom pin-point boundary condition allowing constraint to be imposed at 
+ canonical locations (e.g. independent of the mesh size, or parallel decomposition)
+ within the domain. The canonical locations are the corners of the domain.
+ 
+ Input:
+ list   - The DMStagBCList object.
+ corner - Identifier for the domain corner. One of {DMSTAG_DOWN_RIGHT,DMSTAG_DOWN_LEFT,DMSTAG_UP_RIGHT,DMSTAG_UP_LEFT}.
+ label  - DOF location identifier. One of {'o', '.', '|', '-'}.
+ dof    - The index of the degree-of-freedom associated with `label` to constrain.
+ val    - The value assigned to the constraint.
+*/
+PetscErrorCode DMStagBCListPinCornerValue(DMStagBCList list,DMStagStencilLocation corner,const char label,PetscInt dof,PetscScalar val)
+{
+  PetscInt       M,N;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  ierr = DMStagGetGlobalSizes(list->dm,&M,&N,NULL);CHKERRQ(ierr);
+  switch (corner) {
+    case DMSTAG_DOWN_RIGHT:
+      ierr = _DMStagBCListPinValue(list,0,N-1,label,dof,val);CHKERRQ(ierr);
+      break;
+    case DMSTAG_DOWN_LEFT:
+      ierr = _DMStagBCListPinValue(list,0,0,label,dof,val);CHKERRQ(ierr);
+      break;
+    case DMSTAG_UP_RIGHT:
+      ierr = _DMStagBCListPinValue(list,M-1,N-1,label,dof,val);CHKERRQ(ierr);
+      break;
+    case DMSTAG_UP_LEFT:
+      ierr = _DMStagBCListPinValue(list,M-1,0,label,dof,val);CHKERRQ(ierr);
+      break;
+    default:
+      SETERRQ(PetscObjectComm((PetscObject)list->dm),PETSC_ERR_SUP,"Corners of domain are identified with {down-right,down-left,up-right,up-left}");
+      break;
+  }
+  PetscFunctionReturn(0);
+}
