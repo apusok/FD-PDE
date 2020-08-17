@@ -316,7 +316,6 @@ PetscErrorCode DMStagBCListApplyFace_StokesDarcy2Field(DM dm, Vec xlocal,DM dmco
 
       // Get residual value
       ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
-      // ff[j][i][idx] = xx - bclist[ibc].val;
 
       // Stokes flow - add flux terms
       if ((j == 0) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx down
