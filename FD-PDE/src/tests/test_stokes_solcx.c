@@ -101,10 +101,9 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
 
   // Create the FD-pde object
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKES,&fd);CHKERRQ(ierr);
+  ierr = FDPDESetLinearPreallocatorStencil(fd,PETSC_TRUE);CHKERRQ(ierr);
   ierr = FDPDESetUp(fd);CHKERRQ(ierr);
   // User can modify the dm coordinates anywhere between FDPDESetUp() and FDPDESolve()
-
-  ierr = FDPDESetOption(fd,FDPDE_STOKES_LINEAR,PETSC_TRUE);CHKERRQ(ierr);
 
   // Set BC evaluation function
   ierr = FDPDESetFunctionBCList(fd,FormBCList,bc_description,NULL); CHKERRQ(ierr);
@@ -129,6 +128,8 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
 
   // FD SNES Solver
   ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
+
+  // MatView(fd->J,PETSC_VIEWER_STDOUT_WORLD);
 
   ierr = SNESGetIterationNumber(fd->snes,&its);    CHKERRQ(ierr);
   ierr = SNESGetTolerances(fd->snes, &atol, &rtol, &stol, &maxit, &maxf); CHKERRQ(ierr);

@@ -6,15 +6,13 @@
 #include "petsc.h"
 #include "prealloc_helper.h"
 #include "dmstagbclist.h"
+#include "snes_picard.h"
 
 // ---------------------------------------
 // Enum definitions
 // ---------------------------------------
 // FD-PDE type
 typedef enum { FDPDE_UNINIT = 0, FDPDE_STOKES, FDPDE_ADVDIFF, FDPDE_STOKESDARCY2FIELD, FDPDE_COMPOSITE } FDPDEType;
-
-// FD-PDE options
-typedef enum { FDPDE_STOKES_LINEAR, FDPDE_STOKESDARCY2FIELD_LINEAR } FDPDEOption;
 
 // ---------------------------------------
 // Struct definitions
@@ -25,8 +23,10 @@ typedef struct _p_FDPDE *FDPDE;
 
 struct _FDPDEOps {
   PetscErrorCode (*form_function)(SNES,Vec,Vec,void*);
+  PetscErrorCode (*form_function_split)(SNES,Vec,Vec,Vec,void*);
   PetscErrorCode (*form_jacobian)(SNES,Vec,Mat,Mat,void*);
   PetscErrorCode (*form_coefficient)(FDPDE,DM,Vec,DM,Vec,void*);
+  PetscErrorCode (*form_coefficient_split)(FDPDE,DM,Vec,Vec,DM,Vec,void*);
   PetscErrorCode (*create_jacobian)(FDPDE,Mat*);
   PetscErrorCode (*create)(FDPDE);
   PetscErrorCode (*view)(FDPDE);
@@ -54,7 +54,7 @@ struct _p_FDPDE {
   PetscBool       setupcalled,linearsolve;
   PetscInt        naux_global_vectors;
   Vec            *aux_global_vectors;
-  PetscInt        refcount;
+  PetscInt        refcount,solves_performed;
 };
 
 // ---------------------------------------
@@ -67,10 +67,13 @@ PetscErrorCode FDPDESetUp(FDPDE);
 PetscErrorCode FDPDEDestroy(FDPDE*);
 PetscErrorCode FDPDEView(FDPDE);
 PetscErrorCode FDPDESolve(FDPDE,PetscBool*);
+PetscErrorCode FDPDESolveReport(FDPDE,PetscViewer);
+PetscErrorCode FDPDESolvePicard(FDPDE,PetscBool*);
 
 PetscErrorCode FDPDESetFunctionBCList(FDPDE, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void*);
 PetscErrorCode FDPDESetFunctionCoefficient(FDPDE, PetscErrorCode (*form_coefficient)(FDPDE, DM,Vec,DM,Vec,void*), const char description[], void*);
-PetscErrorCode FDPDESetOption(FDPDE, FDPDEOption, PetscBool);
+PetscErrorCode FDPDESetFunctionCoefficientSplit(FDPDE, PetscErrorCode (*form_coefficient)(FDPDE, DM,Vec,Vec,DM,Vec,void*), const char description[], void*);
+PetscErrorCode FDPDESetLinearPreallocatorStencil(FDPDE, PetscBool);
 
 PetscErrorCode FDPDEGetDM(FDPDE,DM*);
 PetscErrorCode FDPDEGetSolution(FDPDE,Vec*);

@@ -1,10 +1,10 @@
 // ---------------------------------------
-// Shortening of a visco-(elasto)-plastic block in the absence of gravity
+// Shortening of a visco-plastic (von Mises criterion) block in the absence of gravity
 // Setup from T. Gerya, 2018, Ch. 13, ex. 13.2
 // run: ./tests/test_vp_inclusion_gerya.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -ksp_monitor -nx 20 -nz 20
 // python test: ./tests/python/test_vp_inclusion_gerya.py
 // ---------------------------------------
-static char help[] = "Application for shortening of a visco-(elasto)-plastic block in the absence of gravity \n\n";
+static char help[] = "Application for shortening of a visco-plastic block in the absence of gravity \n\n";
 
 // define convenient names for DMStagStencilLocation
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
@@ -22,6 +22,7 @@ static char help[] = "Application for shortening of a visco-(elasto)-plastic blo
 #include "../consteq.h"
 #include "../dmstagoutput.h"
 
+
 // ---------------------------------------
 // Application Context
 // ---------------------------------------
@@ -29,12 +30,12 @@ static char help[] = "Application for shortening of a visco-(elasto)-plastic blo
 
 // parameters (bag)
 typedef struct {
-  PetscInt       nx, nz, smooth, harmonic;
+  PetscInt       nx, nz, scaling;
   PetscScalar    L, H;
   PetscScalar    xmin, zmin;
-  PetscScalar    eta0, eta_w, rho0, g, vi, C, phi, P;
+  PetscScalar    eta_b, eta_w, eta_i, vi, C_b, C_w, C_i, P;
   PetscScalar    stress, vel, length, visc; // scales
-  PetscScalar    nd_eta0, nd_eta_w, nd_vi, nd_C, etamax, etamin, nd_P, C_factor; // non-dimensional
+  PetscScalar    nd_eta_b, nd_eta_w, nd_eta_i, nd_vi, nd_C_b, nd_C_w, nd_C_i, etamax, etamin, nd_P; // non-dimensional
   PetscBool      plasticity;
   char           fname_out[FNAME_LENGTH]; 
 } Params;
@@ -45,7 +46,7 @@ typedef struct {
   PetscBag       bag;
   MPI_Comm       comm;
   PetscMPIInt    rank;
-  DM             dm, dmeps;
+  DM             dmeps;
   Vec            xeps,xtau,xyield;
 } UsrData;
 
@@ -56,6 +57,7 @@ PetscErrorCode Numerical_solution(void*);
 PetscErrorCode InputParameters(UsrData**);
 PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
+PetscErrorCode FormCoefficientSplit(FDPDE, DM, Vec, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
 PetscErrorCode UpdateStrainRates(DM,Vec,void*);
 PetscErrorCode ScaleSolution(DM,Vec,Vec*,void*);
@@ -66,7 +68,7 @@ const char coeff_description[] =
 "  << Stokes Coefficients >> \n"
 "  eta_n/eta_c = eta_eff\n"
 "  fux = 0 \n" 
-"  fuz = rho*g \n" 
+"  fuz = 0 (no body forces) \n" 
 "  fp = 0 (incompressible)\n";
 
 const char bc_description[] =
@@ -118,7 +120,11 @@ PetscErrorCode Numerical_solution(void *ctx)
   // Set coefficients and BC evaluation function
   ierr = FDPDESetFunctionBCList(fd,FormBCList,bc_description,usr); CHKERRQ(ierr);
   ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient,coeff_description,usr); CHKERRQ(ierr);
+  ierr = FDPDESetFunctionCoefficientSplit(fd,FormCoefficientSplit,coeff_description,usr); CHKERRQ(ierr);
   ierr = FDPDEView(fd); CHKERRQ(ierr);
+
+  // Pin pressure
+  ierr = FDPDEStokesPinPressure(fd,usr->par->nd_P,PETSC_TRUE); CHKERRQ(ierr);
 
   // Create initial guess with a linear viscous
   PetscPrintf(PETSC_COMM_WORLD,"\n# INITIAL GUESS #\n");
@@ -150,6 +156,61 @@ PetscErrorCode Numerical_solution(void *ctx)
 
   // MatView(fd->J,PETSC_VIEWER_STDOUT_WORLD);
 
+#if 0
+  {
+    SNES snes_picard;
+    Mat  J;
+    DM   dmref,dm;
+    
+    PetscPrintf(PETSC_COMM_WORLD,"\n# PICARD SOLVE #\n");
+
+    ierr = FDPDEGetDM(fd,&dmref);CHKERRQ(ierr);
+    ierr = DMClone(dmref,&dm);CHKERRQ(ierr);
+
+    ierr = fd->ops->create_jacobian(fd,&J);CHKERRQ(ierr);
+    
+    ierr = SNESCreate(fd->comm,&snes_picard);CHKERRQ(ierr);
+    ierr = SNESSetOptionsPrefix(snes_picard,"p_");CHKERRQ(ierr);
+    ierr = SNESSetDM(snes_picard,dm);CHKERRQ(ierr); /* attach a clone of the DM stag - see note on manpage for SNESSetDM() */
+    ierr = SNESSetSolution(snes_picard,fd->x);CHKERRQ(ierr); // for FD colouring to function correctly
+    
+    ierr = SNESSetFunction(snes_picard,fd->r,SNESPicardComputeFunctionDefault,(void*)fd);CHKERRQ(ierr);
+    
+    ierr = SNESSetJacobian(snes_picard,J,J,SNESComputeJacobianDefaultColor,NULL);CHKERRQ(ierr);
+    
+    ierr = SNESSetType(snes_picard,SNESNPICARDLS);CHKERRQ(ierr);
+    ierr = SNESSetFromOptions(snes_picard);CHKERRQ(ierr);
+    ierr = SNESSetUp(snes_picard);CHKERRQ(ierr);
+
+    ierr = SNESPicardLSSetSplitFunction(snes_picard,fd->r,fd->ops->form_function_split);CHKERRQ(ierr);
+
+    {
+      Vec xguess,x2;
+      
+      ierr = FDPDEGetSolutionGuess(fd,&xguess); CHKERRQ(ierr);
+      ierr = SNESPicardLSGetAuxillarySolution(snes_picard,&x2);CHKERRQ(ierr);
+      ierr = VecCopy(xguess,x2);CHKERRQ(ierr);
+      ierr = VecDestroy(&xguess);CHKERRQ(ierr);
+    }
+    
+    ierr = SNESSolve(snes_picard,NULL,fd->x);CHKERRQ(ierr);
+    
+    ierr = SNESDestroy(&snes_picard);CHKERRQ(ierr);
+    ierr = DMDestroy(&dm);CHKERRQ(ierr);
+    ierr = MatDestroy(&J);CHKERRQ(ierr);
+  }
+#endif
+  
+  PetscPrintf(PETSC_COMM_WORLD,"\n# PICARD SOLVE #\n");
+  ierr = FDPDESolvePicard(fd,NULL);CHKERRQ(ierr);
+  
+  ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr);
+  ierr = FDPDEGetSolutionGuess(fd,&xguess); CHKERRQ(ierr);
+  ierr = VecCopy(x,xguess);CHKERRQ(ierr);
+  ierr = VecDestroy(&xguess);CHKERRQ(ierr);
+  ierr = VecDestroy(&x);CHKERRQ(ierr);
+
+  
   // FD SNES Solver
   PetscPrintf(PETSC_COMM_WORLD,"\n# SNES SOLVE #\n");
   ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
@@ -221,7 +282,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
-  Vec            coefflocal, xlocal, xepslocal, xtaulocal, xyieldlocal;
+  Vec            coefflocal, xepslocal, xtaulocal, xyieldlocal;
   PetscScalar    **coordx,**coordz;
   PetscScalar    zblock_s, zblock_e, xis, xie, zis, zie;
   PetscInt       iprev, inext, icenter;
@@ -264,32 +325,24 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
 
-  ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
-
-  // PetscPrintf(PETSC_COMM_WORLD,"\n# ITERATION #\n");
   // Loop over local domain - set initial density and viscosity
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
       PetscInt idx;
 
       { // A = eta (center, c=1)
-        DMStagStencil point, pointP;
-        PetscScalar   Y,eta,eta_P,eta_VP,epsII,P,inv_eta, inv_eta_VP,exx,ezz,exz,txx,tzz,txz,tauII;
+        DMStagStencil point;//, pointP;
+        PetscScalar   Y,eta,eta_P,epsII,exx,ezz,exz,txx,tzz,txz,tauII;
 
         if ((coordz[j][icenter]<zblock_s) || (coordz[j][icenter]>zblock_e)) { 
           eta = usr->par->nd_eta_w; // top/bottom layer
-          Y   = usr->par->nd_C*usr->par->C_factor; // plastic yield criterion
+          Y   = usr->par->nd_C_w; // plastic yield criterion
         } else if ((coordx[i][icenter]>=xis) && (coordx[i][icenter]<=xie) && (coordz[j][icenter]>=zis) && (coordz[j][icenter]<=zie)) {
-          eta = usr->par->nd_eta_w; // inclusion
-          Y   = usr->par->nd_C*usr->par->C_factor; // plastic yield criterion
+          eta = usr->par->nd_eta_i; // inclusion
+          Y   = usr->par->nd_C_i; // plastic yield criterion
         } else {
-          // initialize non-plasticity viscosity
-          eta = usr->par->nd_eta0;
-
-          // plastic yield criterion
-          Y = usr->par->nd_C;
-          // Y = usr->par->nd_C + P*PetscSinScalar(PETSC_PI*usr->par->phi/180);
+          eta = usr->par->nd_eta_b; // block
+          Y = usr->par->nd_C_b; // plastic yield criterion
         }
 
         // second invariant of strain rate
@@ -299,43 +352,21 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         point.c = 2; ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,1,&point,&exz); CHKERRQ(ierr);
         point.c = 3; ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,1,&point,&epsII); CHKERRQ(ierr);
 
-        // pressure
-        pointP.i = i; pointP.j = j; pointP.loc = ELEMENT; pointP.c = 0;
-        ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&pointP,&P); CHKERRQ(ierr);
+        if (usr->par->plasticity) {
+          // Effective viscosity
+          eta_P = Y/(2.0*epsII);
+          eta = usr->par->etamin + 1.0/(1.0/eta_P + 1.0/eta + 1.0/usr->par->etamax); 
+        }
+
+        point.i = i; point.j = j; point.loc = ELEMENT; point.c = 1;
+        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = eta;
 
         // second invariant of stress
         txx = 2.0*eta*exx;
         tzz = 2.0*eta*ezz;
         txz = 2.0*eta*exz;
         tauII = PetscPowScalar(0.5*(txx*txx + tzz*tzz + 2.0*txz*txz),0.5);
-
-        if (usr->par->plasticity) {
-          // eta_P = Y/(2.0*epsII);
-          // if (eta_P>eta) {
-          //   eta_P=eta;
-          // }
-          // if (eta_P<usr->par->etamin) eta_P = usr->par->etamin;
-          // if (eta_P>usr->par->etamax) eta_P = usr->par->etamax;
-          // eta=eta_P;
-
-          if (tauII > Y) {
-            eta_P = Y/(2.0*epsII);
-
-            // Effective viscosity
-            if (usr->par->harmonic) { // Harmonic averaging
-              inv_eta_VP = 1.0/eta_P + 1.0/eta;
-              inv_eta = 1.0/usr->par->etamax + inv_eta_VP;
-              eta = usr->par->etamin + 1.0/inv_eta;
-            } else {
-              eta_VP = PetscMin(eta_P,eta);
-              eta = PetscMin(PetscMax(eta_VP,usr->par->etamin),usr->par->etamax);
-            }
-          }
-        }
-
-        point.i = i; point.j = j; point.loc = ELEMENT; point.c = 1;
-        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
-        c[j][i][idx] = eta;
 
         // save stresses for output
         ierr = DMStagGetLocationSlot(usr->dmeps,ELEMENT,0,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txx; xxy[j][i][idx] = Y;
@@ -345,8 +376,8 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
       }
 
       { // A = eta (corner, c=0)
-        DMStagStencil point[4],pointP[9];
-        PetscScalar   eta,epsII[4],P[9], Pinterp[4], Y[4], eta_P, eta_VP, inv_eta, inv_eta_VP, xp[4],zp[4];
+        DMStagStencil point[4];
+        PetscScalar   eta,epsII[4], Y[4], eta_P, xp[4],zp[4];
         PetscScalar   exx[4],ezz[4],exz[4],txx[4],tzz[4],txz[4],tauII[4];
         PetscInt      ii;
 
@@ -367,34 +398,6 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         for (ii = 0; ii < 4; ii++) {point[ii].c = 3;}
         ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,4,point,epsII); CHKERRQ(ierr);
 
-        // pressure
-        pointP[0].i = i-1; pointP[0].j = j-1; pointP[0].loc = ELEMENT; pointP[0].c = 0;
-        pointP[1].i = i  ; pointP[1].j = j-1; pointP[1].loc = ELEMENT; pointP[1].c = 0;
-        pointP[2].i = i+1; pointP[2].j = j-1; pointP[2].loc = ELEMENT; pointP[2].c = 0;
-        pointP[3].i = i-1; pointP[3].j = j  ; pointP[3].loc = ELEMENT; pointP[3].c = 0;
-        pointP[4].i = i  ; pointP[4].j = j  ; pointP[4].loc = ELEMENT; pointP[4].c = 0;
-        pointP[5].i = i+1; pointP[5].j = j  ; pointP[5].loc = ELEMENT; pointP[5].c = 0;
-        pointP[6].i = i-1; pointP[6].j = j+1; pointP[6].loc = ELEMENT; pointP[6].c = 0;
-        pointP[7].i = i  ; pointP[7].j = j+1; pointP[7].loc = ELEMENT; pointP[7].c = 0;
-        pointP[8].i = i+1; pointP[8].j = j+1; pointP[8].loc = ELEMENT; pointP[8].c = 0;
-
-        // borders
-        if (i==0   ) { pointP[0] = pointP[1]; pointP[3] = pointP[4]; pointP[6] = pointP[7]; } 
-        if (i==Nx-1) { pointP[2] = pointP[1]; pointP[5] = pointP[4]; pointP[8] = pointP[7]; } 
-        if (j==0   ) { pointP[0] = pointP[3]; pointP[1] = pointP[4]; pointP[2] = pointP[5]; } 
-        if (j==Nz-1) { pointP[6] = pointP[3]; pointP[7] = pointP[4]; pointP[8] = pointP[5]; } 
-        if ((i==0   ) && (j==0   )) {pointP[0] = pointP[4]; pointP[1] = pointP[4]; pointP[3] = pointP[4];}
-        if ((i==Nx-1) && (j==0   )) {pointP[1] = pointP[4]; pointP[2] = pointP[4]; pointP[5] = pointP[4];}
-        if ((i==0   ) && (j==Nz-1)) {pointP[3] = pointP[4]; pointP[6] = pointP[4]; pointP[7] = pointP[4];}
-        if ((i==Nx-1) && (j==Nz-1)) {pointP[5] = pointP[4]; pointP[7] = pointP[4]; pointP[8] = pointP[4];}
-        ierr = DMStagVecGetValuesStencil(dm,xlocal,9,pointP,P); CHKERRQ(ierr);
-
-        // interpolate - assume constant grid spacing -> should be replaced with interpolation routines for every field
-        Pinterp[0] = 0.25*(P[0]+P[1]+P[3]+P[4]);
-        Pinterp[1] = 0.25*(P[1]+P[2]+P[4]+P[5]);
-        Pinterp[2] = 0.25*(P[3]+P[4]+P[6]+P[7]);
-        Pinterp[3] = 0.25*(P[4]+P[5]+P[7]+P[8]);
-
         // coordinates
         xp[0] = coordx[i][iprev]; zp[0] = coordz[j][iprev]; 
         xp[1] = coordx[i][inext]; zp[1] = coordz[j][iprev]; 
@@ -404,16 +407,19 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         for (ii = 0; ii < 4; ii++) {
           if ((zp[ii]<zblock_s) || (zp[ii]>zblock_e)) { 
             eta = usr->par->nd_eta_w; // top/bottom layer
-            Y[ii] = usr->par->nd_C*usr->par->C_factor; // plastic yield criterion
+            Y[ii] = usr->par->nd_C_w; // plastic yield criterion
           } else if ((xp[ii]>=xis) && (xp[ii]<=xie) && (zp[ii]>=zis) && (zp[ii]<=zie)) {
-            eta = usr->par->nd_eta_w; // inclusion
-            Y[ii] = usr->par->nd_C*usr->par->C_factor; // plastic yield criterion
+            eta = usr->par->nd_eta_i; // inclusion
+            Y[ii] = usr->par->nd_C_i; // plastic yield criterion
           } else {
-            // linear viscous
-            eta = usr->par->nd_eta0;
-            // plastic yield criterion
-            Y[ii] = usr->par->nd_C;
-            // Y = usr->par->C + Pinterp[ii]*PetscSinScalar(PETSC_PI*usr->par->phi/180);
+            eta = usr->par->nd_eta_b; //block
+            Y[ii] = usr->par->nd_C_b; // plastic yield criterion
+          }
+
+          if (usr->par->plasticity) {
+            // Effective viscosity
+            eta_P = Y[ii]/(2.0*epsII[ii]);
+            eta = usr->par->etamin + 1.0/(1.0/eta_P + 1.0/eta + 1.0/usr->par->etamax); 
           }
 
           // second invariant of stress
@@ -421,30 +427,6 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
           tzz[ii] = 2.0*eta*ezz[ii];
           txz[ii] = 2.0*eta*exz[ii];
           tauII[ii] = PetscPowScalar(0.5*(txx[ii]*txx[ii] + tzz[ii]*tzz[ii] + 2.0*txz[ii]*txz[ii]),0.5);
-
-          if (usr->par->plasticity) {
-            // eta_P = Y/(2.0*epsII[ii]);
-            // if (eta_P>eta) {
-            //   eta_P=eta;
-            // }
-            // if (eta_P<usr->par->etamin) eta_P = usr->par->etamin;
-            // if (eta_P>usr->par->etamax) eta_P = usr->par->etamax;
-            // eta=eta_P;
-
-            if (tauII[ii] > Y[ii]) {
-              eta_P = Y[ii]/(2.0*epsII[ii]);
-
-              // Effective viscosity
-              if (usr->par->harmonic) { // Harmonic averaging
-                inv_eta_VP = 1.0/eta_P + 1.0/eta;
-                inv_eta = 1.0/usr->par->etamax + inv_eta_VP;
-                eta = usr->par->etamin + 1.0/inv_eta;
-              } else {
-                eta_VP = PetscMin(eta_P,eta);
-                eta = PetscMin(PetscMax(eta_VP,usr->par->etamin),usr->par->etamax);
-              }
-            }
-          }
 
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, 0, &idx); CHKERRQ(ierr);
           c[j][i][idx] = eta;
@@ -472,7 +454,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         ierr = DMStagGetLocationSlot(usr->dmeps,UP_RIGHT,3,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tauII[3];
       }
 
-      { // B = -rho*g (edges, c=0)
+      { // B = 0.0 (edges, c=0)
         DMStagStencil point[4];
         PetscScalar   rhs[4];
         PetscInt      ii;
@@ -484,8 +466,8 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
 
         rhs[0] = 0.0;
         rhs[1] = 0.0;
-        rhs[2] = -usr->par->rho0*usr->par->g;
-        rhs[3] = -usr->par->rho0*usr->par->g;
+        rhs[2] = 0.0;
+        rhs[3] = 0.0;
 
         for (ii = 0; ii < 4; ii++) {
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
@@ -521,9 +503,238 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   ierr = DMLocalToGlobalEnd  (usr->dmeps,xyieldlocal,INSERT_VALUES,usr->xyield); CHKERRQ(ierr);
   ierr = VecDestroy(&xyieldlocal); CHKERRQ(ierr);
 
-  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(usr->dmeps,&xepslocal); CHKERRQ(ierr);
 
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode FormCoefficientSplit(FDPDE fd, DM dm, Vec x, Vec x2, DM dmcoeff, Vec coeff, void *ctx)
+{
+  UsrData        *usr = (UsrData*)ctx;
+  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
+  Vec            coefflocal, xepslocal, xtaulocal, xyieldlocal;
+  PetscScalar    **coordx,**coordz;
+  PetscScalar    zblock_s, zblock_e, xis, xie, zis, zie;
+  PetscInt       iprev, inext, icenter;
+  PetscScalar    ***c, ***xxs, ***xxy;
+  PetscErrorCode ierr;
+  
+  PetscFunctionBegin;
+  
+  // block and weak inclusion params
+  zblock_s = 0.2*usr->par->H;
+  zblock_e = 0.8*usr->par->H;
+  xis = usr->par->xmin+usr->par->L/2-0.1*usr->par->L/2;
+  xie = usr->par->xmin+usr->par->L/2+0.1*usr->par->L/2;
+  zis = usr->par->zmin+usr->par->H/2-0.1*usr->par->H/2;
+  zie = usr->par->zmin+usr->par->H/2+0.1*usr->par->H/2;
+  
+  // Strain rates
+  ierr = UpdateStrainRates(dm,x2,usr); CHKERRQ(ierr);
+  ierr = DMGetLocalVector(usr->dmeps, &xepslocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (usr->dmeps, usr->xeps, INSERT_VALUES, xepslocal); CHKERRQ(ierr);
+  
+  // Local vectors
+  ierr = DMCreateLocalVector (usr->dmeps,&xtaulocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(usr->dmeps,xtaulocal,&xxs); CHKERRQ(ierr);
+  
+  ierr = DMCreateLocalVector (usr->dmeps,&xyieldlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(usr->dmeps,xyieldlocal,&xxy); CHKERRQ(ierr);
+  
+  // Get domain corners
+  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL);CHKERRQ(ierr);
+  
+  // Get dm coordinates array
+  ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,LEFT,&iprev);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,RIGHT,&inext);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter);CHKERRQ(ierr);
+  
+  // Create coefficient local vector
+  ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
+  
+  // Loop over local domain - set initial density and viscosity
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      PetscInt idx;
+      
+      { // A = eta (center, c=1)
+        DMStagStencil point;//, pointP;
+        PetscScalar   Y,eta,eta_P,epsII,exx,ezz,exz,txx,tzz,txz,tauII;
+        
+        if ((coordz[j][icenter]<zblock_s) || (coordz[j][icenter]>zblock_e)) {
+          eta = usr->par->nd_eta_w; // top/bottom layer
+          Y   = usr->par->nd_C_w; // plastic yield criterion
+        } else if ((coordx[i][icenter]>=xis) && (coordx[i][icenter]<=xie) && (coordz[j][icenter]>=zis) && (coordz[j][icenter]<=zie)) {
+          eta = usr->par->nd_eta_i; // inclusion
+          Y   = usr->par->nd_C_i; // plastic yield criterion
+        } else {
+          eta = usr->par->nd_eta_b; // block
+          Y = usr->par->nd_C_b; // plastic yield criterion
+        }
+        
+        // second invariant of strain rate
+        point.i = i; point.j = j; point.loc = ELEMENT;
+        point.c = 0; ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,1,&point,&exx); CHKERRQ(ierr);
+        point.c = 1; ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,1,&point,&ezz); CHKERRQ(ierr);
+        point.c = 2; ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,1,&point,&exz); CHKERRQ(ierr);
+        point.c = 3; ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,1,&point,&epsII); CHKERRQ(ierr);
+
+        if (usr->par->plasticity) {
+          // Effective viscosity
+          eta_P = Y/(2.0*epsII);
+          eta = usr->par->etamin + 1.0/(1.0/eta_P + 1.0/eta + 1.0/usr->par->etamax); 
+        }
+        
+        point.i = i; point.j = j; point.loc = ELEMENT; point.c = 1;
+        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = eta;
+
+        // second invariant of stress
+        txx = 2.0*eta*exx;
+        tzz = 2.0*eta*ezz;
+        txz = 2.0*eta*exz;
+        tauII = PetscPowScalar(0.5*(txx*txx + tzz*tzz + 2.0*txz*txz),0.5);
+        
+        // save stresses for output
+        ierr = DMStagGetLocationSlot(usr->dmeps,ELEMENT,0,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txx; xxy[j][i][idx] = Y;
+        ierr = DMStagGetLocationSlot(usr->dmeps,ELEMENT,1,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tzz;
+        ierr = DMStagGetLocationSlot(usr->dmeps,ELEMENT,2,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txz;
+        ierr = DMStagGetLocationSlot(usr->dmeps,ELEMENT,3,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tauII;
+      }
+      
+      { // A = eta (corner, c=0)
+        DMStagStencil point[4];
+        PetscScalar   eta,epsII[4], Y[4], eta_P, xp[4],zp[4];
+        PetscScalar   exx[4],ezz[4],exz[4],txx[4],tzz[4],txz[4],tauII[4];
+        PetscInt      ii;
+        
+        // second invariant of strain rate
+        point[0].i = i; point[0].j = j; point[0].loc = DOWN_LEFT;  point[0].c = 0;
+        point[1].i = i; point[1].j = j; point[1].loc = DOWN_RIGHT; point[1].c = 0;
+        point[2].i = i; point[2].j = j; point[2].loc = UP_LEFT;    point[2].c = 0;
+        point[3].i = i; point[3].j = j; point[3].loc = UP_RIGHT;   point[3].c = 0;
+        ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,4,point,exx); CHKERRQ(ierr);
+        
+        for (ii = 0; ii < 4; ii++) {point[ii].c = 1;}
+        ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,4,point,ezz); CHKERRQ(ierr);
+        
+        for (ii = 0; ii < 4; ii++) {point[ii].c = 2;}
+        ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,4,point,exz); CHKERRQ(ierr);
+        
+        // second invariant of strain rate
+        for (ii = 0; ii < 4; ii++) {point[ii].c = 3;}
+        ierr = DMStagVecGetValuesStencil(usr->dmeps,xepslocal,4,point,epsII); CHKERRQ(ierr);
+        
+        // coordinates
+        xp[0] = coordx[i][iprev]; zp[0] = coordz[j][iprev];
+        xp[1] = coordx[i][inext]; zp[1] = coordz[j][iprev];
+        xp[2] = coordx[i][iprev]; zp[2] = coordz[j][inext];
+        xp[3] = coordx[i][inext]; zp[3] = coordz[j][inext];
+        
+        for (ii = 0; ii < 4; ii++) {
+          if ((zp[ii]<zblock_s) || (zp[ii]>zblock_e)) {
+            eta = usr->par->nd_eta_w; // top/bottom layer
+            Y[ii] = usr->par->nd_C_w; // plastic yield criterion
+          } else if ((xp[ii]>=xis) && (xp[ii]<=xie) && (zp[ii]>=zis) && (zp[ii]<=zie)) {
+            eta = usr->par->nd_eta_i; // inclusion
+            Y[ii] = usr->par->nd_C_i; // plastic yield criterion
+          } else {
+            eta = usr->par->nd_eta_b; //block
+            Y[ii] = usr->par->nd_C_b; // plastic yield criterion
+          }
+          
+          if (usr->par->plasticity) {
+            // Effective viscosity
+            eta_P = Y[ii]/(2.0*epsII[ii]);
+            eta = usr->par->etamin + 1.0/(1.0/eta_P + 1.0/eta + 1.0/usr->par->etamax); 
+          }
+          
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, 0, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = eta;
+
+          // second invariant of stress
+          txx[ii] = 2.0*eta*exx[ii];
+          tzz[ii] = 2.0*eta*ezz[ii];
+          txz[ii] = 2.0*eta*exz[ii];
+          tauII[ii] = PetscPowScalar(0.5*(txx[ii]*txx[ii] + tzz[ii]*tzz[ii] + 2.0*txz[ii]*txz[ii]),0.5);
+        }
+        
+        // save stresses
+        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_LEFT,0,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txx[0]; xxy[j][i][idx] = Y[0];
+        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_LEFT,1,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tzz[0];
+        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_LEFT,2,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txz[0];
+        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_LEFT,3,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tauII[0];
+        
+        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_RIGHT,0,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txx[1]; xxy[j][i][idx] = Y[1];
+        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_RIGHT,1,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tzz[1];
+        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_RIGHT,2,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txz[1];
+        ierr = DMStagGetLocationSlot(usr->dmeps,DOWN_RIGHT,3,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tauII[1];
+        
+        ierr = DMStagGetLocationSlot(usr->dmeps,UP_LEFT,0,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txx[2]; xxy[j][i][idx] = Y[2];
+        ierr = DMStagGetLocationSlot(usr->dmeps,UP_LEFT,1,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tzz[2];
+        ierr = DMStagGetLocationSlot(usr->dmeps,UP_LEFT,2,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txz[2];
+        ierr = DMStagGetLocationSlot(usr->dmeps,UP_LEFT,3,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tauII[2];
+        
+        ierr = DMStagGetLocationSlot(usr->dmeps,UP_RIGHT,0,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txx[3]; xxy[j][i][idx] = Y[3];
+        ierr = DMStagGetLocationSlot(usr->dmeps,UP_RIGHT,1,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tzz[3];
+        ierr = DMStagGetLocationSlot(usr->dmeps,UP_RIGHT,2,&idx); CHKERRQ(ierr); xxs[j][i][idx] = txz[3];
+        ierr = DMStagGetLocationSlot(usr->dmeps,UP_RIGHT,3,&idx); CHKERRQ(ierr); xxs[j][i][idx] = tauII[3];
+      }
+      
+      { // B = 0.0 (edges, c=0)
+        DMStagStencil point[4];
+        PetscScalar   rhs[4];
+        PetscInt      ii;
+        
+        point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
+        point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
+        point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 0;
+        point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 0;
+        
+        rhs[0] = 0.0;
+        rhs[1] = 0.0;
+        rhs[2] = 0.0;
+        rhs[3] = 0.0;
+        
+        for (ii = 0; ii < 4; ii++) {
+          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = rhs[ii];
+        }
+      }
+      
+      { // C = 0 (center, c=0)
+        DMStagStencil point;
+        point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 0;
+        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 0.0;
+      }
+    }
+  }
+  
+  // Restore arrays, local vectors
+  ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  
+  ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
+  
+  // Restore and map local to global
+  ierr = DMStagVecRestoreArray(usr->dmeps,xtaulocal,&xxs); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(usr->dmeps,xtaulocal,INSERT_VALUES,usr->xtau); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (usr->dmeps,xtaulocal,INSERT_VALUES,usr->xtau); CHKERRQ(ierr);
+  ierr = VecDestroy(&xtaulocal); CHKERRQ(ierr);
+  
+  ierr = DMStagVecRestoreArray(usr->dmeps,xyieldlocal,&xxy); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(usr->dmeps,xyieldlocal,INSERT_VALUES,usr->xyield); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (usr->dmeps,xyieldlocal,INSERT_VALUES,usr->xyield); CHKERRQ(ierr);
+  ierr = VecDestroy(&xyieldlocal); CHKERRQ(ierr);
+  
+  ierr = DMRestoreLocalVector(usr->dmeps,&xepslocal); CHKERRQ(ierr);
+  
   PetscFunctionReturn(0);
 }
 
@@ -573,13 +784,6 @@ PetscErrorCode UpdateStrainRates(DM dm, Vec x, void *ctx)
       pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
       ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
 
-      // if ((i==0) || (i==Nx-1) || (j==0) || (j==Nz-1)) { // boundaries
-      //   exzc = 0.0;
-      //   exxc = 0.0;
-      //   ezzc = 0.0;
-      //   epsIIc = PetscPowScalar(0.5*(exxc*exxc + ezzc*ezzc + 2.0*exzc*exzc),0.5);
-      // }
-
       ierr = DMStagGetLocationSlot(dmeps,ELEMENT,0,&idx); CHKERRQ(ierr); xx[j][i][idx] = exxc;
       ierr = DMStagGetLocationSlot(dmeps,ELEMENT,1,&idx); CHKERRQ(ierr); xx[j][i][idx] = ezzc;
       ierr = DMStagGetLocationSlot(dmeps,ELEMENT,2,&idx); CHKERRQ(ierr); xx[j][i][idx] = exzc;
@@ -596,35 +800,30 @@ PetscErrorCode UpdateStrainRates(DM dm, Vec x, void *ctx)
         pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
         ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
         ezzn[0] = ezzc;
-        // PetscPrintf(PETSC_COMM_WORLD,"# L Strain [%d %d]: exx=%f ezz=%f exz=%f eII=%f #\n",i,j,exxn[0],ezzn[0],exzn[0],epsIIn[0]);
       }
 
       if (i==Nx-1) { // boundaries
         pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
         ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
         ezzn[1] = ezzc;
-        // PetscPrintf(PETSC_COMM_WORLD,"# R Strain [%d %d]: exx=%f ezz=%f exz=%f eII=%f #\n",i,j,exxn[1],ezzn[1],exzn[1],epsIIn[1]);
       }
 
       if (j==0) { // boundaries
         pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
         ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
         exxn[0] = exxc;
-        // PetscPrintf(PETSC_COMM_WORLD,"# D Strain [%d %d]: exx=%f ezz=%f exz=%f eII=%f #\n",i,j,exxn[0],ezzn[0],exzn[0],epsIIn[0]);
       }
 
       if (j==Nz-1) { // boundaries
         pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
         ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
         exxn[2] = exxc;
-        // PetscPrintf(PETSC_COMM_WORLD,"# U Strain [%d %d]: exx=%f ezz=%f exz=%f eII=%f #\n",i,j,exxn[2],ezzn[2],exzn[2],epsIIn[2]);
       }
 
       if ((i==Nx-1) && (j==Nz-1)) { // boundaries
         pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
         ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
         exxn[3] = exxc;
-        // PetscPrintf(PETSC_COMM_WORLD,"# U Strain [%d %d]: exx=%f ezz=%f exz=%f eII=%f #\n",i,j,exxn[2],ezzn[2],exzn[2],epsIIn[2]);
       }
 
       if ((i==0) || (i==Nx-1) || (j==0) || (j==Nz-1)) { // boundaries
@@ -713,7 +912,9 @@ PetscErrorCode ScaleSolution(DM dm, Vec x, Vec *_x, void *ctx)
   }
 
   // Restore arrays
+  ierr = DMStagVecRestoreArray(dm,xnewlocal,&xxnew); CHKERRQ(ierr);
   ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm, &xlocal ); CHKERRQ(ierr);
 
   // Map local to global
   ierr = DMLocalToGlobalBegin(dm,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
@@ -783,7 +984,9 @@ PetscErrorCode ScaleCoefficient(DM dm, Vec x, Vec *_x, void *ctx)
   }
 
   // Restore arrays
+  ierr = DMStagVecRestoreArray(dm,xnewlocal,&xxnew); CHKERRQ(ierr);
   ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm, &xlocal ); CHKERRQ(ierr);
 
   // Map local to global
   ierr = DMLocalToGlobalBegin(dm,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
@@ -856,7 +1059,9 @@ PetscErrorCode ScaleVectorUniform(DM dm, Vec x, Vec *_x, PetscScalar scal)
   }
 
   // Restore arrays
+  ierr = DMStagVecRestoreArray(dm,xnewlocal,&xxnew); CHKERRQ(ierr);
   ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm, &xlocal ); CHKERRQ(ierr);
 
   // Map local to global
   ierr = DMLocalToGlobalBegin(dm,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
@@ -878,7 +1083,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
   PetscInt       k,n_bc,*idx_bc;
-  PetscScalar    *value_bc,*x_bc;
+  PetscScalar    *value_bc;
   BCType         *type_bc;
   PetscErrorCode ierr;
   
@@ -948,38 +1153,6 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  // // P=1 on left boundary (w)
-  // ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  // for (k=0; k<n_bc; k++) {
-  //   value_bc[k] = usr->par->nd_P;
-  //   type_bc[k] = BC_DIRICHLET;
-  // }
-  // ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-
-  // // P=1 on right boundary (e)
-  // ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  // for (k=0; k<n_bc; k++) {
-  //   value_bc[k] = usr->par->nd_P;
-  //   type_bc[k] = BC_DIRICHLET;
-  // }
-  // ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-
-  // P=1 on bottom boundary (s)
-  ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    value_bc[k] = usr->par->nd_P;
-    type_bc[k] = BC_DIRICHLET;
-  }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-
-  // P=1 on top boundary (n)
-  ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    value_bc[k] = usr->par->nd_P;
-    type_bc[k] = BC_DIRICHLET;
-  }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
@@ -1024,41 +1197,43 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->H, 1.0e5, "H", "Height of domain in z-dir [m]"); CHKERRQ(ierr);
 
   // Physical and material parameters
-  ierr = PetscBagRegisterScalar(bag, &par->eta0, 1.0e23, "eta0", "Block shear viscosity [Pa.s]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->eta_b, 1.0e23, "eta_b", "Block shear viscosity [Pa.s]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->eta_i, 1.0e17, "eta_i", "Inclusion shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta_w, 1.0e17, "eta_w", "Weak zone shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->vi, 5.0e-9, "vi", "Extension/compression velocity [m/s]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->rho0, 3000, "rho0", "Reference density [kg/m3]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->g, 0.0, "g", "Gravitational acceleration [m/s2]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->C, 1.0e8, "C", "Cohesion [Pa]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->C_b, 1.0e8, "C_b", "Block Cohesion [Pa]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->C_i, 1.0e7, "C_i", "Inclusion Cohesion [Pa]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->C_w, 1.0e7, "C_w", "Weak zone Cohesion [Pa]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->P, 1.0e8, "P", "Boundary pressure [Pa]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->phi, 37.0, "phi", "Angle of internal friction sin(phi) = 0.6 [deg]"); CHKERRQ(ierr);
-
-  ierr = PetscBagRegisterInt(bag, &par->smooth, 0, "smooth", "0-rough punch, 1-smooth punch (Hill's)"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->harmonic, 0, "harmonic", "0-no 1-yes harmonic averaging"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->scaling, 1, "scaling", "0-set stress 1-set velocity"); CHKERRQ(ierr);
   
   // scales
-  par->stress = 1e8;
-  par->length = par->H;
-  par->visc   = 1e20;
-  par->vel    = par->stress*par->length/par->visc; // stokes velocity
-
-  // par->length = par->H;
-  // par->visc   = 1e20;
-  // par->vel    = par->vi; 
-  // par->stress = par->vel*par->visc/par->length;
+  if (par->scaling) { // set velocity
+    par->length = par->H;
+    par->visc   = 1e20;
+    par->vel    = par->vi; 
+    par->stress = par->vel*par->visc/par->length;
+  } else { // set stress
+    par->stress = 1e8;
+    par->length = par->H;
+    par->visc   = 1e20;
+    par->vel    = par->stress*par->length/par->visc;
+  }
 
   // non-dimensionalize
-  par->nd_eta0  = par->eta0/par->visc;
+  par->nd_eta_b  = par->eta_b/par->visc;
   par->nd_eta_w = par->eta_w/par->visc;
+  par->nd_eta_i = par->eta_i/par->visc;
   par->nd_vi    = par->vi/par->vel;
-  par->nd_C     = par->C/par->stress;
+  par->nd_C_b   = par->C_b/par->stress;
+  par->nd_C_w   = par->C_w/par->stress;
+  par->nd_C_i   = par->C_i/par->stress;
   par->nd_P     = par->P/par->stress;
   par->L        = par->L/par->length;
   par->H        = par->H/par->length;
 
-  par->etamax = par->nd_eta0;
-  par->etamin = par->nd_eta_w;
-  par->C_factor = 1.0e7/par->C;
+  par->etamax = par->nd_eta_b;
+  par->etamin = par->nd_eta_i;
 
   par->plasticity = PETSC_FALSE;
 
@@ -1119,7 +1294,8 @@ int main (int argc,char **argv)
     
   // Initialize application
   ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return ierr;
- 
+  ierr = SNESRegister(SNESPICARDLS,SNESCreate_PicardLS);CHKERRQ(ierr);
+  
   // Load command line or input file if required
   ierr = PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL); CHKERRQ(ierr);
 
