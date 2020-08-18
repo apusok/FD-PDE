@@ -445,35 +445,27 @@ scaling = 1   # 0-set stress 1-set velocity
 
 # case 1
 eta_b  = 1e23
-eta_w  = 1e20
-eta_i  = 1e20
+eta_w  = 1e19
 C_b  = 1e8
 C_w  = 1e40
-C_i  = 1e40
 
 # # case 2
 # eta_b  = 1e23
-# eta_w  = 1e20
-# eta_i  = 1e20
+# eta_w  = 1e17
 # C_b  = 1e8
-# C_w  = 1e7
-# C_i  = 1e7
+# C_w  = 1e40
 
 # # case 3
 # eta_b  = 1e23
-# eta_w  = 1e20
-# eta_i  = 1e17
-# C_b  = 1e8
-# C_w  = 1e7
-# C_i  = 1e7
+# eta_w  = 1e19
+# C_b  = 1e7
+# C_w  = 1e40
 
 # # case 4
 # eta_b  = 1e23
 # eta_w  = 1e17
-# eta_i  = 1e17
-# C_b  = 1e8
-# C_w  = 1e7
-# C_i  = 1e7
+# C_b  = 1e7
+# C_w  = 1e40
 
 vcomp = 5e-9
 
@@ -506,10 +498,8 @@ str1 = '../test_vp_inclusion_gerya.app'+ picard + newton + solver + \
     ' -output_file '+fname+ \
     ' -C_b '+str(C_b)+ \
     ' -C_w '+str(C_w)+ \
-    ' -C_i '+str(C_i)+ \
     ' -eta_b '+str(eta_b)+ \
     ' -eta_w '+str(eta_w)+ \
-    ' -eta_i '+str(eta_i)+ \
     ' -vi '+str(vcomp)+ \
     ' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout
 print(str1)
