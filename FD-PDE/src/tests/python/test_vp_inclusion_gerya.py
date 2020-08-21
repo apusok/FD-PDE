@@ -434,40 +434,35 @@ def plot_residuals(fname,nx):
 # Main script
 # ---------------------------------------
 print('# --------------------------------------- #')
-print('# Shortening of a visco-(elasto)-plastic block in the absence of gravity ')
+print('# Shortening of a visco-plastic block in the absence of gravity ')
 print('# --------------------------------------- #')
 
 # Set main parameters and run test
-fname = 'out_vp_inclusion_gerya'
 nx    = 101 # resolution
-fout = fname+'_'+str(nx)+'.out'
-scaling = 1   # 0-set stress 1-set velocity
 
 # case 1
-eta_b  = 1e23
+casename = '_case1'
 eta_w  = 1e19
 C_b  = 1e8
-C_w  = 1e40
 
 # # case 2
-# eta_b  = 1e23
+# casename = '_case2'
 # eta_w  = 1e17
 # C_b  = 1e8
-# C_w  = 1e40
 
 # # case 3
-# eta_b  = 1e23
+# casename = '_case3'
 # eta_w  = 1e19
 # C_b  = 1e7
-# C_w  = 1e40
 
 # # case 4
-# eta_b  = 1e23
+# casename = '_case4'
 # eta_w  = 1e17
 # C_b  = 1e7
-# C_w  = 1e40
 
-vcomp = 5e-9
+# filenames 
+fname = 'out_vp_inclusion_gerya'+casename
+fout = fname+'_'+str(nx)+'.out'
 
 # solver
 picard = ' -p_pc_factor_mat_solver_type umfpack'+ \
@@ -491,16 +486,13 @@ newton = ' -pc_factor_mat_solver_type umfpack'+ \
         ' -python_snes_failed_report'
 
 solver= ' -snes_mf_operator'
-solver = ''
+# solver = ''
 
 # Run simulation
 str1 = '../test_vp_inclusion_gerya.app'+ picard + newton + solver + \
     ' -output_file '+fname+ \
     ' -C_b '+str(C_b)+ \
-    ' -C_w '+str(C_w)+ \
-    ' -eta_b '+str(eta_b)+ \
     ' -eta_w '+str(eta_w)+ \
-    ' -vi '+str(vcomp)+ \
     ' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout
 print(str1)
 os.system(str1)
