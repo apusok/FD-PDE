@@ -309,7 +309,18 @@ PetscErrorCode DMStagBCListApplyFace_StokesDarcy2Field(DM dm, Vec xlocal,DM dmco
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
+
     if (bclist[ibc].type == BC_DIRICHLET) {
+      i   = bclist[ibc].point.i;
+      j   = bclist[ibc].point.j;
+      idx = bclist[ibc].idx;
+
+      // Get residual value
+      ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
+      ff[j][i][idx] = xx - bclist[ibc].val;
+    }
+    
+    if (bclist[ibc].type == BC_DIRICHLET_TRUE) {
       i   = bclist[ibc].point.i;
       j   = bclist[ibc].point.j;
       idx = bclist[ibc].idx;
@@ -477,6 +488,7 @@ PetscErrorCode DMStagBCListApplyElement_StokesDarcy2Field(DM dm, Vec xlocal,DM d
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
+
     if (bclist[ibc].type == BC_DIRICHLET) {
       i   = bclist[ibc].point.i;
       j   = bclist[ibc].point.j;
@@ -484,9 +496,18 @@ PetscErrorCode DMStagBCListApplyElement_StokesDarcy2Field(DM dm, Vec xlocal,DM d
 
       // Get residual value
       ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
-      //ff[j][i][idx] = xx - bclist[ibc].val;
+      ff[j][i][idx] = xx - bclist[ibc].val;
+    }
 
-       // Add darcy flux terms
+    if (bclist[ibc].type == BC_DIRICHLET_TRUE) {
+      i   = bclist[ibc].point.i;
+      j   = bclist[ibc].point.j;
+      idx = bclist[ibc].idx;
+
+      // Get residual value
+      ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
+
+      // Add darcy flux terms
       if ((i == 0) && (bclist[ibc].point.loc == DMSTAG_ELEMENT)) { 
         point.i = i; point.j = j; point.loc = DMSTAG_LEFT; point.c = 1;
         ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &D2_Left); CHKERRQ(ierr);

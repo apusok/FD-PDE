@@ -457,7 +457,19 @@ PetscErrorCode DMStagBCListApplyFace_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec co
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
+
     if (bclist[ibc].type == BC_DIRICHLET) {
+      i   = bclist[ibc].point.i;
+      j   = bclist[ibc].point.j;
+      idx = bclist[ibc].idx;
+
+      // access the value on this point
+      ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
+
+      ff[j][i][idx] = xx - bclist[ibc].val;
+    }
+    
+    if (bclist[ibc].type == BC_DIRICHLET_TRUE) {
       i   = bclist[ibc].point.i;
       j   = bclist[ibc].point.j;
       idx = bclist[ibc].idx;

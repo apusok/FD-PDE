@@ -378,7 +378,7 @@ PetscErrorCode FormBCList_MOR(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   for (k=0; k<n_bc; k++) {
     evaluate_CornerFlow_MOR(C1, C4, u0, eta0, x_bc[2*k], x_bc[2*k+1], v, &p);
     value_bc[k] = v[0];
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_TRUE;
   }
   ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
@@ -388,7 +388,7 @@ PetscErrorCode FormBCList_MOR(DM dm, Vec x, DMStagBCList bclist, void *ctx)
     evaluate_CornerFlow_MOR(C1, C4, u0, eta0, usr->par->xmin , x_bc[2*k+1], v, &p);
     //evaluate_CornerFlow_MOR(C1, C4, u0, eta0, x_bc[2*k], x_bc[2*k+1], v, &p);
     value_bc[k] = v[1];
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_TRUE;
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
@@ -397,7 +397,7 @@ PetscErrorCode FormBCList_MOR(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   for (k=0; k<n_bc; k++) {
     evaluate_CornerFlow_MOR(C1, C4, u0, eta0, x_bc[2*k], x_bc[2*k+1], v, &p);
     value_bc[k] = v[0];
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_TRUE;
   }
   ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
@@ -407,7 +407,7 @@ PetscErrorCode FormBCList_MOR(DM dm, Vec x, DMStagBCList bclist, void *ctx)
     evaluate_CornerFlow_MOR(C1, C4, u0, eta0, usr->par->xmin + usr->par->L, x_bc[2*k+1], v, &p);
     //evaluate_CornerFlow_MOR(C1, C4, u0, eta0, x_bc[2*k], x_bc[2*k+1], v, &p);
     value_bc[k] = v[1];
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_TRUE;
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
@@ -417,7 +417,7 @@ PetscErrorCode FormBCList_MOR(DM dm, Vec x, DMStagBCList bclist, void *ctx)
     evaluate_CornerFlow_MOR(C1, C4, u0, eta0, x_bc[2*k], usr->par->zmin, v, &p);
     //evaluate_CornerFlow_MOR(C1, C4, u0, eta0, x_bc[2*k], x_bc[2*k+1], v, &p);
     value_bc[k] = v[0];
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_TRUE;
   }
   ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
@@ -426,7 +426,7 @@ PetscErrorCode FormBCList_MOR(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   for (k=0; k<n_bc; k++) {
     evaluate_CornerFlow_MOR(C1, C4, u0, eta0, x_bc[2*k], x_bc[2*k+1], v, &p);
     value_bc[k] = v[1];
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_TRUE;
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
@@ -436,7 +436,7 @@ PetscErrorCode FormBCList_MOR(DM dm, Vec x, DMStagBCList bclist, void *ctx)
     evaluate_CornerFlow_MOR(C1, C4, u0, eta0, x_bc[2*k], usr->par->zmin + usr->par->H, v, &p);
     //evaluate_CornerFlow_MOR(C1, C4, u0, eta0, x_bc[2*k], x_bc[2*k+1], v, &p);
     value_bc[k] = v[0];
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_TRUE;
   }
   ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
@@ -445,13 +445,13 @@ PetscErrorCode FormBCList_MOR(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   for (k=0; k<n_bc; k++) {
     evaluate_CornerFlow_MOR(C1, C4, u0, eta0, x_bc[2*k], x_bc[2*k+1], v, &p);
     value_bc[k] = v[1];
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_TRUE;
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
     
-  // Pin reference values for pressure in some cells..
+  // Pin reference values for pressure along the entire bottom boundary
   ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<1; k++) {
+  for (k=0; k<n_bc; k++) {
     evaluate_CornerFlow_MOR(C1, C4, u0, eta0, x_bc[2*k], x_bc[2*k+1], v, &p);
     value_bc[k] = p;
     type_bc[k] = BC_DIRICHLET;
