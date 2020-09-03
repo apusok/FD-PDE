@@ -1166,8 +1166,10 @@ PetscErrorCode InputParameters(UsrData **_usr)
   par->nd_H     = par->H/par->length;
 
   par->etamax = par->nd_eta_b;
-  par->etamin = par->nd_eta_w;
+  par->etamin = 1.e-6*par->etamax; //par->nd_eta_w; 
   par->plasticity = PETSC_FALSE;
+
+  //  PetscPrintf(PETSC_COMM_WORLD,"etamax = %g, etamin = %g \n", par->etamax, par->etamin);
 
   // Input/output 
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_solution","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
