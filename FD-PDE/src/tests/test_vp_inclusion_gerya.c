@@ -123,9 +123,6 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = FDPDESetFunctionCoefficientSplit(fd,FormCoefficientSplit,coeff_description,usr); CHKERRQ(ierr);
   ierr = FDPDEView(fd); CHKERRQ(ierr);
 
-  // Pin pressure
-  ierr = FDPDEStokesPinPressure(fd,usr->par->nd_P,PETSC_TRUE); CHKERRQ(ierr);
-
   // Create initial guess with a linear viscous
   PetscPrintf(PETSC_COMM_WORLD,"\n# INITIAL GUESS #\n");
   ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
@@ -1152,6 +1149,9 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
     type_bc[k] = BC_DIRICHLET;
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+
+  // pin pressure dof
+  ierr = DMStagBCListPinCornerValue(bclist,DMSTAG_DOWN_LEFT,'o',0,usr->par->nd_P); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
