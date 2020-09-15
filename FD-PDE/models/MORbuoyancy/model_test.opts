@@ -1,0 +1,9 @@
+# model options
+-nx 50
+-nz 20
+-output_file model_output
+
+# solver options
+-pc_type lu 
+-pc_factor_mat_solver_type umfpack 
+-snes_monitor
