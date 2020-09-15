@@ -1,6 +1,7 @@
 #include "petsc.h"
 #include "../../src/fdpde_stokesdarcy2field.h"
 #include "../../src/fdpde_advdiff.h"
+#include "../../src/fdpde_composite.h"
 #include "../../src/dmstagoutput.h"
 
 // ---------------------------------------
@@ -31,6 +32,8 @@ typedef struct {
   PetscScalar    Tp, cp, La, rho0, drho, alpha, beta, kappa, D;
   PetscScalar    phi0, n, K0, phi_max, eta0, zeta0, mu, eta_min, eta_max, lambda, EoR, Teta0; 
   PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT;
+  PetscInt       ts_scheme, adv_scheme, tout, tstep;
+  PetscScalar    t, dt, tmax, dtmax;
   char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH]; 
 } Params;
 
@@ -63,6 +66,17 @@ PetscErrorCode InputParameters(UsrData**);
 PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode DefineScalingParameters(UsrData*);
 PetscErrorCode NondimensionalizeParameters(UsrData*);
+
+// physics
+PetscErrorCode Numerical_solution(void*);
+PetscErrorCode FormCoefficient_PV(FDPDE, DM, Vec, DM, Vec, void*);
+PetscErrorCode FormCoefficient_H(FDPDE, DM, Vec, DM, Vec, void*);
+PetscErrorCode FormCoefficient_C(FDPDE, DM, Vec, DM, Vec, void*);
+
+// boundary conditions
+PetscErrorCode FormBCList_PV(DM, Vec, DMStagBCList, void*);
+PetscErrorCode FormBCList_H(DM, Vec, DMStagBCList, void*);
+PetscErrorCode FormBCList_C(DM, Vec, DMStagBCList, void*);
 
 // ---------------------------------------
 // Useful functions

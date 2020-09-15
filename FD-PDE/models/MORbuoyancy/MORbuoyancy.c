@@ -9,6 +9,44 @@ static char help[] = "Application to investigate the effect of magma-matrix buoy
 #include "MORbuoyancy.h"
 
 // ---------------------------------------
+// Descriptions
+// ---------------------------------------
+const char coeff_description_PV[] =
+"  << Stokes-Darcy Coefficients >> \n"
+"  A = delta^2*eta  \n"
+"  B = (phi+B)*k_hat\n" 
+"  C = 0 \n"
+"  D1 = delta^2*xi, xi=zeta-2/3eta \n"
+"  D2 = -K \n"
+"  D3 = -(K+Bf)*k_hat, K = (phi/phi0)^n \n";
+
+const char bc_description_PV[] =
+"  << Stokes-Darcy BCs >> \n"
+"  LEFT, RIGHT, DOWN, UP: \n";
+
+const char coeff_description_H[] =
+"  << Enthalpy (H) Coefficients >> \n"
+"  A =  \n"
+"  B =  \n" 
+"  C =  \n"
+"  u =  \n";
+
+const char bc_description_H[] =
+"  << Enthalpy (H) BCs >> \n"
+"  LEFT, RIGHT, DOWN, UP: \n";
+
+const char coeff_description_C[] =
+"  << Composition (C) Coefficients >> \n"
+"  A =  \n"
+"  B =  \n" 
+"  C =  \n"
+"  u =  \n";
+
+const char bc_description_C[] =
+"  << Composition (C) BCs >> \n"
+"  LEFT, RIGHT, DOWN, UP: \n";
+
+// ---------------------------------------
 // MAIN
 // ---------------------------------------
 #undef __FUNCT__
@@ -16,7 +54,7 @@ static char help[] = "Application to investigate the effect of magma-matrix buoy
 int main (int argc,char **argv)
 {
   UsrData         *usr;
-  // PetscLogDouble  start_time, end_time;
+  PetscLogDouble  start_time, end_time;
   PetscErrorCode  ierr;
 
   // Initialize application
@@ -29,6 +67,11 @@ int main (int argc,char **argv)
   ierr = UserParamsCreate(&usr,argc,argv); CHKERRQ(ierr);
 
   // Numerical solution
+  ierr = PetscTime(&start_time); CHKERRQ(ierr);
+  ierr = Numerical_solution(usr); CHKERRQ(ierr);
+  ierr = PetscTime(&end_time); CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"# Runtime: %g (sec) \n", end_time - start_time);
+  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
 
   // Destroy parameters
   ierr = UserParamsDestroy(usr); CHKERRQ(ierr);
@@ -36,4 +79,126 @@ int main (int argc,char **argv)
   // Finalize main
   ierr = PetscFinalize();
   return ierr;
+}
+
+// ---------------------------------------
+// Numerical solution
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "Numerical_solution"
+PetscErrorCode Numerical_solution(void *ctx)
+{
+  UsrData       *usr = (UsrData*) ctx;
+  NdParams      *nd;
+  Params        *par;
+  PetscInt      nx, nz, istep = 0; 
+  PetscScalar   xmin, xmax, zmin, zmax;
+  FDPDE         fdPV, fdH, fdC, fdHC, fd[2];
+  DM            dmPV, dmHC;
+  Vec           xPV;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  nd  = usr->nd;
+  par = usr->par;
+
+  // Element count
+  nx = par->nx;
+  nz = par->nz;
+
+  // Domain coords
+  xmin = nd->xmin;
+  zmin = nd->zmin;
+  xmax = nd->xmin+nd->L;
+  zmax = nd->zmin+nd->H;
+
+  // Set up PV - Stokes-Darcy system
+  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscPrintf(PETSC_COMM_WORLD,"# Set-up PV system: FD-PDE StokesDarcy2Field\n");
+  ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKESDARCY2FIELD,&fdPV);CHKERRQ(ierr);
+  ierr = FDPDESetUp(fdPV);CHKERRQ(ierr);
+  ierr = FDPDEGetDM(fdPV,&dmPV); CHKERRQ(ierr);
+  ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV,bc_description_PV,usr); CHKERRQ(ierr);
+  ierr = FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV,coeff_description_PV,usr); CHKERRQ(ierr);
+  ierr = SNESSetFromOptions(fdPV->snes); CHKERRQ(ierr);
+  ierr = FDPDEView(fdPV); CHKERRQ(ierr);
+  ierr = SNESSetOptionsPrefix(fdPV->snes,"pv_"); CHKERRQ(ierr);
+
+  // Set up Enthalpy - ADVDIFF system
+  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscPrintf(PETSC_COMM_WORLD,"# Set-up Enthalpy (H) system: FD-PDE AdvDiff\n");
+  ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ADVDIFF,&fdH);CHKERRQ(ierr);
+  ierr = FDPDESetUp(fdH);CHKERRQ(ierr);
+  ierr = FDPDEGetDM(fdH,&dmHC); CHKERRQ(ierr);
+  ierr = FDPDESetFunctionBCList(fdH,FormBCList_H,bc_description_H,usr); CHKERRQ(ierr);
+  ierr = FDPDESetFunctionCoefficient(fdH,FormCoefficient_H,coeff_description_H,usr); CHKERRQ(ierr);
+  ierr = SNESSetFromOptions(fdH->snes); CHKERRQ(ierr);
+
+  // Set up Composition - ADVDIFF system
+  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscPrintf(PETSC_COMM_WORLD,"# Set-up Composition (C) system: FD-PDE AdvDiff\n");
+  ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ADVDIFF,&fdC);CHKERRQ(ierr);
+  ierr = FDPDESetUp(fdC);CHKERRQ(ierr);
+  ierr = FDPDESetFunctionBCList(fdC,FormBCList_C,bc_description_C,usr); CHKERRQ(ierr);
+  ierr = FDPDESetFunctionCoefficient(fdC,FormCoefficient_C,coeff_description_C,usr); CHKERRQ(ierr);
+  ierr = SNESSetFromOptions(fdC->snes); CHKERRQ(ierr);
+
+  // Set up advection and time-stepping
+  AdvectSchemeType advtype;
+  if (par->adv_scheme==0) advtype = ADV_UPWIND;
+  if (par->adv_scheme==1) advtype = ADV_UPWIND2;
+  if (par->adv_scheme==2) advtype = ADV_FROMM;
+  ierr = FDPDEAdvDiffSetAdvectSchemeType(fdH,advtype);CHKERRQ(ierr);
+  ierr = FDPDEAdvDiffSetAdvectSchemeType(fdC,advtype);CHKERRQ(ierr);
+
+  TimeStepSchemeType timesteptype;
+  if (par->ts_scheme ==  0) timesteptype = TS_FORWARD_EULER;
+  if (par->ts_scheme ==  1) timesteptype = TS_BACKWARD_EULER;
+  if (par->ts_scheme ==  2) timesteptype = TS_CRANK_NICHOLSON;
+  ierr = FDPDEAdvDiffSetTimeStepSchemeType(fdH,timesteptype);CHKERRQ(ierr);
+  ierr = FDPDEAdvDiffSetTimeStepSchemeType(fdC,timesteptype);CHKERRQ(ierr);
+
+  // Set up HC composite system
+  fd[0] = fdH;
+  fd[1] = fdC;
+
+  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscPrintf(PETSC_COMM_WORLD,"# Set-up Composite HC system\n");
+  ierr = FDPDECreate2(usr->comm,&fdHC);CHKERRQ(ierr);
+  ierr = FDPDESetType(fdHC,FDPDE_COMPOSITE);CHKERRQ(ierr);
+  ierr = FDPDECompositeSetFDPDE(fdHC,2,fd);CHKERRQ(ierr);
+  ierr = FDPDESetUp(fdHC);CHKERRQ(ierr);
+  ierr = FDPDEView(fdHC); CHKERRQ(ierr);
+  ierr = SNESSetFromOptions(fdHC->snes); CHKERRQ(ierr);
+  ierr = FDPDEDestroy(&fd[0]);CHKERRQ(ierr);
+  ierr = FDPDEDestroy(&fd[1]);CHKERRQ(ierr);
+
+  // Prepare data for coupling HC-PV
+
+  // Initial conditions
+
+  // Time loop
+  while ((par->t <= par->tmax) && (istep < par->tstep)) {
+    PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+    PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep);
+
+    // Solve HC
+    // Update fields 
+    // Solve PV
+    // Output solution
+
+    // increment timestep
+    istep++;
+
+    PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e [yr] dt = %1.12e [yr] \n\n",par->t*usr->scal->t/SEC_YEAR,par->dt*usr->scal->t/SEC_YEAR);
+  }
+
+  // Destroy objects
+  ierr = DMDestroy(&dmPV);CHKERRQ(ierr);
+  ierr = DMDestroy(&dmHC);CHKERRQ(ierr);
+  ierr = FDPDEDestroy(&fdPV);CHKERRQ(ierr);
+  ierr = FDPDEDestroy(&fdHC);CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
 }

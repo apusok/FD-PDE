@@ -140,13 +140,13 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->Teta0, Teta0, "Teta0", "Temperature at which viscosity is equal to eta0 [K]"); CHKERRQ(ierr);
 
   // time stepping and advection parameters
-  // ierr = PetscBagRegisterInt(bag, &par->ts_scheme,2, "ts_scheme", "Time stepping scheme 0-forward euler, 1-backward euler, 2-crank-nicholson"); CHKERRQ(ierr);
-  // ierr = PetscBagRegisterInt(bag, &par->adv_scheme,1, "adv_scheme", "Advection scheme 0-upwind, 1-fromm"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->ts_scheme,2, "ts_scheme", "Time stepping scheme 0-forward euler, 1-backward euler, 2-crank-nicholson"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->adv_scheme,2, "adv_scheme", "Advection scheme 0-upwind (FOU), 1-upwind2 (SOU) 2-fromm"); CHKERRQ(ierr);
 
-  // ierr = PetscBagRegisterInt(bag, &par->tout,1, "tout", "Output every tout time step"); CHKERRQ(ierr);
-  // ierr = PetscBagRegisterInt(bag, &par->tstep,1, "tstep", "Maximum no of time steps"); CHKERRQ(ierr);
-  // ierr = PetscBagRegisterScalar(bag, &par->tmax, 1.0e6, "tmax", "Maximum time [yr]"); CHKERRQ(ierr);
-  // ierr = PetscBagRegisterScalar(bag, &par->dtmax, 1.0e3, "dtmax", "Maximum time step size [yr]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->tout,1, "tout", "Output every tout time step"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->tstep,1, "tstep", "Maximum no of time steps"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->tmax, 1.0e6, "tmax", "Maximum time [yr]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->dtmax, 1.0e3, "dtmax", "Maximum time step size [yr]"); CHKERRQ(ierr);
 
   // input/output 
   par->fname_in[0] = '\0';
@@ -192,7 +192,6 @@ PetscErrorCode InputPrintData(UsrData *usr)
 
   // Print usr bag
   ierr = PetscBagView(usr->bag,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
 
   // Free memory
   ierr = PetscFree(opts); CHKERRQ(ierr);
@@ -225,12 +224,11 @@ PetscErrorCode DefineScalingParameters(UsrData *usr)
   scal->Gamma = scal->v*scal->rho/scal->x;
   scal->H = scal->rho*usr->par->cp*usr->par->DT;
 
+  PetscPrintf(usr->comm,"# --------------------------------------- #\n"); 
   PetscPrintf(usr->comm,"# Characteristic scales:\n");
   PetscPrintf(usr->comm,"#     [x]   = %1.12e (m    ) [v]     = %1.12e (m/s    ) [t]   = %1.12e (s   )\n",scal->x,scal->v,scal->t);
   PetscPrintf(usr->comm,"#     [K]   = %1.12e (m2   ) [P]     = %1.12e (Pa     ) [eta] = %1.12e (Pa.s)\n",scal->K,scal->P,scal->eta);
   PetscPrintf(usr->comm,"#     [rho] = %1.12e (kg/m3) [Gamma] = %1.12e (kg/m3/s) [H]   = %1.12e (J/m3)\n",scal->rho,scal->Gamma,scal->H);
-
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
  
   usr->scal = scal;
 
@@ -259,8 +257,8 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
 
   // transform to SI units necessary params
   par->U0    = par->U0*1.0e-2/SEC_YEAR; //[cm/yr] to [m/s]
-  // par->tmax  = par->tmax*SEC_YEAR;      //[yr] to [s]
-  // par->dtmax = par->dtmax*SEC_YEAR;     //[yr] to [s]
+  par->tmax  = par->tmax*SEC_YEAR;      //[yr] to [s]
+  par->dtmax = par->dtmax*SEC_YEAR;     //[yr] to [s]
 
   // non-dimensionalize
   nd->xmin  = nd_param(par->xmin,scal->x);
@@ -283,6 +281,7 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   nd->G       = scal->x*par->drho*par->g*par->gamma_inv/par->DT;
   nd->RM      = par->Ms/par->Mf;
 
+  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
   PetscPrintf(usr->comm,"# Nondimensional parameters:\n");
   PetscPrintf(usr->comm,"#     delta   = %1.12e \n",nd->delta);
   PetscPrintf(usr->comm,"#     alpha_s = %1.12e \n",nd->alpha_s);
@@ -293,8 +292,6 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   PetscPrintf(usr->comm,"#     PeC     = %1.12e \n",nd->PeC);
   PetscPrintf(usr->comm,"#     G       = %1.12e \n",nd->G);
   PetscPrintf(usr->comm,"#     RM      = %1.12e \n",nd->RM);
-
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
 
   usr->nd = nd;
 
