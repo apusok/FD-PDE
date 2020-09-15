@@ -35,19 +35,18 @@ typedef struct {
 } Params;
 
 typedef struct {
-  PetscScalar   x, v, t, K, P, eta, rho, H, Gamma;
+  PetscScalar    x, v, t, K, P, eta, rho, H, Gamma;
 } ScalParams;
 
-// typedef struct {
-//   PetscInt       nx,nz,n,ts_scheme,adv_scheme,tout,tstep;
-//   PetscScalar    L,H,xmin,zmin,k_hat,u0,phi0,eta,zeta,xMOR,Gamma,xi,tmax,dtmax;
-//   PetscScalar    t,dt,tprev;
-// } NDParams;
+typedef struct {
+  PetscScalar    L, H, xmin, zmin, U0, eta0, zeta0;
+  PetscScalar    delta, alpha_s, beta_s, A, S, PeT, PeC, theta_s, G, RM;
+} NdParams;
 
 // user defined and model-dependent variables
 typedef struct {
   Params        *par;
-  // NDParams      *nd;
+  NdParams      *nd;
   ScalParams    *scal;
   PetscBag       bag;
   MPI_Comm       comm;
@@ -63,3 +62,10 @@ PetscErrorCode UserParamsDestroy(UsrData*);
 PetscErrorCode InputParameters(UsrData**);
 PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode DefineScalingParameters(UsrData*);
+PetscErrorCode NondimensionalizeParameters(UsrData*);
+
+// ---------------------------------------
+// Useful functions
+// ---------------------------------------
+static PetscScalar nd_param (PetscScalar x, PetscScalar scal) { return(x/scal);}
+static PetscScalar dim_param(PetscScalar x, PetscScalar scal) { return(x*scal);}
