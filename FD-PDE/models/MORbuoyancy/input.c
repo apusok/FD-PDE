@@ -23,12 +23,13 @@ PetscErrorCode UserParamsCreate(UsrData **_usr,int argc,char **argv)
     if (flg) { ierr = PetscStrcpy(usr->par->fname_in, argv[i+1]); CHKERRQ(ierr); }
   }
 
-  // scaling parameters
-
-  // non-dimensionalize parameters
-
   // print user parameters
   ierr = InputPrintData(usr); CHKERRQ(ierr);
+
+  // scaling parameters
+  ierr = DefineScalingParameters(usr); CHKERRQ(ierr);
+
+  // non-dimensionalize parameters
 
   // return pointer
   *_usr = usr;
@@ -116,6 +117,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->Ms, 400, "Ms", "Slope of solidus dTdC [K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->Mf, 400, "Ms", "Slope of liquidus dTdC [K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->gamma_inv, 60, "gamma_inv", "Inverse Clapeyron slope dT/dP [K/GPa]"); CHKERRQ(ierr);
+  par->DT = par->Ms*par->DC;
 
   // two-phase flow parameters
   ierr = PetscBagRegisterScalar(bag, &par->phi0, 0.01, "phi0", "Reference porosityat which permeability equals reference permeability [-]"); CHKERRQ(ierr);
@@ -195,35 +197,42 @@ PetscErrorCode InputPrintData(UsrData *usr)
   PetscFunctionReturn(0);
 }
 
-// // ---------------------------------------
-// // DefineScalingParameters
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "DefineScalingParameters"
-// PetscErrorCode DefineScalingParameters(UsrData *usr)
-// {
-//   ScalParams     *scal;
-//   PetscErrorCode ierr;
+// ---------------------------------------
+// DefineScalingParameters
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "DefineScalingParameters"
+PetscErrorCode DefineScalingParameters(UsrData *usr)
+{
+  ScalParams     *scal;
+  PetscErrorCode ierr;
 
-//   PetscFunctionBegin;
+  PetscFunctionBegin;
 
-//   // Allocate memory
-//   ierr = PetscMalloc1(1, &scal); CHKERRQ(ierr);
+  // Allocate memory
+  ierr = PetscMalloc1(1, &scal); CHKERRQ(ierr);
 
-//   scal->h = usr->par->H;
-//   scal->v = usr->par->K0*usr->par->drho*usr->par->g/usr->par->mu;
-//   scal->t = scal->h/scal->v;
-//   scal->K = usr->par->K0;
-//   scal->P = usr->par->drho*usr->par->g*scal->h;
-//   scal->eta = usr->par->eta;
-//   scal->rho = usr->par->rho0;
-//   scal->Gamma = scal->v*scal->rho/scal->h;
-//   scal->delta = PetscSqrtScalar(scal->eta*scal->K/usr->par->mu)/scal->h;
+  scal->x = usr->par->H;
+  scal->v = usr->par->K0*usr->par->drho*usr->par->g/usr->par->mu;
+  scal->t = scal->x/scal->v;
+  scal->K = usr->par->K0;
+  scal->P = usr->par->drho*usr->par->g*scal->x;
+  scal->eta = usr->par->eta0;
+  scal->rho = usr->par->rho0;
+  scal->Gamma = scal->v*scal->rho/scal->x;
+  scal->H = scal->rho*usr->par->cp*usr->par->DT;
+
+  PetscPrintf(usr->comm,"# Characteristic scales:\n");
+  PetscPrintf(usr->comm,"#     [x]   = %1.12e (m    ) [v]     = %1.12e (m/s    ) [t]   = %1.12e (s   )\n",scal->x,scal->v,scal->t);
+  PetscPrintf(usr->comm,"#     [K]   = %1.12e (m2   ) [P]     = %1.12e (Pa     ) [eta] = %1.12e (Pa.s)\n",scal->K,scal->P,scal->eta);
+  PetscPrintf(usr->comm,"#     [rho] = %1.12e (kg/m3) [Gamma] = %1.12e (kg/m3/s) [H]   = %1.12e (J/m3)\n",scal->rho,scal->Gamma,scal->H);
+
+  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
  
-//   usr->scal = scal;
+  usr->scal = scal;
 
-//   PetscFunctionReturn(0);
-// }
+  PetscFunctionReturn(0);
+}
 
 // // ---------------------------------------
 // // NondimensionalizeParameters

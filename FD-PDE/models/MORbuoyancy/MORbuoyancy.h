@@ -30,9 +30,13 @@ typedef struct {
   PetscScalar    k_hat, g, U0;
   PetscScalar    Tp, cp, La, rho0, drho, alpha, beta, kappa, D;
   PetscScalar    phi0, n, K0, phi_max, eta0, zeta0, mu, eta_min, eta_max, lambda, EoR, Teta0; 
-  PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv;
+  PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT;
   char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH]; 
 } Params;
+
+typedef struct {
+  PetscScalar   x, v, t, K, P, eta, rho, H, Gamma;
+} ScalParams;
 
 // typedef struct {
 //   PetscInt       nx,nz,n,ts_scheme,adv_scheme,tout,tstep;
@@ -40,15 +44,11 @@ typedef struct {
 //   PetscScalar    t,dt,tprev;
 // } NDParams;
 
-// typedef struct {
-//   PetscScalar   h, v, t, K, P, eta, Gamma, rho, delta;
-// } ScalParams;
-
 // user defined and model-dependent variables
 typedef struct {
   Params        *par;
   // NDParams      *nd;
-  // ScalParams    *scal;
+  ScalParams    *scal;
   PetscBag       bag;
   MPI_Comm       comm;
   PetscMPIInt    rank;
@@ -62,3 +62,4 @@ PetscErrorCode UserParamsCreate(UsrData**,int,char**);
 PetscErrorCode UserParamsDestroy(UsrData*);
 PetscErrorCode InputParameters(UsrData**);
 PetscErrorCode InputPrintData(UsrData*);
+PetscErrorCode DefineScalingParameters(UsrData*);
