@@ -18,11 +18,14 @@ const char coeff_description_PV[] =
 "  C = 0 \n"
 "  D1 = delta^2*xi, xi=zeta-2/3eta \n"
 "  D2 = -K \n"
-"  D3 = -(K+Bf)*k_hat, K = (phi/phi0)^n \n";
+"  D3 = -K*(1+Bf)*k_hat, K = (phi/phi0)^n, Bf = 0 \n";
 
 const char bc_description_PV[] =
 "  << Stokes-Darcy BCs >> \n"
-"  LEFT, RIGHT, DOWN, UP: \n";
+"  LEFT: Vx = 0, dVz/dx = 0, dP/dz = 0 \n"
+"  RIGHT: dVx/dx = 0, dVz/dx = 0, P = 0 \n"
+"  DOWN: tau_xz = 0, dVz/dz = 0, P = 0 \n"
+"  UP: Vx = U0, Vz = 0, dP/dz = 0 \n";
 
 const char coeff_description_H[] =
 "  << Enthalpy (H) Coefficients >> \n"
@@ -175,6 +178,8 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = FDPDEDestroy(&fd[1]);CHKERRQ(ierr);
 
   // Prepare data for coupling HC-PV
+  usr->dmPV = dmPV;
+  usr->dmHC = dmHC;
 
   // Initial conditions
 

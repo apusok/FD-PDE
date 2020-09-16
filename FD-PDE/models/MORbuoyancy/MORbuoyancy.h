@@ -54,6 +54,7 @@ typedef struct {
   PetscBag       bag;
   MPI_Comm       comm;
   PetscMPIInt    rank;
+  DM             dmPV,dmHC;
 } UsrData;
 
 // ---------------------------------------
@@ -83,3 +84,19 @@ PetscErrorCode FormBCList_C(DM, Vec, DMStagBCList, void*);
 // ---------------------------------------
 static PetscScalar nd_param (PetscScalar x, PetscScalar scal) { return(x/scal);}
 static PetscScalar dim_param(PetscScalar x, PetscScalar scal) { return(x*scal);}
+
+// interpolate/extrapolate 1D linear (need to provide 3 points x0,x1,x2 with values Q0, Q1, Q2)
+static PetscScalar interp1DLin_3Points(PetscScalar xi, PetscScalar x0, PetscScalar Q0, PetscScalar x1, PetscScalar Q1, PetscScalar x2, PetscScalar Q2)
+  { PetscScalar a,b,result, tol = 1e-10;
+
+  if (xi < x1) { // first half
+    if ((x1-x0)*(x1-x0) < tol ) { a = (Q2-Q1)/(x2-x1); b = Q1 - a*x1; } // extrp
+    else                        { a = (Q1-Q0)/(x1-x0); b = Q0 - a*x0; } // intrp
+  }
+  if (xi >= x1) { // second half
+    if ((x2-x1)*(x2-x1) < tol ) { a = (Q1-Q0)/(x1-x0); b = Q0 - a*x0; }
+    else                        { a = (Q2-Q1)/(x2-x1); b = Q1 - a*x1; }
+  }
+  result = a*xi+b;
+  return(result);
+}
