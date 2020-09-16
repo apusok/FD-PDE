@@ -27,7 +27,7 @@
 // ---------------------------------------
 typedef struct {
   PetscInt       nx, nz;
-  PetscScalar    L, H, xmin, zmin;
+  PetscScalar    L, H, xmin, zmin, xMOR;
   PetscScalar    k_hat, g, U0;
   PetscScalar    Tp, cp, La, rho0, drho, alpha, beta, kappa, D;
   PetscScalar    phi0, n, K0, phi_max, eta0, zeta0, mu, eta_min, eta_max, lambda, EoR, Teta0; 
@@ -42,7 +42,7 @@ typedef struct {
 } ScalParams;
 
 typedef struct {
-  PetscScalar    L, H, xmin, zmin, U0, eta0, zeta0;
+  PetscScalar    L, H, xmin, zmin, xMOR, U0, eta0, zeta0;
   PetscScalar    delta, alpha_s, beta_s, A, S, PeT, PeC, theta_s, G, RM;
 } NdParams;
 

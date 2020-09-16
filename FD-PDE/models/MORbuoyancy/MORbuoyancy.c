@@ -36,7 +36,10 @@ const char coeff_description_H[] =
 
 const char bc_description_H[] =
 "  << Enthalpy (H) BCs >> \n"
-"  LEFT, RIGHT, DOWN, UP: \n";
+"  LEFT: dH/dx = 0 \n"
+"  RIGHT: dH/dx = 0 \n"
+"  DOWN: H = Hp \n"
+"  UP: H = Hc, MOR: dH/dz = 0 \n";
 
 const char coeff_description_C[] =
 "  << Composition (C) Coefficients >> \n"
@@ -47,7 +50,10 @@ const char coeff_description_C[] =
 
 const char bc_description_C[] =
 "  << Composition (C) BCs >> \n"
-"  LEFT, RIGHT, DOWN, UP: \n";
+"  LEFT: dC/dx = 0 \n"
+"  RIGHT: dC/dx = 0 \n"
+"  DOWN: C = C0 \n"
+"  UP: dC/dz = 0 \n";
 
 // ---------------------------------------
 // MAIN

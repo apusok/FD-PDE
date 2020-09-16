@@ -96,6 +96,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   ierr = PetscBagRegisterScalar(bag, &par->L, 200.0e3, "L", "Length of domain in x-dir [m]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->H, 100.0e3, "H", "Height of domain in z-dir [m]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->xMOR, 6.0e3, "xMOR", "Distance from mid-ocean ridge axis for melt extraction [m]"); CHKERRQ(ierr);
 
   // physical and material parameters
   ierr = PetscBagRegisterScalar(bag, &par->k_hat, -1.0, "k_hat", "Direction of unit vertical vector [-]"); CHKERRQ(ierr);
@@ -265,6 +266,7 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   nd->zmin  = nd_param(par->zmin,scal->x);
   nd->H     = nd_param(par->H,scal->x);
   nd->L     = nd_param(par->L,scal->x);
+  nd->xMOR  = nd_param(par->xMOR,scal->x);
   nd->U0    = nd_param(par->U0,scal->v);
   nd->eta0  = nd_param(par->eta0,scal->eta);
   nd->zeta0 = nd_param(par->zeta0,scal->eta);
