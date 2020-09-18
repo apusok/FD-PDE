@@ -1114,7 +1114,7 @@ PetscErrorCode DMStagCellSize_2d(DM dm,PetscInt i,PetscInt j,PetscScalar *dx,Pet
 
   ierr = DMStagGetProductCoordinateArraysRead(dm,&cArrX,&cArrY,NULL);CHKERRQ(ierr);
 
-  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&iPrev);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT ,&iPrev);CHKERRQ(ierr);
   ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&iNext);CHKERRQ(ierr);
 
   *dx = PetscAbs(cArrX[i][iNext] - cArrX[i][iPrev]);

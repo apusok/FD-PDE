@@ -103,6 +103,20 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
     PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
     /* Set edge BC values (|). No need to define the face, it is encoded in idx_bc[] */
     ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+
+    /* -------------------------------------------- */
+    /* request element BC values (o) on a face (north) */
+    ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+    
+    for (k=0; k<n_bc; k++) {
+      value_bc[k] = (PetscScalar)(k+1.99);
+      type_bc[k] = BC_DIRICHLET;
+    }
+
+    PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
+    
+    /* Set edge BC values (o). No need to define the face, it is encoded in idx_bc[] */
+    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
     
     /* -------------------------------------------- */
     /* request edge BC values (-) on a face (south) */
@@ -129,6 +143,20 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
     PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
     /* Set edge BC values (|). No need to define the face, it is encoded in idx_bc[] */
     ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+
+    /* -------------------------------------------- */
+    /* request element BC values (o) on a face (south) */
+    ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+    
+    for (k=0; k<n_bc; k++) {
+      value_bc[k] = (PetscScalar)(k+1.79);
+      type_bc[k] = BC_DIRICHLET;
+    }
+
+    PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
+    
+    /* Set edge BC values (o). No need to define the face, it is encoded in idx_bc[] */
+    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
     
     /* -------------------------------------------- */
     /* request edge BC values (-) on a face (west) */
@@ -156,6 +184,20 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
     /* Set edge BC values (|). No need to define the face, it is encoded in idx_bc[] */
     ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
+    /* -------------------------------------------- */
+    /* request element BC values (o) on a face (west) */
+    ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+    
+    for (k=0; k<n_bc; k++) {
+      value_bc[k] = (PetscScalar)(k+1.59);
+      type_bc[k] = BC_DIRICHLET;
+    }
+
+    PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
+    
+    /* Set edge BC values (o). No need to define the face, it is encoded in idx_bc[] */
+    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+    
     /* -------------------------------------------- */
     /* request edge BC values (-) on a face (east) */
     ierr = DMStagBCListGetValues(bclist,'e','-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -187,10 +229,11 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
     ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
     
     for (k=0; k<n_bc; k++) {
-      value_bc[k] = (PetscScalar)(k+1);
+      value_bc[k] = (PetscScalar)(k+1.39);
       type_bc[k] = BC_DIRICHLET;
     }
 
+    PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
     /* Set edge BC values (-). No need to define the face, it is encoded in idx_bc[] */
     ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   }

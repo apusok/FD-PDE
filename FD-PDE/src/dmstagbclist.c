@@ -734,32 +734,28 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
 
     //Correct coordinates of interior boundary points to the corresponding true boundaries
     //Notes: it corrects the output of xc for the convenience of prescribing the boundary conditions, but not change the data stored in BCList.
-    if (domain_face == 'n' && label == '-') {
-      if (k == n-1) kk = k-1;
-      else          kk = k;
-      ierr = DMStagCellSize_2d(list->dm, kk, Nz-1, &dx, &dz); CHKERRQ(ierr);
+    if (domain_face == 'n' && (label == '-' || label == 'o')) {
+      kk         = bc[ idx[k] ].point.i;
+      ierr       = DMStagCellSize_2d(list->dm, kk  , Nz-1, &dx, &dz); CHKERRQ(ierr);
       xc[2*k+1] += 0.5*dz;
     }
 
-    if (domain_face == 's' && label == '-') {
-      if (k == n-1) kk = k-1;
-      else          kk = k;
-      ierr = DMStagCellSize_2d(list->dm, kk, Nz-1, &dx, &dz); CHKERRQ(ierr);
+    if (domain_face == 's' && (label == '-' || label == 'o')) {
+      kk         = bc[ idx[k] ].point.i;
+      ierr       = DMStagCellSize_2d(list->dm, kk  , 0,    &dx, &dz); CHKERRQ(ierr);
       xc[2*k+1] -= 0.5*dz;
     }
 
-    if (domain_face == 'w' && label == '|') {
-      if (k == n-1) kk = k-1;
-      else          kk = k;
-      ierr = DMStagCellSize_2d(list->dm, Nx-1, kk, &dx, &dz); CHKERRQ(ierr);
-      xc[2*k] -= 0.5*dx;
+    if (domain_face == 'w' && (label == '|' || label == 'o')) {
+      kk         = bc[ idx[k] ].point.j;
+      ierr       = DMStagCellSize_2d(list->dm, 0   , kk, &dx, &dz); CHKERRQ(ierr);
+      xc[2*k+0] -= 0.5*dx;
     }
 
-    if (domain_face == 'e' && label == '|') {
-      if (k == n-1) kk = k-1;
-      else          kk = k;
-      ierr = DMStagCellSize_2d(list->dm, Nx-1, kk, &dx, &dz); CHKERRQ(ierr);
-      xc[2*k] += 0.5*dx;
+    if (domain_face == 'e' && (label == '|' || label == 'o')) {
+      kk         = bc[ idx[k] ].point.j;
+      ierr       = DMStagCellSize_2d(list->dm, Nx-1, kk, &dx, &dz); CHKERRQ(ierr);
+      xc[2*k+0] += 0.5*dx;
     }
     
   }
