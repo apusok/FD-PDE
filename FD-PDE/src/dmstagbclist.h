@@ -4,6 +4,7 @@
 #define DMSTAGBCLIST_H
 
 #include "petsc.h"
+#include "dmstag_utils.h"
 
 // BC type
 typedef enum { BC_NULL = 0, BC_DIRICHLET, BC_DIRICHLET_TRUE, BC_NEUMANN, BC_NEUMANN_T } BCType;

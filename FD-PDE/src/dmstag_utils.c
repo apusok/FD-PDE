@@ -1102,3 +1102,25 @@ PetscErrorCode DMStagISCreateL2L_2d(DM dmA,
   ierr = DMStagFieldISCreate_2d(dmB,n0A,dof0B,n1A,dof1B,n2A,dof2B,isB);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+/* Note: This returns the size of a 2D cell at (i,j) */
+PetscErrorCode DMStagCellSize_2d(DM dm,PetscInt i,PetscInt j,PetscScalar *dx,PetscScalar *dy)
+{
+  PetscErrorCode    ierr;
+  PetscScalar       **cArrX,**cArrY;
+  PetscInt          iNext,iPrev;
+
+  PetscFunctionBegin;
+
+  ierr = DMStagGetProductCoordinateArraysRead(dm,&cArrX,&cArrY,NULL);CHKERRQ(ierr);
+
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&iPrev);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&iNext);CHKERRQ(ierr);
+
+  *dx = PetscAbs(cArrX[i][iNext] - cArrX[i][iPrev]);
+  *dy = PetscAbs(cArrY[j][iNext] - cArrY[j][iPrev]);
+  
+  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&cArrX,&cArrY,NULL);CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
