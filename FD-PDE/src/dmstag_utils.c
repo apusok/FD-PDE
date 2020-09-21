@@ -1103,23 +1103,36 @@ PetscErrorCode DMStagISCreateL2L_2d(DM dmA,
   PetscFunctionReturn(0);
 }
 
-/* Note: This returns the size of a 2D cell at (i,j) */
-PetscErrorCode DMStagCellSize_2d(DM dm,PetscInt i,PetscInt j,PetscScalar *dx,PetscScalar *dy)
+/* Note: This returns the sizes of all cells at within a subdomain
+         nx and ny refer to the number of grids of the entire domain along two dimensions*/
+PetscErrorCode DMStagCellSize_2d(DM dm,PetscInt nx, PetscInt ny, PetscScalar *_dx[],PetscScalar *_dy[])
 {
   PetscErrorCode    ierr;
-  PetscScalar       **cArrX,**cArrY;
+  PetscInt          i,start[2],n[2];
+  PetscScalar       *dx,*dy,**cArrX,**cArrY;
   PetscInt          iNext,iPrev;
 
   PetscFunctionBegin;
 
+  ierr = DMStagGetCorners(dm,&start[0],&start[1],NULL,&n[0],&n[1],NULL,NULL,NULL,NULL);CHKERRQ(ierr);
   ierr = DMStagGetProductCoordinateArraysRead(dm,&cArrX,&cArrY,NULL);CHKERRQ(ierr);
 
   ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT ,&iPrev);CHKERRQ(ierr);
   ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&iNext);CHKERRQ(ierr);
 
-  *dx = PetscAbs(cArrX[i][iNext] - cArrX[i][iPrev]);
-  *dy = PetscAbs(cArrY[j][iNext] - cArrY[j][iPrev]);
+  ierr = PetscCalloc1(nx,&dx);CHKERRQ(ierr);
+  ierr = PetscCalloc1(ny,&dy);CHKERRQ(ierr);
+
+  for (i=start[0]; i<start[0]+n[0]; i++) {
+    dx[i] = PetscAbs(cArrX[i][iNext] - cArrX[i][iPrev]);
+  }
   
+  for (i=start[1]; i<start[1]+n[1]; i++) {
+    dy[i] = PetscAbs(cArrY[i][iNext] - cArrY[i][iPrev]);
+  }
+
+  *_dx = dx; *_dy= dy;
+
   ierr = DMStagRestoreProductCoordinateArraysRead(dm,&cArrX,&cArrY,NULL);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);

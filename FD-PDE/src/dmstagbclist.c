@@ -723,9 +723,10 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
       break;
   }
 
-  PetscInt    kk;
-  PetscScalar dx, dz;
-  
+  PetscScalar *dx, *dz;
+
+  ierr = DMStagCellSize_2d(list->dm, Nx, Nz, &dx, &dz); CHKERRQ(ierr);
+
   for (k=0; k<n; k++) {
     xc[2*k+0] = bc[ idx[k] ].coord[0];
     xc[2*k+1] = bc[ idx[k] ].coord[1];
@@ -735,27 +736,19 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
     //Correct coordinates of interior boundary points to the corresponding true boundaries
     //Notes: it corrects the output of xc for the convenience of prescribing the boundary conditions, but not change the data stored in BCList.
     if (domain_face == 'n' && (label == '-' || label == 'o')) {
-      kk         = bc[ idx[k] ].point.i;
-      ierr       = DMStagCellSize_2d(list->dm, kk  , Nz-1, &dx, &dz); CHKERRQ(ierr);
-      xc[2*k+1] += 0.5*dz;
+      xc[2*k+1] += 0.5*dz[Nz-1];
     }
 
     if (domain_face == 's' && (label == '-' || label == 'o')) {
-      kk         = bc[ idx[k] ].point.i;
-      ierr       = DMStagCellSize_2d(list->dm, kk  , 0,    &dx, &dz); CHKERRQ(ierr);
-      xc[2*k+1] -= 0.5*dz;
+      xc[2*k+1] -= 0.5*dz[0];
     }
 
     if (domain_face == 'w' && (label == '|' || label == 'o')) {
-      kk         = bc[ idx[k] ].point.j;
-      ierr       = DMStagCellSize_2d(list->dm, 0   , kk, &dx, &dz); CHKERRQ(ierr);
-      xc[2*k+0] -= 0.5*dx;
+      xc[2*k+0] -= 0.5*dx[0];
     }
 
     if (domain_face == 'e' && (label == '|' || label == 'o')) {
-      kk         = bc[ idx[k] ].point.j;
-      ierr       = DMStagCellSize_2d(list->dm, Nx-1, kk, &dx, &dz); CHKERRQ(ierr);
-      xc[2*k+0] += 0.5*dx;
+      xc[2*k+0] += 0.5*dx[Nx-1];
     }
     
   }

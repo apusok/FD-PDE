@@ -21,7 +21,7 @@ PetscErrorCode test1(PetscInt nx,PetscInt ny)
   PetscInt        dof0,dof1,dof2,stencilWidth;
   DMStagBCList    bclist;
   PetscInt        i,j;
-  PetscScalar     dx,dy;
+  PetscScalar     *dx,*dy;
   PetscErrorCode  ierr;
   
   dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
@@ -36,10 +36,15 @@ PetscErrorCode test1(PetscInt nx,PetscInt ny)
   
   ierr = DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
 
+  PetscPrintf(PETSC_COMM_WORLD, "START CHECKING?");
+  ierr = DMStagCellSize_2d(dm, nx, ny, &dx,&dy);CHKERRQ(ierr);
+
+  PetscPrintf(PETSC_COMM_WORLD, "START CHECKING");
+  //PetscScalarView(3,dx,PETSC_VIEWER_STDOUT_WORLD);
+  
   for (j=0; j<ny; j++) {
     for (i=0; i<nx; i++) {
-      ierr = DMStagCellSize_2d(dm,i,j,&dx,&dy);CHKERRQ(ierr);
-      PetscPrintf(PETSC_COMM_WORLD," i = %d, j = %d, dx = %g, dy = %g \n",i,j,dx,dy);
+      PetscPrintf(PETSC_COMM_WORLD," i = %d, j = %d, dx = %g, dy = %g \n",i,j,dx[i],dy[j]);
     }
   }
 
@@ -254,7 +259,7 @@ int main (int argc,char **argv)
     
   ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return(ierr);
   
-  //ierr = test1(3,4);CHKERRQ(ierr);
+  ierr = test1(3,4);CHKERRQ(ierr);
   ierr = test2(3,4);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
