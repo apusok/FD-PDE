@@ -1103,9 +1103,8 @@ PetscErrorCode DMStagISCreateL2L_2d(DM dmA,
   PetscFunctionReturn(0);
 }
 
-/* Note: This returns the sizes of all cells at within a subdomain
-         nx and ny refer to the number of grids of the entire domain along two dimensions*/
-PetscErrorCode DMStagCellSize_2d(DM dm,PetscInt nx, PetscInt ny, PetscScalar *_dx[],PetscScalar *_dy[])
+/* Note: This returns the numbers of cells and their sizes within a subdomain*/
+PetscErrorCode DMStagCellSizeLocal_2d(DM dm,PetscInt *_is, PetscInt *_js, PetscInt *_nx, PetscInt *_ny, PetscScalar *_dx[],PetscScalar *_dy[])
 {
   PetscErrorCode    ierr;
   PetscInt          i,start[2],n[2];
@@ -1113,27 +1112,23 @@ PetscErrorCode DMStagCellSize_2d(DM dm,PetscInt nx, PetscInt ny, PetscScalar *_d
   PetscInt          iNext,iPrev;
 
   PetscFunctionBegin;
-
   ierr = DMStagGetCorners(dm,&start[0],&start[1],NULL,&n[0],&n[1],NULL,NULL,NULL,NULL);CHKERRQ(ierr);
   ierr = DMStagGetProductCoordinateArraysRead(dm,&cArrX,&cArrY,NULL);CHKERRQ(ierr);
-
-  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT ,&iPrev);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&iPrev);CHKERRQ(ierr);
   ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&iNext);CHKERRQ(ierr);
-
-  ierr = PetscCalloc1(nx,&dx);CHKERRQ(ierr);
-  ierr = PetscCalloc1(ny,&dy);CHKERRQ(ierr);
-
+  ierr = PetscCalloc1(n[0],&dx);CHKERRQ(ierr);
+  ierr = PetscCalloc1(n[1],&dy);CHKERRQ(ierr);
   for (i=start[0]; i<start[0]+n[0]; i++) {
-    dx[i] = PetscAbs(cArrX[i][iNext] - cArrX[i][iPrev]);
+    dx[i-start[0]] = PetscAbs(cArrX[i][iNext] - cArrX[i][iPrev]);
   }
-  
   for (i=start[1]; i<start[1]+n[1]; i++) {
-    dy[i] = PetscAbs(cArrY[i][iNext] - cArrY[i][iPrev]);
+    dy[i-start[1]] = PetscAbs(cArrY[i][iNext] - cArrY[i][iPrev]);
   }
-
-  *_dx = dx; *_dy= dy;
-
   ierr = DMStagRestoreProductCoordinateArraysRead(dm,&cArrX,&cArrY,NULL);CHKERRQ(ierr);
-
+  *_is = start[0];
+  *_js = start[1];
+  *_nx = n[0];
+  *_ny = n[1];
+  *_dx = dx; *_dy= dy;
   PetscFunctionReturn(0);
 }

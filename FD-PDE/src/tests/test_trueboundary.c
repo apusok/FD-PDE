@@ -36,12 +36,9 @@ PetscErrorCode test1(PetscInt nx,PetscInt ny)
   
   ierr = DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
 
-  PetscPrintf(PETSC_COMM_WORLD, "START CHECKING?");
-  ierr = DMStagCellSize_2d(dm, nx, ny, &dx,&dy);CHKERRQ(ierr);
+  PetscInt is, js, nx_local, ny_local;
+  ierr = DMStagCellSizeLocal_2d(dm, &is, &js, &nx_local, &ny_local, &dx,&dy);CHKERRQ(ierr);
 
-  PetscPrintf(PETSC_COMM_WORLD, "START CHECKING");
-  //PetscScalarView(3,dx,PETSC_VIEWER_STDOUT_WORLD);
-  
   for (j=0; j<ny; j++) {
     for (i=0; i<nx; i++) {
       PetscPrintf(PETSC_COMM_WORLD," i = %d, j = %d, dx = %g, dy = %g \n",i,j,dx[i],dy[j]);
