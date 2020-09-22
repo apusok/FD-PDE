@@ -104,7 +104,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   PetscScalar   xmin, xmax, zmin, zmax;
   FDPDE         fdPV, fdH, fdC, fdHC, fd[2];
   DM            dmPV, dmHC;
-  Vec           xPV;
+  Vec           xPV, xH;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -168,6 +168,24 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = FDPDEAdvDiffSetTimeStepSchemeType(fdH,timesteptype);CHKERRQ(ierr);
   ierr = FDPDEAdvDiffSetTimeStepSchemeType(fdC,timesteptype);CHKERRQ(ierr);
 
+  // Prepare data for coupling HC-PV
+  usr->dmPV = dmPV;
+  usr->dmHC = dmHC;
+
+  ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
+  ierr = VecDuplicate(xPV,&usr->xPV);CHKERRQ(ierr);
+  ierr = VecDestroy(&xPV);CHKERRQ(ierr);
+
+  ierr = FDPDEGetSolution(fdH,&xH);CHKERRQ(ierr);
+  ierr = VecDuplicate(xH,&usr->xT);CHKERRQ(ierr);
+  ierr = VecDuplicate(xH,&usr->xTheta);CHKERRQ(ierr);
+  ierr = VecDestroy(&xH);CHKERRQ(ierr);
+
+  // Initial conditions
+  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscPrintf(PETSC_COMM_WORLD,"# Set initial conditions \n");
+  ierr = SetInitialConditions_HS(fdPV,fdH,fdC,usr);CHKERRQ(ierr);
+
   // Set up HC composite system
   fd[0] = fdH;
   fd[1] = fdC;
@@ -182,12 +200,6 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = SNESSetFromOptions(fdHC->snes); CHKERRQ(ierr);
   ierr = FDPDEDestroy(&fd[0]);CHKERRQ(ierr);
   ierr = FDPDEDestroy(&fd[1]);CHKERRQ(ierr);
-
-  // Prepare data for coupling HC-PV
-  usr->dmPV = dmPV;
-  usr->dmHC = dmHC;
-
-  // Initial conditions
 
   // Time loop
   while ((par->t <= par->tmax) && (istep < par->tstep)) {
@@ -210,6 +222,14 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = DMDestroy(&dmHC);CHKERRQ(ierr);
   ierr = FDPDEDestroy(&fdPV);CHKERRQ(ierr);
   ierr = FDPDEDestroy(&fdHC);CHKERRQ(ierr);
+
+  ierr = VecDestroy(&usr->xPV);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xdimPV);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xT);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xTheta);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xscal);CHKERRQ(ierr);
+  ierr = DMDestroy(&usr->dmPV);CHKERRQ(ierr);
+  ierr = DMDestroy(&usr->dmHC);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

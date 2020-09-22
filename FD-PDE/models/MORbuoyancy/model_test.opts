@@ -1,7 +1,7 @@
 # model options
 -nx 50
 -nz 20
--output_file model_output
+-output_file out_model
 
 # solver options
 -pc_type lu 

@@ -3,6 +3,7 @@
 #include "../../src/fdpde_advdiff.h"
 #include "../../src/fdpde_composite.h"
 #include "../../src/dmstagoutput.h"
+#include "../../src/benchmark_cornerflow.h"
 
 // ---------------------------------------
 // Data structures
@@ -10,6 +11,7 @@
 // general
 #define FNAME_LENGTH  200
 #define SEC_YEAR      31536000 //3600.00*24.00*365.00
+#define T_KELVIN      273.15
 
 // define convenient names for DMStagStencilLocation
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
@@ -55,6 +57,8 @@ typedef struct {
   MPI_Comm       comm;
   PetscMPIInt    rank;
   DM             dmPV,dmHC;
+  Vec            xPV,xT,xTheta; // non-dimensional vectors
+  Vec            xdimPV,xscal; // dimensional
 } UsrData;
 
 // ---------------------------------------
@@ -78,6 +82,17 @@ PetscErrorCode FormCoefficient_C(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList_PV(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_H(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_C(DM, Vec, DMStagBCList, void*);
+
+// initial conditions
+PetscErrorCode SetInitialConditions_HS(FDPDE, FDPDE, FDPDE, void*);
+PetscErrorCode CornerFlow_MOR(void*);
+PetscErrorCode HalfSpaceCooling_MOR(void*);
+
+// utils
+PetscErrorCode ScaleSolution_PV(DM,Vec,Vec*,void*);
+PetscErrorCode ScaleVectorUniform(DM,Vec,Vec*,PetscScalar);
+PetscErrorCode ScaleTemperature(DM,Vec,Vec*,void*);
+// PetscErrorCode ScaleCoefficient(DM,Vec,Vec*,void*);
 
 // ---------------------------------------
 // Useful functions
