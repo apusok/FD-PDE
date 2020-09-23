@@ -712,7 +712,6 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   PetscInt       k,n_bc,*idx_bc, test;
   PetscScalar    *value_bc,*x_bc;
   PetscScalar    eta0,eps0,np,R,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat;
-  PetscScalar    x0, x1, z0, z1;
   BCType         *type_bc;
   PetscErrorCode ierr;
   
@@ -731,11 +730,6 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   n    = usr->par->n;
   k_hat= usr->par->k_hat;
 
-  x0   = usr->par->xmin;
-  z0   = usr->par->zmin;
-  x1   = usr->par->xmin + usr->par->L;
-  z1   = usr->par->zmin + usr->par->H;
-
   test = usr->par->test;
 
   // LEFT Boundary - Vx
@@ -749,7 +743,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   // LEFT Boundary - Vz
   ierr = DMStagBCListGetValues(bclist,'w','|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=1; k<n_bc-1; k++) {
-    value_bc[k] = get_uz(x0,x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+    value_bc[k] = get_uz(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
     type_bc[k] = BC_DIRICHLET_TRUE;
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -765,7 +759,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   // RIGHT Boundary - Vz
   ierr = DMStagBCListGetValues(bclist,'e','|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=1; k<n_bc-1; k++) {
-    value_bc[k] = get_uz(x1,x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+    value_bc[k] = get_uz(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
     type_bc[k] = BC_DIRICHLET_TRUE;
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -773,7 +767,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   // DOWN Boundary - Vx
   ierr = DMStagBCListGetValues(bclist,'s','-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=1; k<n_bc-1; k++) {
-    value_bc[k] = get_ux(x_bc[2*k],z0,eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+    value_bc[k] = get_ux(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
     type_bc[k] = BC_DIRICHLET_TRUE;
   }
   ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -789,7 +783,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   // UP Boundary - Vx
   ierr = DMStagBCListGetValues(bclist,'n','-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=1; k<n_bc-1; k++) {
-    value_bc[k] = get_ux(x_bc[2*k],z1,eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+    value_bc[k] = get_ux(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
     type_bc[k] = BC_DIRICHLET_TRUE;
   }
   ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -816,7 +810,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
     // LEFT Boundary - P
     ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
     for (k=0; k<n_bc; k++) {
-      value_bc[k] = get_p(x0,x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      value_bc[k] = get_p(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
       type_bc[k] = BC_DIRICHLET_TRUE;
     }
     ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -824,7 +818,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
     // RIGHT Boundary - P
     ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
     for (k=0; k<n_bc; k++) {
-      value_bc[k] = get_p(x1,x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      value_bc[k] = get_p(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
       type_bc[k] = BC_DIRICHLET_TRUE;
     }
     ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -832,7 +826,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
     // DOWN Boundary - P
     ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
     for (k=0; k<n_bc; k++) {
-      value_bc[k] = get_p(x_bc[2*k],z0,eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      value_bc[k] = get_p(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
       type_bc[k] = BC_DIRICHLET_TRUE;
     }
     ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -840,7 +834,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
     // UP Boundary - P
     ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
     for (k=0; k<n_bc; k++) {
-      value_bc[k] = get_p(x_bc[2*k],z1,eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      value_bc[k] = get_p(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
       type_bc[k] = BC_DIRICHLET_TRUE;
     }
     ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
