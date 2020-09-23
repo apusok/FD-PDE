@@ -42,11 +42,50 @@ PetscErrorCode SetInitialConditions_HS(FDPDE fdPV, FDPDE fdH, FDPDE fdC, void *c
   ierr = DMStagViewBinaryPython(usr->dmHC,usr->xscal,fout);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xscal);CHKERRQ(ierr);
 
+  // set initial porosity zero
+  ierr = VecSet(usr->xphi,0.0);CHKERRQ(ierr);
+
   // set initial composition
+  PetscScalar Cf0, Cs0;
+  Cf0 = usr->par->C0-usr->par->DC;
+  Cs0 = usr->par->C0;
+  ierr = VecSet(usr->xCf,(Cf0-usr->par->C0)/usr->par->DC);CHKERRQ(ierr);
+  ierr = VecSet(usr->xCs,(Cs0-usr->par->C0)/usr->par->DC);CHKERRQ(ierr);
+  ierr = UpdateComposition(usr);CHKERRQ(ierr);
+
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_C_initial",usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xC,fout);CHKERRQ(ierr);
+
+  ierr = ScaleComposition(usr->dmHC,usr->xC,&usr->xscal,usr);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_C_dim_initial",usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xscal,fout);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xscal);CHKERRQ(ierr);
+
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_Cf_initial",usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xCf,fout);CHKERRQ(ierr);
+
+  ierr = ScaleComposition(usr->dmHC,usr->xCf,&usr->xscal,usr);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_Cf_dim_initial",usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xscal,fout);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xscal);CHKERRQ(ierr);
+
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_Cs_initial",usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xCs,fout);CHKERRQ(ierr);
+
+  ierr = ScaleComposition(usr->dmHC,usr->xCs,&usr->xscal,usr);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_Cs_dim_initial",usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xscal,fout);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xscal);CHKERRQ(ierr);
+
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_phi_initial",usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xphi,fout);CHKERRQ(ierr);
 
   // correct for solidus
 
   // calculate other variables H, C, phi
+
+  // set initial porosity to initphi = 1e-4
+  // ierr = VecSet(usr->xphi,usr->par->initphi);CHKERRQ(ierr);
 
   // copy variables into fd-pde objects
   // ierr = FDPDEAdvDiffGetPrevSolution(fdH,&xHprev);CHKERRQ(ierr);

@@ -186,6 +186,53 @@ PetscErrorCode ScaleTemperature(DM dm, Vec x, Vec *_x, void *ctx)
   PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__
+#define __FUNCT__ "ScaleComposition"
+PetscErrorCode ScaleComposition(DM dm, Vec x, Vec *_x, void *ctx)
+{
+  UsrData       *usr = (UsrData*) ctx;
+  PetscInt       i, j, sx, sz, nx, nz,idx;
+  PetscScalar    ***xxnew, ***xx;
+  Vec            xnew, xnewlocal, xlocal;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  // Create local and global vector associated with DM
+  ierr = VecDuplicate(x,&xnew);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dm,&xnewlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm,xnewlocal,&xxnew); CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(dm,&xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm,xlocal,&xx); CHKERRQ(ierr);
+
+  // Get domain corners
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      ierr = DMStagGetLocationSlot(dm,ELEMENT,0,&idx); CHKERRQ(ierr); 
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->DC + usr->par->C0;
+    }
+  }
+
+  // Restore arrays
+  ierr = DMStagVecRestoreArray(dm,xnewlocal,&xxnew); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm, &xlocal ); CHKERRQ(ierr);
+
+  // Map local to global
+  ierr = DMLocalToGlobalBegin(dm,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
+  ierr = VecDestroy(&xnewlocal); CHKERRQ(ierr);
+
+  // Assign pointers
+  *_x  = xnew;
+  
+  PetscFunctionReturn(0);
+}
+
 // PetscErrorCode ScaleCoefficient(DM dm, Vec x, Vec *_x, void *ctx)
 // {
 //   UsrData       *usr = (UsrData*) ctx;

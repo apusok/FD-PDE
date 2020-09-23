@@ -57,7 +57,7 @@ typedef struct {
   MPI_Comm       comm;
   PetscMPIInt    rank;
   DM             dmPV,dmHC;
-  Vec            xPV,xT,xTheta; // non-dimensional vectors
+  Vec            xPV,xT,xTheta,xphi,xC,xCf,xCs; // non-dimensional vectors
   Vec            xdimPV,xscal; // dimensional
 } UsrData;
 
@@ -90,11 +90,13 @@ PetscErrorCode HalfSpaceCooling_MOR(void*);
 
 // constitutive equations
 PetscErrorCode UpdateThetaFromTemp(void*);
+PetscErrorCode UpdateComposition(void*);
 
 // utils
 PetscErrorCode ScaleSolution_PV(DM,Vec,Vec*,void*);
 PetscErrorCode ScaleVectorUniform(DM,Vec,Vec*,PetscScalar);
 PetscErrorCode ScaleTemperature(DM,Vec,Vec*,void*);
+PetscErrorCode ScaleComposition(DM,Vec,Vec*,void*);
 // PetscErrorCode ScaleCoefficient(DM,Vec,Vec*,void*);
 
 // ---------------------------------------
