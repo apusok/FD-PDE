@@ -454,7 +454,7 @@ PetscErrorCode _DMStagBCListGetIndices_J_left_and_right(DMStagBCList list,PetscI
   for (k=0; k<list->nbc_face; k++) {
     if (list->bc_f[k].point.j == J) {
       DMStagStencilLocation loc = list->bc_f[k].point.loc;
-      if (loc == DMSTAG_LEFT || loc == DMSTAG_RIGHT) {
+      if ((loc == DMSTAG_LEFT && list->bc_f[k].point.i != 0 )|| (loc == DMSTAG_RIGHT && list->bc_f[k].point.i != Nx-1)) {
         idx[count++] = k;
       }
     }
@@ -518,7 +518,7 @@ PetscErrorCode _DMStagBCListGetIndices_I_up_and_down(DMStagBCList list,PetscInt 
   for (k=0; k<list->nbc_face; k++) {
     if (list->bc_f[k].point.i == II) {
       DMStagStencilLocation loc = list->bc_f[k].point.loc;
-      if (loc == DMSTAG_UP || loc == DMSTAG_DOWN) {
+      if ((loc == DMSTAG_UP && list->bc_f[k].point.j != Nz-1) || (loc == DMSTAG_DOWN && list->bc_f[k].point.j != 0)) {
         idx[count++] = k;
       }
     }
