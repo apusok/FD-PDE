@@ -1104,7 +1104,7 @@ PetscErrorCode DMStagISCreateL2L_2d(DM dmA,
 }
 
 /* Note: This returns the numbers of cells and their sizes within a subdomain*/
-PetscErrorCode DMStagCellSizeLocal_2d(DM dm,PetscInt *_is, PetscInt *_js, PetscInt *_nx, PetscInt *_ny, PetscScalar *_dx[],PetscScalar *_dy[])
+PetscErrorCode DMStagCellSizeLocal_2d(DM dm, PetscInt *_nx, PetscInt *_ny, PetscScalar *_dx[],PetscScalar *_dy[])
 {
   PetscErrorCode    ierr;
   PetscInt          i,start[2],n[2];
@@ -1125,8 +1125,6 @@ PetscErrorCode DMStagCellSizeLocal_2d(DM dm,PetscInt *_is, PetscInt *_js, PetscI
     dy[i-start[1]] = PetscAbs(cArrY[i][iNext] - cArrY[i][iPrev]);
   }
   ierr = DMStagRestoreProductCoordinateArraysRead(dm,&cArrX,&cArrY,NULL);CHKERRQ(ierr);
-  *_is = start[0];
-  *_js = start[1];
   *_nx = n[0];
   *_ny = n[1];
   *_dx = dx; *_dy= dy;

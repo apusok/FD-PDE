@@ -36,12 +36,13 @@ PetscErrorCode test1(PetscInt nx,PetscInt ny)
   
   ierr = DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
 
-  PetscInt is, js, nx_local, ny_local;
-  ierr = DMStagCellSizeLocal_2d(dm, &is, &js, &nx_local, &ny_local, &dx,&dy);CHKERRQ(ierr);
-
-  for (j=0; j<ny; j++) {
-    for (i=0; i<nx; i++) {
-      PetscPrintf(PETSC_COMM_WORLD," i = %d, j = %d, dx = %g, dy = %g \n",i,j,dx[i],dy[j]);
+  PetscInt is,js,nx_local, ny_local;
+  ierr = DMStagCellSizeLocal_2d(dm, &nx_local, &ny_local, &dx,&dy);CHKERRQ(ierr);
+  ierr = DMStagGetCorners(dm,&is,&js,NULL,NULL,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+  
+  for (j=0; j<ny_local; j++) {
+    for (i=0; i<nx_local; i++) {
+      PetscPrintf(PETSC_COMM_WORLD," [i,j](local) = [%d,%d], [i,j](global) = [%d,%d],  dx = %g, dy = %g \n",i,j,i+is,j+js,dx[i],dy[j]);
     }
   }
 
@@ -256,7 +257,7 @@ int main (int argc,char **argv)
     
   ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return(ierr);
   
-  ierr = test1(3,4);CHKERRQ(ierr);
+  //ierr = test1(3,4);CHKERRQ(ierr);
   ierr = test2(3,4);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
