@@ -35,6 +35,13 @@ def plot_initial_solution(fname,dim):
   data_T = imod._PETScBinaryLoad()
   # imod._PETScBinaryLoadReportNames(data_T)
 
+  if (dim == 1):
+    fout = fname+'_Theta_dim_initial'
+  else:
+    fout = fname+'_Theta_initial'
+  imod = importlib.import_module(fout) # Theta
+  data_Th = imod._PETScBinaryLoad()
+
   # Split data
   mx = data_PV['Nx'][0]
   mz = data_PV['Ny'][0]
@@ -46,6 +53,7 @@ def plot_initial_solution(fname,dim):
   vz = data_PV['X_face_y']
   p = data_PV['X_cell']
   T = data_T['X_cell']
+  Th= data_Th['X_cell']
 
   # Compute cell center velocities
   vxr  = vx.reshape(mz  ,mx+1)
@@ -62,8 +70,8 @@ def plot_initial_solution(fname,dim):
       vzc[j][i]  = 0.5 * (vzr[j+1][i] + vzr[j][i])
 
   # Plot one figure
-  fig = plt.figure(1,figsize=(9,12))
-  nind = 3
+  fig = plt.figure(1,figsize=(8,12))
+  nind = 4
 
   labelP = r'$P [-]$'
   labelT = r'$T [-]$'
@@ -87,7 +95,7 @@ def plot_initial_solution(fname,dim):
     labelx = 'x [km]'
     labelz = 'z [km]'
 
-  ax = plt.subplot(2,1,1)
+  ax = plt.subplot(3,1,1)
   im = ax.imshow( p.reshape(mz,mx)*scalP, extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],
                   origin='lower', cmap='ocean', interpolation='nearest')
   im.set_clim(-10,0)
@@ -98,13 +106,21 @@ def plot_initial_solution(fname,dim):
   ax.set_ylabel(labelz)
   ax.set_title('a) Initial PV ')
 
-  ax = plt.subplot(2,1,2)
+  ax = plt.subplot(3,1,2)
   im = ax.imshow(T.reshape(mz,mx)-scalT,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='seismic',origin='lower')
   cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelT)
   ax.axis(aspect='image')
   ax.set_xlabel(labelx)
   ax.set_ylabel(labelz)
   ax.set_title('b) Initial T ')
+
+  ax = plt.subplot(3,1,3)
+  im = ax.imshow(Th.reshape(mz,mx)-scalT,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='seismic',origin='lower')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelT)
+  ax.axis(aspect='image')
+  ax.set_xlabel(labelx)
+  ax.set_ylabel(labelz)
+  ax.set_title('c) Initial T potential ')
 
   if (dim == 1):
     fout = fname+'_dim_initial'
@@ -122,7 +138,7 @@ fname = 'out_model'
 
 # Run test
 str1 = '../MORbuoyancy.app'+ \
-  ' -options_file ../model_test.opts -nx 200 -nz 100 '#+' > '+fname+'.out'
+  ' -options_file ../model_test.opts -nx 200 -nz 100 -log_view '#+' > '+fname+'.out'
 print(str1)
 os.system(str1)
 

@@ -30,8 +30,22 @@ PetscErrorCode SetInitialConditions_HS(FDPDE fdPV, FDPDE fdH, FDPDE fdC, void *c
   ierr = ScaleTemperature(usr->dmHC,usr->xT,&usr->xscal,usr);CHKERRQ(ierr);
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s_T_dim_initial",usr->par->fname_out);
   ierr = DMStagViewBinaryPython(usr->dmHC,usr->xscal,fout);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xscal);CHKERRQ(ierr); // xscal needs to be destroyed immediately
+
+  // transform xT for xTheta
+  ierr = UpdateThetaFromTemp(usr);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_Theta_initial",usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xTheta,fout);CHKERRQ(ierr);
+
+  ierr = ScaleTemperature(usr->dmHC,usr->xTheta,&usr->xscal,usr);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_Theta_dim_initial",usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xscal,fout);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xscal);CHKERRQ(ierr);
+
+  // set initial composition
 
   // correct for solidus
+
   // calculate other variables H, C, phi
 
   // copy variables into fd-pde objects
@@ -172,7 +186,6 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
       PetscScalar T, age;
       age = dim_param(coordx[i][icenter],usr->scal->x)/dim_param(usr->nd->U0,usr->scal->v);
       T   = T_KELVIN + (usr->par->Tp-T_KELVIN)*erf(-dim_param(coordz[j][icenter],usr->scal->x)/(2.0*sqrt(usr->par->kappa*age)));
-      // T   = usr->par->Tp*erf(-dim_param(coordz[j][icenter],usr->scal->x)/(2.0*sqrt(usr->par->kappa*age)));
       ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &idx); CHKERRQ(ierr);
       xx[j][i][idx] = (T - usr->par->T0)/usr->par->DT;
     }

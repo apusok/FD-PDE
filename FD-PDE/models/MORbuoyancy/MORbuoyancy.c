@@ -227,7 +227,6 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = VecDestroy(&usr->xdimPV);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xT);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xTheta);CHKERRQ(ierr);
-  ierr = VecDestroy(&usr->xscal);CHKERRQ(ierr);
   ierr = DMDestroy(&usr->dmPV);CHKERRQ(ierr);
   ierr = DMDestroy(&usr->dmHC);CHKERRQ(ierr);
 

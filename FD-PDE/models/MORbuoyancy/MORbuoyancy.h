@@ -88,6 +88,9 @@ PetscErrorCode SetInitialConditions_HS(FDPDE, FDPDE, FDPDE, void*);
 PetscErrorCode CornerFlow_MOR(void*);
 PetscErrorCode HalfSpaceCooling_MOR(void*);
 
+// constitutive equations
+PetscErrorCode UpdateThetaFromTemp(void*);
+
 // utils
 PetscErrorCode ScaleSolution_PV(DM,Vec,Vec*,void*);
 PetscErrorCode ScaleVectorUniform(DM,Vec,Vec*,PetscScalar);
