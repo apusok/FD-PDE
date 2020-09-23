@@ -722,14 +722,45 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
     default:
       break;
   }
+
+  PetscScalar *dx, *dz;
+  PetscInt start[2], nx_local, nz_local;
   
+  ierr = DMStagCellSizeLocal_2d(list->dm,&nx_local,&nz_local,&dx,&dz); CHKERRQ(ierr);
+  ierr = DMStagGetCorners(list->dm,&start[0],&start[1],NULL,NULL,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+
   for (k=0; k<n; k++) {
     xc[2*k+0] = bc[ idx[k] ].coord[0];
     xc[2*k+1] = bc[ idx[k] ].coord[1];
     v[k]      = bc[ idx[k] ].val;
     t[k]      = bc[ idx[k] ].type;
+
+    //Correct coordinates of interior boundary points to the corresponding true boundaries
+    //Notes: it corrects the output of xc for the convenience of prescribing the boundary conditions, but not change the data stored in BCList.
+    if (domain_face == 'n' && (label == '-' || label == 'o')) {
+      if (start[1]+nz_local == Nz) {xc[2*k+1] += 0.5*dz[nz_local-1];}
+      else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"North Boundary: Wrong indices for cell sizes.");
+    }
+
+    if (domain_face == 's' && (label == '-' || label == 'o')) {
+      if (start[1] == 0) {xc[2*k+1] -= 0.5*dz[start[1]];}
+      else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"South Boundary: Wrong indices for cell sizes.");
+    }
+
+    if (domain_face == 'w' && (label == '|' || label == 'o')) {
+      if (start[0] == 0) {xc[2*k+0] -= 0.5*dx[start[0]];}
+      else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"West Boundary: Wrong indices for cell sizes.");
+    }
+
+    if (domain_face == 'e' && (label == '|' || label == 'o')) {
+      if (start[0]+nx_local == Nx) {xc[2*k+0] += 0.5*dx[nx_local-1];}
+      else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"East Boundary: Wrong indices for cell sizes.");
+    }
+    
   }
   *_n = n;  *_idx = idx;  *_value = v;  *_type = t;
+  ierr = PetscFree(dx);CHKERRQ(ierr);
+  ierr = PetscFree(dz);CHKERRQ(ierr);
   if (_xc) { *_xc = xc; }
   else { ierr = PetscFree(xc);CHKERRQ(ierr); }
   PetscFunctionReturn(0);
