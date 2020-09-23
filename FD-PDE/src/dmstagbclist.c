@@ -759,6 +759,8 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
     
   }
   *_n = n;  *_idx = idx;  *_value = v;  *_type = t;
+  ierr = PetscFree(dx);CHKERRQ(ierr);
+  ierr = PetscFree(dz);CHKERRQ(ierr);
   if (_xc) { *_xc = xc; }
   else { ierr = PetscFree(xc);CHKERRQ(ierr); }
   PetscFunctionReturn(0);
