@@ -45,7 +45,7 @@ typedef struct {
 
 typedef struct {
   PetscScalar    L, H, xmin, zmin, xMOR, U0, eta0, zeta0;
-  PetscScalar    delta, alpha_s, beta_s, A, S, PeT, PeC, theta_s, G, RM;
+  PetscScalar    delta, alpha_s, beta_s, A, S, PeT, PeC, thetaS, G, RM;
 } NdParams;
 
 // user defined and model-dependent variables
@@ -57,7 +57,7 @@ typedef struct {
   MPI_Comm       comm;
   PetscMPIInt    rank;
   DM             dmPV,dmHC;
-  Vec            xPV,xT,xTheta,xphi,xC,xCf,xCs; // non-dimensional vectors
+  Vec            xPV,xT,xTheta,xphi,xC,xCf,xCs,xH; // non-dimensional vectors
   Vec            xdimPV,xscal; // dimensional
 } UsrData;
 
@@ -87,10 +87,17 @@ PetscErrorCode FormBCList_C(DM, Vec, DMStagBCList, void*);
 PetscErrorCode SetInitialConditions_HS(FDPDE, FDPDE, FDPDE, void*);
 PetscErrorCode CornerFlow_MOR(void*);
 PetscErrorCode HalfSpaceCooling_MOR(void*);
+PetscErrorCode CorrectTemperatureForSolidus(void*);
 
 // constitutive equations
 PetscErrorCode UpdateThetaFromTemp(void*);
 PetscErrorCode UpdateComposition(void*);
+PetscErrorCode UpdateEnthalpy(void*);
+
+PetscScalar Solidus(PetscScalar,PetscScalar,PetscScalar,PetscBool);
+PetscScalar Liquidus(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscBool);
+PetscScalar LithostaticPressure(PetscScalar,PetscScalar,PetscScalar);
+PetscScalar TotalEnthalpy(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 
 // utils
 PetscErrorCode ScaleSolution_PV(DM,Vec,Vec*,void*);

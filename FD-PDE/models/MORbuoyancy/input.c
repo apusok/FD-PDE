@@ -279,7 +279,7 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   nd->S       = par->La/par->cp/par->DT; 
   nd->PeT     = scal->x*scal->v/par->kappa;
   nd->PeC     = scal->x*scal->v/par->D;
-  nd->theta_s = par->T0/par->DT;
+  nd->thetaS  = par->T0/par->DT;
   nd->G       = scal->x*par->drho*par->g*par->gamma_inv/par->DT;
   nd->RM      = par->Ms/par->Mf;
 

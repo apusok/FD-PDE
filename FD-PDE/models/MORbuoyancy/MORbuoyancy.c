@@ -177,6 +177,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = VecDestroy(&xPV);CHKERRQ(ierr);
 
   ierr = FDPDEGetSolution(fdH,&xH);CHKERRQ(ierr);
+  ierr = VecDuplicate(xH,&usr->xH);CHKERRQ(ierr);
   ierr = VecDuplicate(xH,&usr->xT);CHKERRQ(ierr);
   ierr = VecDuplicate(xH,&usr->xTheta);CHKERRQ(ierr);
   ierr = VecDuplicate(xH,&usr->xphi);CHKERRQ(ierr);
@@ -229,6 +230,7 @@ PetscErrorCode Numerical_solution(void *ctx)
 
   ierr = VecDestroy(&usr->xPV);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xdimPV);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xH);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xT);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xTheta);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xphi);CHKERRQ(ierr);

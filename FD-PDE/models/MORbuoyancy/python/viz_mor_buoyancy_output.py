@@ -67,6 +67,13 @@ def plot_initial_solution(fname,dim):
   imod = importlib.import_module(fout)
   data_phi = imod._PETScBinaryLoad()
 
+  if (dim == 1):
+    fout = fname+'_T_corrected_dim_initial'
+  else:
+    fout = fname+'_T_corrected_initial'
+  imod = importlib.import_module(fout) # T
+  data_Tcorr = imod._PETScBinaryLoad()
+
   # Split data
   mx = data_PV['Nx'][0]
   mz = data_PV['Ny'][0]
@@ -83,6 +90,7 @@ def plot_initial_solution(fname,dim):
   Cf= data_Cf['X_cell']
   Cs= data_Cs['X_cell']
   phi= data_phi['X_cell']
+  Tcorr = data_Tcorr['X_cell']
 
   # Compute cell center velocities
   vxr  = vx.reshape(mz  ,mx+1)
@@ -160,12 +168,12 @@ def plot_initial_solution(fname,dim):
   ax.set_title('c) Initial T potential ')
 
   ax = plt.subplot(4,2,7)
-  im = ax.imshow(phi.reshape(mz,mx),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='seismic',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelH)
+  im = ax.imshow(Tcorr.reshape(mz,mx)-T.reshape(mz,mx),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='seismic',origin='lower')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelT)
   ax.axis(aspect='image')
   ax.set_xlabel(labelx)
   ax.set_ylabel(labelz)
-  ax.set_title('d) Initial H ')
+  ax.set_title('d) Initial corrected T ')
 
   ax = plt.subplot(4,2,2)
   im = ax.imshow(C.reshape(mz,mx),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='magma',origin='lower')
@@ -216,6 +224,7 @@ fname = 'out_model'
 # Run test
 str1 = '../MORbuoyancy.app'+ \
   ' -options_file ../model_test.opts -nx 200 -nz 100 -log_view '#+' > '+fname+'.out'
+# str1 = '../MORbuoyancy.app -options_file ../model_test.opts -log_view '
 print(str1)
 os.system(str1)
 
