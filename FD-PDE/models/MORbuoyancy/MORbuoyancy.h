@@ -36,6 +36,8 @@ typedef struct {
   PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT;
   PetscInt       ts_scheme, adv_scheme, tout, tstep;
   PetscScalar    t, dt, tmax, dtmax;
+  PetscInt       out_count;
+  PetscBool      dim_out;
   char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH]; 
 } Params;
 
@@ -57,8 +59,7 @@ typedef struct {
   MPI_Comm       comm;
   PetscMPIInt    rank;
   DM             dmPV,dmHC;
-  Vec            xPV,xT,xTheta,xphi,xC,xCf,xCs,xH; // non-dimensional vectors
-  Vec            xdimPV,xscal; // dimensional
+  Vec            xPV,xT,xTheta,xphi,xC,xCf,xCs,xH,xTsol; // non-dimensional vectors
 } UsrData;
 
 // ---------------------------------------
@@ -100,10 +101,10 @@ PetscScalar LithostaticPressure(PetscScalar,PetscScalar,PetscScalar);
 PetscScalar TotalEnthalpy(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 
 // utils
-PetscErrorCode ScaleSolution_PV(DM,Vec,Vec*,void*);
+PetscErrorCode DoOutput(void*);
+PetscErrorCode ScaleSolutionPV(DM,Vec,Vec*,void*);
 PetscErrorCode ScaleVectorUniform(DM,Vec,Vec*,PetscScalar);
-PetscErrorCode ScaleTemperature(DM,Vec,Vec*,void*);
-PetscErrorCode ScaleComposition(DM,Vec,Vec*,void*);
+PetscErrorCode ScaleTemperatureComposition(DM,Vec,Vec*,void*,PetscInt);
 // PetscErrorCode ScaleCoefficient(DM,Vec,Vec*,void*);
 
 // ---------------------------------------

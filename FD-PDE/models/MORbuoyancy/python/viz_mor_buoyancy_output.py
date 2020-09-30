@@ -16,63 +16,15 @@ rc('text', usetex=True)
 # ---------------------------------------
 # Function definitions
 # ---------------------------------------
-def plot_initial_solution(fname,dim):
+def plot_solution_PV(fname,out_count,dim):
 
   # Load data
   if (dim == 1):
-    fout = fname+'_PV_dim_initial'
+    fout = fname+'_PV_dim_'+str(out_count)
   else:
-    fout = fname+'_PV_initial'
+    fout = fname+'_PV_'+str(out_count)
   imod = importlib.import_module(fout) # P,v
   data_PV = imod._PETScBinaryLoad()
-  # imod._PETScBinaryLoadReportNames(data_PV)
-
-  if (dim == 1):
-    fout = fname+'_T_dim_initial'
-  else:
-    fout = fname+'_T_initial'
-  imod = importlib.import_module(fout) # T
-  data_T = imod._PETScBinaryLoad()
-  # imod._PETScBinaryLoadReportNames(data_T)
-
-  if (dim == 1):
-    fout = fname+'_Theta_dim_initial'
-  else:
-    fout = fname+'_Theta_initial'
-  imod = importlib.import_module(fout) # Theta
-  data_Th = imod._PETScBinaryLoad()
-
-  if (dim == 1):
-    fout = fname+'_C_dim_initial'
-  else:
-    fout = fname+'_C_initial'
-  imod = importlib.import_module(fout)
-  data_C = imod._PETScBinaryLoad()
-
-  if (dim == 1):
-    fout = fname+'_Cf_dim_initial'
-  else:
-    fout = fname+'_Cf_initial'
-  imod = importlib.import_module(fout)
-  data_Cf = imod._PETScBinaryLoad()
-
-  if (dim == 1):
-    fout = fname+'_Cs_dim_initial'
-  else:
-    fout = fname+'_Cs_initial'
-  imod = importlib.import_module(fout)
-  data_Cs = imod._PETScBinaryLoad()
-
-  fout = fname+'_phi_initial'
-  imod = importlib.import_module(fout)
-  data_phi = imod._PETScBinaryLoad()
-
-  if (dim == 1):
-    fout = fname+'_T_corrected_dim_initial'
-  else:
-    fout = fname+'_T_corrected_initial'
-  imod = importlib.import_module(fout) # T
-  data_Tcorr = imod._PETScBinaryLoad()
 
   # Split data
   mx = data_PV['Nx'][0]
@@ -84,13 +36,6 @@ def plot_initial_solution(fname,dim):
   vx = data_PV['X_face_x']
   vz = data_PV['X_face_y']
   p = data_PV['X_cell']
-  T = data_T['X_cell']
-  Th= data_Th['X_cell']
-  C = data_C['X_cell']
-  Cf= data_Cf['X_cell']
-  Cs= data_Cs['X_cell']
-  phi= data_phi['X_cell']
-  Tcorr = data_Tcorr['X_cell']
 
   # Compute cell center velocities
   vxr  = vx.reshape(mz  ,mx+1)
@@ -107,21 +52,15 @@ def plot_initial_solution(fname,dim):
       vzc[j][i]  = 0.5 * (vzr[j+1][i] + vzr[j][i])
 
   # Plot one figure
-  fig = plt.figure(1,figsize=(14,16))
+  fig = plt.figure(1,figsize=(14,7))
   nind = 4
 
   labelP = r'$P [-]$'
-  labelT = r'$T [-]$'
-  labelC = r'$\Theta$'
-  labelCf = r'$\Theta_f$'
-  labelCs = r'$\Theta_s$'
-  labelphi= r'$\phi$'
-  labelH  = r'$H$'
+  labelv = r'$V [-]$'
   labelx = 'x/h'
   labelz = 'z/h'
   scalx  = 1
   scalP  = 1
-  scalT  = 0
   scalv  = 1 
 
   SEC_YEAR = 31536000
@@ -130,17 +69,13 @@ def plot_initial_solution(fname,dim):
   if (dim == 1):
     scalx  = 1e2 # km
     scalP  = 1e-9 # GPa
-    scalT  = 273.15 # deg C
     scalv  = 1.0e2*SEC_YEAR # cm/yr
     labelP = r'$P [GPa]$'
-    labelT = r'$T [^oC]$'
+    labelv = r'$V [cm/yr]$'
     labelx = 'x [km]'
     labelz = 'z [km]'
-    labelC = r'$C$'
-    labelCf = r'$C_f$'
-    labelCs = r'$C_s$'
 
-  ax = plt.subplot(4,2,1)
+  ax = plt.subplot(2,2,1)
   im = ax.imshow( p.reshape(mz,mx)*scalP, extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],
                   origin='lower', cmap='ocean', interpolation='nearest')
   im.set_clim(-10,0)
@@ -149,68 +84,214 @@ def plot_initial_solution(fname,dim):
   ax.axis(aspect='image')
   ax.set_xlabel(labelx)
   ax.set_ylabel(labelz)
-  ax.set_title('a) Initial PV ')
+  ax.set_title('a) PV out = '+str(out_count))
+
+  ax = plt.subplot(2,2,2)
+  im = ax.imshow(p.reshape(mz,mx)*scalP,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelP)
+  ax.axis(aspect='image')
+  ax.set_xlabel(labelx)
+  ax.set_ylabel(labelz)
+  ax.set_title('b) P')
+
+  ax = plt.subplot(2,2,3)
+  im = ax.imshow(vxr*scalv,extent=[min(xv)*scalx, max(xv)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelv)
+  ax.axis(aspect='image')
+  ax.set_xlabel(labelx)
+  ax.set_ylabel(labelz)
+  ax.set_title('c) Vx')
+
+  ax = plt.subplot(2,2,4)
+  im = ax.imshow(vzr*scalv,extent=[min(xc)*scalx, max(xc)*scalx, min(zv)*scalx, max(zv)*scalx],cmap='viridis',origin='lower')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelv)
+  ax.axis(aspect='image')
+  ax.set_xlabel(labelx)
+  ax.set_ylabel(labelz)
+  ax.set_title('d) Vz')
+
+  if (dim == 1):
+    fout = fname+'_PV_dim_'+str(out_count)
+  else:
+    fout = fname+'_PV_'+str(out_count)
+  plt.savefig(fout+'.pdf')
+  plt.close()
+
+# ---------------------------------------
+def plot_solution_HC(fname,out_count,dim):
+
+  if (dim == 1):
+    fout = fname+'_T_dim_'+str(out_count)
+  else:
+    fout = fname+'_T_'+str(out_count)
+  imod = importlib.import_module(fout) # T
+  data_T = imod._PETScBinaryLoad()
+
+  if (dim == 1):
+    fout = fname+'_Theta_dim_'+str(out_count)
+  else:
+    fout = fname+'_Theta_'+str(out_count)
+  imod = importlib.import_module(fout) # Theta
+  data_Th = imod._PETScBinaryLoad()
+
+  if (dim == 1):
+    fout = fname+'_C_dim_'+str(out_count)
+  else:
+    fout = fname+'_C_'+str(out_count)
+  imod = importlib.import_module(fout)
+  data_C = imod._PETScBinaryLoad()
+
+  if (dim == 1):
+    fout = fname+'_Cf_dim_'+str(out_count)
+  else:
+    fout = fname+'_Cf_'+str(out_count)
+  imod = importlib.import_module(fout)
+  data_Cf = imod._PETScBinaryLoad()
+
+  if (dim == 1):
+    fout = fname+'_Cs_dim_'+str(out_count)
+  else:
+    fout = fname+'_Cs_'+str(out_count)
+  imod = importlib.import_module(fout)
+  data_Cs = imod._PETScBinaryLoad()
+
+  fout = fname+'_phi_'+str(out_count)
+  imod = importlib.import_module(fout)
+  data_phi = imod._PETScBinaryLoad()
+
+  if (dim == 1):
+    fout = fname+'_T_solidus_dim_'+str(out_count)
+  else:
+    fout = fname+'_T_solidus_'+str(out_count)
+  imod = importlib.import_module(fout)
+  data_Tsol = imod._PETScBinaryLoad()
+
+  if (dim == 1):
+    fout = fname+'_H_dim_'+str(out_count)
+  else:
+    fout = fname+'_H_'+str(out_count)
+  imod = importlib.import_module(fout)
+  data_H = imod._PETScBinaryLoad()
+
+  # Split data
+  mx = data_T['Nx'][0]
+  mz = data_T['Ny'][0]
+  xc = data_T['x1d_cell']
+  zc = data_T['y1d_cell']
+  T = data_T['X_cell']
+  Th= data_Th['X_cell']
+  C = data_C['X_cell']
+  Cf= data_Cf['X_cell']
+  Cs= data_Cs['X_cell']
+  phi= data_phi['X_cell']
+  Tsol = data_Tsol['X_cell']
+  H = data_H['X_cell']
+
+  # Plot one figure
+  fig = plt.figure(1,figsize=(14,14))
+  nind = 4
+
+  labelT = r'$T [-]$'
+  labelC = r'$\Theta$'
+  labelCf = r'$\Theta_f$'
+  labelCs = r'$\Theta_s$'
+  labelphi= r'$\phi$'
+  labelH  = r'$H [-]$'
+  labelx = 'x/h'
+  labelz = 'z/h'
+  scalx  = 1
+  scalT  = 0
+  scalH  = 1
+
+  # Transform to geounits
+  if (dim == 1):
+    scalx  = 1e2 # km
+    scalT  = 273.15 # deg C
+    scalH  = 1
+    labelT = r'$T [^oC]$'
+    labelx = 'x [km]'
+    labelz = 'z [km]'
+    labelC = r'$C$'
+    labelCf = r'$C_f$'
+    labelCs = r'$C_s$'
+    labelH  = r'$H []$'
+
+  ax = plt.subplot(4,2,1)
+  im = ax.imshow(T.reshape(mz,mx)-scalT,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelT)
+  ax.axis(aspect='image')
+  ax.set_xlabel(labelx)
+  ax.set_ylabel(labelz)
+  ax.set_title('a) T out = '+str(out_count))
+
+  # ax = plt.subplot(4,2,3)
+  # im = ax.imshow(Tsol.reshape(mz,mx)-scalT,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  # cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelT)
+  # ax.axis(aspect='image')
+  # ax.set_xlabel(labelx)
+  # ax.set_ylabel(labelz)
+  # ax.set_title('b) T solidus')
 
   ax = plt.subplot(4,2,3)
-  im = ax.imshow(T.reshape(mz,mx)-scalT,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='seismic',origin='lower')
+  im = ax.imshow(Tsol.reshape(mz,mx)-T.reshape(mz,mx),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
   cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelT)
   ax.axis(aspect='image')
   ax.set_xlabel(labelx)
   ax.set_ylabel(labelz)
-  ax.set_title('b) Initial T ')
+  ax.set_title('b) T solidus - T')
 
   ax = plt.subplot(4,2,5)
-  im = ax.imshow(Th.reshape(mz,mx)-scalT,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='seismic',origin='lower')
+  im = ax.imshow(Th.reshape(mz,mx)-scalT,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
   cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelT)
   ax.axis(aspect='image')
   ax.set_xlabel(labelx)
   ax.set_ylabel(labelz)
-  ax.set_title('c) Initial T potential ')
+  ax.set_title('c) T potential')
 
   ax = plt.subplot(4,2,7)
-  im = ax.imshow(Tcorr.reshape(mz,mx)-T.reshape(mz,mx),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='seismic',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelT)
+  im = ax.imshow(H.reshape(mz,mx)*scalH,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelH)
   ax.axis(aspect='image')
   ax.set_xlabel(labelx)
   ax.set_ylabel(labelz)
-  ax.set_title('d) Initial corrected T ')
+  ax.set_title('d) H')
 
   ax = plt.subplot(4,2,2)
-  im = ax.imshow(C.reshape(mz,mx),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='magma',origin='lower')
+  im = ax.imshow(C.reshape(mz,mx),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
   cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelC)
   ax.axis(aspect='image')
   ax.set_xlabel(labelx)
   ax.set_ylabel(labelz)
-  ax.set_title('e) Initial C ')
+  ax.set_title('e) C ')
 
   ax = plt.subplot(4,2,4)
-  im = ax.imshow(Cf.reshape(mz,mx),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='magma',origin='lower')
+  im = ax.imshow(Cf.reshape(mz,mx),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
   cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelCf)
   ax.axis(aspect='image')
   ax.set_xlabel(labelx)
   ax.set_ylabel(labelz)
-  ax.set_title('f) Initial Cf ')
+  ax.set_title('f) Cf ')
 
   ax = plt.subplot(4,2,6)
-  im = ax.imshow(Cs.reshape(mz,mx),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='magma',origin='lower')
+  im = ax.imshow(Cs.reshape(mz,mx),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
   cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelCs)
   ax.axis(aspect='image')
   ax.set_xlabel(labelx)
   ax.set_ylabel(labelz)
-  ax.set_title('g) Initial Cs ')
+  ax.set_title('g) Cs ')
 
   ax = plt.subplot(4,2,8)
-  im = ax.imshow(phi.reshape(mz,mx),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='magma',origin='lower')
+  im = ax.imshow(phi.reshape(mz,mx),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
   cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelphi)
   ax.axis(aspect='image')
   ax.set_xlabel(labelx)
   ax.set_ylabel(labelz)
-  ax.set_title('h) Initial phi ')
+  ax.set_title('h) phi ')
 
   if (dim == 1):
-    fout = fname+'_dim_initial'
+    fout = fname+'_HC_dim_'+str(out_count)
   else:
-    fout = fname+'_initial'
+    fout = fname+'_HC_'+str(out_count)
   plt.savefig(fout+'.pdf')
   plt.close()
 
@@ -223,13 +304,17 @@ fname = 'out_model'
 
 # Run test
 str1 = '../MORbuoyancy.app'+ \
-  ' -options_file ../model_test.opts -nx 200 -nz 100 -log_view '#+' > '+fname+'.out'
+  ' -options_file ../model_test.opts -nx 200 -nz 100 -log_view -dim_output '#+' > '+fname+'.out'
 # str1 = '../MORbuoyancy.app -options_file ../model_test.opts -log_view '
 print(str1)
 os.system(str1)
 
+out_count = 0
+
 # Plot initial conditions
-plot_initial_solution(fname,0)
-plot_initial_solution(fname,1)
+plot_solution_PV(fname,out_count,0)
+plot_solution_PV(fname,out_count,1)
+plot_solution_HC(fname,out_count,0)
+plot_solution_HC(fname,out_count,1)
 
 os.system('rm -r __pycache__')

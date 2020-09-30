@@ -15,22 +15,9 @@ PetscErrorCode SetInitialConditions_HS(FDPDE fdPV, FDPDE fdH, FDPDE fdC, void *c
 
   // corner flow model for PV
   ierr = CornerFlow_MOR(usr);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_PV_initial",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmPV,usr->xPV,fout);CHKERRQ(ierr);
-
-  ierr = ScaleSolution_PV(usr->dmPV,usr->xPV,&usr->xdimPV,usr);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_PV_dim_initial",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmPV,usr->xdimPV,fout);CHKERRQ(ierr);
 
   // half-space cooling model
   ierr = HalfSpaceCooling_MOR(usr);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_T_initial",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xT,fout);CHKERRQ(ierr);
-
-  ierr = ScaleTemperature(usr->dmHC,usr->xT,&usr->xscal,usr);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_T_dim_initial",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xscal,fout);CHKERRQ(ierr);
-  ierr = VecDestroy(&usr->xscal);CHKERRQ(ierr); // xscal needs to be destroyed immediately
 
   // set initial porosity zero
   ierr = VecSet(usr->xphi,0.0);CHKERRQ(ierr);
@@ -43,62 +30,16 @@ PetscErrorCode SetInitialConditions_HS(FDPDE fdPV, FDPDE fdH, FDPDE fdC, void *c
   ierr = VecSet(usr->xCs,(Cs0-usr->par->C0)/usr->par->DC);CHKERRQ(ierr);
   ierr = UpdateComposition(usr);CHKERRQ(ierr);
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_C_initial",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xC,fout);CHKERRQ(ierr);
-
-  ierr = ScaleComposition(usr->dmHC,usr->xC,&usr->xscal,usr);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_C_dim_initial",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xscal,fout);CHKERRQ(ierr);
-  ierr = VecDestroy(&usr->xscal);CHKERRQ(ierr);
-
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_Cf_initial",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xCf,fout);CHKERRQ(ierr);
-
-  ierr = ScaleComposition(usr->dmHC,usr->xCf,&usr->xscal,usr);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_Cf_dim_initial",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xscal,fout);CHKERRQ(ierr);
-  ierr = VecDestroy(&usr->xscal);CHKERRQ(ierr);
-
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_Cs_initial",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xCs,fout);CHKERRQ(ierr);
-
-  ierr = ScaleComposition(usr->dmHC,usr->xCs,&usr->xscal,usr);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_Cs_dim_initial",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xscal,fout);CHKERRQ(ierr);
-  ierr = VecDestroy(&usr->xscal);CHKERRQ(ierr);
-
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_phi_initial",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xphi,fout);CHKERRQ(ierr);
-
   // correct for solidus
   ierr = CorrectTemperatureForSolidus(usr);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_T_corrected_initial",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xT,fout);CHKERRQ(ierr);
-
-  ierr = ScaleTemperature(usr->dmHC,usr->xT,&usr->xscal,usr);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_T_corrected_dim_initial",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xscal,fout);CHKERRQ(ierr);
-  ierr = VecDestroy(&usr->xscal);CHKERRQ(ierr);
 
   // transform xT for xTheta
   ierr = UpdateThetaFromTemp(usr);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_Theta_initial",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xTheta,fout);CHKERRQ(ierr);
-
-  ierr = ScaleTemperature(usr->dmHC,usr->xTheta,&usr->xscal,usr);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_Theta_dim_initial",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xscal,fout);CHKERRQ(ierr);
-  ierr = VecDestroy(&usr->xscal);CHKERRQ(ierr);
 
   // calculate enthalpy
   ierr = UpdateEnthalpy(usr);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_H_initial",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xH,fout);CHKERRQ(ierr);
 
-  ierr = ScaleVectorUniform(usr->dmHC,usr->xH,&usr->xscal,usr->scal->H);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_H_dim_initial",usr->par->fname_out);
-  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xscal,fout);CHKERRQ(ierr);
-  ierr = VecDestroy(&usr->xscal);CHKERRQ(ierr);
+  ierr = DoOutput(usr);CHKERRQ(ierr);
 
   // set initial porosity to initphi = 1e-4
   // ierr = VecSet(usr->xphi,usr->par->initphi);CHKERRQ(ierr);
@@ -272,7 +213,7 @@ PetscErrorCode CorrectTemperatureForSolidus(void *ctx)
   PetscFunctionBegin;
 
   dm = usr->dmHC;
-  x  = usr->xT;
+  x  = usr->xTsol;
 
   ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -298,11 +239,8 @@ PetscErrorCode CorrectTemperatureForSolidus(void *ctx)
       Plith= LithostaticPressure(rho,usr->par->drho,coordz[j][icenter]);
       Tsol = Solidus(xxCs[j][i][idx],Plith,usr->nd->G,PETSC_FALSE);
       // correct for solidus
+      xx[j][i][idx] = Tsol;
       // PetscPrintf(PETSC_COMM_WORLD,"# Temp HS = %1.12e Tsol = %1.12e Plith = %1.12e G = %1.12e  \n",xx[j][i][idx],Tsol,Plith,usr->nd->G);
-      if (xx[j][i][idx]>Tsol) {
-        xx[j][i][idx] = Tsol;
-        // PetscPrintf(PETSC_COMM_WORLD,"# Temp HS = %1.12e solidus = %1.12e \n",xx[j][i][idx],Tsol);
-      }
     }
   }
 

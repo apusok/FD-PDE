@@ -148,10 +148,12 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterInt(bag, &par->tstep,1, "tstep", "Maximum no of time steps"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->tmax, 1.0e6, "tmax", "Maximum time [yr]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->dtmax, 1.0e3, "dtmax", "Maximum time step size [yr]"); CHKERRQ(ierr);
-
+  
   // input/output 
   par->fname_in[0] = '\0';
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_solution","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterBool(bag, &par->dim_out, PETSC_FALSE, "dim_output", "Output dimensional parameters"); CHKERRQ(ierr);
+  par->out_count = 0; 
 
   // return pointer
   *_usr = usr;
