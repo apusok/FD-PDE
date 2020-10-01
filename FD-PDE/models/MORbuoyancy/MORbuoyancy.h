@@ -91,10 +91,13 @@ PetscErrorCode HalfSpaceCooling_MOR(void*);
 PetscErrorCode CorrectTemperatureForSolidus(void*);
 
 // constitutive equations
-PetscErrorCode UpdateThetaFromTemp(void*);
-PetscErrorCode UpdateComposition(void*);
-PetscErrorCode UpdateEnthalpy(void*);
+// PetscErrorCode UpdateThetaFromTemp(void*);
+// PetscErrorCode UpdateComposition(void*);
+// PetscErrorCode UpdateEnthalpy(void*);
 
+PetscScalar Temp2Theta(PetscScalar,PetscScalar);
+PetscScalar Theta2Temp(PetscScalar,PetscScalar);
+PetscScalar BulkComposition(PetscScalar,PetscScalar,PetscScalar);  
 PetscScalar Solidus(PetscScalar,PetscScalar,PetscScalar,PetscBool);
 PetscScalar Liquidus(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscBool);
 PetscScalar LithostaticPressure(PetscScalar,PetscScalar,PetscScalar);

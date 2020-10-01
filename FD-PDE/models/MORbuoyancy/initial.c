@@ -16,33 +16,11 @@ PetscErrorCode SetInitialConditions_HS(FDPDE fdPV, FDPDE fdH, FDPDE fdC, void *c
   // corner flow model for PV
   ierr = CornerFlow_MOR(usr);CHKERRQ(ierr);
 
-  // half-space cooling model
+  // half-space cooling model - init T, C, H, phi
   ierr = HalfSpaceCooling_MOR(usr);CHKERRQ(ierr);
 
-  // set initial porosity zero
-  ierr = VecSet(usr->xphi,0.0);CHKERRQ(ierr);
-
-  // set initial composition
-  PetscScalar Cf0, Cs0;
-  Cf0 = usr->par->C0-usr->par->DC;
-  Cs0 = usr->par->C0;
-  ierr = VecSet(usr->xCf,(Cf0-usr->par->C0)/usr->par->DC);CHKERRQ(ierr);
-  ierr = VecSet(usr->xCs,(Cs0-usr->par->C0)/usr->par->DC);CHKERRQ(ierr);
-  ierr = UpdateComposition(usr);CHKERRQ(ierr);
-
-  // correct for solidus
-  ierr = CorrectTemperatureForSolidus(usr);CHKERRQ(ierr);
-
-  // transform xT for xTheta
-  ierr = UpdateThetaFromTemp(usr);CHKERRQ(ierr);
-
-  // calculate enthalpy
-  ierr = UpdateEnthalpy(usr);CHKERRQ(ierr);
-
+  // output variables
   ierr = DoOutput(usr);CHKERRQ(ierr);
-
-  // set initial porosity to initphi = 1e-4
-  // ierr = VecSet(usr->xphi,usr->par->initphi);CHKERRQ(ierr);
 
   // copy variables into fd-pde objects
   // ierr = FDPDEAdvDiffGetPrevSolution(fdH,&xHprev);CHKERRQ(ierr);
@@ -156,100 +134,172 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, idx, icenter;
-  PetscScalar    ***xx;
+  PetscScalar    ***xxT, ***xxphi, ***xxC, ***xxCf, ***xxCs, ***xxTsol, ***xxtheta, ***xxH;
   PetscScalar    **coordx,**coordz;
-  Vec            x, xlocal;
+  PetscScalar    Cf0, Cs0;
+  Vec            xTlocal, xphilocal, xClocal, xCflocal, xCslocal, xTsollocal, xthetalocal, xHlocal;
   DM             dm;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
 
-  dm = usr->dmHC;
-  x  = usr->xT;
+  dm  = usr->dmHC;
+  Cf0 = usr->par->C0-usr->par->DC;
+  Cs0 = usr->par->C0;
 
   ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMCreateLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
-
-// Get dm coordinates array
   ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
   ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
+  ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &idx); CHKERRQ(ierr);
+
+  ierr = DMCreateLocalVector(dm,&xTlocal); CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dm,&xphilocal); CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dm,&xClocal); CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dm,&xCflocal); CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dm,&xCslocal); CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dm,&xTsollocal); CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dm,&xthetalocal); CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dm,&xHlocal); CHKERRQ(ierr);
+
+  ierr = DMStagVecGetArray(dm,xTlocal,  &xxT); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm,xphilocal,&xxphi); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm,xClocal,  &xxC); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm,xCflocal, &xxCf); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm,xCslocal, &xxCs); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm,xTsollocal,&xxTsol); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm,xthetalocal,&xxtheta); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm,xHlocal,  &xxH); CHKERRQ(ierr);
 
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
-      PetscScalar T, age;
+      PetscScalar T, age, Plith, rho, Az;
+
+      // half-space cooling temperature
       age = dim_param(coordx[i][icenter],usr->scal->x)/dim_param(usr->nd->U0,usr->scal->v);
       T   = T_KELVIN + (usr->par->Tp-T_KELVIN)*erf(-dim_param(coordz[j][icenter],usr->scal->x)/(2.0*sqrt(usr->par->kappa*age)));
-      ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &idx); CHKERRQ(ierr);
-      xx[j][i][idx] = (T - usr->par->T0)/usr->par->DT;
-    }
-  }
+      xxT[j][i][idx] = (T - usr->par->T0)/usr->par->DT;
 
-  // Restore arrays
-  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
-  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
+      // initial porosity
+      xxphi[j][i][idx] = 0.0;
 
-  PetscFunctionReturn(0);
-}
+      // initial phase composition
+      xxCf[j][i][idx] = (Cf0-usr->par->C0)/usr->par->DC;
+      xxCs[j][i][idx] = (Cs0-usr->par->C0)/usr->par->DC;
 
-// ---------------------------------------
-// CorrectTemperatureForSolidus
-// ---------------------------------------
-PetscErrorCode CorrectTemperatureForSolidus(void *ctx)
-{
-  UsrData       *usr = (UsrData*) ctx;
-  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, idx, icenter;
-  PetscScalar    ***xx, ***xxCs;
-  PetscScalar    **coordx,**coordz;
-  Vec            x, xlocal, xCslocal;
-  DM             dm;
-  PetscErrorCode ierr;
+      // bulk composition C = phi*Cf+(1-phi)*Cs
+      xxC[j][i][idx] = BulkComposition(xxCf[j][i][idx],xxCs[j][i][idx],xxphi[j][i][idx]);
 
-  PetscFunctionBegin;
-
-  dm = usr->dmHC;
-  x  = usr->xTsol;
-
-  ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-
-  ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
-
-  ierr = DMGetLocalVector(dm, &xCslocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm, usr->xCs, INSERT_VALUES, xCslocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dm, xCslocal, &xxCs); CHKERRQ(ierr);
-
-// Get dm coordinates array
-  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
-
-  // Loop over local domain
-  for (j = sz; j < sz+nz; j++) {
-    for (i = sx; i <sx+nx; i++) {
-      PetscScalar Tsol, Plith, rho;
-      ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &idx); CHKERRQ(ierr);
+      // solidus temperature
       rho  = usr->par->rho0; // this should be bulk density
       Plith= LithostaticPressure(rho,usr->par->drho,coordz[j][icenter]);
-      Tsol = Solidus(xxCs[j][i][idx],Plith,usr->nd->G,PETSC_FALSE);
-      // correct for solidus
-      xx[j][i][idx] = Tsol;
-      // PetscPrintf(PETSC_COMM_WORLD,"# Temp HS = %1.12e Tsol = %1.12e Plith = %1.12e G = %1.12e  \n",xx[j][i][idx],Tsol,Plith,usr->nd->G);
+      xxTsol[j][i][idx] = Solidus(xxCs[j][i][idx],Plith,usr->nd->G,PETSC_FALSE);
+      // PetscPrintf(PETSC_COMM_WORLD,"# Temp HS = %1.12e Tsol = %1.12e Plith = %1.12e G = %1.12e  \n",xxT[j][i][idx],xxTsol[j][i][idx],Plith,usr->nd->G);
+
+      // potential temperature
+      Az = -usr->nd->A*coordz[j][icenter]; 
+      xxtheta[j][i][idx] = Temp2Theta(xxT[j][i][idx],Az);
+      
+      // enthalpy
+      xxH[j][i][idx] = TotalEnthalpy(xxphi[j][i][idx],xxtheta[j][i][idx],Az,usr->nd->S,usr->nd->thetaS);
+
     }
   }
 
   // Restore arrays
   ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dm,xTlocal,&xxT); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dm,xphilocal,&xxphi); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dm,xClocal,&xxC); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dm,xCflocal,&xxCf); CHKERRQ(ierr);
   ierr = DMStagVecRestoreArray(dm,xCslocal,&xxCs); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm,&xCslocal); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dm,xTsollocal,&xxTsol); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dm,xthetalocal,&xxtheta); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dm,xHlocal,&xxH); CHKERRQ(ierr);
+
+  ierr = DMLocalToGlobalBegin(dm,xTlocal,INSERT_VALUES,usr->xT); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xTlocal,INSERT_VALUES,usr->xT); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dm,xphilocal,INSERT_VALUES,usr->xphi); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xphilocal,INSERT_VALUES,usr->xphi); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dm,xClocal,INSERT_VALUES,usr->xC); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xClocal,INSERT_VALUES,usr->xC); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dm,xCflocal,INSERT_VALUES,usr->xCf); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xCflocal,INSERT_VALUES,usr->xCf); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dm,xCslocal,INSERT_VALUES,usr->xCs); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xCslocal,INSERT_VALUES,usr->xCs); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dm,xTsollocal,INSERT_VALUES,usr->xTsol); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xTsollocal,INSERT_VALUES,usr->xTsol); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dm,xthetalocal,INSERT_VALUES,usr->xTheta); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xthetalocal,INSERT_VALUES,usr->xTheta); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dm,xHlocal,INSERT_VALUES,usr->xH); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xHlocal,INSERT_VALUES,usr->xH); CHKERRQ(ierr);
+
+  ierr = VecDestroy(&xTlocal); CHKERRQ(ierr);
+  ierr = VecDestroy(&xphilocal); CHKERRQ(ierr);
+  ierr = VecDestroy(&xClocal); CHKERRQ(ierr);
+  ierr = VecDestroy(&xCflocal); CHKERRQ(ierr);
+  ierr = VecDestroy(&xCslocal); CHKERRQ(ierr);
+  ierr = VecDestroy(&xTsollocal); CHKERRQ(ierr);
+  ierr = VecDestroy(&xthetalocal); CHKERRQ(ierr);
+  ierr = VecDestroy(&xHlocal); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
+
+// // ---------------------------------------
+// // CorrectTemperatureForSolidus
+// // ---------------------------------------
+// PetscErrorCode CorrectTemperatureForSolidus(void *ctx)
+// {
+//   UsrData       *usr = (UsrData*) ctx;
+//   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, idx, icenter;
+//   PetscScalar    ***xx, ***xxCs;
+//   PetscScalar    **coordx,**coordz;
+//   Vec            x, xlocal, xCslocal;
+//   DM             dm;
+//   PetscErrorCode ierr;
+
+//   PetscFunctionBegin;
+
+//   dm = usr->dmHC;
+//   x  = usr->xTsol;
+
+//   ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
+//   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+
+//   ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
+//   ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+//   ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+
+//   ierr = DMGetLocalVector(dm, &xCslocal); CHKERRQ(ierr);
+//   ierr = DMGlobalToLocal (dm, usr->xCs, INSERT_VALUES, xCslocal); CHKERRQ(ierr);
+//   ierr = DMStagVecGetArray(dm, xCslocal, &xxCs); CHKERRQ(ierr);
+
+// // Get dm coordinates array
+//   ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+//   ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
+
+//   // Loop over local domain
+//   for (j = sz; j < sz+nz; j++) {
+//     for (i = sx; i <sx+nx; i++) {
+//       PetscScalar Tsol, Plith, rho;
+//       ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &idx); CHKERRQ(ierr);
+//       rho  = usr->par->rho0; // this should be bulk density
+//       Plith= LithostaticPressure(rho,usr->par->drho,coordz[j][icenter]);
+//       Tsol = Solidus(xxCs[j][i][idx],Plith,usr->nd->G,PETSC_FALSE);
+//       // correct for solidus
+//       xx[j][i][idx] = Tsol;
+//       // PetscPrintf(PETSC_COMM_WORLD,"# Temp HS = %1.12e Tsol = %1.12e Plith = %1.12e G = %1.12e  \n",xx[j][i][idx],Tsol,Plith,usr->nd->G);
+//     }
+//   }
+
+//   // Restore arrays
+//   ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+//   ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+//   ierr = DMStagVecRestoreArray(dm,xCslocal,&xxCs); CHKERRQ(ierr);
+//   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
+//   ierr = DMRestoreLocalVector(dm,&xCslocal); CHKERRQ(ierr);
+
+//   PetscFunctionReturn(0);
+// }
