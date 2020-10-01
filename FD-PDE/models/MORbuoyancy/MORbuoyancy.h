@@ -91,10 +91,6 @@ PetscErrorCode HalfSpaceCooling_MOR(void*);
 PetscErrorCode CorrectTemperatureForSolidus(void*);
 
 // constitutive equations
-// PetscErrorCode UpdateThetaFromTemp(void*);
-// PetscErrorCode UpdateComposition(void*);
-// PetscErrorCode UpdateEnthalpy(void*);
-
 PetscScalar Temp2Theta(PetscScalar,PetscScalar);
 PetscScalar Theta2Temp(PetscScalar,PetscScalar);
 PetscScalar BulkComposition(PetscScalar,PetscScalar,PetscScalar);  
@@ -108,7 +104,6 @@ PetscErrorCode DoOutput(void*);
 PetscErrorCode ScaleSolutionPV(DM,Vec,Vec*,void*);
 PetscErrorCode ScaleVectorUniform(DM,Vec,Vec*,PetscScalar);
 PetscErrorCode ScaleTemperatureComposition(DM,Vec,Vec*,void*,PetscInt);
-// PetscErrorCode ScaleCoefficient(DM,Vec,Vec*,void*);
 
 // ---------------------------------------
 // Useful functions

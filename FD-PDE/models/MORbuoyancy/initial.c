@@ -16,7 +16,7 @@ PetscErrorCode SetInitialConditions_HS(FDPDE fdPV, FDPDE fdH, FDPDE fdC, void *c
   // corner flow model for PV
   ierr = CornerFlow_MOR(usr);CHKERRQ(ierr);
 
-  // half-space cooling model - init T, C, H, phi
+  // half-space cooling model - initialize T, C, H, phi
   ierr = HalfSpaceCooling_MOR(usr);CHKERRQ(ierr);
 
   // output variables
@@ -195,7 +195,6 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
       rho  = usr->par->rho0; // this should be bulk density
       Plith= LithostaticPressure(rho,usr->par->drho,coordz[j][icenter]);
       xxTsol[j][i][idx] = Solidus(xxCs[j][i][idx],Plith,usr->nd->G,PETSC_FALSE);
-      // PetscPrintf(PETSC_COMM_WORLD,"# Temp HS = %1.12e Tsol = %1.12e Plith = %1.12e G = %1.12e  \n",xxT[j][i][idx],xxTsol[j][i][idx],Plith,usr->nd->G);
 
       // potential temperature
       Az = -usr->nd->A*coordz[j][icenter]; 
@@ -246,60 +245,3 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
 
   PetscFunctionReturn(0);
 }
-
-// // ---------------------------------------
-// // CorrectTemperatureForSolidus
-// // ---------------------------------------
-// PetscErrorCode CorrectTemperatureForSolidus(void *ctx)
-// {
-//   UsrData       *usr = (UsrData*) ctx;
-//   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, idx, icenter;
-//   PetscScalar    ***xx, ***xxCs;
-//   PetscScalar    **coordx,**coordz;
-//   Vec            x, xlocal, xCslocal;
-//   DM             dm;
-//   PetscErrorCode ierr;
-
-//   PetscFunctionBegin;
-
-//   dm = usr->dmHC;
-//   x  = usr->xTsol;
-
-//   ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
-//   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-
-//   ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
-//   ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
-//   ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
-
-//   ierr = DMGetLocalVector(dm, &xCslocal); CHKERRQ(ierr);
-//   ierr = DMGlobalToLocal (dm, usr->xCs, INSERT_VALUES, xCslocal); CHKERRQ(ierr);
-//   ierr = DMStagVecGetArray(dm, xCslocal, &xxCs); CHKERRQ(ierr);
-
-// // Get dm coordinates array
-//   ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-//   ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
-
-//   // Loop over local domain
-//   for (j = sz; j < sz+nz; j++) {
-//     for (i = sx; i <sx+nx; i++) {
-//       PetscScalar Tsol, Plith, rho;
-//       ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &idx); CHKERRQ(ierr);
-//       rho  = usr->par->rho0; // this should be bulk density
-//       Plith= LithostaticPressure(rho,usr->par->drho,coordz[j][icenter]);
-//       Tsol = Solidus(xxCs[j][i][idx],Plith,usr->nd->G,PETSC_FALSE);
-//       // correct for solidus
-//       xx[j][i][idx] = Tsol;
-//       // PetscPrintf(PETSC_COMM_WORLD,"# Temp HS = %1.12e Tsol = %1.12e Plith = %1.12e G = %1.12e  \n",xx[j][i][idx],Tsol,Plith,usr->nd->G);
-//     }
-//   }
-
-//   // Restore arrays
-//   ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-//   ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
-//   ierr = DMStagVecRestoreArray(dm,xCslocal,&xxCs); CHKERRQ(ierr);
-//   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
-//   ierr = DMRestoreLocalVector(dm,&xCslocal); CHKERRQ(ierr);
-
-//   PetscFunctionReturn(0);
-// }
