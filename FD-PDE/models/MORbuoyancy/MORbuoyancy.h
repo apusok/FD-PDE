@@ -35,7 +35,7 @@ typedef struct {
   PetscScalar    phi0, n, K0, phi_max, eta0, zeta0, mu, eta_min, eta_max, lambda, EoR, Teta0; 
   PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT;
   PetscInt       ts_scheme, adv_scheme, tout, tstep;
-  PetscScalar    t, dt, tmax, dtmax;
+  PetscScalar    tmax, dtmax;
   PetscInt       out_count;
   PetscBool      dim_out;
   char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH]; 
@@ -47,6 +47,7 @@ typedef struct {
 
 typedef struct {
   PetscScalar    L, H, xmin, zmin, xMOR, U0, eta0, zeta0;
+  PetscScalar    tmax, dtmax, t, dt, tprev;
   PetscScalar    delta, alpha_s, beta_s, A, S, PeT, PeC, thetaS, G, RM;
 } NdParams;
 
@@ -60,6 +61,7 @@ typedef struct {
   PetscMPIInt    rank;
   DM             dmPV,dmHC;
   Vec            xPV,xT,xTheta,xphi,xC,xCf,xCs,xH,xTsol; // non-dimensional vectors
+  Vec            xHprev, xCprev; 
 } UsrData;
 
 // ---------------------------------------

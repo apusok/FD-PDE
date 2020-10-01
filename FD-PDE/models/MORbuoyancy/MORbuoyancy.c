@@ -102,9 +102,10 @@ PetscErrorCode Numerical_solution(void *ctx)
   Params        *par;
   PetscInt      nx, nz, istep = 0; 
   PetscScalar   xmin, xmax, zmin, zmax;
-  FDPDE         fdPV, fdH, fdC, fdHC, fd[2];
+  FDPDE         fdPV, fdH, fdC, fdHC, fd[2],*pdes;
   DM            dmPV, dmHC;
-  Vec           xPV, xH;
+  Vec           xPV, xH, xC, x, xHprev, xCprev;
+  PetscBool     converged;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -185,12 +186,33 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = VecDuplicate(xH,&usr->xC);CHKERRQ(ierr);
   ierr = VecDuplicate(xH,&usr->xCf);CHKERRQ(ierr);
   ierr = VecDuplicate(xH,&usr->xCs);CHKERRQ(ierr);
+  ierr = VecDuplicate(xH,&usr->xHprev);CHKERRQ(ierr);
+  ierr = VecDuplicate(xH,&usr->xCprev);CHKERRQ(ierr);
   ierr = VecDestroy(&xH);CHKERRQ(ierr);
 
   // Initial conditions
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
   PetscPrintf(PETSC_COMM_WORLD,"# Set initial conditions \n");
-  ierr = SetInitialConditions_HS(fdPV,fdH,fdC,usr);CHKERRQ(ierr);
+  ierr = SetInitialConditions_HS(fdPV,fdH,fdC,usr);CHKERRQ(ierr); // using half-space cooling model
+
+  // Copy variables into fd-pde objects
+  ierr = FDPDEAdvDiffGetPrevSolution(fdH,&xHprev);CHKERRQ(ierr);
+  ierr = VecCopy(usr->xH,xHprev);CHKERRQ(ierr);
+  ierr = VecCopy(usr->xH,usr->xHprev);CHKERRQ(ierr);
+  ierr = VecDestroy(&xHprev);CHKERRQ(ierr);
+
+  ierr = FDPDEAdvDiffGetPrevSolution(fdC,&xCprev);CHKERRQ(ierr);
+  ierr = VecCopy(usr->xC,xCprev);CHKERRQ(ierr);
+  ierr = VecCopy(usr->xC,usr->xCprev);CHKERRQ(ierr);
+  ierr = VecDestroy(&xCprev);CHKERRQ(ierr);
+
+  // ierr = FDPDEGetCoefficient(fdH,&dmHcoeff,NULL);CHKERRQ(ierr);
+  // ierr = FDPDEAdvDiffGetPrevCoefficient(fdH,&xHcoeffprev);CHKERRQ(ierr);
+  // ierr = SetInitialHCoefficient(dmHcoeff,xHcoeffprev,usr);CHKERRQ(ierr);
+
+  // ierr = FDPDEGetCoefficient(fdC,&dmCcoeff,NULL);CHKERRQ(ierr);
+  // ierr = FDPDEAdvDiffGetPrevCoefficient(fdC,&xCcoeffprev);CHKERRQ(ierr);
+  // ierr = SetInitialHCoefficient(dmCcoeff,xCcoeffprev,usr);CHKERRQ(ierr);
 
   // Set up HC composite system
   fd[0] = fdH;
@@ -208,19 +230,83 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = FDPDEDestroy(&fd[1]);CHKERRQ(ierr);
 
   // Time loop
-  while ((par->t <= par->tmax) && (istep < par->tstep)) {
+  while ((nd->t <= nd->tmax) && (istep < par->tstep)) {
     PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
     PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep);
+    
+    // Set dt for HC advection
+    ierr = FDPDECompositeGetFDPDE(fdHC,NULL,&pdes);CHKERRQ(ierr);
+
+    // PetscScalar dt;
+    // ierr = FDPDEAdvDiffComputeExplicitTimestep(pdes[0],&dt);CHKERRQ(ierr);
+    // ierr = FDPDEAdvDiffComputeExplicitTimestep(pdes[1],&dt);CHKERRQ(ierr);
+    // nd->dt = PetscMin(dt,nd->dtmax);
+    nd->dt = nd->dtmax;
+    PetscPrintf(PETSC_COMM_WORLD,"# dt = %1.12e dtmax = %1.12e \n",nd->dt,nd->dtmax);
+    ierr = FDPDEAdvDiffSetTimestep(pdes[0],nd->dt);CHKERRQ(ierr);
+    ierr = FDPDEAdvDiffSetTimestep(pdes[1],nd->dt);CHKERRQ(ierr);
+
+    // Update time
+    nd->tprev = nd->t;
+    nd->t    += nd->dt;
 
     // Solve HC
-    // Update fields 
+    PetscPrintf(PETSC_COMM_WORLD,"# HC Solver \n");
+    ierr = FDPDESolve(fdHC,&converged);CHKERRQ(ierr);
+
+    // Get global HC solution
+    ierr = FDPDEGetSolution(fdHC,&x);CHKERRQ(ierr);
+    ierr = FDPDECompositeSynchronizeGlobalVectors(fdHC,x);CHKERRQ(ierr);
+
+    // Get separate solutions
+    ierr = FDPDEGetSolution(pdes[0],&xH);CHKERRQ(ierr);
+    ierr = FDPDEGetSolution(pdes[1],&xC);CHKERRQ(ierr);
+
+    // Update fields
+
+    // HC: copy solution and coefficient to old
+    ierr = FDPDEAdvDiffGetPrevSolution(pdes[0],&xHprev);CHKERRQ(ierr);
+    ierr = VecCopy(xH,xHprev);CHKERRQ(ierr);
+    ierr = VecCopy(xH,usr->xH);CHKERRQ(ierr);
+    ierr = VecCopy(xHprev,usr->xHprev);CHKERRQ(ierr);
+    ierr = VecDestroy(&xHprev);CHKERRQ(ierr);
+    ierr = VecDestroy(&xH);CHKERRQ(ierr);
+
+    // ierr = FDPDEGetCoefficient(pdes[0],&dmHcoeff,&xHcoeff);CHKERRQ(ierr);
+    // ierr = FDPDEAdvDiffGetPrevCoefficient(pdes[0],&xHcoeffprev);CHKERRQ(ierr);
+    // ierr = VecCopy(xHcoeff,xHcoeffprev);CHKERRQ(ierr);
+    // ierr = VecDestroy(&xHcoeffprev);CHKERRQ(ierr);
+
+    ierr = FDPDEAdvDiffGetPrevSolution(pdes[1],&xCprev);CHKERRQ(ierr);
+    ierr = VecCopy(xC,xCprev);CHKERRQ(ierr);
+    ierr = VecCopy(xC,usr->xC);CHKERRQ(ierr);
+    ierr = VecCopy(xCprev,usr->xCprev);CHKERRQ(ierr);
+    ierr = VecDestroy(&xCprev);CHKERRQ(ierr);
+    ierr = VecDestroy(&xC);CHKERRQ(ierr);
+
+    // ierr = FDPDEGetCoefficient(pdes[1],&dmCcoeff,&xCcoeff);CHKERRQ(ierr);
+    // ierr = FDPDEAdvDiffGetPrevCoefficient(pdes[1],&xCcoeffprev);CHKERRQ(ierr);
+    // ierr = VecCopy(xCcoeff,xCcoeffprev);CHKERRQ(ierr);
+    // ierr = VecDestroy(&xCcoeffprev);CHKERRQ(ierr);
+
     // Solve PV
+    PetscPrintf(PETSC_COMM_WORLD,"# PV Solver \n");
+    ierr = FDPDESolve(fdPV,NULL);CHKERRQ(ierr);
+    ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
+    ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
+    ierr = VecDestroy(&xPV);CHKERRQ(ierr);
+
+    // Update fluid velocity
+
     // Output solution
+    if (istep % par->tout == 0 ) {
+      // ierr = DoOutput(usr);CHKERRQ(ierr);
+    }
 
     // increment timestep
     istep++;
 
-    PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e [yr] dt = %1.12e [yr] \n\n",par->t*usr->scal->t/SEC_YEAR,par->dt*usr->scal->t/SEC_YEAR);
+    PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e [yr] dt = %1.12e [yr] \n\n",nd->t*usr->scal->t/SEC_YEAR,nd->dt*usr->scal->t/SEC_YEAR);
   }
 
   // Destroy objects
@@ -238,6 +324,8 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = VecDestroy(&usr->xC);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xCf);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xCs);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xHprev);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xCprev);CHKERRQ(ierr);
   ierr = DMDestroy(&usr->dmPV);CHKERRQ(ierr);
   ierr = DMDestroy(&usr->dmHC);CHKERRQ(ierr);
 

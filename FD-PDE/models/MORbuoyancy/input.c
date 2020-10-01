@@ -272,6 +272,12 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   nd->U0    = nd_param(par->U0,scal->v);
   nd->eta0  = nd_param(par->eta0,scal->eta);
   nd->zeta0 = nd_param(par->zeta0,scal->eta);
+  nd->tmax  = nd_param(par->tmax,scal->t);
+  nd->dtmax = nd_param(par->dtmax,scal->t);
+
+  nd->dt    = 0.0;
+  nd->t     = 0.0;
+  nd->tprev = 0.0;
 
   // non-dimensional parameters
   nd->delta   = PetscSqrtScalar(scal->eta*scal->K/usr->par->mu)/scal->x;

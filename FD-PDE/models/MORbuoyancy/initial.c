@@ -22,14 +22,6 @@ PetscErrorCode SetInitialConditions_HS(FDPDE fdPV, FDPDE fdH, FDPDE fdC, void *c
   // output variables
   ierr = DoOutput(usr);CHKERRQ(ierr);
 
-  // copy variables into fd-pde objects
-  // ierr = FDPDEAdvDiffGetPrevSolution(fdH,&xHprev);CHKERRQ(ierr);
-  // ierr = SetInitialH(dmH,xHprev,usr);CHKERRQ(ierr);
-
-  // ierr = FDPDEGetCoefficient(fdphi,&dmphicoeff,NULL);CHKERRQ(ierr);
-  // ierr = FDPDEAdvDiffGetPrevCoefficient(fdphi,&phicoeffprev);CHKERRQ(ierr);
-  // ierr = SetInitialPorosityCoefficient(dmphicoeff,phicoeffprev,usr);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
