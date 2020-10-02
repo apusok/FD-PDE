@@ -693,7 +693,7 @@ PetscErrorCode FormBCList_PV(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   // LEFT Boundary - Vz
   ierr = DMStagBCListGetValues(bclist,'w','|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
+  for (k=1; k<n_bc-1; k++) {
     value_bc[k] = get_uz(x_bc[2*k],x_bc[2*k+1],t,eta,zeta,phi_0,p_s,m,n,e3);
     type_bc[k] = BC_DIRICHLET_TRUE;
   }
