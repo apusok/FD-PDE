@@ -310,7 +310,7 @@ PetscErrorCode DMStagBCListApplyFace_StokesDarcy2Field(DM dm, Vec xlocal,DM dmco
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
 
-    if (bclist[ibc].type == BC_DIRICHLET) {
+    if (bclist[ibc].type == BC_DIRICHLET_STAG) {
       i   = bclist[ibc].point.i;
       j   = bclist[ibc].point.j;
       idx = bclist[ibc].idx;
@@ -320,7 +320,7 @@ PetscErrorCode DMStagBCListApplyFace_StokesDarcy2Field(DM dm, Vec xlocal,DM dmco
       ff[j][i][idx] = xx - bclist[ibc].val;
     }
     
-    if (bclist[ibc].type == BC_DIRICHLET_TRUE) {
+    if (bclist[ibc].type == BC_DIRICHLET) {
       i   = bclist[ibc].point.i;
       j   = bclist[ibc].point.j;
       idx = bclist[ibc].idx;
@@ -489,7 +489,7 @@ PetscErrorCode DMStagBCListApplyElement_StokesDarcy2Field(DM dm, Vec xlocal,DM d
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
 
-    if (bclist[ibc].type == BC_DIRICHLET) {
+    if (bclist[ibc].type == BC_DIRICHLET_STAG) {
       i   = bclist[ibc].point.i;
       j   = bclist[ibc].point.j;
       idx = bclist[ibc].idx;
@@ -499,7 +499,7 @@ PetscErrorCode DMStagBCListApplyElement_StokesDarcy2Field(DM dm, Vec xlocal,DM d
       ff[j][i][idx] = xx - bclist[ibc].val;
     }
 
-    if (bclist[ibc].type == BC_DIRICHLET_TRUE) {
+    if (bclist[ibc].type == BC_DIRICHLET) {
       i   = bclist[ibc].point.i;
       j   = bclist[ibc].point.j;
       idx = bclist[ibc].idx;

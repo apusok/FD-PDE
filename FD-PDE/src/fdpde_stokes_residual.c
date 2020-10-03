@@ -41,7 +41,7 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   data = fd->data;
   // pin pressure 
   if (data->pinpoint) {
-    bclist->bc_e[0].type = BC_DIRICHLET;
+    bclist->bc_e[0].type = BC_DIRICHLET_STAG;
     bclist->bc_e[0].val  = data->pinvalue;
   }
 
@@ -148,7 +148,7 @@ PetscErrorCode FormFunctionSplit_Stokes(SNES snes, Vec x, Vec x2, Vec f, void *c
   data = fd->data;
   // pin pressure
   if (data->pinpoint) {
-    bclist->bc_e[0].type = BC_DIRICHLET;
+    bclist->bc_e[0].type = BC_DIRICHLET_STAG;
     bclist->bc_e[0].val  = data->pinvalue;
   }
   
@@ -458,7 +458,7 @@ PetscErrorCode DMStagBCListApplyFace_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec co
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
 
-    if (bclist[ibc].type == BC_DIRICHLET) {
+    if (bclist[ibc].type == BC_DIRICHLET_STAG) {
       i   = bclist[ibc].point.i;
       j   = bclist[ibc].point.j;
       idx = bclist[ibc].idx;
@@ -469,7 +469,7 @@ PetscErrorCode DMStagBCListApplyFace_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec co
       ff[j][i][idx] = xx - bclist[ibc].val;
     }
     
-    if (bclist[ibc].type == BC_DIRICHLET_TRUE) {
+    if (bclist[ibc].type == BC_DIRICHLET) {
       i   = bclist[ibc].point.i;
       j   = bclist[ibc].point.j;
       idx = bclist[ibc].idx;
@@ -631,7 +631,7 @@ PetscErrorCode DMStagBCListApplyElement_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
-    if (bclist[ibc].type == BC_DIRICHLET) {
+    if (bclist[ibc].type == BC_DIRICHLET_STAG) {
       i   = bclist[ibc].point.i;
       j   = bclist[ibc].point.j;
       idx = bclist[ibc].idx;
@@ -641,6 +641,10 @@ PetscErrorCode DMStagBCListApplyElement_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec
       ff[j][i][idx] = xx - bclist[ibc].val;
     }
 
+    if (bclist[ibc].type == BC_DIRICHLET) {
+      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"BC type DIRICHLET on the true boundary for FDPDE_STOKES [ELEMENT] is not yet implemented.");
+    }
+    
     if (bclist[ibc].type == BC_NEUMANN) {
       SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"BC type NEUMANN for FDPDE_STOKES [ELEMENT] is not yet implemented.");
     }

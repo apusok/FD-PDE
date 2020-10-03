@@ -614,12 +614,13 @@ Input Parameter:
 list - the DMStagBCList object
 domain_face - boundary label: 'w' west, 'e' east, 'n' north, 's' south
 label - dof label: '.' vertex, '-' edge (horizontal), '|' edge (vertical), 'o' element
-dof - component degree of freedom (DMStagStencil c) (also used to decide if shifting coordinates or not)
+dof - component degree of freedom (DMStagStencil c) 
 
 Output Parameters:
 _n - count of boundary dof
 _idx - 1D array containing the index
-_xc - 1D array containing the coordinates
+_xc - 1D array containing the coordinates (true boundary)
+_xc_stag - 1D array containing the coordinates (dof)
 _value - 1D array containing the value
 _type - 1D array containing BCtype
 
@@ -634,19 +635,16 @@ Use: user
 PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
                   const char domain_face,const char label, /* vertex -> . : edge -> {-,|} : element -> o */
                   PetscInt dof,
-                  PetscInt *_n,PetscInt *_idx[],PetscScalar *_xc[],PetscScalar *_value[],BCType *_type[])
+                  PetscInt *_n,PetscInt *_idx[],PetscScalar *_xc[],PetscScalar *_xc_stag[],PetscScalar *_value[],BCType *_type[])
 {
   PetscInt n=0,*idx,Nx,Nz,k;
-  PetscScalar *v,*xc;
+  PetscScalar *v,*xc,*xc_stag;
   BCType *t;
   DMStagBC *bc = NULL;
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
-  //if (dof != 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Currently only dof_index = 0 is supported");
-  if ((dof != 0) && ( (label == '_') || (label == '|' ))) {
-    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Currently dof_index is used to decide if shifting coordinates on the true boundaries (dof=0) or not (dof!=0). Face values represent velocities that all BCs are implemented weakly, so dof must be zero!");
-  }
+  if (dof != 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Currently only dof_index = 0 is supported");
   if (label == '.') SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"No support to get vertex bc DOFs. Only support for getting face bc values. ");
   
   if (!_n || !_idx || !_value || !_type) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Must provide a valid (non-NULL) pointer for n (arg 4), idx (arg 5), value (arg 7), type (arg 8)");
@@ -707,7 +705,7 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
       break;
   }
 
-  ierr = PetscCalloc3(2*n,&xc,n,&v,n,&t);CHKERRQ(ierr);
+  ierr = PetscCalloc4(2*n,&xc,2*n,&xc_stag,n,&v,n,&t);CHKERRQ(ierr);
   /* copy coords */
   switch (label) {
     case '.':
@@ -726,53 +724,54 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
       break;
   }
 
+  // Load the size of half grids
+  PetscScalar *dx, *dz;
+  PetscInt start[2], nx_local, nz_local;
+  
+  ierr = DMStagCellSizeLocal_2d(list->dm,&nx_local,&nz_local,&dx,&dz); CHKERRQ(ierr);
+  ierr = DMStagGetCorners(list->dm,&start[0],&start[1],NULL,NULL,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
 
   for (k=0; k<n; k++) {
-    xc[2*k+0] = bc[ idx[k] ].coord[0];
-    xc[2*k+1] = bc[ idx[k] ].coord[1];
+    xc_stag[2*k+0] = bc[ idx[k] ].coord[0];
+    xc_stag[2*k+1] = bc[ idx[k] ].coord[1];
     v[k]      = bc[ idx[k] ].val;
     t[k]      = bc[ idx[k] ].type;
-  }
 
-  // Shift coordinates for u, v and p that the boundary conditions are prescribed along the 'true boundary'.
-  // When dof !=0 and label='o' (for example temperature for AdvDiff), the boundary condition is implemented strongly at the center and no coordinate shifting.
-  if (dof == 0) {
+    xc[2*k+0] = xc_stag[2*k+0];
+    xc[2*k+1] = xc_stag[2*k+1];
 
-      PetscScalar *dx, *dz;
-      PetscInt start[2], nx_local, nz_local;
-  
-      ierr = DMStagCellSizeLocal_2d(list->dm,&nx_local,&nz_local,&dx,&dz); CHKERRQ(ierr);
-      ierr = DMStagGetCorners(list->dm,&start[0],&start[1],NULL,NULL,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
-
-    for (k=0; k<n; k++) {
-      //Correct coordinates of interior boundary points to the corresponding true boundaries
-      //Notes: it corrects the output of xc for the convenience of prescribing the boundary conditions, but not change the data stored in BCList.
-      if (domain_face == 'n' && (label == '-' || label == 'o')) {
-        if (start[1]+nz_local == Nz) {xc[2*k+1] += 0.5*dz[nz_local-1];}
-        else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"North Boundary: Wrong indices for cell sizes.");
-      }
-
-      if (domain_face == 's' && (label == '-' || label == 'o')) {
-        if (start[1] == 0) {xc[2*k+1] -= 0.5*dz[start[1]];}
-        else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"South Boundary: Wrong indices for cell sizes.");
-      }
-
-      if (domain_face == 'w' && (label == '|' || label == 'o')) {
-        if (start[0] == 0) {xc[2*k+0] -= 0.5*dx[start[0]];}
-        else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"West Boundary: Wrong indices for cell sizes.");
-      }
-
-      if (domain_face == 'e' && (label == '|' || label == 'o')) {
-        if (start[0]+nx_local == Nx) {xc[2*k+0] += 0.5*dx[nx_local-1];}
-        else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"East Boundary: Wrong indices for cell sizes.");
-      }
+    //Correct coordinates of interior boundary points to the corresponding true boundaries
+    //Notes: it corrects the output of xc for the convenience of prescribing the boundary conditions, but not change the data stored in BCList.
+    if (domain_face == 'n' && (label == '-' || label == 'o')) {
+      if (start[1]+nz_local == Nz) {xc[2*k+1] += 0.5*dz[nz_local-1];}
+      else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"North Boundary: Wrong indices for cell sizes.");
     }
-    ierr = PetscFree(dx);CHKERRQ(ierr);
-    ierr = PetscFree(dz);CHKERRQ(ierr);
+
+    if (domain_face == 's' && (label == '-' || label == 'o')) {
+      if (start[1] == 0) {xc[2*k+1] -= 0.5*dz[start[1]];}
+      else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"South Boundary: Wrong indices for cell sizes.");
+    }
+
+    if (domain_face == 'w' && (label == '|' || label == 'o')) {
+      if (start[0] == 0) {xc[2*k+0] -= 0.5*dx[start[0]];}
+      else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"West Boundary: Wrong indices for cell sizes.");
+    }
+
+    if (domain_face == 'e' && (label == '|' || label == 'o')) {
+      if (start[0]+nx_local == Nx) {xc[2*k+0] += 0.5*dx[nx_local-1];}
+      else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"East Boundary: Wrong indices for cell sizes.");
+    }
   }
+
+  ierr = PetscFree(dx);CHKERRQ(ierr);
+  ierr = PetscFree(dz);CHKERRQ(ierr);
+
   *_n = n;  *_idx = idx;  *_value = v;  *_type = t;
+  //if (_xc) { *_xc = xc; }
+  //else { ierr = PetscFree(xc);CHKERRQ(ierr); }
   if (_xc) { *_xc = xc; }
-  else { ierr = PetscFree(xc);CHKERRQ(ierr); }
+  if (_xc_stag) { *_xc_stag = xc_stag; }
+  ierr = PetscFree2(xc, xc_stag);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -834,7 +833,8 @@ label - dof label: '.' vertex, '-' edge (horizontal), '|' edge (vertical), 'o' e
 dof - component degree of freedom (DMStagStencil c)
 _n - count of boundary dof
 _idx - 1D array containing the index
-_xc - 1D array containing the coordinates
+_xc - 1D array containing the coordinates (true boundary)
+_xc_stag - 1D array containing the coordinates (dof)
 _value - 1D array containing the value
 _type - 1D array containing BCtype
 
@@ -848,7 +848,7 @@ Use: user
 #define __FUNCT__ "DMStagBCListInsertValues"
 PetscErrorCode DMStagBCListInsertValues(DMStagBCList list,const char label,
                                         PetscInt dof,
-                                        PetscInt *_n,PetscInt *_idx[],PetscScalar *_xc[],PetscScalar *_value[],BCType *_type[])
+                                        PetscInt *_n,PetscInt *_idx[],PetscScalar *_xc[],PetscScalar *_xc_stag[],PetscScalar *_value[],BCType *_type[])
 {
   DMStagBC *bc = NULL;
   PetscInt si,k,n;
@@ -858,11 +858,8 @@ PetscErrorCode DMStagBCListInsertValues(DMStagBCList list,const char label,
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
-  //if (dof != 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Currently only dof_index = 0 is supported");
-  if ((dof != 0) && ( (label == '_') || (label == '|' ))) {
-    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Currently dof_index is used to decide if shifting coordinates on the true boundaries (dof=0) or not (dof!=0). Face values represent velocities that all BCs are implemented weakly, so dof must be zero!");
-  }
-  if (!_n || !_idx || !_value || !_type) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Must provide a valid (non-NULL) pointer for n (arg 4) idx (arg 5), value (arg 7), type (arg 8)");
+  if (dof != 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Currently only dof_index = 0 is supported");
+  if (!_n || !_idx || !_value || !_type) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Must provide a valid (non-NULL) pointer for n (arg 4) idx (arg 5), value (arg 8), type (arg 9)");
   
   n = *_n;
   idx = *_idx;
@@ -890,6 +887,8 @@ PetscErrorCode DMStagBCListInsertValues(DMStagBCList list,const char label,
   }
   if (_xc) {
     ierr = PetscFree4(*_idx,*_xc,*_value,*_type);CHKERRQ(ierr);
+  } else if (_xc_stag) {
+    ierr = PetscFree4(*_idx,*_xc_stag,*_value,*_type);CHKERRQ(ierr);
   } else {
     ierr = PetscFree3(*_idx,*_value,*_type);CHKERRQ(ierr);
   }

@@ -7,7 +7,7 @@
 #include "dmstag_utils.h"
 
 // BC type
-typedef enum { BC_NULL = 0, BC_DIRICHLET, BC_DIRICHLET_TRUE, BC_NEUMANN, BC_NEUMANN_T } BCType;
+typedef enum { BC_NULL = 0, BC_DIRICHLET, BC_DIRICHLET_STAG, BC_NEUMANN, BC_NEUMANN_T } BCType;
 
 // ---------------------------------------
 // Struct definitions
@@ -44,7 +44,7 @@ PetscErrorCode DMStagBCListGetVertexBCs(DMStagBCList,PetscInt*,DMStagBC**);
 PetscErrorCode DMStagBCListGetFaceBCs(DMStagBCList,PetscInt*,DMStagBC**);
 PetscErrorCode DMStagBCListGetElementBCs(DMStagBCList,PetscInt*,DMStagBC**);
 
-PetscErrorCode DMStagBCListGetValues(DMStagBCList,const char,const char,PetscInt,PetscInt*,PetscInt**,PetscScalar**,PetscScalar**,BCType**);
-PetscErrorCode DMStagBCListInsertValues(DMStagBCList,const char,PetscInt,PetscInt*,PetscInt**,PetscScalar**,PetscScalar**,BCType**);
+PetscErrorCode DMStagBCListGetValues(DMStagBCList,const char,const char,PetscInt,PetscInt*,PetscInt**,PetscScalar**,PetscScalar**,PetscScalar**,BCType**);
+PetscErrorCode DMStagBCListInsertValues(DMStagBCList,const char,PetscInt,PetscInt*,PetscInt**,PetscScalar**,PetscScalar**,PetscScalar**,BCType**);
 
 #endif
