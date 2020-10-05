@@ -29,10 +29,10 @@ const char bc_description_PV[] =
 
 const char coeff_description_H[] =
 "  << Enthalpy (H) Coefficients >> \n"
-"  A =  \n"
-"  B =  \n" 
-"  C =  \n"
-"  u =  \n";
+"  A = 1 \n"
+"  B = 1/PeT \n" 
+"  C = e(Az)div(vI)-Sdiv((1-phi)vs)-1/PeT*e(Az)div^2(I) \n"
+"  u = v \n";
 
 const char bc_description_H[] =
 "  << Enthalpy (H) BCs >> \n"
@@ -43,10 +43,10 @@ const char bc_description_H[] =
 
 const char coeff_description_C[] =
 "  << Composition (C) Coefficients >> \n"
-"  A =  \n"
-"  B =  \n" 
-"  C =  \n"
-"  u =  \n";
+"  A = 1 \n"
+"  B = 0 \n" 
+"  C = div((1-phi)grad(v)Theta_s) - 1/PeC*div(phi*grad(Theta_f)) \n"
+"  u = vf \n";
 
 const char bc_description_C[] =
 "  << Composition (C) BCs >> \n"

@@ -13,7 +13,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
   DM             dmHC;
   Vec            coefflocal;
-  // Vec            xphi, xphilocal;
+  Vec            xphi, xphilocal;
   PetscScalar    **coordx,**coordz;
   PetscInt       iprev, inext, icenter;
   PetscScalar    ***c;
@@ -24,13 +24,13 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
   nd  = usr->nd;
   par = usr->par;
 
-  // Get dm and solution vector for phi, theta (T), C - is it better to use fields?
+  // Get dm and solution vector for phi, T, C
   dmHC = usr->dmHC;
-  // xphi  = usr->xphiprev;
+  xphi = usr->xphi;
 
-  // ierr = DMCreateLocalVector(dmHC,&xphilocal);CHKERRQ(ierr);
-  // ierr = DMGlobalToLocalBegin(dmHC,xphi,INSERT_VALUES,xphilocal);CHKERRQ(ierr);
-  // ierr = DMGlobalToLocalEnd(dmHC,xphi,INSERT_VALUES,xphilocal);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dmHC,&xphilocal);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(dmHC,xphi,INSERT_VALUES,xphilocal);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(dmHC,xphi,INSERT_VALUES,xphilocal);CHKERRQ(ierr);
 
   // Get dmcoeff
   ierr = DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL);CHKERRQ(ierr);
@@ -171,7 +171,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
         if (j == Nz-1) { pointQ[4] = pointQ[1]; zQ[2] = zQ[1];}
         else           { zQ[2] = coordz[j+1][icenter];}
 
-        // ierr = DMStagVecGetValuesStencil(dmHC,xphilocal,5,pointQ,Q); CHKERRQ(ierr);
+        ierr = DMStagVecGetValuesStencil(dmHC,xphilocal,5,pointQ,Q); CHKERRQ(ierr);
 
         Qinterp = interp1DLin_3Points(xp[0],xQ[0],Q[0],xQ[1],Q[1],xQ[2],Q[2]);
         rhs[0] = -PetscPowScalar(Qinterp/par->phi0,par->n); //left 
@@ -220,7 +220,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
         if (j == Nz-1) { pointQ[2] = pointQ[1]; zQ[2] = zQ[1];}
         else           {zQ[2] = coordz[j+1][icenter];}
 
-        // ierr = DMStagVecGetValuesStencil(dmHC,xphilocal,3,pointQ,Q); CHKERRQ(ierr);
+        ierr = DMStagVecGetValuesStencil(dmHC,xphilocal,3,pointQ,Q); CHKERRQ(ierr);
         Qinterp = interp1DLin_3Points(zp[2],zQ[0],Q[0],zQ[1],Q[1],zQ[2],Q[2]);
         K       = PetscPowScalar(Qinterp/par->phi0,par->n);
         rhs[2]  = -par->k_hat*K*(1+Bf);
@@ -245,7 +245,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
   ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
   
   ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
-  // ierr = VecDestroy(&xphilocal);CHKERRQ(ierr);
+  ierr = VecDestroy(&xphilocal);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -257,8 +257,104 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
 #define __FUNCT__ "FormCoefficient_H"
 PetscErrorCode FormCoefficient_H(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
+  // UsrData        *usr = (UsrData*)ctx;
+  // PetscInt       i, j, sx, sz, nx, nz, Nx, Nz,icenter;
+  // DM             dmPV = NULL;
+  // Vec            coefflocal;
+  // PetscScalar    ***c, **coordx, **coordz;
+  // Vec            xPV = NULL, xPVlocal, xphi;
   PetscErrorCode ierr;
+
   PetscFunctionBeginUser;
+
+  // // Get dm and solution vector for solid, fluid velocity, porosity
+  // dmPV = usr->dmPV;
+  // xPV  = usr->xPV;
+  // xphi = usr->xphi;
+  // // xPVf = usr->xPVf;
+  
+  // ierr = DMCreateLocalVector(dmPV,&xPVlocal);CHKERRQ(ierr);
+  // ierr = DMGlobalToLocalBegin(dmPV,xPV,INSERT_VALUES,xPVlocal);CHKERRQ(ierr);
+  // ierr = DMGlobalToLocalEnd(dmPV,xPV,INSERT_VALUES,xPVlocal);CHKERRQ(ierr);
+  
+  // // Get domain corners and coordinates
+  // ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  // ierr = DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL);CHKERRQ(ierr);
+  // ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  // ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter);CHKERRQ(ierr);
+
+  // // Create coefficient local vector
+  // ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
+  // ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
+  
+  // // Loop over local domain
+  // for (j = sz; j < sz+nz; j++) {
+  //   for (i = sx; i <sx+nx; i++) {
+
+  //     { // A = 1.0
+  //       DMStagStencil point;
+  //       PetscInt      idx;
+
+  //       point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 0;
+  //       ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+  //       c[j][i][idx] = 1.0;
+  //     }
+
+  //     { // C = e(Az)div(vI)-Sdiv((1-phi)vs)-1/PeT*e(Az)div^2(I)
+  //       DMStagStencil point;
+  //       PetscInt      idx;
+  //       point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 1;
+  //       ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+  //       Az = -usr->nd->A*coordz[j][icenter];
+  //       c[j][i][idx] = usr->nd->Gamma;
+  //     }
+
+  //     { // B = 1/PeT (edge)
+  //       DMStagStencil point[4];
+  //       PetscInt      ii, idx;
+
+  //       point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
+  //       point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
+  //       point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 0;
+  //       point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 0;
+
+  //       for (ii = 0; ii < 4; ii++) {
+  //         ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+  //         c[j][i][idx] = 1.0/usr->nd->PeT;
+  //       }
+  //     }
+
+  //     { // u = bulk velocity (edge)
+  //       PetscScalar   vs[4],vf[4],phi[4];
+  //       DMStagStencil point[4];
+  //       PetscInt      ii, idx;
+
+  //       point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
+  //       point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
+  //       point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 0;
+  //       point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 0;
+        
+  //       ierr = DMStagVecGetValuesStencil(dmPV,xPVlocal, 4,point,vs); CHKERRQ(ierr);
+  //       ierr = DMStagVecGetValuesStencil(dmPV,xPVflocal,4,point,vf); CHKERRQ(ierr);
+  //       // get porosity
+
+  //       for (ii = 0; ii < 4; ii++) {
+  //         point[ii].c = 1;
+  //         ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+  //         c[j][i][idx] = phi[ii]*vf[ii]+(1.0-phi[ii])*vs[ii];
+  //       }
+  //     }
+  //   }
+  // }
+
+  // // Restore arrays, local vectors
+  // ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  // ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
+  // ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  // ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  // ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
+  
+  // ierr = VecDestroy(&xPVlocal);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -270,8 +366,102 @@ PetscErrorCode FormCoefficient_H(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, 
 #define __FUNCT__ "FormCoefficient_C"
 PetscErrorCode FormCoefficient_C(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
+  // UsrData        *usr = (UsrData*)ctx;
+  // PetscInt       i, j, sx, sz, nx, nz, Nx, Nz,icenter;
+  // DM             dmPV = NULL;
+  // Vec            coefflocal;
+  // PetscScalar    ***c, **coordx, **coordz;
+  // Vec            xPV = NULL, xPVlocal, xphi;
   PetscErrorCode ierr;
+
   PetscFunctionBeginUser;
+
+  // // Get dm and solution vector for solid, fluid velocity, porosity, composition
+  // dmPV = usr->dmPV;
+  // xPV  = usr->xPV;
+  // xphi = usr->xphi;
+  // // xPVf = usr->xPVf;
+  
+  // ierr = DMCreateLocalVector(dmPV,&xPVlocal);CHKERRQ(ierr);
+  // ierr = DMGlobalToLocalBegin(dmPV,xPV,INSERT_VALUES,xPVlocal);CHKERRQ(ierr);
+  // ierr = DMGlobalToLocalEnd(dmPV,xPV,INSERT_VALUES,xPVlocal);CHKERRQ(ierr);
+  
+  // // Get domain corners and coordinates
+  // ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  // ierr = DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL);CHKERRQ(ierr);
+  // ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  // ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter);CHKERRQ(ierr);
+
+  // // Create coefficient local vector
+  // ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
+  // ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
+  
+  // // Loop over local domain
+  // for (j = sz; j < sz+nz; j++) {
+  //   for (i = sx; i <sx+nx; i++) {
+
+  //     { // A = 1.0
+  //       DMStagStencil point;
+  //       PetscInt      idx;
+
+  //       point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 0;
+  //       ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+  //       c[j][i][idx] = 1.0;
+  //     }
+
+  //     { // C = div((1-phi)grad(v)Theta_s) - 1/PeC*div(phi*grad(Theta_f))
+  //       DMStagStencil point;
+  //       PetscInt      idx;
+  //       point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 1;
+  //       ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+  //       Az = -usr->nd->A*coordz[j][icenter];
+  //       c[j][i][idx] = usr->nd->Gamma;
+  //     }
+
+  //     { // B = 0.0 (edge)
+  //       DMStagStencil point[4];
+  //       PetscInt      ii, idx;
+
+  //       point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
+  //       point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
+  //       point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 0;
+  //       point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 0;
+
+  //       for (ii = 0; ii < 4; ii++) {
+  //         ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+  //         c[j][i][idx] = 0.0;
+  //       }
+  //     }
+
+  //     { // u = vf, fluid velocity (edge)
+  //       PetscScalar   vf[4];
+  //       DMStagStencil point[4];
+  //       PetscInt      ii, idx;
+
+  //       point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
+  //       point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
+  //       point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 0;
+  //       point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 0;
+        
+  //       ierr = DMStagVecGetValuesStencil(dmPV,xPVflocal,4,point,vf); CHKERRQ(ierr);
+
+  //       for (ii = 0; ii < 4; ii++) {
+  //         point[ii].c = 1;
+  //         ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+  //         c[j][i][idx] = vf[ii];
+  //       }
+  //     }
+  //   }
+  // }
+
+  // // Restore arrays, local vectors
+  // ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  // ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
+  // ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  // ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  // ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
+  
+  // ierr = VecDestroy(&xPVlocal);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
