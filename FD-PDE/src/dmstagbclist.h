@@ -44,6 +44,7 @@ PetscErrorCode DMStagBCListGetVertexBCs(DMStagBCList,PetscInt*,DMStagBC**);
 PetscErrorCode DMStagBCListGetFaceBCs(DMStagBCList,PetscInt*,DMStagBC**);
 PetscErrorCode DMStagBCListGetElementBCs(DMStagBCList,PetscInt*,DMStagBC**);
 
+
 PetscErrorCode DMStagBCListGetValues(DMStagBCList,const char,const char,PetscInt,PetscInt*,PetscInt**,PetscScalar**,PetscScalar**,PetscScalar**,BCType**);
 PetscErrorCode DMStagBCListInsertValues(DMStagBCList,const char,PetscInt,PetscInt*,PetscInt**,PetscScalar**,PetscScalar**,PetscScalar**,BCType**);
 PetscErrorCode DMStagBCListPinValue(DMStagBCList,const char,PetscInt,PetscScalar);

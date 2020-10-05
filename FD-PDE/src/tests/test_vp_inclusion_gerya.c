@@ -30,12 +30,11 @@ static char help[] = "Application for shortening of a visco-plastic block in the
 
 // parameters (bag)
 typedef struct {
-  PetscInt       nx, nz, scaling;
-  PetscScalar    L, H;
-  PetscScalar    xmin, zmin;
-  PetscScalar    eta_b, eta_w, eta_i, vi, C_b, C_w, C_i, P;
+  PetscInt       nx, nz;
+  PetscScalar    H;
+  PetscScalar    eta_b, eta_w, vi, C_b;
   PetscScalar    stress, vel, length, visc; // scales
-  PetscScalar    nd_eta_b, nd_eta_w, nd_eta_i, nd_vi, nd_C_b, nd_C_w, nd_C_i, etamax, etamin, nd_P; // non-dimensional
+  PetscScalar    nd_H, nd_eta_b, nd_eta_w, nd_vi, nd_C_b, nd_C_w, etamax, etamin, nd_P; // non-dimensional
   PetscBool      plasticity;
   char           fname_out[FNAME_LENGTH]; 
 } Params;
@@ -99,10 +98,8 @@ PetscErrorCode Numerical_solution(void *ctx)
   nz = usr->par->nz;
 
   // Domain coords
-  xmin = usr->par->xmin;
-  zmin = usr->par->zmin;
-  xmax = usr->par->xmin+usr->par->L;
-  zmax = usr->par->zmin+usr->par->H;
+  xmin = 0;  zmin = 0;
+  xmax = 1;  zmax = 1;
 
   // Create the FD-pde object
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKES,&fd);CHKERRQ(ierr);
@@ -122,9 +119,6 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient,coeff_description,usr); CHKERRQ(ierr);
   ierr = FDPDESetFunctionCoefficientSplit(fd,FormCoefficientSplit,coeff_description,usr); CHKERRQ(ierr);
   ierr = FDPDEView(fd); CHKERRQ(ierr);
-
-  // Pin pressure
-  ierr = FDPDEStokesPinPressure(fd,usr->par->nd_P,PETSC_TRUE); CHKERRQ(ierr);
 
   // Create initial guess with a linear viscous
   PetscPrintf(PETSC_COMM_WORLD,"\n# INITIAL GUESS #\n");
@@ -156,51 +150,7 @@ PetscErrorCode Numerical_solution(void *ctx)
 
   // MatView(fd->J,PETSC_VIEWER_STDOUT_WORLD);
 
-#if 0
-  {
-    SNES snes_picard;
-    Mat  J;
-    DM   dmref,dm;
-    
-    PetscPrintf(PETSC_COMM_WORLD,"\n# PICARD SOLVE #\n");
-
-    ierr = FDPDEGetDM(fd,&dmref);CHKERRQ(ierr);
-    ierr = DMClone(dmref,&dm);CHKERRQ(ierr);
-
-    ierr = fd->ops->create_jacobian(fd,&J);CHKERRQ(ierr);
-    
-    ierr = SNESCreate(fd->comm,&snes_picard);CHKERRQ(ierr);
-    ierr = SNESSetOptionsPrefix(snes_picard,"p_");CHKERRQ(ierr);
-    ierr = SNESSetDM(snes_picard,dm);CHKERRQ(ierr); /* attach a clone of the DM stag - see note on manpage for SNESSetDM() */
-    ierr = SNESSetSolution(snes_picard,fd->x);CHKERRQ(ierr); // for FD colouring to function correctly
-    
-    ierr = SNESSetFunction(snes_picard,fd->r,SNESPicardComputeFunctionDefault,(void*)fd);CHKERRQ(ierr);
-    
-    ierr = SNESSetJacobian(snes_picard,J,J,SNESComputeJacobianDefaultColor,NULL);CHKERRQ(ierr);
-    
-    ierr = SNESSetType(snes_picard,SNESNPICARDLS);CHKERRQ(ierr);
-    ierr = SNESSetFromOptions(snes_picard);CHKERRQ(ierr);
-    ierr = SNESSetUp(snes_picard);CHKERRQ(ierr);
-
-    ierr = SNESPicardLSSetSplitFunction(snes_picard,fd->r,fd->ops->form_function_split);CHKERRQ(ierr);
-
-    {
-      Vec xguess,x2;
-      
-      ierr = FDPDEGetSolutionGuess(fd,&xguess); CHKERRQ(ierr);
-      ierr = SNESPicardLSGetAuxillarySolution(snes_picard,&x2);CHKERRQ(ierr);
-      ierr = VecCopy(xguess,x2);CHKERRQ(ierr);
-      ierr = VecDestroy(&xguess);CHKERRQ(ierr);
-    }
-    
-    ierr = SNESSolve(snes_picard,NULL,fd->x);CHKERRQ(ierr);
-    
-    ierr = SNESDestroy(&snes_picard);CHKERRQ(ierr);
-    ierr = DMDestroy(&dm);CHKERRQ(ierr);
-    ierr = MatDestroy(&J);CHKERRQ(ierr);
-  }
-#endif
-  
+  // PICARD SNES Solver
   PetscPrintf(PETSC_COMM_WORLD,"\n# PICARD SOLVE #\n");
   ierr = FDPDESolvePicard(fd,NULL);CHKERRQ(ierr);
   
@@ -292,12 +242,12 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   PetscFunctionBegin;
 
   // block and weak inclusion params
-  zblock_s = 0.2*usr->par->H;
-  zblock_e = 0.8*usr->par->H;
-  xis = usr->par->xmin+usr->par->L/2-0.1*usr->par->L/2;
-  xie = usr->par->xmin+usr->par->L/2+0.1*usr->par->L/2;
-  zis = usr->par->zmin+usr->par->H/2-0.1*usr->par->H/2;
-  zie = usr->par->zmin+usr->par->H/2+0.1*usr->par->H/2;
+  zblock_s = 0.2*usr->par->nd_H;
+  zblock_e = 0.8*usr->par->nd_H;
+  xis = usr->par->nd_H/2-0.1*usr->par->nd_H/2;
+  xie = usr->par->nd_H/2+0.1*usr->par->nd_H/2;
+  zis = usr->par->nd_H/2-0.1*usr->par->nd_H/2;
+  zie = usr->par->nd_H/2+0.1*usr->par->nd_H/2;
 
   // Strain rates
   ierr = UpdateStrainRates(dm,x,usr); CHKERRQ(ierr);
@@ -338,8 +288,8 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
           eta = usr->par->nd_eta_w; // top/bottom layer
           Y   = usr->par->nd_C_w; // plastic yield criterion
         } else if ((coordx[i][icenter]>=xis) && (coordx[i][icenter]<=xie) && (coordz[j][icenter]>=zis) && (coordz[j][icenter]<=zie)) {
-          eta = usr->par->nd_eta_i; // inclusion
-          Y   = usr->par->nd_C_i; // plastic yield criterion
+          eta = usr->par->nd_eta_w; // inclusion
+          Y   = usr->par->nd_C_w; // plastic yield criterion
         } else {
           eta = usr->par->nd_eta_b; // block
           Y = usr->par->nd_C_b; // plastic yield criterion
@@ -409,8 +359,8 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
             eta = usr->par->nd_eta_w; // top/bottom layer
             Y[ii] = usr->par->nd_C_w; // plastic yield criterion
           } else if ((xp[ii]>=xis) && (xp[ii]<=xie) && (zp[ii]>=zis) && (zp[ii]<=zie)) {
-            eta = usr->par->nd_eta_i; // inclusion
-            Y[ii] = usr->par->nd_C_i; // plastic yield criterion
+            eta = usr->par->nd_eta_w; // inclusion
+            Y[ii] = usr->par->nd_C_w; // plastic yield criterion
           } else {
             eta = usr->par->nd_eta_b; //block
             Y[ii] = usr->par->nd_C_b; // plastic yield criterion
@@ -522,12 +472,12 @@ PetscErrorCode FormCoefficientSplit(FDPDE fd, DM dm, Vec x, Vec x2, DM dmcoeff, 
   PetscFunctionBegin;
   
   // block and weak inclusion params
-  zblock_s = 0.2*usr->par->H;
-  zblock_e = 0.8*usr->par->H;
-  xis = usr->par->xmin+usr->par->L/2-0.1*usr->par->L/2;
-  xie = usr->par->xmin+usr->par->L/2+0.1*usr->par->L/2;
-  zis = usr->par->zmin+usr->par->H/2-0.1*usr->par->H/2;
-  zie = usr->par->zmin+usr->par->H/2+0.1*usr->par->H/2;
+  zblock_s = 0.2*usr->par->nd_H;
+  zblock_e = 0.8*usr->par->nd_H;
+  xis = usr->par->nd_H/2-0.1*usr->par->nd_H/2;
+  xie = usr->par->nd_H/2+0.1*usr->par->nd_H/2;
+  zis = usr->par->nd_H/2-0.1*usr->par->nd_H/2;
+  zie = usr->par->nd_H/2+0.1*usr->par->nd_H/2;
   
   // Strain rates
   ierr = UpdateStrainRates(dm,x2,usr); CHKERRQ(ierr);
@@ -568,8 +518,8 @@ PetscErrorCode FormCoefficientSplit(FDPDE fd, DM dm, Vec x, Vec x2, DM dmcoeff, 
           eta = usr->par->nd_eta_w; // top/bottom layer
           Y   = usr->par->nd_C_w; // plastic yield criterion
         } else if ((coordx[i][icenter]>=xis) && (coordx[i][icenter]<=xie) && (coordz[j][icenter]>=zis) && (coordz[j][icenter]<=zie)) {
-          eta = usr->par->nd_eta_i; // inclusion
-          Y   = usr->par->nd_C_i; // plastic yield criterion
+          eta = usr->par->nd_eta_w; // inclusion
+          Y   = usr->par->nd_C_w; // plastic yield criterion
         } else {
           eta = usr->par->nd_eta_b; // block
           Y = usr->par->nd_C_b; // plastic yield criterion
@@ -639,8 +589,8 @@ PetscErrorCode FormCoefficientSplit(FDPDE fd, DM dm, Vec x, Vec x2, DM dmcoeff, 
             eta = usr->par->nd_eta_w; // top/bottom layer
             Y[ii] = usr->par->nd_C_w; // plastic yield criterion
           } else if ((xp[ii]>=xis) && (xp[ii]<=xie) && (zp[ii]>=zis) && (zp[ii]<=zie)) {
-            eta = usr->par->nd_eta_i; // inclusion
-            Y[ii] = usr->par->nd_C_i; // plastic yield criterion
+            eta = usr->par->nd_eta_w; // inclusion
+            Y[ii] = usr->par->nd_C_w; // plastic yield criterion
           } else {
             eta = usr->par->nd_eta_b; //block
             Y[ii] = usr->par->nd_C_b; // plastic yield criterion
@@ -1153,6 +1103,9 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
+  // pin pressure dof
+  ierr = DMStagBCListPinCornerValue(bclist,DMSTAG_DOWN_LEFT,'o',0,usr->par->nd_P); CHKERRQ(ierr);
+
   PetscFunctionReturn(0);
 }
 
@@ -1190,52 +1143,33 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterInt(bag, &par->nx, 5, "nx", "Element count in the x-dir"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->nz, 5, "nz", "Element count in the z-dir"); CHKERRQ(ierr);
 
-  ierr = PetscBagRegisterScalar(bag, &par->xmin, 0.0, "xmin", "Start coordinate of domain in x-dir"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->zmin, 0.0, "zmin", "Start coordinate of domain in z-dir"); CHKERRQ(ierr);
-
-  ierr = PetscBagRegisterScalar(bag, &par->L, 1.0e5, "L", "Length of domain in x-dir [m]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->H, 1.0e5, "H", "Height of domain in z-dir [m]"); CHKERRQ(ierr);
-
   // Physical and material parameters
+  ierr = PetscBagRegisterScalar(bag, &par->H, 1.0e5, "H", "Size of domain in both x and z directions [m]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta_b, 1.0e23, "eta_b", "Block shear viscosity [Pa.s]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->eta_i, 1.0e17, "eta_i", "Inclusion shear viscosity [Pa.s]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->eta_w, 1.0e17, "eta_w", "Weak zone shear viscosity [Pa.s]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->eta_w, 1.0e19, "eta_w", "Weak zone and inclusion shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->vi, 5.0e-9, "vi", "Extension/compression velocity [m/s]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->C_b, 1.0e8, "C_b", "Block Cohesion [Pa]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->C_i, 1.0e7, "C_i", "Inclusion Cohesion [Pa]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->C_w, 1.0e7, "C_w", "Weak zone Cohesion [Pa]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->P, 1.0e8, "P", "Boundary pressure [Pa]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->scaling, 1, "scaling", "0-set stress 1-set velocity"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->C_b, 1e8, "C_b", "Block Cohesion [Pa]"); CHKERRQ(ierr);
   
   // scales
-  if (par->scaling) { // set velocity
-    par->length = par->H;
-    par->visc   = 1e20;
-    par->vel    = par->vi; 
-    par->stress = par->vel*par->visc/par->length;
-  } else { // set stress
-    par->stress = 1e8;
-    par->length = par->H;
-    par->visc   = 1e20;
-    par->vel    = par->stress*par->length/par->visc;
-  }
+  par->length = par->H;
+  par->visc   = 1e20;
+  par->vel    = par->vi; 
+  par->stress = par->vel*par->visc/par->length;
 
   // non-dimensionalize
-  par->nd_eta_b  = par->eta_b/par->visc;
+  par->nd_eta_b = par->eta_b/par->visc;
   par->nd_eta_w = par->eta_w/par->visc;
-  par->nd_eta_i = par->eta_i/par->visc;
   par->nd_vi    = par->vi/par->vel;
   par->nd_C_b   = par->C_b/par->stress;
-  par->nd_C_w   = par->C_w/par->stress;
-  par->nd_C_i   = par->C_i/par->stress;
-  par->nd_P     = par->P/par->stress;
-  par->L        = par->L/par->length;
-  par->H        = par->H/par->length;
+  par->nd_C_w   = 1e40/par->stress;
+  par->nd_P     = 0;
+  par->nd_H     = par->H/par->length;
 
   par->etamax = par->nd_eta_b;
-  par->etamin = par->nd_eta_i;
-
+  par->etamin = 1.e-6*par->etamax; //par->nd_eta_w; 
   par->plasticity = PETSC_FALSE;
+
+  //  PetscPrintf(PETSC_COMM_WORLD,"etamax = %g, etamin = %g \n", par->etamax, par->etamin);
 
   // Input/output 
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_solution","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
@@ -1297,6 +1231,8 @@ int main (int argc,char **argv)
   ierr = SNESRegister(SNESPICARDLS,SNESCreate_PicardLS);CHKERRQ(ierr);
   
   // Load command line or input file if required
+  ierr = PetscOptionsSetValue(NULL,"-snes_monitor",NULL);
+  ierr = PetscOptionsSetValue(NULL,"-p_snes_monitor",NULL);
   ierr = PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL); CHKERRQ(ierr);
 
   // Input user parameters and print
