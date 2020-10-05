@@ -952,7 +952,7 @@ PetscErrorCode DMStagBCListView(DMStagBCList list)
  none or several sub-domains identified a pin-point.
  
  Developer note:
-   - Currently a pin-point BC is defined as type BC_DIRICHLET.
+   - Currently a pin-point BC is defined as type BC_DIRICHLET_STAG.
    This is completely correct, however in future we may wish to distinguish pin-point BCs from
    normal Dirichlet constraints. For example: we may wish to apply a special scaling to pin-point
    BCs to improve the condition number of the matrix; we may wish to ignore / filter pin-point BCs,
@@ -1033,7 +1033,7 @@ static PetscErrorCode _DMStagBCListPinValue(DMStagBCList list,
         if (bc[k].point.c == dof) {
           found = 1; /* flag successful identification of the pin-point */
           bc[k].val  = val;
-          bc[k].type = BC_DIRICHLET;
+          bc[k].type = BC_DIRICHLET_STAG;
           bcpoint = &bc[k]; /* get pointer to matching bc point for reporting */
           break;
         }
