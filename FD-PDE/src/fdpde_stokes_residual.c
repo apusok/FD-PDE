@@ -19,7 +19,6 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   PetscInt       iprev, inext, icenter;
   PetscScalar    ***ff;
   PetscScalar    **coordx,**coordz;
-  StokesData    *data;
   DMStagBCList   bclist;
   PetscErrorCode ierr;
 
@@ -36,13 +35,6 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   bclist = fd->bclist;
   if (fd->bclist->evaluate) {
     ierr = fd->bclist->evaluate(dmPV,x,bclist,bclist->data);CHKERRQ(ierr);
-  }
-
-  data = fd->data;
-  // pin pressure 
-  if (data->pinpoint) {
-    bclist->bc_e[0].type = BC_DIRICHLET_STAG;
-    bclist->bc_e[0].val  = data->pinvalue;
   }
 
   // Update coefficients
@@ -126,7 +118,6 @@ PetscErrorCode FormFunctionSplit_Stokes(SNES snes, Vec x, Vec x2, Vec f, void *c
   PetscInt       iprev, inext, icenter;
   PetscScalar    ***ff;
   PetscScalar    **coordx,**coordz;
-  StokesData    *data;
   DMStagBCList   bclist;
   PetscErrorCode ierr;
   
@@ -143,13 +134,6 @@ PetscErrorCode FormFunctionSplit_Stokes(SNES snes, Vec x, Vec x2, Vec f, void *c
   bclist = fd->bclist;
   if (fd->bclist->evaluate) {
     ierr = fd->bclist->evaluate(dmPV,x,bclist,bclist->data);CHKERRQ(ierr);
-  }
-  
-  data = fd->data;
-  // pin pressure
-  if (data->pinpoint) {
-    bclist->bc_e[0].type = BC_DIRICHLET_STAG;
-    bclist->bc_e[0].val  = data->pinvalue;
   }
   
   // Update coefficients
