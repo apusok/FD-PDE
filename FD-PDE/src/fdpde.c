@@ -10,7 +10,8 @@ const char *FDPDETypeNames[] = {
   "stokes",
   "advdiff",
   "stokesdarcy2field",
-  "composite"
+  "composite",
+  "enthalpy"
 };
 
 // ---------------------------------------
@@ -20,6 +21,7 @@ PetscErrorCode FDPDECreate_Stokes(FDPDE fd);
 PetscErrorCode FDPDECreate_StokesDarcy2Field(FDPDE fd);
 PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd);
 PetscErrorCode FDPDECreate_Composite(FDPDE fd);
+PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd);
 PetscErrorCode FDPDESetUp_Composite(FDPDE fd);
 
 // ---------------------------------------
@@ -150,6 +152,9 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
       break;
     case FDPDE_ADVDIFF:
       fd->ops->create = FDPDECreate_AdvDiff;
+      break;
+    case FDPDE_ENTHALPY:
+      fd->ops->create = FDPDECreate_Enthalpy;
       break;
     case FDPDE_COMPOSITE:
     SETERRQ(fd->comm,PETSC_ERR_ARG_WRONGSTATE,"FDPDE_COMPOSITE should never enter here");
