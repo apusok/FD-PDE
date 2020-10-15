@@ -705,7 +705,12 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
       break;
   }
 
-  ierr = PetscCalloc4(2*n,&xc,2*n,&xc_stag,n,&v,n,&t);CHKERRQ(ierr);
+  //ierr = PetscCalloc4(2*n,&xc,2*n,&xc_stag,n,&v,n,&t);CHKERRQ(ierr);
+  ierr = PetscCalloc1(2*n,&xc);CHKERRQ(ierr);
+  ierr = PetscCalloc1(2*n,&xc_stag);CHKERRQ(ierr);
+  ierr = PetscCalloc1(n,&v);CHKERRQ(ierr);
+  ierr = PetscCalloc1(n,&t);CHKERRQ(ierr);
+  
   /* copy coords */
   switch (label) {
     case '.':
@@ -767,11 +772,10 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
   ierr = PetscFree(dz);CHKERRQ(ierr);
 
   *_n = n;  *_idx = idx;  *_value = v;  *_type = t;
-  //if (_xc) { *_xc = xc; }
-  //else { ierr = PetscFree(xc);CHKERRQ(ierr); }
   if (_xc) { *_xc = xc; }
+  else {ierr = PetscFree(xc);CHKERRQ(ierr);}
   if (_xc_stag) { *_xc_stag = xc_stag; }
-  ierr = PetscFree2(xc, xc_stag);CHKERRQ(ierr);
+  else {ierr = PetscFree(xc_stag);CHKERRQ(ierr);}
   PetscFunctionReturn(0);
 }
 
