@@ -46,8 +46,8 @@ PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd)
   // Initialize data
   ierr = PetscStrallocpy(enthalpy_description,&fd->description); CHKERRQ(ierr);
 
-  // ENTHALPY Stencil dofs: dmstag - H, theta, theta_tilde, C, Cf, Cs, phi  (element)
-  fd->dof0  = 0; fd->dof1  = 0; fd->dof2  = 7; 
+  // ENTHALPY Stencil dofs: dmstag - H, C
+  fd->dof0  = 0; fd->dof1  = 0; if (!fd->dof2) {fd->dof2 = 2;} 
   fd->dofc0 = 0; fd->dofc1 = 5; fd->dofc2 = 16;
 
   // Evaluation functions
@@ -56,6 +56,7 @@ PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd)
   fd->ops->create_jacobian    = JacobianCreate_Enthalpy;
   fd->ops->view               = FDPDEView_Enthalpy;
   fd->ops->destroy            = FDPDEDestroy_Enthalpy;
+  fd->ops->setup              = FDPDESetUp_Enthalpy;
 
   // allocate memory to fd-pde context data
   ierr = PetscCalloc1(1,&en);CHKERRQ(ierr);
@@ -64,17 +65,55 @@ PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd)
   en->xprev = NULL;
   en->coeffprev = NULL;
 
-  // phase diagram
+  // enthalpy other data
+  en->dmphiT  = NULL;
+  en->xphiT   = NULL;
+  en->dmcomp  = NULL;
+  en->xCS     = NULL;
+  en->xCF     = NULL;
   en->form_CS = NULL;
   en->form_CF = NULL;
   en->user_context = NULL;
-  en->dmphase = NULL;
-  en->xCS     = NULL;
-  en->xCF     = NULL;
-  en->ncomponents = 2;
+
+  en->ncomponents = fd->dof2;
+  en->energy_variable = 0; // default 0-H-enthalpy, 1-TP-temperature
 
   // fd-pde context data
   fd->data = en;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+FDPDESetUp_Enthalpy - set-up additional data structures for FDPDEType = ENTHALPY
+
+Use: internal
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDESetUp_Enthalpy"
+PetscErrorCode FDPDESetUp_Enthalpy(FDPDE fd)
+{
+  EnthalpyData   *en;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  en = fd->data;
+
+  // Create DMStag object for dmphiT, dmcomp
+  ierr = DMStagCreateCompatibleDMStag(fd->dmstag,0,0,2,0,&en->dmphiT); CHKERRQ(ierr);
+  ierr = DMSetUp(en->dmphiT); CHKERRQ(ierr);
+  ierr = DMStagSetUniformCoordinatesProduct(en->dmphiT,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
+
+  ierr = DMStagCreateCompatibleDMStag(fd->dmstag,0,0,(en->ncomponents-1),0,&en->dmcomp); CHKERRQ(ierr);
+  ierr = DMSetUp(en->dmcomp); CHKERRQ(ierr);
+  ierr = DMStagSetUniformCoordinatesProduct(en->dmcomp,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
+
+  // Create global vectors
+  ierr = DMCreateGlobalVector(en->dmphiT,&en->xphiT);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(en->dmcomp,&en->xCS);CHKERRQ(ierr);
+  ierr = VecDuplicate(en->xCS,&en->xCF);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -95,15 +134,19 @@ PetscErrorCode FDPDEDestroy_Enthalpy(FDPDE fd)
   PetscFunctionBegin;
 
   en = fd->data;
-
   if (en->xprev)     { ierr = VecDestroy(&en->xprev);CHKERRQ(ierr); }
   if (en->coeffprev) { ierr = VecDestroy(&en->coeffprev);CHKERRQ(ierr); }
+
+  // enthalpy data
+  if (en->dmphiT) { ierr = DMDestroy(&en->dmphiT);CHKERRQ(ierr); }
+  if (en->xphiT) { ierr = VecDestroy(&en->xphiT);CHKERRQ(ierr); }
+
+  if (en->dmcomp) { ierr = DMDestroy(&en->dmcomp);CHKERRQ(ierr); }
   if (en->form_CS) { en->form_CS = NULL; }
   if (en->form_CF) { en->form_CF = NULL; }
   en->user_context = NULL;
   if (en->xCS)     { ierr = VecDestroy(&en->xCS);CHKERRQ(ierr); }
   if (en->xCF)     { ierr = VecDestroy(&en->xCF);CHKERRQ(ierr); }
-  if (en->dmphase) { ierr = DMDestroy(&en->dmphase);CHKERRQ(ierr); }
 
   ierr = PetscFree(en);CHKERRQ(ierr);
 
@@ -349,88 +392,88 @@ PetscErrorCode FDPDEEnthalpyGetTimestep(FDPDE fd, PetscScalar *dt)
   PetscFunctionReturn(0);
 }
 
-// ---------------------------------------
-/*@
-FDPDEEnthalpyComputeExplicitTimestep - function to update time step size for ENTHALPY equations
+// // ---------------------------------------
+// /*@
+// FDPDEEnthalpyComputeExplicitTimestep - function to update time step size for ENTHALPY equations
 
-Input Parameter:
-fd - the FD-PDE object
+// Input Parameter:
+// fd - the FD-PDE object
 
-Output Parameter:
-dt - time stepping size
+// Output Parameter:
+// dt - time stepping size
 
-Use: user
-@*/
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDPDEEnthalpyComputeExplicitTimestep"
-PetscErrorCode FDPDEEnthalpyComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
-{
-  EnthalpyData   *en;
-  PetscScalar    domain_dt, global_dt, eps, dx, dz, cell_dt, cell_dt_x, cell_dt_z;
-  PetscInt       iprev=-1, inext=-1;
-  PetscInt       i, j, sx, sz, nx, nz;
-  PetscScalar    **coordx, **coordz;
-  DM             dmcoeff;
-  Vec            coefflocal;
-  PetscErrorCode ierr;
-  PetscFunctionBeginUser;
+// Use: user
+// @*/
+// // ---------------------------------------
+// #undef __FUNCT__
+// #define __FUNCT__ "FDPDEEnthalpyComputeExplicitTimestep"
+// PetscErrorCode FDPDEEnthalpyComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
+// {
+//   EnthalpyData   *en;
+//   PetscScalar    domain_dt, global_dt, eps, dx, dz, cell_dt, cell_dt_x, cell_dt_z;
+//   PetscInt       iprev=-1, inext=-1;
+//   PetscInt       i, j, sx, sz, nx, nz;
+//   PetscScalar    **coordx, **coordz;
+//   DM             dmcoeff;
+//   Vec            coefflocal;
+//   PetscErrorCode ierr;
+//   PetscFunctionBeginUser;
 
-  // Check fd-pde for type and setup
-  if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
-  if (!fd->data) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"The FD-PDE context data has not been set up. Call FDPDESetUp() first.");
+//   // Check fd-pde for type and setup
+//   if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
+//   if (!fd->data) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"The FD-PDE context data has not been set up. Call FDPDESetUp() first.");
 
-  en = fd->data;
-  dmcoeff = fd->dmcoeff;
+//   en = fd->data;
+//   dmcoeff = fd->dmcoeff;
 
-  ierr = DMGetLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
+//   ierr = DMGetLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
+//   ierr = DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
 
-  domain_dt = 1.0e32;
-  eps = 1.0e-32; /* small shift to avoid dividing by zero */
+//   domain_dt = 1.0e32;
+//   eps = 1.0e-32; /* small shift to avoid dividing by zero */
 
-  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+//   ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+//   ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
 
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_LEFT,&iprev);CHKERRQ(ierr); 
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
+//   ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_LEFT,&iprev);CHKERRQ(ierr); 
+//   ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
 
-  // Loop over elements - velocity is located on edge and c=1,2,3 - NEED TO UPDATE AS A FUNCTION OF ALL VELOCITY/or just temperature?
-  for (j = sz; j<sz+nz; j++) {
-    for (i = sx; i<sx+nx; i++) {
-      DMStagStencil point[4];
-      PetscScalar   xx[4];
+//   // Loop over elements - velocity is located on edge and c=1,2,3 - NEED TO UPDATE AS A FUNCTION OF ALL VELOCITY/or just temperature?
+//   for (j = sz; j<sz+nz; j++) {
+//     for (i = sx; i<sx+nx; i++) {
+//       DMStagStencil point[4];
+//       PetscScalar   xx[4];
 
-      point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_LEFT;  point[0].c = 1;
-      point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_RIGHT; point[1].c = 1;
-      point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_DOWN;  point[2].c = 1;
-      point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_UP;    point[3].c = 1;
+//       point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_LEFT;  point[0].c = 1;
+//       point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_RIGHT; point[1].c = 1;
+//       point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_DOWN;  point[2].c = 1;
+//       point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_UP;    point[3].c = 1;
 
-      ierr = DMStagVecGetValuesStencil(dmcoeff,coefflocal,4,point,xx); CHKERRQ(ierr);
+//       ierr = DMStagVecGetValuesStencil(dmcoeff,coefflocal,4,point,xx); CHKERRQ(ierr);
 
-      dx = coordx[0][inext]-coordx[0][iprev];
-      dz = coordz[0][inext]-coordz[0][iprev];
+//       dx = coordx[0][inext]-coordx[0][iprev];
+//       dz = coordz[0][inext]-coordz[0][iprev];
 
-      /* compute dx, dy for this cell */
-      cell_dt_x = dx / PetscMax(PetscMax(PetscAbsScalar(xx[0]), PetscAbsScalar(xx[1])), eps);
-      cell_dt_z = dz / PetscMax(PetscMax(PetscAbsScalar(xx[2]), PetscAbsScalar(xx[3])), eps);
-      cell_dt   = PetscMin(cell_dt_x,cell_dt_z);
-      domain_dt = PetscMin(domain_dt,cell_dt);
-    }
-  }
+//       /* compute dx, dy for this cell */
+//       cell_dt_x = dx / PetscMax(PetscMax(PetscAbsScalar(xx[0]), PetscAbsScalar(xx[1])), eps);
+//       cell_dt_z = dz / PetscMax(PetscMax(PetscAbsScalar(xx[2]), PetscAbsScalar(xx[3])), eps);
+//       cell_dt   = PetscMin(cell_dt_x,cell_dt_z);
+//       domain_dt = PetscMin(domain_dt,cell_dt);
+//     }
+//   }
 
-  // MPI exchange global min/max
-  ierr = MPI_Allreduce(&domain_dt,&global_dt,1,MPI_DOUBLE,MPI_MIN,PetscObjectComm((PetscObject)dmcoeff));CHKERRQ(ierr);
+//   // MPI exchange global min/max
+//   ierr = MPI_Allreduce(&domain_dt,&global_dt,1,MPI_DOUBLE,MPI_MIN,PetscObjectComm((PetscObject)dmcoeff));CHKERRQ(ierr);
 
-  // Return vectors and arrays
-  ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmcoeff,&coefflocal); CHKERRQ(ierr);
+//   // Return vectors and arrays
+//   ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+//   ierr = DMRestoreLocalVector(dmcoeff,&coefflocal); CHKERRQ(ierr);
 
-  // Return value
-  *dt = global_dt;
+//   // Return value
+//   *dt = global_dt;
 
-  PetscFunctionReturn(0);
-}
+//   PetscFunctionReturn(0);
+// }
 
 // ---------------------------------------
 /*@
@@ -557,9 +600,8 @@ Use: user
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDPDEEnthalpySetFunctionsPhaseDiagram"
-PetscErrorCode FDPDEEnthalpySetFunctionsPhaseDiagram(FDPDE fd, PetscErrorCode (*form_CF)(FDPDE fd,DM,Vec,DM,Vec,void*), PetscErrorCode (*form_CS)(FDPDE fd,DM,Vec,DM,Vec,void*), void *data)
+PetscErrorCode FDPDEEnthalpySetFunctionsPhaseDiagram(FDPDE fd, PetscErrorCode (*form_CF)(FDPDE fd,DM,Vec,DM,Vec,DM,Vec,void*), PetscErrorCode (*form_CS)(FDPDE fd,DM,Vec,DM,Vec,DM,Vec,void*), void *data)
 {
-  PetscInt       n;
   EnthalpyData   *en;
   PetscErrorCode ierr;
   PetscFunctionBegin;
@@ -572,21 +614,12 @@ PetscErrorCode FDPDEEnthalpySetFunctionsPhaseDiagram(FDPDE fd, PetscErrorCode (*
   en->form_CS = form_CS;
   en->user_context = data;
 
-  // create data structures
-  if (en->ncomponents<=2) n = 1;
-  else                    n = en->ncomponents;
-  ierr = DMStagCreateCompatibleDMStag(fd->dmstag,0,0,n,0,&en->dmphase); CHKERRQ(ierr);
-  ierr = DMSetUp(en->dmphase); CHKERRQ(ierr);
-  ierr = DMStagSetUniformCoordinatesProduct(en->dmphase,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(en->dmphase,&en->xCS);CHKERRQ(ierr);
-  ierr = VecDuplicate(en->xCS,&en->xCF);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
 // ---------------------------------------
 /*@
-FDPDEEnthalpySetNumberComponentsPhaseDiagram - set an evaluation functions for the phase diagram
+FDPDEEnthalpySetNumberComponentsPhaseDiagram - set number of components for composition
 
 Use: user
 @*/
@@ -595,13 +628,130 @@ Use: user
 #define __FUNCT__ "FDPDEEnthalpySetNumberComponentsPhaseDiagram"
 PetscErrorCode FDPDEEnthalpySetNumberComponentsPhaseDiagram(FDPDE fd, PetscInt n)
 {
+  PetscFunctionBegin;
+
+  if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
+  if (fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDEEnthalpySetNumberComponentsPhaseDiagram() before FDPDESetUp()");
+  fd->dof2  = n; 
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+FDPDEEnthalpySetEnergyPrimaryVariable - set either H or TP as primary energy variable
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEEnthalpySetEnergyPrimaryVariable"
+PetscErrorCode FDPDEEnthalpySetEnergyPrimaryVariable(FDPDE fd, const char energy_variable)
+{
   EnthalpyData   *en;
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
-  if (n > 2) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"Multi-component Enthalpy Method is not yet implemented! Use n=2 (two-component system)");
+  if (!fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call this routine after FDPDESetUp()!");
+  
   en = fd->data;
-  en->ncomponents = n;
- 
+  switch (energy_variable) {
+    case 'H':
+      en->energy_variable = 0;
+      break;
+    case 'T':
+      en->energy_variable = 1;
+      break;
+    default:
+      SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Energy primary variable supported must be one of {'H','T'}");
+      break;
+  }
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+FDPDEEnthalpyGetPorosityTemperature - retrieves the DM and Vector for phi, T from the FD-PDE object. 
+
+Input Parameter:
+fd - the FD-PDE object
+
+Output Parameters (optional):
+dmphiT - the DM object
+xphiT - the vector
+
+Reference count on both dm/vector is incremented. User must call DM/VecDestroy().
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEEnthalpyGetPorosityTemperature"
+PetscErrorCode FDPDEEnthalpyGetPorosityTemperature(FDPDE fd, DM *dmphiT, Vec *xphiT)
+{
+  EnthalpyData   *en;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
+  if (!fd->data) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"The FD-PDE context data has not been set up. Call FDPDESetUp() first.");
+  en = fd->data;
+
+  if (dmphiT) {
+    *dmphiT = en->dmphiT;
+    ierr = PetscObjectReference((PetscObject)en->dmphiT);CHKERRQ(ierr);
+  }
+
+  if (xphiT) {
+    *xphiT = en->xphiT;
+    ierr = PetscObjectReference((PetscObject)en->xphiT);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+FDPDEEnthalpyGetPhaseComposition - retrieves the DM and Vector for Cf, Cs from the FD-PDE object. 
+
+Input Parameter:
+fd - the FD-PDE object
+
+Output Parameters (optional):
+dmcomp - the DM object
+xCF - the fluid composition vector; indexing goes (Cf)^i, where i is the component index
+xCS - the solid composition vector; indexing goes (Cs)^i, where i is the component index
+
+Reference count on both dm/vectors is incremented. User must call DM/VecDestroy().
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEEnthalpyGetPhaseComposition"
+PetscErrorCode FDPDEEnthalpyGetPhaseComposition(FDPDE fd, DM *dmcomp, Vec *xCF, Vec *xCS)
+{
+  EnthalpyData   *en;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
+  if (!fd->data) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"The FD-PDE context data has not been set up. Call FDPDESetUp() first.");
+  en = fd->data;
+
+  if (dmcomp) {
+    *dmcomp = en->dmcomp;
+    ierr = PetscObjectReference((PetscObject)en->dmcomp);CHKERRQ(ierr);
+  }
+
+  if (xCF) {
+    *xCF = en->xCF;
+    ierr = PetscObjectReference((PetscObject)en->xCF);CHKERRQ(ierr);
+  }
+
+  if (xCS) {
+    *xCS = en->xCS;
+    ierr = PetscObjectReference((PetscObject)en->xCS);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }

@@ -60,6 +60,7 @@ PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd)
   fd->ops->create_jacobian    = JacobianCreate_AdvDiff;
   fd->ops->view               = FDPDEView_AdvDiff;
   fd->ops->destroy            = FDPDEDestroy_AdvDiff;
+  fd->ops->setup              = NULL;
 
   // allocate memory to fd-pde context data
   ierr = PetscCalloc1(1,&ad);CHKERRQ(ierr);

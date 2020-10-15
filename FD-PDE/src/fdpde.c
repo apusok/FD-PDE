@@ -132,13 +132,7 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
   PetscErrorCode ierr; 
   PetscFunctionBegin;
   if (fd->setupcalled) PetscFunctionReturn(0);
-  /* call setup and return if defined - else do default setup */
-  if (fd->ops->setup) {
-    ierr = fd->ops->setup(fd);CHKERRQ(ierr);
-    fd->setupcalled = PETSC_TRUE;
-   PetscFunctionReturn(0);
-  }
-  
+
   // Set up structures needed for FD-PDE type
   switch (fd->type) {
     case FDPDE_UNINIT:
@@ -218,6 +212,9 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
   } else {
     ierr = SNESSetJacobian(fd->snes, fd->J, fd->J, SNESComputeJacobianDefaultColor, NULL); CHKERRQ(ierr);
   }
+
+  /* call setup for additional setup and return if defined */
+  if (fd->ops->setup) { ierr = fd->ops->setup(fd); CHKERRQ(ierr); }
 
   fd->setupcalled = PETSC_TRUE;
   PetscFunctionReturn(0);
@@ -597,7 +594,7 @@ static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
   PetscViewerASCIIPrintf(viewer,"[SNES failure summary]\n");
   PetscViewerASCIIPushTab(viewer);
   PetscViewerASCIIPrintf(viewer,"reason: %D (error code) ->\n",(PetscInt)reason);
-  ierr = SNESReasonView(fd->snes,viewer);CHKERRQ(ierr);
+  ierr = SNESConvergedReasonView(fd->snes,viewer);CHKERRQ(ierr);
   {
     PetscInt its;
     ierr = SNESGetIterationNumber(fd->snes,&its);CHKERRQ(ierr);

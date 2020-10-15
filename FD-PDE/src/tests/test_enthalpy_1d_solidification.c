@@ -1,0 +1,565 @@
+// ---------------------------------------
+// 1D solidification problem of an  initially  liquid  semi-infinite  slab
+// Equations (non-dimensional): dH/dt-div^2T=0, H=T+phi/St 
+// Use the Enthalpy method with T as primary energy variable. Composition is kept constant.
+// run: ./test_enthalpy_1d_solidification.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -log_view
+// python output: test_enthalpy_1d_solidification.py
+// ---------------------------------------
+static char help[] = "1D Solidification problem using the Enthalpy Method\n\n";
+
+// define convenient names for DMStagStencilLocation
+#define DOWN_LEFT  DMSTAG_DOWN_LEFT
+#define DOWN       DMSTAG_DOWN
+#define DOWN_RIGHT DMSTAG_DOWN_RIGHT
+#define LEFT       DMSTAG_LEFT
+#define ELEMENT    DMSTAG_ELEMENT
+#define RIGHT      DMSTAG_RIGHT
+#define UP_LEFT    DMSTAG_UP_LEFT
+#define UP         DMSTAG_UP
+#define UP_RIGHT   DMSTAG_UP_RIGHT
+
+#include "petsc.h"
+#include "../../src/fdpde_enthalpy.h"
+#include "../../src/dmstagoutput.h"
+
+// ---------------------------------------
+// Application Context
+// ---------------------------------------
+#define FNAME_LENGTH 200
+
+// parameters (bag)
+typedef struct {
+  PetscInt       nx, nz;
+  PetscScalar    L, H;
+  PetscScalar    xmin, zmin;
+  PetscScalar    rho, cp, k, La, T0, Tb, Tm, Ts, dt, tmax;
+  PetscInt       ts_scheme, adv_scheme, tout, tstep;
+  PetscScalar    t, tprev, nd_h, St, kappa, nd_t, nd_T0, nd_Tb, nd_Tm, nd_Ts;
+  char           fname_out[FNAME_LENGTH]; 
+} Params;
+
+typedef struct {
+  Params        *par;
+  PetscBag       bag;
+  MPI_Comm       comm;
+  PetscMPIInt    rank;
+} UsrData;
+
+// ---------------------------------------
+// Function definitions
+// ---------------------------------------
+PetscErrorCode InputParameters(UsrData**);
+PetscErrorCode InputPrintData(UsrData*);
+PetscErrorCode Numerical_solution(void*);
+PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
+PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
+PetscErrorCode UpdatePorosity(DM, Vec, DM, Vec, void*);
+
+static PetscErrorCode Liquidus(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec xcoeff, DM dmcomp, Vec xCF, void *ctx) { return 0; }
+static PetscErrorCode Solidus(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec xcoeff, DM dmcomp, Vec xCS, void *ctx) { return 0; }
+
+const char coeff_description[] =
+"  << ENTHALPY Coefficients >> \n"
+"  A1 = 0, B1 = 0, C1 = -1, D1 = 0  \n"
+"  A2 = 0, B2 = 0, C2 =  0, D2 = 0  \n"
+"  v = [0,0], vs = [0,0], vf = [0,0] (only diffusion problem) \n"
+"  M1 = 1, N1 = -1, O1 = 0, P1 = 1/St, Q1 = 0 \n"
+"  M2 = 0, N2 = 1, O2 = -1, P2 = 0, Q2 = 0 \n";
+
+const char bc_description[] =
+"  << ENTHALPY BCs >> \n"
+"  TEMP: LEFT: T = Tb, RIGHT: T = T0, DOWN, UP \n"
+"  COMP: LEFT, RIGHT, DOWN, UP: C = C0 \n";
+
+// ---------------------------------------
+// Application functions
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "Numerical_solution"
+PetscErrorCode Numerical_solution(void *ctx)
+{
+  UsrData       *usr = (UsrData*) ctx;
+  Params        *par;
+  FDPDE          fd;
+  DM             dm, dmcoeff, dmphiT;
+  Vec            x, xprev, xcoeff, xcoeffprev, xphiT;
+  PetscInt       nx, nz, istep = 0;
+  PetscScalar    xmin, zmin, xmax, zmax;
+  char           fout[FNAME_LENGTH];
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  par = usr->par;
+  // Element count
+  nx = par->nx;
+  nz = par->nz;
+
+  // Domain coords
+  xmin = par->xmin;
+  zmin = par->zmin;
+  xmax = par->xmin+par->L;
+  zmax = par->zmin+par->H;
+
+  // Set up Enthalpy system
+  ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ENTHALPY,&fd);CHKERRQ(ierr);
+  ierr = FDPDESetUp(fd);CHKERRQ(ierr);
+  ierr = FDPDEEnthalpySetEnergyPrimaryVariable(fd,'T');CHKERRQ(ierr);
+
+  ierr = FDPDESetFunctionBCList(fd,FormBCList,bc_description,usr); CHKERRQ(ierr);
+  ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient,coeff_description,usr); CHKERRQ(ierr);
+
+  if (par->adv_scheme==0) { ierr = FDPDEEnthalpySetAdvectSchemeType(fd,ADV_UPWIND);CHKERRQ(ierr); }
+  if (par->adv_scheme==1) { ierr = FDPDEEnthalpySetAdvectSchemeType(fd,ADV_UPWIND2);CHKERRQ(ierr); }
+  if (par->adv_scheme==2) { ierr = FDPDEEnthalpySetAdvectSchemeType(fd,ADV_FROMM);CHKERRQ(ierr); }
+
+  if (par->ts_scheme ==0) { ierr = FDPDEEnthalpySetTimeStepSchemeType(fd,TS_FORWARD_EULER);CHKERRQ(ierr); }
+  if (par->ts_scheme ==1) { ierr = FDPDEEnthalpySetTimeStepSchemeType(fd,TS_BACKWARD_EULER);CHKERRQ(ierr); }
+  if (par->ts_scheme ==2) { ierr = FDPDEEnthalpySetTimeStepSchemeType(fd,TS_CRANK_NICHOLSON );CHKERRQ(ierr);}
+
+  ierr = FDPDEEnthalpySetTimestep(fd,par->dt); CHKERRQ(ierr);
+  ierr = FDPDEEnthalpySetFunctionsPhaseDiagram(fd,Liquidus,Solidus,usr);CHKERRQ(ierr);
+
+  // Set initial temperature profile T = T0 (t=0)
+  ierr = FDPDEGetDM(fd,&dm);CHKERRQ(ierr);
+  ierr = FDPDEEnthalpyGetPrevSolution(fd,&xprev);CHKERRQ(ierr);
+  ierr = VecSet(xprev,par->nd_T0);
+
+  // Set initial coefficient structure
+  ierr = FDPDEGetCoefficient(fd,&dmcoeff,NULL);CHKERRQ(ierr);
+  ierr = FDPDEEnthalpyGetPrevCoefficient(fd,&xcoeffprev);CHKERRQ(ierr);
+  ierr = FormCoefficient(fd,dm,xprev,dmcoeff,xcoeffprev,usr);CHKERRQ(ierr);
+  ierr = VecDestroy(&xcoeffprev);CHKERRQ(ierr);
+  
+  // update porosity for initial conditions
+  ierr = FDPDEEnthalpyGetPorosityTemperature(fd,&dmphiT,&xphiT);CHKERRQ(ierr);
+  ierr = UpdatePorosity(dm,xprev,dmphiT,xphiT,usr);CHKERRQ(ierr);
+
+  ierr = VecDestroy(&xprev);CHKERRQ(ierr);
+  ierr = VecDestroy(&xphiT);CHKERRQ(ierr);
+
+  // Time loop
+  while ((par->t <= par->tmax) && (istep<par->tstep)) {
+    PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep);
+
+    // Update time
+    par->tprev = par->t;
+    par->t    += par->dt;
+
+    // Enthalpy Solver
+    ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
+    ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr);
+
+    // Copy solution and coefficient to old
+    ierr = FDPDEEnthalpyGetPrevSolution(fd,&xprev);CHKERRQ(ierr);
+    ierr = VecCopy(x,xprev);CHKERRQ(ierr);
+    ierr = VecDestroy(&xprev);CHKERRQ(ierr);
+
+    ierr = FDPDEGetCoefficient(fd,&dmcoeff,&xcoeff);CHKERRQ(ierr);
+    ierr = FDPDEEnthalpyGetPrevCoefficient(fd,&xcoeffprev);CHKERRQ(ierr);
+    ierr = VecCopy(xcoeff,xcoeffprev);CHKERRQ(ierr);
+    ierr = VecDestroy(&xcoeffprev);CHKERRQ(ierr);
+
+    // Update porosity
+    ierr = FDPDEEnthalpyGetPorosityTemperature(fd,NULL,&xphiT);CHKERRQ(ierr);
+    ierr = UpdatePorosity(dm,x,dmphiT,xphiT,usr);CHKERRQ(ierr);
+    ierr = VecDestroy(&xphiT);CHKERRQ(ierr);
+
+    // Output solution and calculate fluid velocity
+    if (istep % par->tout == 0 ) {
+      ierr = PetscSNPrintf(fout,sizeof(fout),"%s_TC_ts%1.3d",par->fname_out,istep);
+      ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
+    }
+    ierr = VecDestroy(&x);CHKERRQ(ierr);
+
+    // increment timestep
+    istep++;
+  }
+
+  // Destroy objects
+  ierr = DMDestroy(&dm);CHKERRQ(ierr);
+  ierr = DMDestroy(&dmphiT);CHKERRQ(ierr);
+  ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// UpdatePorosity
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "UpdatePorosity"
+PetscErrorCode UpdatePorosity(DM dm, Vec x, DM dmphiT, Vec xphiT, void *ctx)
+{
+  UsrData       *usr = (UsrData*) ctx;
+  Vec           xlocal, xphiTlocal;
+  PetscInt      i,j, sx, sz, nx, nz, icenter;
+  PetscScalar   ***xx, **coordx, **coordz;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  // Get domain corners
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr);
+
+  // Create local vector
+  ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dmphiT, &xphiTlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmphiT, xphiTlocal, &xx); CHKERRQ(ierr);
+
+  // Loop over local domain
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      DMStagStencil point;
+      PetscInt      idx;
+      PetscScalar   T;
+
+      point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0;
+      ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&point,&T); CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(dm, point.loc,point.c,&idx); CHKERRQ(ierr);
+      if (T <= usr->par->nd_Ts) xx[j][i][idx] = 0.0;
+      if ((T > usr->par->nd_Ts) && (T <= usr->par->nd_Tm)) {
+        xx[j][i][idx] = 1.0e4*(T*(usr->par->Tm-usr->par->Tb)+usr->par->Tm)+1001;
+      }
+      if (T > usr->par->nd_Tm) xx[j][i][idx] = 1.0;
+    }
+  }
+
+  // Restore arrays, local vectors
+  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+
+  ierr = DMStagVecRestoreArray(dmphiT,xphiTlocal,&xx);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dmphiT,xphiTlocal,INSERT_VALUES,xphiT); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dmphiT,xphiTlocal,INSERT_VALUES,xphiT); CHKERRQ(ierr);
+  
+  ierr = VecDestroy(&xphiTlocal); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// FormBCList
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FormBCList"
+PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
+{
+  UsrData     *usr = (UsrData*)ctx;
+  PetscInt    k,n_bc,*idx_bc;
+  PetscScalar *value_bc,*x_bc;
+  BCType      *type_bc;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  
+  // Left: T = Tb
+  ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = usr->par->nd_Tb;
+    type_bc[k] = BC_DIRICHLET;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+
+  // RIGHT: T = T0
+  ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = usr->par->nd_T0;
+    type_bc[k] = BC_DIRICHLET;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+
+  // // Composition
+  // // Left: C = T0 (dummy)
+  // ierr = DMStagBCListGetValues(bclist,'w','o',1,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  // for (k=0; k<n_bc; k++) {
+  //   value_bc[k] = usr->par->nd_T0;
+  //   type_bc[k] = BC_DIRICHLET;
+  // }
+  // ierr = DMStagBCListInsertValues(bclist,'o',1,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+
+  // // RIGHT: C = T0 (dummy)
+  // ierr = DMStagBCListGetValues(bclist,'e','o',1,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  // for (k=0; k<n_bc; k++) {
+  //   value_bc[k] = usr->par->nd_T0;
+  //   type_bc[k] = BC_DIRICHLET;
+  // }
+  // ierr = DMStagBCListInsertValues(bclist,'o',1,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// FormCoefficient
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FormCoefficient"
+PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
+{
+  UsrData        *usr = (UsrData*)ctx;
+  Params         *par;
+  PetscInt       i, j, sx, sz, nx, nz;
+  Vec            coefflocal;
+  PetscScalar    ***c;
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+
+  par = usr->par;
+  // Get domain corners
+  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
+  
+  // Loop over local domain
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+
+      { // ELEMENT
+        DMStagStencil point;
+        PetscInt      idx;
+
+        point.i = i; point.j = j; point.loc = ELEMENT;  
+        point.c = COEFF_A1; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 0.0;
+
+        point.c = COEFF_B1; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 0.0;
+
+        point.c = COEFF_D1; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 0.0;
+
+        point.c = COEFF_A2; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 0.0;
+
+        point.c = COEFF_B2; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 0.0;
+
+        point.c = COEFF_D2; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 0.0;
+
+        point.c = COEFF_M1; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 1.0;
+
+        point.c = COEFF_N1; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = -1.0;
+
+        point.c = COEFF_O1; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 0.0;
+
+        point.c = COEFF_P1; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 1.0/par->St;
+
+        point.c = COEFF_Q1; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 0.0;
+
+        point.c = COEFF_M2; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 0.0;
+
+        point.c = COEFF_N2; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 1.0;
+
+        point.c = COEFF_O2; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = -1.0;
+
+        point.c = COEFF_P2; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 0.0;
+
+        point.c = COEFF_Q2; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 0.0;
+      }
+
+      { // FACES
+        DMStagStencil point[4];
+        PetscInt      ii, idx;
+
+        point[0].i = i; point[0].j = j; point[0].loc = LEFT; 
+        point[1].i = i; point[1].j = j; point[1].loc = RIGHT;
+        point[2].i = i; point[2].j = j; point[2].loc = DOWN; 
+        point[3].i = i; point[3].j = j; point[3].loc = UP; 
+
+        for (ii = 0; ii < 4; ii++) {
+          point[ii].c = COEFF_C1; ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = -1.0;
+
+          point[ii].c = COEFF_C2; ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = 0.0;
+
+          point[ii].c = COEFF_v; ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = 0.0;
+
+          point[ii].c = COEFF_vf; ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = 0.0;
+
+          point[ii].c = COEFF_vs; ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = 0.0;
+        }
+      }
+    }
+  }
+
+  // Restore arrays, local vectors
+  ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  
+  ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// InputParameters
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "InputParameters"
+PetscErrorCode InputParameters(UsrData **_usr)
+{
+  UsrData       *usr;
+  Params        *par;
+  PetscBag       bag;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  // Allocate memory to application context
+  ierr = PetscMalloc1(1, &usr); CHKERRQ(ierr);
+
+  // Get time, comm and rank
+  usr->comm = PETSC_COMM_WORLD;
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &usr->rank); CHKERRQ(ierr);
+
+  // Create bag
+  ierr = PetscBagCreate (usr->comm,sizeof(Params),&usr->bag); CHKERRQ(ierr);
+  ierr = PetscBagGetData(usr->bag,(void **)&usr->par); CHKERRQ(ierr);
+  ierr = PetscBagSetName(usr->bag,"UserParamBag","- User defined parameters -"); CHKERRQ(ierr);
+
+  // Define some pointers for easy access
+  bag = usr->bag;
+  par = usr->par;
+
+  // Initialize domain variables
+  ierr = PetscBagRegisterInt(bag, &par->nx, 32, "nx", "Element count in the x-dir [-]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->nz, 4, "nz", "Element count in the z-dir [-]"); CHKERRQ(ierr);
+
+  ierr = PetscBagRegisterScalar(bag, &par->xmin, 0.0, "xmin", "Start coordinate of domain in x-dir [m]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->zmin, 0.0, "zmin", "Start coordinate of domain in z-dir [m]"); CHKERRQ(ierr);
+
+  ierr = PetscBagRegisterScalar(bag, &par->L, 4, "L", "Length of domain in x-dir [m]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->H, 0.5, "H", "Height of domain in z-dir [m]"); CHKERRQ(ierr);
+
+  // Physical and material parameters
+  ierr = PetscBagRegisterScalar(bag, &par->rho, 1.0, "rho", "Reference density [kg/m^3]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->cp, 1.0, "cp", "Specific heat capacity [J/kg/K]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->k, 1.08, "k", "Thermal conductivity [W/m/K]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->La, 70.26, "La", "Latent heat [J/kg]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->T0, 0.0, "T0", "Initial temperature [deg C]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->Tb, -45.0, "Tb", "Surface temperature [deg C]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->Tm, -0.1, "Tm", "Melting/crystallization temperature [deg C]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->Ts, -0.1001, "Ts", "Mush melting/crystallization temperature [deg C]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->dt, 0.2, "dt", "Time step size [deg C]"); CHKERRQ(ierr);
+
+  // Time stepping and advection parameters
+  ierr = PetscBagRegisterInt(bag, &par->ts_scheme,2, "ts_scheme", "Time stepping scheme 0-forward euler, 1-backward euler, 2-crank-nicholson"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->adv_scheme,2, "adv_scheme", "Advection scheme 0-upwind, 1-upwind2, 2-fromm"); CHKERRQ(ierr);
+
+  ierr = PetscBagRegisterInt(bag, &par->tout,1, "tout", "Output every tout time step"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->tstep,20, "tstep", "Maximum no of time steps"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->tmax, 4, "tmax", "Maximum time [s]"); CHKERRQ(ierr);
+
+  // scale parameters
+  par->nd_h = par->L;
+  par->St = par->cp*(par->Tm-par->Tb)/par->La;
+
+  par->L = par->L/par->nd_h;
+  par->H = par->H/par->nd_h;
+  par->kappa = par->k/(par->rho*par->cp);
+  par->nd_t = par->nd_h*par->nd_h/par->kappa;
+  par->dt = par->dt/par->nd_t;
+  par->tmax = par->tmax/par->nd_t;
+
+  par->nd_T0 = (par->T0-par->Tm)/(par->Tm-par->Tb);
+  par->nd_Tb = (par->Tb-par->Tm)/(par->Tm-par->Tb);
+  par->nd_Tm = (par->Tm-par->Tm)/(par->Tm-par->Tb);
+  par->nd_Ts = (par->Ts-par->Tm)/(par->Tm-par->Tb);
+
+  par->t     = 0.0;
+  par->tprev = 0.0;
+
+  // Input/output 
+  ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_1d_sol","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
+
+  // return pointer
+  *_usr = usr;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// InputPrintData
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "InputPrintData"
+PetscErrorCode InputPrintData(UsrData *usr)
+{
+  char           date[30], *opts;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  // Get date
+  ierr = PetscGetDate(date,30); CHKERRQ(ierr);
+  ierr = PetscOptionsGetAll(NULL, &opts); CHKERRQ(ierr);
+
+  // Print header and petsc options
+  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscPrintf(usr->comm,"# 1-D Solidification (Enthalpy): %s \n",&(date[0]));
+  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
+  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+
+  // Print usr bag
+  ierr = PetscBagView(usr->bag,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+
+  // Free memory
+  ierr = PetscFree(opts); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// MAIN
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "main"
+int main (int argc,char **argv)
+{
+  UsrData         *usr;
+  PetscLogDouble  start_time, end_time;
+  PetscErrorCode  ierr;
+    
+  // Initialize application
+  ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return ierr;
+ 
+  // Load command line or input file if required
+  ierr = PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL); CHKERRQ(ierr);
+
+  // Input user parameters and print
+  ierr = InputParameters(&usr); CHKERRQ(ierr);
+  ierr = InputPrintData(usr); CHKERRQ(ierr);
+
+  // Numerical solution using the FD pde object
+  ierr = PetscTime(&start_time); CHKERRQ(ierr);
+  ierr = Numerical_solution(usr); CHKERRQ(ierr);
+  ierr = PetscTime(&end_time); CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"# Runtime: %g (sec) \n", end_time - start_time);
+  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+
+  // Destroy objects
+  ierr = PetscBagDestroy(&usr->bag); CHKERRQ(ierr);
+  ierr = PetscFree(usr); CHKERRQ(ierr);
+
+  // Finalize main
+  ierr = PetscFinalize();
+  return ierr;
+}
