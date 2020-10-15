@@ -888,15 +888,13 @@ PetscErrorCode DMStagBCListInsertValues(DMStagBCList list,const char label,
     bc[ idx[k] ].val = value[k];
     bc[ idx[k] ].type = type[k];
   }
-  if (_xc && _xc_stag) {
-    ierr = PetscFree5(*_idx,*_xc,*_xc_stag,*_value,*_type);CHKERRQ(ierr);
-  } else if (_xc) {
-    ierr = PetscFree4(*_idx,*_xc,*_value,*_type);CHKERRQ(ierr);
-  } else if (_xc_stag) {
-    ierr = PetscFree4(*_idx,*_xc_stag,*_value,*_type);CHKERRQ(ierr);
-  } else {
-    ierr = PetscFree3(*_idx,*_value,*_type);CHKERRQ(ierr);
-  }
+
+  ierr = PetscFree(*_idx);CHKERRQ(ierr);
+  ierr = PetscFree(*_value);CHKERRQ(ierr);
+  ierr = PetscFree(*_type);CHKERRQ(ierr);
+  
+  if (_xc) { ierr = PetscFree(*_xc);CHKERRQ(ierr);}
+  if (_xc_stag) { ierr = PetscFree(*_xc_stag);CHKERRQ(ierr);}
   
   PetscFunctionReturn(0);
 }
