@@ -705,7 +705,6 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
       break;
   }
 
-  //ierr = PetscCalloc4(2*n,&xc,2*n,&xc_stag,n,&v,n,&t);CHKERRQ(ierr);
   ierr = PetscCalloc1(2*n,&xc);CHKERRQ(ierr);
   ierr = PetscCalloc1(2*n,&xc_stag);CHKERRQ(ierr);
   ierr = PetscCalloc1(n,&v);CHKERRQ(ierr);
@@ -889,7 +888,9 @@ PetscErrorCode DMStagBCListInsertValues(DMStagBCList list,const char label,
     bc[ idx[k] ].val = value[k];
     bc[ idx[k] ].type = type[k];
   }
-  if (_xc) {
+  if (_xc && _xc_stag) {
+    ierr = PetscFree5(*_idx,*_xc,*_xc_stag,*_value,*_type);CHKERRQ(ierr);
+  } else if (_xc) {
     ierr = PetscFree4(*_idx,*_xc,*_value,*_type);CHKERRQ(ierr);
   } else if (_xc_stag) {
     ierr = PetscFree4(*_idx,*_xc_stag,*_value,*_type);CHKERRQ(ierr);
