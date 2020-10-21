@@ -48,7 +48,7 @@ PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd)
 
   // ENTHALPY Stencil dofs: dmstag - H, C
   fd->dof0  = 0; fd->dof1  = 0; if (!fd->dof2) {fd->dof2 = 2;} 
-  fd->dofc0 = 0; fd->dofc1 = 5; fd->dofc2 = 16;
+  fd->dofc0 = 0; fd->dofc1 = 5; fd->dofc2 = 12;
 
   // Evaluation functions
   fd->ops->form_function      = FormFunction_Enthalpy;
@@ -65,15 +65,12 @@ PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd)
   en->xprev = NULL;
   en->coeffprev = NULL;
 
-  // enthalpy other data
-  en->dmphiT  = NULL;
-  en->xphiT   = NULL;
-  en->dmcomp  = NULL;
-  en->xCS     = NULL;
-  en->xCF     = NULL;
-  en->form_CS = NULL;
-  en->form_CF = NULL;
-  en->user_context = NULL;
+  // // enthalpy other data
+  en->form_Tsol_Tliq = NULL;
+  en->form_Cs_Cf     = NULL;
+  en->form_phi       = NULL;
+  en->form_user_bc   = NULL;
+  en->user_context   = NULL;
 
   en->ncomponents = fd->dof2;
   en->energy_variable = 0; // default 0-H-enthalpy, 1-TP-temperature
@@ -95,25 +92,20 @@ Use: internal
 #define __FUNCT__ "FDPDESetUp_Enthalpy"
 PetscErrorCode FDPDESetUp_Enthalpy(FDPDE fd)
 {
+  PetscInt       dim,sx,sz,nx,nz;
   EnthalpyData   *en;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
   en = fd->data;
 
-  // Create DMStag object for dmphiT, dmcomp
-  ierr = DMStagCreateCompatibleDMStag(fd->dmstag,0,0,2,0,&en->dmphiT); CHKERRQ(ierr);
-  ierr = DMSetUp(en->dmphiT); CHKERRQ(ierr);
-  ierr = DMStagSetUniformCoordinatesProduct(en->dmphiT,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
+  // Allocate memory arrays - local 
+  ierr = DMGetDimension(fd->dmstag,&dim);CHKERRQ(ierr);
+  if (dim != 2) SETERRQ(PetscObjectComm((PetscObject)fd->dmstag),PETSC_ERR_SUP,"Only valid for 2d DM");
+  ierr = DMStagGetCorners(fd->dmstag,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
 
-  ierr = DMStagCreateCompatibleDMStag(fd->dmstag,0,0,(en->ncomponents-1),0,&en->dmcomp); CHKERRQ(ierr);
-  ierr = DMSetUp(en->dmcomp); CHKERRQ(ierr);
-  ierr = DMStagSetUniformCoordinatesProduct(en->dmcomp,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
-
-  // Create global vectors
-  ierr = DMCreateGlobalVector(en->dmphiT,&en->xphiT);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(en->dmcomp,&en->xCS);CHKERRQ(ierr);
-  ierr = VecDuplicate(en->xCS,&en->xCF);CHKERRQ(ierr);
+  // set porosity evaluation function as the default lever rule
+  // en->form_phi = Eval_phi_lever;
 
   PetscFunctionReturn(0);
 }
@@ -138,15 +130,11 @@ PetscErrorCode FDPDEDestroy_Enthalpy(FDPDE fd)
   if (en->coeffprev) { ierr = VecDestroy(&en->coeffprev);CHKERRQ(ierr); }
 
   // enthalpy data
-  if (en->dmphiT) { ierr = DMDestroy(&en->dmphiT);CHKERRQ(ierr); }
-  if (en->xphiT) { ierr = VecDestroy(&en->xphiT);CHKERRQ(ierr); }
-
-  if (en->dmcomp) { ierr = DMDestroy(&en->dmcomp);CHKERRQ(ierr); }
-  if (en->form_CS) { en->form_CS = NULL; }
-  if (en->form_CF) { en->form_CF = NULL; }
-  en->user_context = NULL;
-  if (en->xCS)     { ierr = VecDestroy(&en->xCS);CHKERRQ(ierr); }
-  if (en->xCF)     { ierr = VecDestroy(&en->xCF);CHKERRQ(ierr); }
+  en->form_Tsol_Tliq = NULL;
+  en->form_Cs_Cf     = NULL;
+  en->form_phi       = NULL;
+  en->form_user_bc   = NULL;
+  en->user_context   = NULL;
 
   ierr = PetscFree(en);CHKERRQ(ierr);
 
@@ -591,8 +579,15 @@ FDPDEEnthalpySetFunctionsPhaseDiagram - set an evaluation functions for the phas
 
 Input Parameter:
 fd - the FD-PDE object
-form_CF - name of the evaluation function for fluid composition (liquidus)
-form_CS - name of the evaluation function for solid composition (solidus)
+form_Tsol_Tliq - name of the evaluation function for solidus/liquidus temperature[ncomponents]
+    Format: form_Tsol_Tliq(C[],P,ncomp,usr,Tsol,Tliq)
+
+form_Cs_Cf - name of the evaluation function for solidus/liquidus compositions[ncomponents]
+    Format: form_Cs_Cf(T,C[],P,ncomp,usr,CS,CF)
+
+form_phi - name of the evaluation function for porosity (otherwise the lever rule is considered)
+    Format: form_phi(T,C[],P,usr,phi)
+
 data - user context to be passed for evaluation (can be NULL)
 
 Use: user
@@ -600,7 +595,10 @@ Use: user
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDPDEEnthalpySetFunctionsPhaseDiagram"
-PetscErrorCode FDPDEEnthalpySetFunctionsPhaseDiagram(FDPDE fd, PetscErrorCode (*form_CF)(FDPDE fd,DM,Vec,DM,Vec,DM,Vec,void*), PetscErrorCode (*form_CS)(FDPDE fd,DM,Vec,DM,Vec,DM,Vec,void*), void *data)
+PetscErrorCode FDPDEEnthalpySetFunctionsPhaseDiagram(FDPDE fd, PetscErrorCode(*form_Tsol_Tliq)(PetscScalar[],PetscScalar,PetscInt,void*,PetscScalar*,PetscScalar*), 
+                                                               PetscErrorCode(*form_Cs_Cf)(PetscScalar,PetscScalar[],PetscScalar,PetscInt,void*,PetscScalar*,PetscScalar*), 
+                                                               PetscErrorCode(*form_phi)(PetscScalar,PetscScalar[],PetscScalar,void*,PetscScalar*),
+                                                               void *data)
 {
   EnthalpyData   *en;
   PetscErrorCode ierr;
@@ -610,9 +608,10 @@ PetscErrorCode FDPDEEnthalpySetFunctionsPhaseDiagram(FDPDE fd, PetscErrorCode (*
   if (!fd->data) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"The FD-PDE context data has not been set up. Call FDPDESetUp() first.");
 
   en = fd->data;
-  en->form_CF = form_CF;
-  en->form_CS = form_CS;
-  en->user_context = data;
+  en->form_Tsol_Tliq = form_Tsol_Tliq;
+  en->form_Cs_Cf     = form_Cs_Cf;
+  if (form_phi) en->form_phi = form_phi;
+  en->user_context   = data;
 
   PetscFunctionReturn(0);
 }
@@ -632,6 +631,7 @@ PetscErrorCode FDPDEEnthalpySetNumberComponentsPhaseDiagram(FDPDE fd, PetscInt n
 
   if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
   if (fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDEEnthalpySetNumberComponentsPhaseDiagram() before FDPDESetUp()");
+  if (n>MAX_COMPONENTS) SETERRQ1(fd->comm,PETSC_ERR_SUP,"Supported only %d maximum chemical components!",MAX_COMPONENTS);
   fd->dof2  = n; 
 
   PetscFunctionReturn(0);
@@ -672,23 +672,13 @@ PetscErrorCode FDPDEEnthalpySetEnergyPrimaryVariable(FDPDE fd, const char energy
 
 // ---------------------------------------
 /*@
-FDPDEEnthalpyGetPorosityTemperature - retrieves the DM and Vector for phi, T from the FD-PDE object. 
-
-Input Parameter:
-fd - the FD-PDE object
-
-Output Parameters (optional):
-dmphiT - the DM object
-xphiT - the vector
-
-Reference count on both dm/vector is incremented. User must call DM/VecDestroy().
-
+FDPDEEnthalpySetUserBC
 Use: user
 @*/
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FDPDEEnthalpyGetPorosityTemperature"
-PetscErrorCode FDPDEEnthalpyGetPorosityTemperature(FDPDE fd, DM *dmphiT, Vec *xphiT)
+#define __FUNCT__ "FDPDEEnthalpySetUserBC"
+PetscErrorCode FDPDEEnthalpySetUserBC(FDPDE fd, PetscErrorCode(*form_user_bc)(DM,Vec,PetscScalar***,void*))
 {
   EnthalpyData   *en;
   PetscErrorCode ierr;
@@ -696,62 +686,9 @@ PetscErrorCode FDPDEEnthalpyGetPorosityTemperature(FDPDE fd, DM *dmphiT, Vec *xp
 
   if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
   if (!fd->data) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"The FD-PDE context data has not been set up. Call FDPDESetUp() first.");
+
   en = fd->data;
+  en->form_user_bc = form_user_bc;
 
-  if (dmphiT) {
-    *dmphiT = en->dmphiT;
-    ierr = PetscObjectReference((PetscObject)en->dmphiT);CHKERRQ(ierr);
-  }
-
-  if (xphiT) {
-    *xphiT = en->xphiT;
-    ierr = PetscObjectReference((PetscObject)en->xphiT);CHKERRQ(ierr);
-  }
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-/*@
-FDPDEEnthalpyGetPhaseComposition - retrieves the DM and Vector for Cf, Cs from the FD-PDE object. 
-
-Input Parameter:
-fd - the FD-PDE object
-
-Output Parameters (optional):
-dmcomp - the DM object
-xCF - the fluid composition vector; indexing goes (Cf)^i, where i is the component index
-xCS - the solid composition vector; indexing goes (Cs)^i, where i is the component index
-
-Reference count on both dm/vectors is incremented. User must call DM/VecDestroy().
-
-Use: user
-@*/
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDPDEEnthalpyGetPhaseComposition"
-PetscErrorCode FDPDEEnthalpyGetPhaseComposition(FDPDE fd, DM *dmcomp, Vec *xCF, Vec *xCS)
-{
-  EnthalpyData   *en;
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
-
-  if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
-  if (!fd->data) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"The FD-PDE context data has not been set up. Call FDPDESetUp() first.");
-  en = fd->data;
-
-  if (dmcomp) {
-    *dmcomp = en->dmcomp;
-    ierr = PetscObjectReference((PetscObject)en->dmcomp);CHKERRQ(ierr);
-  }
-
-  if (xCF) {
-    *xCF = en->xCF;
-    ierr = PetscObjectReference((PetscObject)en->xCF);CHKERRQ(ierr);
-  }
-
-  if (xCS) {
-    *xCS = en->xCS;
-    ierr = PetscObjectReference((PetscObject)en->xCS);CHKERRQ(ierr);
-  }
   PetscFunctionReturn(0);
 }

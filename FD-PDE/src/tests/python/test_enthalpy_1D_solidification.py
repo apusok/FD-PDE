@@ -16,7 +16,9 @@ print('# 1-D Solidification test (ENTHALPY) ')
 print('# --------------------------------------- #')
 
 n = 32
-tstep = 20
+dt = 0.2
+tend = 4
+tstep = int(tend/dt)
 tout = 1
 
 # physical parameters
@@ -25,8 +27,7 @@ T0 = 0
 Tm = -0.1
 DT = Tm-Tb
 h = 4
-dx = 0.125
-dt = 0.2
+dx = h/n
 rho = 1
 cp = 1
 k = 1.08
@@ -35,10 +36,18 @@ St = cp*DT/La
 kappa = k/rho/cp
 nd_t = h**2/kappa
 
+energy = 0
+fname = fname+str(energy)
+
 # Run test
-str1 = '../test_enthalpy_1d_solidification.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -log_view'
+str1 = '../test_enthalpy_1d_solidification.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -snes_max_it 200'+ \
+    ' -output_file '+fname+ \
+    ' -dt '+str(dt)+ \
+    ' -tstep '+str(tstep)+ \
+    ' -energy '+str(energy)+ \
+    ' -nx '+str(n) #+ ' > log'+fname+'.out'
 print(str1)
-# os.system(str1)
+os.system(str1)
 
 # Prepare data for time series - nondimensional
 x0 = 1/h
@@ -72,12 +81,14 @@ for istep in range(0,tstep,tout):
 
   # extract a) middle temperature profile, b) crystallization front, and c) temperature at x=1
   T_data = data0['X_cell']
-  Ti = T_data[0::2]
+  dof = 2
+  Ti = T_data[0::dof]
   Ti_res = Ti.reshape(mz,mx)
 
   # T  = Ti_res[int(mz/2),:]*DT+Tm
   T = Ti_res[int(mz/2),:]
 
+  ic = 0
   for i in range(0,mx-1):
     if (xc[i]<=x0) & (xc[i+1]>x0):
       im = i
@@ -94,6 +105,7 @@ fig, axs = plt.subplots(1,3,figsize=(15,4))
 # temperature distribution in the slab - last timestep
 ax = plt.subplot(1,3,1)
 T_end_an = (np.erf(x/2/np.sqrt(t[-1]))/np.erf(beta) - 1)
+T_end_an[T_end_an>0.0] = 0.0
 pl = ax.plot(xc,T,color='red',label='numerical')
 pl = ax.plot(xc,T_end_an,color='black',label='analytical')
 ax.set_title('Temperature profile in the slab at t = 4 s')
@@ -106,6 +118,7 @@ ax.grid(True,color='gray', linestyle='--', linewidth=0.5)
 # Temperature evolution at x = 1m
 ax = plt.subplot(1,3,2)
 T_end_an = (np.erf(x0/2/np.sqrt(t))/np.erf(beta) - 1)
+T_end_an[T_end_an>0.0] = 0.0
 pl = ax.plot(t,T_1m,color='red',label='numerical')
 pl = ax.plot(t,T_end_an,color='black',label='analytical')
 ax.set_title('Temperature profile in the slab at x = 1m')
@@ -128,3 +141,5 @@ ax.axis('auto')
 ax.grid(True,color='gray', linestyle='--', linewidth=0.5)
 
 plt.savefig(fname+'.pdf')
+
+os.system('rm -r __pycache__')

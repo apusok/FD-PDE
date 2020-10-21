@@ -14,16 +14,12 @@
 #define COEFF_A2  3
 #define COEFF_B2  4
 #define COEFF_D2  5
-#define COEFF_M1  6
-#define COEFF_N1  7
-#define COEFF_O1  8
-#define COEFF_P1  9
-#define COEFF_Q1  10
-#define COEFF_M2  11
-#define COEFF_N2  12
-#define COEFF_O2  13
-#define COEFF_P2  14
-#define COEFF_Q2  15
+#define COEFF_a   6
+#define COEFF_b   7
+#define COEFF_c   8
+#define COEFF_d   9
+#define COEFF_e  10
+#define COEFF_P  11
 
 #define COEFF_C1  0 // edges
 #define COEFF_C2  1
@@ -31,20 +27,32 @@
 #define COEFF_vf  3
 #define COEFF_vs  4
 
+#define MAX_COMPONENTS 20
+
 // ---------------------------------------
 // Struct definitions
 // ---------------------------------------
+typedef struct {
+  PetscScalar  H,T,TP,P,phi;
+  PetscScalar  C[MAX_COMPONENTS],CF[MAX_COMPONENTS],CS[MAX_COMPONENTS];
+} ThermoState;
+
+typedef struct {
+  PetscScalar  A1,B1,D1,A2,B2,D2,a,b,c,d,e;
+  PetscScalar  C1[4],C2[4],v[4],vs[4],vf[4];
+} CoeffState;
+
 // user defined and model-dependent variables
 typedef struct {
   AdvectSchemeType   advtype;
   TimeStepSchemeType timesteptype;
   Vec                xprev,coeffprev;
   PetscScalar        dt,theta;
-  PetscErrorCode    (*form_CS)(FDPDE,DM,Vec,DM,Vec,DM,Vec,void*);
-  PetscErrorCode    (*form_CF)(FDPDE,DM,Vec,DM,Vec,DM,Vec,void*);
+  PetscErrorCode    (*form_Tsol_Tliq)(PetscScalar[],PetscScalar,PetscInt,void*,PetscScalar*,PetscScalar*);
+  PetscErrorCode    (*form_Cs_Cf)(PetscScalar,PetscScalar[],PetscScalar,PetscInt,void*,PetscScalar*,PetscScalar*);
+  PetscErrorCode    (*form_phi)(PetscScalar,PetscScalar[],PetscScalar,void*,PetscScalar*);
+  PetscErrorCode    (*form_user_bc)(DM,Vec,PetscScalar***,void*);
   void               *user_context;
-  DM                 dmphiT, dmcomp;
-  Vec                xphiT,xCF,xCS;
   PetscInt           ncomponents, energy_variable;
 } EnthalpyData;
 
@@ -63,13 +71,18 @@ PetscErrorCode EnthalpyNonzeroStencil(PetscInt,PetscInt,PetscInt,PetscInt,PetscI
 
 // RESIDUAL
 PetscErrorCode FormFunction_Enthalpy(SNES,Vec,Vec,void*);
-PetscErrorCode EnthalpyResidual_H(DM,Vec,DM,Vec,Vec,Vec,DM,Vec,PetscScalar**,PetscScalar**,EnthalpyData*,PetscInt,PetscInt,PetscScalar*);
-PetscErrorCode EnthalpySteadyStateOperator_H(DM,Vec,DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,AdvectSchemeType,PetscScalar*);
-PetscErrorCode EnthalpyResidual_TP(DM,Vec,DM,Vec,Vec,Vec,DM,Vec,PetscScalar**,PetscScalar**,EnthalpyData*,PetscInt,PetscInt,PetscScalar*);
-PetscErrorCode EnthalpySteadyStateOperator_TP(DM,Vec,DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,AdvectSchemeType,PetscScalar*);
-PetscErrorCode BulkCompositionResidual(DM,Vec,DM,Vec,Vec,Vec,DM,Vec,DM,Vec,Vec,PetscScalar**,PetscScalar**,EnthalpyData*,PetscInt,PetscInt,PetscInt,PetscScalar*);
-PetscErrorCode BulkCompositionSteadyStateOperator(DM,Vec,DM,Vec,DM,Vec,DM,Vec,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt,AdvectSchemeType,PetscScalar*);
 PetscErrorCode DMStagBCListApply_Enthalpy(DM,Vec,DMStagBC*,PetscInt,PetscScalar***);
+
+PetscErrorCode Enthalpy_TP(DM,Vec,DM,Vec,EnthalpyData*,ThermoState*,CoeffState*);
+PetscErrorCode Enthalpy_H(DM,Vec,DM,Vec,EnthalpyData*,ThermoState*,CoeffState*);
+PetscErrorCode CoeffCellData(DM,Vec,PetscInt,PetscInt,CoeffState*, PetscScalar*);
+PetscErrorCode SolutionCellData(DM,Vec,PetscInt,PetscInt,PetscScalar*,PetscScalar*);
+PetscErrorCode EnthalpyCellData_TPC(PetscScalar,PetscScalar*,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,EnthalpyData*,CoeffState);
+PetscErrorCode EnthalpyCellData_HC(PetscScalar,PetscScalar*,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,EnthalpyData*,CoeffState);
+PetscErrorCode EnthalpyResidual(DM,ThermoState*,CoeffState*,ThermoState*,CoeffState*,PetscScalar**,PetscScalar**,EnthalpyData*,PetscInt,PetscInt, PetscScalar*);
+PetscErrorCode EnthalpySteadyStateOperator(DM,ThermoState*,CoeffState*,PetscScalar**,PetscScalar**,PetscInt,PetscInt,AdvectSchemeType,PetscScalar*);
+PetscErrorCode BulkCompositionResidual(DM dm,ThermoState*,CoeffState*,ThermoState*,CoeffState*,PetscScalar**,PetscScalar**,EnthalpyData*,PetscInt,PetscInt,PetscInt,PetscScalar*);
+PetscErrorCode BulkCompositionSteadyStateOperator(DM,ThermoState*,CoeffState*,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt,AdvectSchemeType,PetscScalar*);
 
 // // Set Functions
 PetscErrorCode FDPDEEnthalpySetAdvectSchemeType(FDPDE, AdvectSchemeType);
@@ -77,18 +90,16 @@ PetscErrorCode FDPDEEnthalpySetTimeStepSchemeType(FDPDE, TimeStepSchemeType);
 
 PetscErrorCode FDPDEEnthalpyGetPrevSolution(FDPDE,Vec*);
 PetscErrorCode FDPDEEnthalpyGetPrevCoefficient(FDPDE,Vec*);
-PetscErrorCode FDPDEEnthalpyGetPorosityTemperature(FDPDE,DM*,Vec*);
-PetscErrorCode FDPDEEnthalpyGetPhaseComposition(FDPDE,DM*,Vec*,Vec*);
 
 PetscErrorCode FDPDEEnthalpySetTimestep(FDPDE,PetscScalar);
 PetscErrorCode FDPDEEnthalpyGetTimestep(FDPDE, PetscScalar*);
 // PetscErrorCode FDPDEEnthalpyComputeExplicitTimestep(FDPDE, PetscScalar*);
-PetscErrorCode FDPDEEnthalpySetFunctionsPhaseDiagram(FDPDE,PetscErrorCode(*form_CF)(FDPDE fd,DM,Vec,DM,Vec,DM,Vec,void*), PetscErrorCode (*form_CS)(FDPDE fd,DM,Vec,DM,Vec,DM,Vec,void*), void *data);
 PetscErrorCode FDPDEEnthalpySetNumberComponentsPhaseDiagram(FDPDE,PetscInt);
+PetscErrorCode FDPDEEnthalpySetFunctionsPhaseDiagram(FDPDE, PetscErrorCode(*form_Tsol_Tliq)(PetscScalar[],PetscScalar,PetscInt,void*,PetscScalar*,PetscScalar*), 
+                                                            PetscErrorCode(*form_Cs_Cf)(PetscScalar,PetscScalar[],PetscScalar,PetscInt,void*,PetscScalar*,PetscScalar*), 
+                                                            PetscErrorCode(*form_phi)(PetscScalar,PetscScalar[],PetscScalar,void*,PetscScalar*),
+                                                            void *data);
 PetscErrorCode FDPDEEnthalpySetEnergyPrimaryVariable(FDPDE,const char);
-
-// FDPDEEnthalpyUpdateDiagnostics(fd)
-// FDPDEEnthalpySolvePhiT(fd)
-// FDPDEEnthalpyUpdateCompositions(fd)
+PetscErrorCode FDPDEEnthalpySetUserBC(FDPDE,PetscErrorCode(*form_user_bc)(DM,Vec,PetscScalar***,void*));
 
 #endif

@@ -1,5 +1,12 @@
 #include "fdpde_enthalpy.h"
 
+
+static PetscInt SingleDimIndex(PetscInt i, PetscInt j, PetscInt nx) { return i*nx+j; }
+static PetscScalar Eval_T(PetscScalar TP, PetscScalar e) { return TP*e; }
+static PetscScalar Eval_TP(PetscScalar T, PetscScalar e) { return T/e; }
+static PetscScalar Eval_H(PetscScalar T, PetscScalar phi, PetscScalar a, PetscScalar b, PetscScalar c, PetscScalar d) { return -(b*T+c*phi+d)/a; }
+static PetscScalar Eval_T_H(PetscScalar H, PetscScalar phi, PetscScalar a, PetscScalar b, PetscScalar c, PetscScalar d) { return -(a*H+c*phi+d)/b; }
+
 // ---------------------------------------
 /*@
 FormFunction_Enthalpy - (ENTHALPY) Residual evaluation function
@@ -13,8 +20,10 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
 {
   FDPDE          fd = (FDPDE)ctx;
   EnthalpyData   *en;
+  ThermoState    *thm, *thm_prev;
+  CoeffState     *cff, *cff_prev;
   DM             dm, dmcoeff;
-  Vec            xlocal, coefflocal, flocal, xphiTlocal,xCFlocal,xCSlocal;
+  Vec            xlocal, coefflocal, flocal;
   Vec            xprevlocal, coeffprevlocal;
   PetscInt       Nx, Nz, sx, sz, nx, nz;
   PetscInt       i,j,ii,icenter,idx;
@@ -28,7 +37,8 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
 
   if (!fd->ops->form_coefficient) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Form coefficient function pointer is NULL. Must call FDPDESetFunctionCoefficient() and provide a non-NULL function pointer.");
   en = fd->data;
-  if ((!en->form_CF) || (!en->form_CS)) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Form CF-Phase Diagram function pointer is NULL. Must call FDPDEEnthalpySetFunctionsPhaseDiagram() and provide a non-NULL function pointer.");
+  if (!en->form_Tsol_Tliq) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Form Tsol, Tliq Phase Diagram function pointer is NULL. Must call FDPDEEnthalpySetFunctionsPhaseDiagram() and provide a non-NULL function pointer.");
+  if (!en->form_Cs_Cf)     SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Form CS, CF Phase Diagram function pointer is NULL. Must call FDPDEEnthalpySetFunctionsPhaseDiagram() and provide a non-NULL function pointer.");
 
   // Assign pointers and other variables
   dm    = fd->dmstag;
@@ -43,30 +53,23 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   // Update BC list
   bclist = fd->bclist;
   if (fd->bclist->evaluate) {
-    ierr = fd->bclist->evaluate(dm,x,bclist,bclist->data);CHKERRQ(ierr);
+    // ierr = fd->bclist->evaluate(dm,x,bclist,bclist->data);CHKERRQ(ierr);
   }
 
   // Update coefficients
   ierr = fd->ops->form_coefficient(fd,dm,x,dmcoeff,fd->coeff,fd->user_context);CHKERRQ(ierr);
 
-  // Update solid and liquid compositions
-  ierr = en->form_CF(fd,dm,x,dmcoeff,fd->coeff,en->dmcomp,en->xCF,en->user_context);CHKERRQ(ierr);
-  ierr = en->form_CS(fd,dm,x,dmcoeff,fd->coeff,en->dmcomp,en->xCS,en->user_context);CHKERRQ(ierr);
-
-  ierr = DMGetLocalVector(en->dmcomp, &xCSlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (en->dmcomp, en->xCS, INSERT_VALUES, xCSlocal); CHKERRQ(ierr);
-  ierr = DMGetLocalVector(en->dmcomp, &xCFlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (en->dmcomp, en->xCF, INSERT_VALUES, xCFlocal); CHKERRQ(ierr);
-  ierr = DMGetLocalVector(en->dmphiT, &xphiTlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (en->dmphiT, en->xphiT, INSERT_VALUES, xphiTlocal); CHKERRQ(ierr);
-
   // Get local domain
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+
+  // Create residual local vector
+  ierr = DMCreateLocalVector(dm, &flocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm, flocal, &ff); CHKERRQ(ierr);
 
   // Map global vectors to local domain
   ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
-
   ierr = DMGetLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
 
@@ -84,27 +87,29 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
     }
   }
 
-  // Get dm coordinates array
-  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  // update enthalpy and coeff cell data
+  ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(ThermoState),&thm);CHKERRQ(ierr); 
+  ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(CoeffState),&cff);CHKERRQ(ierr);
 
-  // Create residual local vector
-  ierr = DMCreateLocalVector(dm, &flocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dm, flocal, &ff); CHKERRQ(ierr);
+  if (en->energy_variable == 0) { ierr = Enthalpy_H(dm,xlocal,dmcoeff,coefflocal,en,thm,cff); CHKERRQ(ierr); }
+  if (en->energy_variable == 1) { ierr = Enthalpy_TP(dm,xlocal,dmcoeff,coefflocal,en,thm,cff); CHKERRQ(ierr); }
 
-  // Loop over elements
+  if (en->timesteptype != TS_NONE) {
+    ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(ThermoState),&thm_prev);CHKERRQ(ierr);
+    ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(CoeffState),&cff_prev);CHKERRQ(ierr);
+    if (en->energy_variable == 0) { ierr = Enthalpy_H(dm,xprevlocal,dmcoeff,coeffprevlocal,en,thm_prev,cff_prev); CHKERRQ(ierr); }
+    if (en->energy_variable == 1) { ierr = Enthalpy_TP(dm,xprevlocal,dmcoeff,coeffprevlocal,en,thm_prev,cff_prev); CHKERRQ(ierr); }
+  }
+
+  // Residual evaluation
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
-      if (en->energy_variable == 0) {
-        ierr = EnthalpyResidual_H(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,en->dmphiT,xphiTlocal,coordx,coordz,en,i,j,&fval); CHKERRQ(ierr);
-      } 
-      if (en->energy_variable == 1) {
-        ierr = EnthalpyResidual_TP(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,en->dmphiT,xphiTlocal,coordx,coordz,en,i,j,&fval); CHKERRQ(ierr);
-      }
+      ierr = EnthalpyResidual(dm,thm,cff,thm_prev,cff_prev,coordx,coordz,en,i,j,&fval); CHKERRQ(ierr);
       ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,0,&idx); CHKERRQ(ierr);
       ff[j][i][idx] = fval;
 
       for (ii = 0; ii<en->ncomponents-1; ii++) {
-        ierr = BulkCompositionResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,en->dmphiT,xphiTlocal,en->dmcomp,xCFlocal,xCSlocal,coordx,coordz,en,i,j,ii,&fval); CHKERRQ(ierr);
+        ierr = BulkCompositionResidual(dm,thm,cff,thm_prev,cff_prev,coordx,coordz,en,i,j,ii,&fval); CHKERRQ(ierr);
         ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,ii+1,&idx); CHKERRQ(ierr);
         ff[j][i][idx] = fval;
       }
@@ -112,7 +117,8 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   }
 
   // Boundary conditions - only element dofs
-  ierr = DMStagBCListApply_Enthalpy(dm,xlocal,bclist->bc_e,bclist->nbc_element,ff);CHKERRQ(ierr);
+  ierr = en->form_user_bc(dm,x,ff,en->user_context);CHKERRQ(ierr);
+  // ierr = DMStagBCListApply_Enthalpy(dm,xlocal,bclist->bc_e,bclist->nbc_element,ff);CHKERRQ(ierr);
 
   // Restore arrays, local vectors
   ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -120,11 +126,12 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmcoeff,&coefflocal); CHKERRQ(ierr);
 
-  ierr = DMRestoreLocalVector(en->dmcomp,&xCFlocal); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(en->dmcomp,&xCSlocal); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(en->dmphiT,&xphiTlocal); CHKERRQ(ierr);
+  ierr = PetscFree(thm);CHKERRQ(ierr);
+  ierr = PetscFree(cff);CHKERRQ(ierr);
 
   if (en->timesteptype != TS_NONE) {
+    ierr = PetscFree(thm_prev);CHKERRQ(ierr);
+    ierr = PetscFree(cff_prev);CHKERRQ(ierr);
     ierr = DMRestoreLocalVector(dm, &xprevlocal); CHKERRQ(ierr);
     ierr = DMRestoreLocalVector(dmcoeff, &coeffprevlocal); CHKERRQ(ierr);
   }
@@ -140,31 +147,310 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
 
 // ---------------------------------------
 /*@
-EnthalpyResidual_H - (ENTHALPY) calculates the residual for enthalpy per dof
-
+Enthalpy_TP - updates H, T, TP, P, phi, C[], CF[], CS[] and coefficients for every cell, assuming TP is primary variable
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode EnthalpyResidual_H(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Vec xprevlocal, Vec coeffprevlocal,DM dmphiT,Vec xphiTlocal, PetscScalar **coordx, PetscScalar **coordz, EnthalpyData *en, PetscInt i, PetscInt j, PetscScalar *_fval)
+PetscErrorCode Enthalpy_TP(DM dm,Vec xlocal,DM dmcoeff,Vec coefflocal,EnthalpyData *en,ThermoState *thm,CoeffState *cff)
 {
-  PetscScalar    xx, xxprev;
-  PetscScalar    fval=0.0, fval0=0.0, fval1=0.0;
-  DMStagStencil  point;
+  PetscInt       ii,i,j,sx,sz,nx,nz,idx;
+  PetscScalar    TP,C[MAX_COMPONENTS],P,phi,T,H,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
   PetscErrorCode ierr;
-
   PetscFunctionBegin;
+
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+
+  for (j = sz; j<sz+nz; j++) {
+    for (i = sx; i<sx+nx; i++) {
+      idx = SingleDimIndex(i-sx,j-sz,nx);
+      ierr = CoeffCellData(dmcoeff,coefflocal,i,j,&cff[idx],&P);CHKERRQ(ierr);
+      ierr = SolutionCellData(dm,xlocal,i,j,&TP,C);CHKERRQ(ierr);
+      ierr = EnthalpyCellData_TPC(TP,C,P,&H,&T,&phi,CS,CF,en,cff[idx]); CHKERRQ(ierr);
+
+      thm[idx].P  = P;
+      thm[idx].TP = TP;
+      thm[idx].T  = T;
+      thm[idx].H  = H;
+      thm[idx].phi = phi;
+      for (ii = 0; ii<en->ncomponents-1; ii++) {
+        thm[idx].C[ii]  = C[ii];
+        thm[idx].CS[ii] = CS[ii];
+        thm[idx].CF[ii] = CF[ii];
+      }
+
+      // if (j==0){
+        // PetscPrintf(PETSC_COMM_WORLD,"# BREAK F-A CELL [%d %d] \n",i,j);
+        // PetscPrintf(PETSC_COMM_WORLD,"#           COEF [A1 = %f B1 = %f D1 = %f] \n",cff[idx].A1,cff[idx].B1,cff[idx].D1);
+        // PetscPrintf(PETSC_COMM_WORLD,"#           COEF [A2 = %f B2 = %f D2 = %f] \n",cff[idx].A2,cff[idx].B2,cff[idx].D2);
+        // PetscPrintf(PETSC_COMM_WORLD,"#           COEF [a = %f b = %f c = %f d = %f e = %f] \n",cff[idx].a,cff[idx].b,cff[idx].c,cff[idx].d,cff[idx].e);
+        // PetscPrintf(PETSC_COMM_WORLD,"#           COEF [C10 = %f C11 = %f C12 = %f C13 = %f] \n",cff[idx].C1[0],cff[idx].C1[1],cff[idx].C1[2],cff[idx].C1[3]);
+        // PetscPrintf(PETSC_COMM_WORLD,"#           COEF [C20 = %f C21 = %f C22 = %f C23 = %f] \n",cff[idx].C2[0],cff[idx].C2[1],cff[idx].C2[2],cff[idx].C2[3]);
+        // PetscPrintf(PETSC_COMM_WORLD,"#           COEF [v0 = %f v1 = %f v2 = %f v3 = %f] \n",cff[idx].v[0],cff[idx].v[1],cff[idx].v[2],cff[idx].v[3]);
+        // PetscPrintf(PETSC_COMM_WORLD,"#           COEF [vs0 = %f vs1 = %f vs2 = %f vs3 = %f] \n",cff[idx].vs[0],cff[idx].vs[1],cff[idx].vs[2],cff[idx].vs[3]);
+        // PetscPrintf(PETSC_COMM_WORLD,"#           COEF [vf0 = %f vf1 = %f vf2 = %f vf3 = %f] \n",cff[idx].vf[0],cff[idx].vf[1],cff[idx].vf[2],cff[idx].vf[3]);
+        // PetscPrintf(PETSC_COMM_WORLD,"#           THRM [TP = %f C = %f P = %f] \n",thm[idx].TP,thm[idx].C[0],thm[idx].P);
+        // PetscPrintf(PETSC_COMM_WORLD,"#           THRM [H = %f T = %f phi = %f] \n",thm[idx].H,thm[idx].T,thm[idx].phi);
+        // PetscPrintf(PETSC_COMM_WORLD,"#           THRM [CS = %f CF = %f] \n",thm[idx].CS[0],thm[idx].CF[0]);
+      // }
+    }
+  }
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+Enthalpy_H - updates H, T, TP, P, phi, C[], CF[], CS[] and coefficients for every cell, assuming H is primary variable
+Use: internal
+@*/
+// ---------------------------------------
+PetscErrorCode Enthalpy_H(DM dm,Vec xlocal,DM dmcoeff,Vec coefflocal,EnthalpyData *en,ThermoState *thm,CoeffState *cff)
+{
+  PetscInt       ii,i,j,sx,sz,nx,nz,idx;
+  PetscScalar    TP,C[MAX_COMPONENTS],P,phi,T,H,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+
+  for (j = sz; j<sz+nz; j++) {
+    for (i = sx; i<sx+nx; i++) {
+      idx = SingleDimIndex(i-sx,j-sz,nx);
+      ierr = CoeffCellData(dmcoeff,coefflocal,i,j,&cff[idx],&P);CHKERRQ(ierr);
+      ierr = SolutionCellData(dm,xlocal,i,j,&H,C);CHKERRQ(ierr);
+      ierr = EnthalpyCellData_HC(H,C,P,&TP,&T,&phi,CS,CF,en,cff[idx]); CHKERRQ(ierr);
+
+      thm[idx].P  = P;
+      thm[idx].TP = TP;
+      thm[idx].T  = T;
+      thm[idx].H  = H;
+      thm[idx].phi = phi;
+      for (ii = 0; ii<en->ncomponents-1; ii++) {
+        thm[idx].C[ii]  = C[ii];
+        thm[idx].CS[ii] = CS[ii];
+        thm[idx].CF[ii] = CF[ii];
+      }
+    }
+  }
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+CoeffCellData - get cell data for coefficients
+Use: internal
+@*/
+// ---------------------------------------
+PetscErrorCode CoeffCellData(DM dmcoeff, Vec coefflocal, PetscInt i,PetscInt j, CoeffState *cff, PetscScalar *P)
+{
+  PetscInt       ii,dof0,dof1,dof2;
+  DMStagStencil  pointE[12], pointF[20];
+  PetscScalar    cE[12],cF[20];
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  ierr = DMStagGetDOF(dmcoeff,&dof0,&dof1,&dof2,NULL);CHKERRQ(ierr);
+
+  for (ii = 0; ii<dof2; ii++) { // element
+    pointE[ii].i = i; pointE[ii].j = j; pointE[ii].loc = DMSTAG_ELEMENT; pointE[ii].c = ii;
+  }
+
+  for (ii = 0; ii<dof1; ii++) { // faces
+    pointF[4*ii+0].i= i; pointF[4*ii+0].j= j; pointF[4*ii+0].loc= DMSTAG_LEFT;  pointF[4*ii+0].c= ii;
+    pointF[4*ii+1].i= i; pointF[4*ii+1].j= j; pointF[4*ii+1].loc= DMSTAG_RIGHT; pointF[4*ii+1].c= ii;
+    pointF[4*ii+2].i= i; pointF[4*ii+2].j= j; pointF[4*ii+2].loc= DMSTAG_DOWN;  pointF[4*ii+2].c= ii;
+    pointF[4*ii+3].i= i; pointF[4*ii+3].j= j; pointF[4*ii+3].loc= DMSTAG_UP;    pointF[4*ii+3].c= ii;
+  }
+  ierr = DMStagVecGetValuesStencil(dmcoeff,coefflocal,  dof2,pointE,cE); CHKERRQ(ierr);
+  ierr = DMStagVecGetValuesStencil(dmcoeff,coefflocal,4*dof1,pointF,cF); CHKERRQ(ierr);
+
+  // assign values
+  cff->A1 = cE[COEFF_A1]; cff->A2 = cE[COEFF_A2];
+  cff->B1 = cE[COEFF_B1]; cff->B2 = cE[COEFF_B2];
+  cff->D1 = cE[COEFF_D1]; cff->D2 = cE[COEFF_D2];
+  cff->a  = cE[COEFF_a]; 
+  cff->b  = cE[COEFF_b]; 
+  cff->c  = cE[COEFF_c]; 
+  cff->d  = cE[COEFF_d]; 
+  cff->e  = cE[COEFF_e]; 
+
+  for (ii = 0; ii<4; ii++) { 
+    cff->C1[ii] = cF[4*COEFF_C1+ii];
+    cff->C2[ii] = cF[4*COEFF_C2+ii];
+    cff->v[ii]  = cF[4*COEFF_v +ii];
+    cff->vf[ii] = cF[4*COEFF_vf+ii];
+    cff->vs[ii] = cF[4*COEFF_vs+ii];
+  }
+
+  *P = cE[COEFF_P];
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+SolutionCellData - get cell data for solution H/TP,C
+Use: internal
+@*/
+// ---------------------------------------
+PetscErrorCode SolutionCellData(DM dm, Vec xlocal, PetscInt i,PetscInt j, PetscScalar *_X, PetscScalar *C)
+{
+  PetscInt       ii,dof0,dof1,dof2;
+  DMStagStencil  *pointE;
+  PetscScalar    *xE, X;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  ierr = DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL);CHKERRQ(ierr);
+  ierr = PetscCalloc1(dof2,&xE); CHKERRQ(ierr);
+  ierr = PetscCalloc1(dof2,&pointE); CHKERRQ(ierr);
+
+  for (ii = 0; ii<dof2; ii++) { // element
+    pointE[ii].i = i; pointE[ii].j = j; pointE[ii].loc = DMSTAG_ELEMENT; pointE[ii].c = ii;
+  }
+  ierr = DMStagVecGetValuesStencil(dm,xlocal,dof2,pointE,xE); CHKERRQ(ierr);
+
+  // assign values
+  X = xE[0];
+  for (ii = 1; ii<dof2; ii++) {
+    C[ii-1] = xE[ii];
+  }
+
+  *_X = X;
+
+  ierr = PetscFree(xE);CHKERRQ(ierr);
+  ierr = PetscFree(pointE);CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+EnthalpyCellData_TPC - calculate enthalpy method, input (TP,C,P) output (H,T,phi,CS,CF)
+Use: internal
+@*/
+// ---------------------------------------
+PetscErrorCode EnthalpyCellData_TPC(PetscScalar TP, PetscScalar *C, PetscScalar P, PetscScalar *_H, PetscScalar *_T, PetscScalar *_phi, PetscScalar *CS, PetscScalar *CF,EnthalpyData *en,CoeffState cff)
+{
+  PetscInt     ii;
+  PetscScalar  Tsol, Tliq, T, phi=0.0, H;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  T = Eval_T(TP,cff.e);
+  ierr = en->form_Tsol_Tliq(C,P,en->ncomponents,en->user_context,&Tsol,&Tliq);CHKERRQ(ierr);
+  if (T <= Tsol) {
+    phi = 0.0;
+    ierr = en->form_Cs_Cf(Tsol,C,P,en->ncomponents,en->user_context,CS,CF);CHKERRQ(ierr);
+    for (ii = 0; ii<en->ncomponents-1; ii++) {
+      CS[ii] = C[ii];
+    }
+  } else if (T >= Tliq) {
+    phi = 1.0;
+    ierr = en->form_Cs_Cf(Tliq,C,P,en->ncomponents,en->user_context,CS,CF);CHKERRQ(ierr);
+    for (ii = 0; ii<en->ncomponents-1; ii++) {
+      CF[ii] = C[ii];
+    }
+  } else {
+    ierr = en->form_Cs_Cf(T,C,P,en->ncomponents,en->user_context,CS,CF);CHKERRQ(ierr);
+    ierr = en->form_phi(T,C,P,en->user_context,&phi);CHKERRQ(ierr);
+  }
+  
+  H = Eval_H(T,phi,cff.a,cff.b,cff.c,cff.d);
+  *_phi = phi;
+  *_T = T;
+  *_H = H;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+EnthalpyCellData_HC - calculate enthalpy method, input (H,C,P) output (TP,T,phi,CS,CF)
+Use: internal
+@*/
+// ---------------------------------------
+PetscErrorCode EnthalpyCellData_HC(PetscScalar H, PetscScalar *C, PetscScalar P, PetscScalar *_TP, PetscScalar *_T, PetscScalar *_phi, PetscScalar *CS, PetscScalar *CF,EnthalpyData *en,CoeffState cff)
+{
+  PetscInt     ii;
+  PetscScalar  Tsol, Tliq, Hsol, Hliq, T, phi=0.0, TP;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  T = Eval_T(TP,cff.e);
+  ierr = en->form_Tsol_Tliq(C,P,en->ncomponents,en->user_context,&Tsol,&Tliq);CHKERRQ(ierr);
+  Hsol = Eval_H(Tsol,1.0,cff.a,cff.b,cff.c,cff.d);
+  Hliq = Eval_H(Tliq,0.0,cff.a,cff.b,cff.c,cff.d);
+
+  if (H <= Hsol) {
+    phi = 0.0;
+    ierr = en->form_Cs_Cf(Tsol,C,P,en->ncomponents,en->user_context,CS,CF);CHKERRQ(ierr);
+    for (ii = 0; ii<en->ncomponents-1; ii++) {
+      CS[ii] = C[ii];
+    }
+  } else if (H >= Hliq) {
+    phi = 1.0;
+    ierr = en->form_Cs_Cf(Tliq,C,P,en->ncomponents,en->user_context,CS,CF);CHKERRQ(ierr);
+    for (ii = 0; ii<en->ncomponents-1; ii++) {
+      CF[ii] = C[ii];
+    }
+  } else {
+    // non-linear local solve for porosity
+    PetscScalar  phi0, dphi;
+    PetscInt it, maxnewtonits = 8;
+    PetscBool    converged = PETSC_FALSE;
+    phi = 0.5;
+    T = Eval_T_H(H,phi,cff.a,cff.b,cff.c,cff.d);
+    ierr = en->form_phi(T,C,P,en->user_context,&phi0);CHKERRQ(ierr);
+    dphi = phi-phi0;
+
+    for (it=1; it<=maxnewtonits; it++) {
+      phi += dphi;
+      T = Eval_T_H(H,phi,cff.a,cff.b,cff.c,cff.d);
+      ierr = en->form_phi(T,C,P,en->user_context,&phi0);CHKERRQ(ierr);
+      dphi = phi-phi0;
+      PetscPrintf(PETSC_COMM_WORLD,"# Non-linear porosity solve: res = %1.6e phi = %1.6e \n",dphi,phi);
+      if (fabs(dphi) < 1.0e-12) { converged = PETSC_TRUE; break;}
+    }
+    ierr = en->form_Cs_Cf(T,C,P,en->ncomponents,en->user_context,CS,CF);CHKERRQ(ierr);
+  }
+  
+  TP = Eval_TP(T,cff.e);
+  *_TP = TP;
+  *_phi = phi;
+  *_T = T;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+EnthalpyResidual - (ENTHALPY) calculates the residual for H/TP per dof
+Use: internal
+@*/
+// ---------------------------------------
+PetscErrorCode EnthalpyResidual(DM dm,ThermoState *thm, CoeffState *cff, ThermoState *thm_prev, CoeffState *cff_prev, PetscScalar **coordx, PetscScalar **coordz, EnthalpyData *en, PetscInt i, PetscInt j, PetscScalar *_fval)
+{
+  PetscInt      idx,sx,sz,nx,nz;
+  PetscScalar   xx, xxprev;
+  PetscScalar    fval=0.0, fval0=0.0, fval1=0.0;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
   if (en->timesteptype == TS_NONE) {
     // steady-state operator
-    ierr = EnthalpySteadyStateOperator_H(dm,xlocal,dmcoeff,coefflocal,dmphiT,xphiTlocal,coordx,coordz,i,j,en->advtype,&fval); CHKERRQ(ierr);
+    ierr = EnthalpySteadyStateOperator(dm,thm,cff,coordx,coordz,i,j,en->advtype,&fval); CHKERRQ(ierr);
   } else { 
     // time-dependent solution
-    ierr = EnthalpySteadyStateOperator_H(dm,xprevlocal,dmcoeff,coeffprevlocal,dmphiT,xphiTlocal,coordx,coordz,i,j,en->advtype,&fval0); CHKERRQ(ierr);
-    ierr = EnthalpySteadyStateOperator_H(dm,xlocal,dmcoeff,coefflocal,dmphiT,xphiTlocal,coordx,coordz,i,j,en->advtype,&fval1); CHKERRQ(ierr);
+    ierr = EnthalpySteadyStateOperator(dm,thm_prev,cff_prev,coordx,coordz,i,j,en->advtype,&fval0); CHKERRQ(ierr);
+    ierr = EnthalpySteadyStateOperator(dm,thm,cff,coordx,coordz,i,j,en->advtype,&fval1); CHKERRQ(ierr);
 
-    point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
-    ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&point,&xx); CHKERRQ(ierr);
-    ierr = DMStagVecGetValuesStencil(dm,xprevlocal,1,&point,&xxprev); CHKERRQ(ierr);
+    idx = SingleDimIndex(i-sx,j-sz,nx);
+    xx     = thm[idx].H;
+    xxprev = thm_prev[idx].H;
 
     fval = xx - xxprev + en->dt*(en->theta*fval1 + (1-en->theta)*fval0);
   }
@@ -175,21 +461,18 @@ PetscErrorCode EnthalpyResidual_H(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, 
 
 // ---------------------------------------
 /*@
-EnthalpySteadyStateOperator_H - (ENTHALPY) calculates the steady state enthalpy residual per dof
-
+EnthalpySteadyStateOperator - (ENTHALPY) calculates the steady state enthalpy residual per dof
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode EnthalpySteadyStateOperator_H(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal,DM dmphiT,Vec xphiTlocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, AdvectSchemeType advtype,PetscScalar *ff)
+PetscErrorCode EnthalpySteadyStateOperator(DM dm, ThermoState *thm, CoeffState *cff, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, AdvectSchemeType advtype,PetscScalar *ff)
 {
   PetscScalar    ffi;
-  PetscInt       ii, Nx, Nz, icenter;
-  PetscScalar    cx[25], xx[9], xxTP[9], xxPHI[9], xxPHIs[9];
+  PetscInt       ii, Nx, Nz, nx,nz,sx,sz,icenter, idx[9];
+  PetscScalar    xxTP[9], xxPHIs[9];
   PetscScalar    dx[3], dz[3];
   PetscScalar    A1, B1, D1, C1_Left, C1_Right, C1_Down, C1_Up, v[5], vs[5];
-  PetscScalar    M1, N1, O1, P1, Q1, M2, N2, O2, P2, Q2, M, N, P,Q;
   PetscScalar    dQ2dx, dQ2dz, diff, adv1, adv2;
-  DMStagStencil  point[25];
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -197,258 +480,31 @@ PetscErrorCode EnthalpySteadyStateOperator_H(DM dm, Vec xlocal, DM dmcoeff,Vec c
   // Get variables
   ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr); 
   ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+
+  idx[0] = SingleDimIndex(i-sx,j-sz,nx);
 
   // Coefficients
-  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = COEFF_A1; // A1
-  point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_ELEMENT; point[1].c = COEFF_B1; // B1
-  point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_ELEMENT; point[2].c = COEFF_D1; // D1
-  point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_LEFT;    point[3].c = COEFF_C1; // C1_left
-  point[4].i = i; point[4].j = j; point[4].loc = DMSTAG_RIGHT;   point[4].c = COEFF_C1; // C1_right
-  point[5].i = i; point[5].j = j; point[5].loc = DMSTAG_DOWN;    point[5].c = COEFF_C1; // C1_down
-  point[6].i = i; point[6].j = j; point[6].loc = DMSTAG_UP;      point[6].c = COEFF_C1; // C1_up
-  point[7].i = i; point[7].j = j; point[7].loc = DMSTAG_LEFT;    point[7].c = COEFF_v; // v_left
-  point[8].i = i; point[8].j = j; point[8].loc = DMSTAG_RIGHT;   point[8].c = COEFF_v; // v_right
-  point[9].i = i; point[9].j = j; point[9].loc = DMSTAG_DOWN;    point[9].c = COEFF_v; // v_down
-  point[10].i= i; point[10].j= j; point[10].loc= DMSTAG_UP;      point[10].c= COEFF_v; // v_up
-  point[11].i= i; point[11].j= j; point[11].loc= DMSTAG_LEFT;    point[11].c= COEFF_vs; // vs_left
-  point[12].i= i; point[12].j= j; point[12].loc= DMSTAG_RIGHT;   point[12].c= COEFF_vs; // vs_right
-  point[13].i= i; point[13].j= j; point[13].loc= DMSTAG_DOWN;    point[13].c= COEFF_vs; // vs_down
-  point[14].i= i; point[14].j= j; point[14].loc= DMSTAG_UP;      point[14].c= COEFF_vs; // vs_up
+  A1 = cff[idx[0]].A1;
+  B1 = cff[idx[0]].B1;
+  D1 = cff[idx[0]].D1;
 
-  point[15].i = i; point[15].j = j; point[15].loc = DMSTAG_ELEMENT; point[15].c = COEFF_M1;
-  point[16].i = i; point[16].j = j; point[16].loc = DMSTAG_ELEMENT; point[16].c = COEFF_N1;
-  point[17].i = i; point[17].j = j; point[17].loc = DMSTAG_ELEMENT; point[17].c = COEFF_O1;
-  point[18].i = i; point[18].j = j; point[18].loc = DMSTAG_ELEMENT; point[18].c = COEFF_P1;
-  point[19].i = i; point[19].j = j; point[19].loc = DMSTAG_ELEMENT; point[19].c = COEFF_Q1;
-  point[20].i = i; point[20].j = j; point[20].loc = DMSTAG_ELEMENT; point[20].c = COEFF_M2;
-  point[21].i = i; point[21].j = j; point[21].loc = DMSTAG_ELEMENT; point[21].c = COEFF_N2;
-  point[22].i = i; point[22].j = j; point[22].loc = DMSTAG_ELEMENT; point[22].c = COEFF_O2;
-  point[23].i = i; point[23].j = j; point[23].loc = DMSTAG_ELEMENT; point[23].c = COEFF_P2;
-  point[24].i = i; point[24].j = j; point[24].loc = DMSTAG_ELEMENT; point[24].c = COEFF_Q2;
-  ierr = DMStagVecGetValuesStencil(dmcoeff,coefflocal,25,point,cx); CHKERRQ(ierr);
-
-  // Assign variables
-  A1 = cx[0];
-  B1 = cx[1];
-  D1 = cx[2];
-
-  C1_Left  = cx[3];
-  C1_Right = cx[4];
-  C1_Down  = cx[5];
-  C1_Up    = cx[6];
+  C1_Left  = cff[idx[0]].C1[0];
+  C1_Right = cff[idx[0]].C1[1];
+  C1_Down  = cff[idx[0]].C1[2];
+  C1_Up    = cff[idx[0]].C1[3];
 
   v[0] = 0.0;
-  v[1] = cx[7]; // v_left
-  v[2] = cx[8]; // v_right
-  v[3] = cx[9]; // v_down
-  v[4] = cx[10];// v_up
+  v[1] = cff[idx[0]].v[0]; // v_left
+  v[2] = cff[idx[0]].v[1]; // v_right
+  v[3] = cff[idx[0]].v[2]; // v_down
+  v[4] = cff[idx[0]].v[3]; // v_up
 
   vs[0] = 0.0;
-  vs[1] = cx[11]; // vs_left
-  vs[2] = cx[12]; // vs_right
-  vs[3] = cx[13]; // vs_down
-  vs[4] = cx[14]; // vs_up
-
-  M1 = cx[15];  M2 = cx[20];
-  N1 = cx[16];  N2 = cx[21];
-  O1 = cx[17];  O2 = cx[22];
-  P1 = cx[18];  P2 = cx[23];
-  Q1 = cx[19];  Q2 = cx[24];
-
-  M = M1 - O1/O2*M2;
-  N = N1 - O1/O2*N2;
-  P = P1 - O1/O2*P2;
-  Q = Q1 - O1/O2*Q2;
-
-  // Grid spacings
-  if (i == Nx-1) dx[0] = coordx[i  ][icenter]-coordx[i-1][icenter];
-  else           dx[0] = coordx[i+1][icenter]-coordx[i  ][icenter];
-
-  if (i == 0) dx[1] = coordx[i+1][icenter]-coordx[i  ][icenter];
-  else        dx[1] = coordx[i  ][icenter]-coordx[i-1][icenter];
-  dx[2]  = (dx[0]+dx[1])*0.5;
-
-  if (j == Nz-1) dz[0] = coordz[j  ][icenter]-coordz[j-1][icenter];
-  else           dz[0] = coordz[j+1][icenter]-coordz[j  ][icenter];
-
-  if (j == 0) dz[1] = coordz[j+1][icenter]-coordz[j  ][icenter];
-  else        dz[1] = coordz[j  ][icenter]-coordz[j-1][icenter];
-  dz[2] = (dz[0]+dz[1])*0.5;
-
-  // Get stencil values - H, phi
-  point[0].i = i  ; point[0].j = j  ; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0; // i,j -C
-  point[1].i = i-1; point[1].j = j  ; point[1].loc = DMSTAG_ELEMENT; point[1].c = 0; // i-1,j -W
-  point[2].i = i+1; point[2].j = j  ; point[2].loc = DMSTAG_ELEMENT; point[2].c = 0; // i+1,j -E
-  point[3].i = i  ; point[3].j = j-1; point[3].loc = DMSTAG_ELEMENT; point[3].c = 0; // i,j-1 -S
-  point[4].i = i  ; point[4].j = j+1; point[4].loc = DMSTAG_ELEMENT; point[4].c = 0; // i,j+1 -N
-  point[5].i = i-2; point[5].j = j  ; point[5].loc = DMSTAG_ELEMENT; point[5].c = 0; // i-2,j -WW
-  point[6].i = i+2; point[6].j = j  ; point[6].loc = DMSTAG_ELEMENT; point[6].c = 0; // i+2,j -EE
-  point[7].i = i  ; point[7].j = j-2; point[7].loc = DMSTAG_ELEMENT; point[7].c = 0; // i,j-2 -SS
-  point[8].i = i  ; point[8].j = j+2; point[8].loc = DMSTAG_ELEMENT; point[8].c = 0; // i,j+2 -NN
-
-  if (i == 1) point[5] = point[2];
-  if (j == 1) point[7] = point[4];
-  if (i == Nx-2) point[6] = point[1];
-  if (j == Nz-2) point[8] = point[3];
-
-  if (i == 0) { point[1] = point[0]; point[5] = point[2]; }
-  if (j == 0) { point[3] = point[0]; point[7] = point[4]; }
-
-  if (i == Nx-1) { point[2] = point[0]; point[6] = point[1]; }
-  if (j == Nz-1) { point[4] = point[0]; point[8] = point[3]; }
-
-  ierr = DMStagVecGetValuesStencil(dm,xlocal,9,point,xx); CHKERRQ(ierr);
-  ierr = DMStagVecGetValuesStencil(dm,xphiTlocal,9,point,xxPHI); CHKERRQ(ierr);
-
-  // calculate TP, solid porosity
-  for (ii = 0; ii<9; ii++) { 
-    xxPHIs[ii] = 1.0 - xxPHI[ii]; 
-    xxTP[ii] = -1.0/N * (M*xx[ii] + P*xxPHI[ii] + Q);
-  }
-
-  // Calculate diff residual
-  dQ2dx = C1_Right*(xxTP[2]-xxTP[0])/dx[0] - C1_Left*(xxTP[0]-xxTP[1])/dx[1];
-  dQ2dz = C1_Up   *(xxTP[4]-xxTP[0])/dz[0] - C1_Down*(xxTP[0]-xxTP[3])/dz[1];
-  diff = dQ2dx/dx[2] + dQ2dz/dz[2];
-
-  // Calculate adv residual
-  ierr = AdvectionResidual(v, xxTP,  dx,dz,advtype,&adv1); CHKERRQ(ierr);
-  ierr = AdvectionResidual(vs,xxPHIs,dx,dz,advtype,&adv2); CHKERRQ(ierr);
-
-  ffi  = A1*adv1 +B1*adv2 + diff + D1;
-  *ff = ffi;
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-/*@
-EnthalpyResidual_TP - (ENTHALPY) calculates the residual for TP per dof
-
-Use: internal
-@*/
-// ---------------------------------------
-PetscErrorCode EnthalpyResidual_TP(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Vec xprevlocal, Vec coeffprevlocal,DM dmphiT,Vec xphiTlocal, PetscScalar **coordx, PetscScalar **coordz, EnthalpyData *en, PetscInt i, PetscInt j, PetscScalar *_fval)
-{
-  PetscScalar    xx, xxprev, xxphi, xxH, xxHprev, cx[10];
-  PetscScalar    fval=0.0, fval0=0.0, fval1=0.0;
-  DMStagStencil  point, pointC[10];
-  PetscScalar    M1, N1, O1, P1, Q1, M2, N2, O2, P2, Q2, M, N,P,Q;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-
-  if (en->timesteptype == TS_NONE) {
-    // steady-state operator
-    ierr = EnthalpySteadyStateOperator_TP(dm,xlocal,dmcoeff,coefflocal,dmphiT,xphiTlocal,coordx,coordz,i,j,en->advtype,&fval); CHKERRQ(ierr);
-  } else { 
-    // time-dependent solution
-    ierr = EnthalpySteadyStateOperator_TP(dm,xprevlocal,dmcoeff,coeffprevlocal,dmphiT,xphiTlocal,coordx,coordz,i,j,en->advtype,&fval0); CHKERRQ(ierr);
-    ierr = EnthalpySteadyStateOperator_TP(dm,xlocal,dmcoeff,coefflocal,dmphiT,xphiTlocal,coordx,coordz,i,j,en->advtype,&fval1); CHKERRQ(ierr);
-
-    // get enthalpy
-    point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
-    ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&point,&xx); CHKERRQ(ierr);
-    ierr = DMStagVecGetValuesStencil(dm,xprevlocal,1,&point,&xxprev); CHKERRQ(ierr);
-    ierr = DMStagVecGetValuesStencil(dm,xphiTlocal,1,&point,&xxphi); CHKERRQ(ierr);
-
-    // transform to TP
-    pointC[0].i = i; pointC[0].j = j; pointC[0].loc = DMSTAG_ELEMENT; pointC[0].c = COEFF_M1;
-    pointC[1].i = i; pointC[1].j = j; pointC[1].loc = DMSTAG_ELEMENT; pointC[1].c = COEFF_N1;
-    pointC[2].i = i; pointC[2].j = j; pointC[2].loc = DMSTAG_ELEMENT; pointC[2].c = COEFF_O1;
-    pointC[3].i = i; pointC[3].j = j; pointC[3].loc = DMSTAG_ELEMENT; pointC[3].c = COEFF_P1;
-    pointC[4].i = i; pointC[4].j = j; pointC[4].loc = DMSTAG_ELEMENT; pointC[4].c = COEFF_Q1;
-    pointC[5].i = i; pointC[5].j = j; pointC[5].loc = DMSTAG_ELEMENT; pointC[5].c = COEFF_M2;
-    pointC[6].i = i; pointC[6].j = j; pointC[6].loc = DMSTAG_ELEMENT; pointC[6].c = COEFF_N2;
-    pointC[7].i = i; pointC[7].j = j; pointC[7].loc = DMSTAG_ELEMENT; pointC[7].c = COEFF_O2;
-    pointC[8].i = i; pointC[8].j = j; pointC[8].loc = DMSTAG_ELEMENT; pointC[8].c = COEFF_P2;
-    pointC[9].i = i; pointC[9].j = j; pointC[9].loc = DMSTAG_ELEMENT; pointC[9].c = COEFF_Q2;
-    ierr = DMStagVecGetValuesStencil(dmcoeff,coefflocal,10,pointC,cx); CHKERRQ(ierr);
-
-    M1 = cx[0];  M2 = cx[5];
-    N1 = cx[1];  N2 = cx[6];
-    O1 = cx[2];  O2 = cx[7];
-    P1 = cx[3];  P2 = cx[8];
-    Q1 = cx[4];  Q2 = cx[9];
-
-    M = M1 - O1/O2*M2;
-    N = N1 - O1/O2*N2;
-    P = P1 - O1/O2*P2;
-    Q = Q1 - O1/O2*Q2;
-
-    xxH     = -1.0/M*(N*xx     + P*xxphi + Q);
-    xxHprev = -1.0/M*(N*xxprev + P*xxphi + Q);
-
-    fval = xxH - xxHprev + en->dt*(en->theta*fval1 + (1-en->theta)*fval0);
-  }
-  *_fval = fval;
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-/*@
-EnthalpySteadyStateOperator_TP - (ENTHALPY) calculates the steady state enthalpy residual per dof for TP
-
-Use: internal
-@*/
-// ---------------------------------------
-PetscErrorCode EnthalpySteadyStateOperator_TP(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal,DM dmphiT,Vec xphiTlocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, AdvectSchemeType advtype,PetscScalar *ff)
-{
-  PetscScalar    ffi;
-  PetscInt       ii, Nx, Nz, icenter;
-  PetscScalar    cx[15], xxTP[9], xxPHI[9], xxPHIs[9];
-  PetscScalar    dx[3], dz[3];
-  PetscScalar    A1, B1, D1, C1_Left, C1_Right, C1_Down, C1_Up, v[5], vs[5];
-  PetscScalar    dQ2dx, dQ2dz, diff, adv1, adv2;
-  DMStagStencil  point[15];
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-
-  // Get variables
-  ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr); 
-  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
-
-  // Coefficients
-  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = COEFF_A1; // A1
-  point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_ELEMENT; point[1].c = COEFF_B1; // B1
-  point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_ELEMENT; point[2].c = COEFF_D1; // D1
-  point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_LEFT;    point[3].c = COEFF_C1; // C1_left
-  point[4].i = i; point[4].j = j; point[4].loc = DMSTAG_RIGHT;   point[4].c = COEFF_C1; // C1_right
-  point[5].i = i; point[5].j = j; point[5].loc = DMSTAG_DOWN;    point[5].c = COEFF_C1; // C1_down
-  point[6].i = i; point[6].j = j; point[6].loc = DMSTAG_UP;      point[6].c = COEFF_C1; // C1_up
-  point[7].i = i; point[7].j = j; point[7].loc = DMSTAG_LEFT;    point[7].c = COEFF_v; // v_left
-  point[8].i = i; point[8].j = j; point[8].loc = DMSTAG_RIGHT;   point[8].c = COEFF_v; // v_right
-  point[9].i = i; point[9].j = j; point[9].loc = DMSTAG_DOWN;    point[9].c = COEFF_v; // v_down
-  point[10].i= i; point[10].j= j; point[10].loc= DMSTAG_UP;      point[10].c= COEFF_v; // v_up
-  point[11].i= i; point[11].j= j; point[11].loc= DMSTAG_LEFT;    point[11].c= COEFF_vs; // vs_left
-  point[12].i= i; point[12].j= j; point[12].loc= DMSTAG_RIGHT;   point[12].c= COEFF_vs; // vs_right
-  point[13].i= i; point[13].j= j; point[13].loc= DMSTAG_DOWN;    point[13].c= COEFF_vs; // vs_down
-  point[14].i= i; point[14].j= j; point[14].loc= DMSTAG_UP;      point[14].c= COEFF_vs; // vs_up
-  ierr = DMStagVecGetValuesStencil(dmcoeff,coefflocal,15,point,cx); CHKERRQ(ierr);
-
-  // Assign variables
-  A1 = cx[0];
-  B1 = cx[1];
-  D1 = cx[2];
-
-  C1_Left  = cx[3];
-  C1_Right = cx[4];
-  C1_Down  = cx[5];
-  C1_Up    = cx[6];
-
-  v[0] = 0.0;
-  v[1] = cx[7]; // v_left
-  v[2] = cx[8]; // v_right
-  v[3] = cx[9]; // v_down
-  v[4] = cx[10];// v_up
-
-  vs[0] = 0.0;
-  vs[1] = cx[11]; // vs_left
-  vs[2] = cx[12]; // vs_right
-  vs[3] = cx[13]; // vs_down
-  vs[4] = cx[14]; // vs_up
+  vs[1] = cff[idx[0]].vs[0]; // vs_left
+  vs[2] = cff[idx[0]].vs[1]; // vs_right
+  vs[3] = cff[idx[0]].vs[2]; // vs_down
+  vs[4] = cff[idx[0]].vs[3]; // vs_up
 
   // Grid spacings
   if (i == Nx-1) dx[0] = coordx[i  ][icenter]-coordx[i-1][icenter];
@@ -466,33 +522,29 @@ PetscErrorCode EnthalpySteadyStateOperator_TP(DM dm, Vec xlocal, DM dmcoeff,Vec 
   dz[2] = (dz[0]+dz[1])*0.5;
 
   // Get stencil values - TP, phi
-  point[0].i = i  ; point[0].j = j  ; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0; // i,j -C
-  point[1].i = i-1; point[1].j = j  ; point[1].loc = DMSTAG_ELEMENT; point[1].c = 0; // i-1,j -W
-  point[2].i = i+1; point[2].j = j  ; point[2].loc = DMSTAG_ELEMENT; point[2].c = 0; // i+1,j -E
-  point[3].i = i  ; point[3].j = j-1; point[3].loc = DMSTAG_ELEMENT; point[3].c = 0; // i,j-1 -S
-  point[4].i = i  ; point[4].j = j+1; point[4].loc = DMSTAG_ELEMENT; point[4].c = 0; // i,j+1 -N
-  point[5].i = i-2; point[5].j = j  ; point[5].loc = DMSTAG_ELEMENT; point[5].c = 0; // i-2,j -WW
-  point[6].i = i+2; point[6].j = j  ; point[6].loc = DMSTAG_ELEMENT; point[6].c = 0; // i+2,j -EE
-  point[7].i = i  ; point[7].j = j-2; point[7].loc = DMSTAG_ELEMENT; point[7].c = 0; // i,j-2 -SS
-  point[8].i = i  ; point[8].j = j+2; point[8].loc = DMSTAG_ELEMENT; point[8].c = 0; // i,j+2 -NN
+  idx[0] = SingleDimIndex(i  -sx,j  -sz,nx); // C
+  idx[1] = SingleDimIndex(i-1-sx,j  -sz,nx); // W
+  idx[2] = SingleDimIndex(i+1-sx,j  -sz,nx); // E
+  idx[3] = SingleDimIndex(i  -sx,j-1-sz,nx); // S
+  idx[4] = SingleDimIndex(i  -sx,j+1-sz,nx); // N
+  idx[5] = SingleDimIndex(i-2-sx,j  -sz,nx); // WW
+  idx[6] = SingleDimIndex(i+2-sx,j  -sz,nx); // EE
+  idx[7] = SingleDimIndex(i  -sx,j-2-sz,nx); // SS
+  idx[8] = SingleDimIndex(i  -sx,j+2-sz,nx); // NN
 
-  if (i == 1) point[5] = point[2];
-  if (j == 1) point[7] = point[4];
-  if (i == Nx-2) point[6] = point[1];
-  if (j == Nz-2) point[8] = point[3];
+  if (i == 1) idx[5] = idx[2];
+  if (j == 1) idx[7] = idx[4];
+  if (i == Nx-2) idx[6] = idx[1];
+  if (j == Nz-2) idx[8] = idx[3];
 
-  if (i == 0) { point[1] = point[0]; point[5] = point[2]; }
-  if (j == 0) { point[3] = point[0]; point[7] = point[4]; }
+  if (i == 0) { idx[1] = idx[0]; idx[5] = idx[2]; }
+  if (j == 0) { idx[3] = idx[0]; idx[7] = idx[4]; }
+  if (i == Nx-1) { idx[2] = idx[0]; idx[6] = idx[1]; }
+  if (j == Nz-1) { idx[4] = idx[0]; idx[8] = idx[3]; }
 
-  if (i == Nx-1) { point[2] = point[0]; point[6] = point[1]; }
-  if (j == Nz-1) { point[4] = point[0]; point[8] = point[3]; }
-
-  ierr = DMStagVecGetValuesStencil(dm,xlocal,9,point,xxTP); CHKERRQ(ierr);
-  ierr = DMStagVecGetValuesStencil(dm,xphiTlocal,9,point,xxPHI); CHKERRQ(ierr);
-
-  // calculate solid porosity
   for (ii = 0; ii<9; ii++) { 
-    xxPHIs[ii] = 1.0 - xxPHI[ii];
+    xxTP[ii] = thm[idx[ii]].TP;
+    xxPHIs[ii] = 1.0 - thm[idx[ii]].phi;
   }
 
   // Calculate diff residual
@@ -513,30 +565,30 @@ PetscErrorCode EnthalpySteadyStateOperator_TP(DM dm, Vec xlocal, DM dmcoeff,Vec 
 // ---------------------------------------
 /*@
 BulkCompositionResidual - (ENTHALPY) calculates the residual for bulk composition per dof
-
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode BulkCompositionResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Vec xprevlocal, Vec coeffprevlocal, DM dmphiT,Vec xphiTlocal,DM dmcomp,Vec xCFlocal,Vec xCSlocal, PetscScalar **coordx, PetscScalar **coordz, EnthalpyData *en, PetscInt i, PetscInt j, PetscInt ii, PetscScalar *_fval)
+PetscErrorCode BulkCompositionResidual(DM dm,ThermoState *thm, CoeffState *cff, ThermoState *thm_prev, CoeffState *cff_prev, PetscScalar **coordx, PetscScalar **coordz, EnthalpyData *en, PetscInt i, PetscInt j, PetscInt ii, PetscScalar *_fval)
 {
+  PetscInt       idx, sx,sz,nx,nz;
   PetscScalar    xx, xxprev;
   PetscScalar    fval=0.0, fval0=0.0, fval1=0.0;
-  DMStagStencil  point;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
 
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   if (en->timesteptype == TS_NONE) {
     // steady-state operator
-    ierr = BulkCompositionSteadyStateOperator(dm,xlocal,dmcoeff,coefflocal,dmphiT,xphiTlocal,dmcomp,xCFlocal,xCSlocal,coordx,coordz,i,j,ii,en->advtype,&fval); CHKERRQ(ierr);
+    ierr = BulkCompositionSteadyStateOperator(dm,thm,cff,coordx,coordz,i,j,ii,en->advtype,&fval); CHKERRQ(ierr);
   } else { 
     // time-dependent solution
-    ierr = BulkCompositionSteadyStateOperator(dm,xprevlocal,dmcoeff,coeffprevlocal,dmphiT,xphiTlocal,dmcomp,xCFlocal,xCSlocal,coordx,coordz,i,j,ii,en->advtype,&fval0); CHKERRQ(ierr);
-    ierr = BulkCompositionSteadyStateOperator(dm,xlocal,dmcoeff,coefflocal,dmphiT,xphiTlocal,dmcomp,xCFlocal,xCSlocal,coordx,coordz,i,j,ii,en->advtype,&fval1); CHKERRQ(ierr);
+    ierr = BulkCompositionSteadyStateOperator(dm,thm_prev,cff_prev,coordx,coordz,i,j,ii,en->advtype,&fval0); CHKERRQ(ierr);
+    ierr = BulkCompositionSteadyStateOperator(dm,thm,cff,coordx,coordz,i,j,ii,en->advtype,&fval1); CHKERRQ(ierr);
 
-    point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = ii+1;
-    ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&point,&xx); CHKERRQ(ierr);
-    ierr = DMStagVecGetValuesStencil(dm,xprevlocal,1,&point,&xxprev); CHKERRQ(ierr);
+    idx = SingleDimIndex(i-sx,j-sz,nx);
+    xx     = thm[idx].C[ii];
+    xxprev = thm_prev[idx].C[ii];
 
     fval = xx - xxprev + en->dt*(en->theta*fval1 + (1-en->theta)*fval0);
   }
@@ -548,15 +600,14 @@ PetscErrorCode BulkCompositionResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflo
 // ---------------------------------------
 /*@
 BulkCompositionSteadyStateOperator - (ENTHALPY) calculates the steady state bulk composition residual per dof
-
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode BulkCompositionSteadyStateOperator(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, DM dmphiT,Vec xphiTlocal, DM dmcomp,Vec xCFlocal,Vec xCSlocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, PetscInt icomp, AdvectSchemeType advtype,PetscScalar *ff)
+PetscErrorCode BulkCompositionSteadyStateOperator(DM dm, ThermoState *thm, CoeffState *cff, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, PetscInt icomp, AdvectSchemeType advtype,PetscScalar *ff)
 {
   PetscScalar    ffi;
-  PetscInt       ii, Nx, Nz, icenter;
-  PetscScalar    xxCF[9], xxCS[9], xxPHI[9], xxPHIs[9], cx[15], f1[9], f2[9];
+  PetscInt       ii, Nx, Nz, icenter, sx,sz,nx,nz,idx[9];
+  PetscScalar    xxCF[9], xxCS[9], xxPHI[9], xxPHIs[9], f1[9], f2[9];
   PetscScalar    dx[3], dz[3];
   PetscScalar    A2, B2, D2, C2_Left, C2_Right, C2_Down, C2_Up, vs[5], vf[5];
   PetscScalar    phi_Left, phi_Right, phi_Down, phi_Up;
@@ -569,46 +620,30 @@ PetscErrorCode BulkCompositionSteadyStateOperator(DM dm, Vec xlocal, DM dmcoeff,
   // Get variables
   ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr); 
   ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
   // Coefficients
-  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = COEFF_A2; // A2
-  point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_ELEMENT; point[1].c = COEFF_B2; // B2
-  point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_ELEMENT; point[2].c = COEFF_D2; // D2
-  point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_LEFT;    point[3].c = COEFF_C2; // C2_left
-  point[4].i = i; point[4].j = j; point[4].loc = DMSTAG_RIGHT;   point[4].c = COEFF_C2; // C2_right
-  point[5].i = i; point[5].j = j; point[5].loc = DMSTAG_DOWN;    point[5].c = COEFF_C2; // C2_down
-  point[6].i = i; point[6].j = j; point[6].loc = DMSTAG_UP;      point[6].c = COEFF_C2; // C2_up
-  point[7].i = i; point[7].j = j; point[7].loc = DMSTAG_LEFT;    point[7].c = COEFF_vs; // vs_left
-  point[8].i = i; point[8].j = j; point[8].loc = DMSTAG_RIGHT;   point[8].c = COEFF_vs; // vs_right
-  point[9].i = i; point[9].j = j; point[9].loc = DMSTAG_DOWN;    point[9].c = COEFF_vs; // vs_down
-  point[10].i= i; point[10].j= j; point[10].loc= DMSTAG_UP;      point[10].c= COEFF_vs; // vs_up
-  point[11].i= i; point[11].j= j; point[11].loc= DMSTAG_LEFT;    point[11].c= COEFF_vf; // vf_left
-  point[12].i= i; point[12].j= j; point[12].loc= DMSTAG_RIGHT;   point[12].c= COEFF_vf; // vf_right
-  point[13].i= i; point[13].j= j; point[13].loc= DMSTAG_DOWN;    point[13].c= COEFF_vf; // vf_down
-  point[14].i= i; point[14].j= j; point[14].loc= DMSTAG_UP;      point[14].c= COEFF_vf; // vf_up
-  ierr = DMStagVecGetValuesStencil(dmcoeff,coefflocal,15,point,cx); CHKERRQ(ierr);
+  idx[0] = SingleDimIndex(i-sx,j-sz,nx);
+  A2 = cff[idx[0]].A2;
+  B2 = cff[idx[0]].B2;
+  D2 = cff[idx[0]].D2;
 
-  // Assign variables
-  A2 = cx[0];
-  B2 = cx[1];
-  D2 = cx[2];
-
-  C2_Left  = cx[3];
-  C2_Right = cx[4];
-  C2_Down  = cx[5];
-  C2_Up    = cx[6];
+  C2_Left  = cff[idx[0]].C2[0];
+  C2_Right = cff[idx[0]].C2[1];
+  C2_Down  = cff[idx[0]].C2[2];
+  C2_Up    = cff[idx[0]].C2[3];
 
   vs[0] = 0.0;
-  vs[1] = cx[7]; // vs_left
-  vs[2] = cx[8]; // vs_right
-  vs[3] = cx[9]; // vs_down
-  vs[4] = cx[10];// vs_up
+  vs[1] = cff[idx[0]].vs[0];
+  vs[2] = cff[idx[0]].vs[1]; 
+  vs[3] = cff[idx[0]].vs[2];
+  vs[4] = cff[idx[0]].vs[3];
 
   vf[0] = 0.0;
-  vf[1] = cx[11]; // vf_left
-  vf[2] = cx[12]; // vf_right
-  vf[3] = cx[13]; // vf_down
-  vf[4] = cx[14]; // vf_up
+  vf[1] = cff[idx[0]].vf[0];
+  vf[2] = cff[idx[0]].vf[1];
+  vf[3] = cff[idx[0]].vf[2];
+  vf[4] = cff[idx[0]].vf[3];
 
   // Grid spacings
   if (i == Nx-1) dx[0] = coordx[i  ][icenter]-coordx[i-1][icenter];
@@ -625,35 +660,33 @@ PetscErrorCode BulkCompositionSteadyStateOperator(DM dm, Vec xlocal, DM dmcoeff,
   else        dz[1] = coordz[j  ][icenter]-coordz[j-1][icenter];
   dz[2] = (dz[0]+dz[1])*0.5;
 
-  // Get stencil values - CF
-  point[0].i = i  ; point[0].j = j  ; point[0].loc = DMSTAG_ELEMENT; point[0].c = icomp; // i,j -C
-  point[1].i = i-1; point[1].j = j  ; point[1].loc = DMSTAG_ELEMENT; point[1].c = icomp; // i-1,j -W
-  point[2].i = i+1; point[2].j = j  ; point[2].loc = DMSTAG_ELEMENT; point[2].c = icomp; // i+1,j -E
-  point[3].i = i  ; point[3].j = j-1; point[3].loc = DMSTAG_ELEMENT; point[3].c = icomp; // i,j-1 -S
-  point[4].i = i  ; point[4].j = j+1; point[4].loc = DMSTAG_ELEMENT; point[4].c = icomp; // i,j+1 -N
-  point[5].i = i-2; point[5].j = j  ; point[5].loc = DMSTAG_ELEMENT; point[5].c = icomp; // i-2,j -WW
-  point[6].i = i+2; point[6].j = j  ; point[6].loc = DMSTAG_ELEMENT; point[6].c = icomp; // i+2,j -EE
-  point[7].i = i  ; point[7].j = j-2; point[7].loc = DMSTAG_ELEMENT; point[7].c = icomp; // i,j-2 -SS
-  point[8].i = i  ; point[8].j = j+2; point[8].loc = DMSTAG_ELEMENT; point[8].c = icomp; // i,j+2 -NN
+  // Get stencil values - CF, CS, phi, phis
+  idx[0] = SingleDimIndex(i  -sx,j  -sz,nx); // C
+  idx[1] = SingleDimIndex(i-1-sx,j  -sz,nx); // W
+  idx[2] = SingleDimIndex(i+1-sx,j  -sz,nx); // E
+  idx[3] = SingleDimIndex(i  -sx,j-1-sz,nx); // S
+  idx[4] = SingleDimIndex(i  -sx,j+1-sz,nx); // N
+  idx[5] = SingleDimIndex(i-2-sx,j  -sz,nx); // WW
+  idx[6] = SingleDimIndex(i+2-sx,j  -sz,nx); // EE
+  idx[7] = SingleDimIndex(i  -sx,j-2-sz,nx); // SS
+  idx[8] = SingleDimIndex(i  -sx,j+2-sz,nx); // NN
 
-  if (i == 1) point[5] = point[2];
-  if (j == 1) point[7] = point[4];
-  if (i == Nx-2) point[6] = point[1];
-  if (j == Nz-2) point[8] = point[3];
-  if (i == 0) { point[1] = point[0]; point[5] = point[2]; }
-  if (j == 0) { point[3] = point[0]; point[7] = point[4]; }
-  if (i == Nx-1) { point[2] = point[0]; point[6] = point[1]; }
-  if (j == Nz-1) { point[4] = point[0]; point[8] = point[3]; }
-  ierr = DMStagVecGetValuesStencil(dmcomp,xCFlocal,9,point,xxCF); CHKERRQ(ierr);
-  ierr = DMStagVecGetValuesStencil(dmcomp,xCSlocal,9,point,xxCS); CHKERRQ(ierr);
+  if (i == 1) idx[5] = idx[2];
+  if (j == 1) idx[7] = idx[4];
+  if (i == Nx-2) idx[6] = idx[1];
+  if (j == Nz-2) idx[8] = idx[3];
 
-  // Get stencil values for porosity and solid porosity
-  for (ii = 0; ii<9; ii++) { point[ii].c = 0; }
-  ierr = DMStagVecGetValuesStencil(dmphiT,xphiTlocal,9,point,xxPHI); CHKERRQ(ierr);
+  if (i == 0) { idx[1] = idx[0]; idx[5] = idx[2]; }
+  if (j == 0) { idx[3] = idx[0]; idx[7] = idx[4]; }
+  if (i == Nx-1) { idx[2] = idx[0]; idx[6] = idx[1]; }
+  if (j == Nz-1) { idx[4] = idx[0]; idx[8] = idx[3]; }
 
-  // Calculate solid and fluid fluxes
+  // Get local data
   for (ii = 0; ii<9; ii++) { 
-    xxPHIs[ii] = 1.0 - xxPHI[ii];
+    xxCF[ii] = thm[idx[ii]].CF[icomp];
+    xxCS[ii] = thm[idx[ii]].CS[icomp];
+    xxPHI[ii] = thm[idx[ii]].phi;
+    xxPHIs[ii] = 1.0 - thm[idx[ii]].phi;
     f1[ii] = xxPHIs[ii]*xxCS[ii]; 
     f2[ii] = xxPHI[ii] *xxCF[ii]; 
   }

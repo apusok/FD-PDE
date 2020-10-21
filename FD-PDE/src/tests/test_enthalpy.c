@@ -9,8 +9,8 @@ static char help[] = "FD-PDE ENTHALPY test \n\n";
 // ---------------------------------------
 static PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx) { return 0; }
 static PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx) { return 0; }
-static PetscErrorCode Liquidus(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec xcoeff, DM dmcomp, Vec xCF, void *ctx) { return 0; }
-static PetscErrorCode Solidus(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec xcoeff, DM dmcomp, Vec xCS, void *ctx) { return 0; }
+static PetscErrorCode Form_Tsol_Tliq(PetscScalar C[],PetscScalar P,PetscInt ncomp, void *ctx, PetscScalar *Tsol,PetscScalar *Tliq) { return 0; }
+static PetscErrorCode Form_Cs_Cf(PetscScalar T, PetscScalar C[],PetscScalar P,PetscInt ncomp, void *ctx, PetscScalar *CS, PetscScalar *CF) { return 0; }
 
 PetscErrorCode test0(PetscInt nx,PetscInt nz)
 {
@@ -31,7 +31,7 @@ PetscErrorCode test0(PetscInt nx,PetscInt nz)
   ierr = FDPDEEnthalpySetTimeStepSchemeType(fd,TS_CRANK_NICHOLSON);CHKERRQ(ierr);
   ierr = FDPDEEnthalpySetTimestep(fd,0.01); CHKERRQ(ierr);
 
-  ierr = FDPDEEnthalpySetFunctionsPhaseDiagram(fd,Liquidus,Solidus,NULL);CHKERRQ(ierr);
+  ierr = FDPDEEnthalpySetFunctionsPhaseDiagram(fd,Form_Tsol_Tliq,Form_Cs_Cf,NULL,NULL);CHKERRQ(ierr);
 
   ierr = FDPDEView(fd); CHKERRQ(ierr);
   ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
