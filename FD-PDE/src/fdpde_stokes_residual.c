@@ -626,7 +626,7 @@ PetscErrorCode DMStagBCListApplyElement_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec
     }
 
     if (bclist[ibc].type == BC_DIRICHLET) {
-      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"BC_DIRICHLET type on the true boundary for FDPDE_ADVDIFF [ELEMENT] is not yet implemented. Use BC_DIRICHLET_STAG type instead!");
+      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"BC_DIRICHLET type on the true boundary for FDPDE_STOKES [ELEMENT] is not yet implemented. Use BC_DIRICHLET_STAG type instead!");
     }
     
     if (bclist[ibc].type == BC_NEUMANN) {
