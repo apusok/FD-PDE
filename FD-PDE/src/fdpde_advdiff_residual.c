@@ -286,7 +286,12 @@ PetscErrorCode DMStagBCListApply_AdvDiff(DM dm, Vec xlocal,DM dmcoeff, Vec coeff
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
+
     if (bclist[ibc].type == BC_DIRICHLET) {
+      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"BC_DIRICHLET type on the true boundary for FDPDE_ADVDIFF [ELEMENT] is not yet implemented. Use BC_DIRICHLET_STAG type instead!");
+    }
+    
+    if (bclist[ibc].type == BC_DIRICHLET_STAG) {
       i   = bclist[ibc].point.i;
       j   = bclist[ibc].point.j;
       idx = bclist[ibc].idx;

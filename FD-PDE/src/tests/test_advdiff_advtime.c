@@ -549,60 +549,60 @@ PetscErrorCode FormBCList_Dirichlet(DM dm, Vec x, DMStagBCList bclist, void *ctx
   ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
 
   // Left: T(0,z) = T(Nx-1,z)
-  ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     for (j = sz; j < sz+nz; j++) {
       if (x_bc[2*k+1]==coordz[j][icenter]) {
         point.i = Nx-1; point.j = j; point.loc = ELEMENT; point.c = 0;
         ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&point, &xx); CHKERRQ(ierr);
         value_bc[k] = xx;
-        type_bc[k] = BC_DIRICHLET;
+        type_bc[k] = BC_DIRICHLET_STAG;
       }
     }
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // Right: T(Nx-1,z) = T(0,z)
-  ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     for (j = sz; j < sz+nz; j++) {
       if (x_bc[2*k+1]==coordz[j][icenter]) {
         point.i = 0; point.j = j; point.loc = ELEMENT; point.c = 0;
         ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&point, &xx); CHKERRQ(ierr);
         value_bc[k] = xx;
-        type_bc[k] = BC_DIRICHLET;
+        type_bc[k] = BC_DIRICHLET_STAG;
       }
     }
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   
   // DOWN: T(x,0) = T(x,Nz-1)
-  ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     for (i = sx; i < sx+nx; i++) {
       if (x_bc[2*k]==coordx[i][icenter]) {
         point.i = i; point.j = Nz-1; point.loc = ELEMENT; point.c = 0;
         ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&point, &xx); CHKERRQ(ierr);
         value_bc[k] = xx;
-        type_bc[k] = BC_DIRICHLET;
+        type_bc[k] = BC_DIRICHLET_STAG;
       }
     }
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // UP: T(x,Nz-1) = T(x,0)
-  ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     for (i = sx; i < sx+nx; i++) {
       if (x_bc[2*k]==coordx[i][icenter]) {
         point.i = i; point.j = 0; point.loc = ELEMENT; point.c = 0;
         ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&point, &xx); CHKERRQ(ierr);
         value_bc[k] = xx;
-        type_bc[k] = BC_DIRICHLET;
+        type_bc[k] = BC_DIRICHLET_STAG;
       }
     }
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
   ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);

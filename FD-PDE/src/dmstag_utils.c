@@ -1102,3 +1102,31 @@ PetscErrorCode DMStagISCreateL2L_2d(DM dmA,
   ierr = DMStagFieldISCreate_2d(dmB,n0A,dof0B,n1A,dof1B,n2A,dof2B,isB);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+/* Note: This returns the numbers of cells and their sizes within a subdomain*/
+PetscErrorCode DMStagCellSizeLocal_2d(DM dm, PetscInt *_nx, PetscInt *_ny, PetscScalar *_dx[],PetscScalar *_dy[])
+{
+  PetscErrorCode    ierr;
+  PetscInt          i,start[2],n[2];
+  PetscScalar       *dx,*dy,**cArrX,**cArrY;
+  PetscInt          iNext,iPrev;
+
+  PetscFunctionBegin;
+  ierr = DMStagGetCorners(dm,&start[0],&start[1],NULL,&n[0],&n[1],NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dm,&cArrX,&cArrY,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&iPrev);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&iNext);CHKERRQ(ierr);
+  ierr = PetscCalloc1(n[0],&dx);CHKERRQ(ierr);
+  ierr = PetscCalloc1(n[1],&dy);CHKERRQ(ierr);
+  for (i=start[0]; i<start[0]+n[0]; i++) {
+    dx[i-start[0]] = PetscAbs(cArrX[i][iNext] - cArrX[i][iPrev]);
+  }
+  for (i=start[1]; i<start[1]+n[1]; i++) {
+    dy[i-start[1]] = PetscAbs(cArrY[i][iNext] - cArrY[i][iPrev]);
+  }
+  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&cArrX,&cArrY,NULL);CHKERRQ(ierr);
+  *_nx = n[0];
+  *_ny = n[1];
+  *_dx = dx; *_dy= dy;
+  PetscFunctionReturn(0);
+}

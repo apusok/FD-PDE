@@ -16,7 +16,7 @@ print('# --------------------------------------- #')
 print('# Corner flow (mid-ocean ridges) benchmark ')
 print('# --------------------------------------- #')
 
-n = 100
+n = 200
 
 # Run test
 str1 = '../test_stokes_mor.app -pc_type lu -pc_factor_mat_solver_type umfpack -output_file '+fname+' -nx '+str(n)+' -nz '+str(n)

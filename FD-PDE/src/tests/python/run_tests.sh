@@ -13,6 +13,7 @@
 python test_dmstagoutput.py
 python test_stokes_mor.py
 python test_stokes_solcx.py
+python test_stokes_lid4.py
 python test_advdiff_laplace.py
 python test_advdiff_elman.py
 python test_advdiff_mms_2d_diffusion.py

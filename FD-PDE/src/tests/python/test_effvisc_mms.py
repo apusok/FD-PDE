@@ -803,7 +803,7 @@ print('# --------------------------------------- #')
 # Set main parameters and run test
 fname = 'out_effvisc'
 n  = [40, 100, 120, 150, 200, 250, 300] #[41, 101, 121, 151, 201, 251, 301] # resolution
-nexp = [1.0, 2.0, 3.0] #[1.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0] #[1.0, 5.0, 10.0, 15.0, 30.0]    # power-law exponent
+nexp = [1.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0] #[1.0, 5.0, 10.0, 15.0, 30.0]    # power-law exponent
 
 # Prepare errors and convergence
 nrm_p1  = np.zeros((len(nexp),len(n))) # 1- stokes
@@ -842,7 +842,7 @@ for j in range(len(nexp)):
         ' -nexp '+str(inp)+ \
         ' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout
     print(str1)
-    # os.system(str1)
+    os.system(str1)
 
     # Parse variables
     nrm_v1_num, nrm_p1_num, nrm_exxc1_num, nrm_ezzc1_num, nrm_exzc1_num, nrm_exxn1_num, nrm_ezzn1_num, nrm_exzn1_num, nrm_v2_num, nrm_p2_num, nrm_exxc2_num, nrm_ezzc2_num, nrm_exzc2_num, nrm_exxn2_num, nrm_ezzn2_num, nrm_exzn2_num, hx_num, conv1_num, conv2_num = parse_log_file(fout)

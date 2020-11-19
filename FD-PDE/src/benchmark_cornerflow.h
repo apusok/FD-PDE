@@ -10,7 +10,8 @@ static void evaluate_CornerFlow_MOR(PetscScalar C1, PetscScalar C4, PetscScalar 
 
   // polar coordinates
   r  = PetscPowScalar(x*x+z*z,0.5);
-  th = PetscAtanReal(-x/z);
+  //th = PetscAtanReal(-x/z);
+  th = PetscAsinReal(x/r);  //use arcsin instead to avoid INF when z = 0
   sinth = x/r;
   costh = -z/r;
 
