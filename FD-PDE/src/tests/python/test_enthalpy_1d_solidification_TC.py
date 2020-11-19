@@ -9,15 +9,26 @@ import importlib
 import os
 
 # Input file
-fname = 'out_1d_sol'
+fname = 'out_1d_sol_TC'
+fname_out = 'out_enthalpy_1d_solid_TC'
+fname_data = fname_out+'/data'
+try:
+  os.mkdir(fname_out)
+except OSError:
+  pass
+
+try:
+  os.mkdir(fname_data)
+except OSError:
+  pass
 
 print('# --------------------------------------- #')
-print('# 1-D Solidification test (ENTHALPY) ')
+print('# 1-D Solidification test (ENTHALPY TC) ')
 print('# --------------------------------------- #')
 
 n = 32
 dt = 0.2
-tend = 4
+tend = 1
 tstep = int(tend/dt)
 tout = 1
 
@@ -40,12 +51,14 @@ energy = 0
 fname = fname+str(energy)
 
 # Run test
-str1 = '../test_enthalpy_1d_solidification.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -snes_max_it 200'+ \
+solver = ' -snes_converged_reason -ksp_converged_reason -snes_monitor -ksp_monitor -snes_atol 1e-10 -snes_rtol 1e-20'
+str1 = '../test_enthalpy_1d_solidification_TC.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -snes_max_it 200'+ \
     ' -output_file '+fname+ \
+    ' -output_dir '+fname_data+ \
     ' -dt '+str(dt)+ \
     ' -tstep '+str(tstep)+ \
     ' -energy '+str(energy)+ \
-    ' -nx '+str(n) #+ ' > log'+fname+'.out'
+    ' -nx '+str(n)+solver #+ ' > log'+fname+'.out'
 print(str1)
 os.system(str1)
 
@@ -70,7 +83,11 @@ for istep in range(0,tstep,tout):
   if (istep >= 100) & (istep < 999): ft = '_ts'+str(istep)
 
   # Load data - m0
-  imod = importlib.import_module(fname+'_TC'+ft)
+  # imod = importlib.import_module(fname+'_TC'+ft)
+  fout = fname+'_TC'+ft
+  spec = importlib.util.spec_from_file_location(fout,fname_data+'/'+fout+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
   data0 = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data0)
 
@@ -140,6 +157,6 @@ ax.legend(loc='lower right')
 ax.axis('auto')
 ax.grid(True,color='gray', linestyle='--', linewidth=0.5)
 
-plt.savefig(fname+'.pdf')
+plt.savefig(fname_out+'/'+fname+'.pdf')
 
-os.system('rm -r __pycache__')
+os.system('rm -r '+fname_data+'/__pycache__')

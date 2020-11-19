@@ -1,12 +1,6 @@
 #include "fdpde_enthalpy.h"
 
-
-static PetscInt SingleDimIndex(PetscInt i, PetscInt j, PetscInt nx) { return i*nx+j; }
-static PetscScalar Eval_T(PetscScalar TP, PetscScalar e) { return TP*e; }
-static PetscScalar Eval_TP(PetscScalar T, PetscScalar e) { return T/e; }
-static PetscScalar Eval_H(PetscScalar T, PetscScalar phi, PetscScalar a, PetscScalar b, PetscScalar c, PetscScalar d) { return -(b*T+c*phi+d)/a; }
-static PetscScalar Eval_T_H(PetscScalar H, PetscScalar phi, PetscScalar a, PetscScalar b, PetscScalar c, PetscScalar d) { return -(a*H+c*phi+d)/b; }
-
+static PetscInt SingleDimIndex(PetscInt i, PetscInt j, PetscInt nz) { return i*nz+j; }
 // ---------------------------------------
 /*@
 FormFunction_Enthalpy - (ENTHALPY) Residual evaluation function
@@ -37,8 +31,7 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
 
   if (!fd->ops->form_coefficient) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Form coefficient function pointer is NULL. Must call FDPDESetFunctionCoefficient() and provide a non-NULL function pointer.");
   en = fd->data;
-  if (!en->form_Tsol_Tliq) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Form Tsol, Tliq Phase Diagram function pointer is NULL. Must call FDPDEEnthalpySetFunctionsPhaseDiagram() and provide a non-NULL function pointer.");
-  if (!en->form_Cs_Cf)     SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Form CS, CF Phase Diagram function pointer is NULL. Must call FDPDEEnthalpySetFunctionsPhaseDiagram() and provide a non-NULL function pointer.");
+  if (!en->form_enthalpy_method) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"This routine requires a valid form_enthalpy_method() funtion pointer. Call FDPDEEnthalpySetEnthalpyMethod() first.");
 
   // Assign pointers and other variables
   dm    = fd->dmstag;
@@ -50,7 +43,7 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   Nx = fd->Nx;
   Nz = fd->Nz;
 
-  // Update BC list
+  // Update BC list - PRELIM 
   bclist = fd->bclist;
   if (fd->bclist->evaluate) {
     // ierr = fd->bclist->evaluate(dm,x,bclist,bclist->data);CHKERRQ(ierr);
@@ -90,15 +83,12 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   // update enthalpy and coeff cell data
   ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(ThermoState),&thm);CHKERRQ(ierr); 
   ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(CoeffState),&cff);CHKERRQ(ierr);
-
-  if (en->energy_variable == 0) { ierr = Enthalpy_H(dm,xlocal,dmcoeff,coefflocal,en,thm,cff); CHKERRQ(ierr); }
-  if (en->energy_variable == 1) { ierr = Enthalpy_TP(dm,xlocal,dmcoeff,coefflocal,en,thm,cff); CHKERRQ(ierr); }
+  ierr = ApplyEnthalpyMethod(fd,dm,xlocal,dmcoeff,coefflocal,en,thm,cff); CHKERRQ(ierr);
 
   if (en->timesteptype != TS_NONE) {
     ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(ThermoState),&thm_prev);CHKERRQ(ierr);
     ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(CoeffState),&cff_prev);CHKERRQ(ierr);
-    if (en->energy_variable == 0) { ierr = Enthalpy_H(dm,xprevlocal,dmcoeff,coeffprevlocal,en,thm_prev,cff_prev); CHKERRQ(ierr); }
-    if (en->energy_variable == 1) { ierr = Enthalpy_TP(dm,xprevlocal,dmcoeff,coeffprevlocal,en,thm_prev,cff_prev); CHKERRQ(ierr); }
+    ierr = ApplyEnthalpyMethod(fd,dm,xprevlocal,dmcoeff,coeffprevlocal,en,thm_prev,cff_prev); CHKERRQ(ierr);
   }
 
   // Residual evaluation
@@ -116,7 +106,7 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
     }
   }
 
-  // Boundary conditions - only element dofs
+  // Boundary conditions - only element dofs // PRELIM
   ierr = en->form_user_bc(dm,x,ff,en->user_context);CHKERRQ(ierr);
   // ierr = DMStagBCListApply_Enthalpy(dm,xlocal,bclist->bc_e,bclist->nbc_element,ff);CHKERRQ(ierr);
 
@@ -140,86 +130,45 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMLocalToGlobalBegin(dm,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dm,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
 
+  // ierr = VecView(f,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
   ierr = VecDestroy(&flocal); CHKERRQ(ierr);
-  
+
   PetscFunctionReturn(0);
 }
 
 // ---------------------------------------
 /*@
-Enthalpy_TP - updates H, T, TP, P, phi, C[], CF[], CS[] and coefficients for every cell, assuming TP is primary variable
+ApplyEnthalpyMethod - apply enthalpy method during each solver iteration; it collects the coefficients and enthalpy variables for the entire domain
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode Enthalpy_TP(DM dm,Vec xlocal,DM dmcoeff,Vec coefflocal,EnthalpyData *en,ThermoState *thm,CoeffState *cff)
+PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coefflocal,EnthalpyData *en,ThermoState *thm,CoeffState *cff)
 {
   PetscInt       ii,i,j,sx,sz,nx,nz,idx;
-  PetscScalar    TP,C[MAX_COMPONENTS],P,phi,T,H,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
+  PetscScalar    X,C[MAX_COMPONENTS],P,phi,H,T,TP,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
+  X = 0.0;
+  for (ii = 0; ii<en->ncomponents-1; ii++) { C[ii] = 0.0; CF[ii] = 0.0; CS[ii] = 0.0;}
+
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
-      idx = SingleDimIndex(i-sx,j-sz,nx);
-      ierr = CoeffCellData(dmcoeff,coefflocal,i,j,&cff[idx],&P);CHKERRQ(ierr);
-      ierr = SolutionCellData(dm,xlocal,i,j,&TP,C);CHKERRQ(ierr);
-      ierr = EnthalpyCellData_TPC(TP,C,P,&H,&T,&phi,CS,CF,en,cff[idx]); CHKERRQ(ierr);
-
-      thm[idx].P  = P;
-      thm[idx].TP = TP;
-      thm[idx].T  = T;
-      thm[idx].H  = H;
-      thm[idx].phi = phi;
-      for (ii = 0; ii<en->ncomponents-1; ii++) {
-        thm[idx].C[ii]  = C[ii];
-        thm[idx].CS[ii] = CS[ii];
-        thm[idx].CF[ii] = CF[ii];
+      idx = SingleDimIndex(i-sx,j-sz,nz);
+      ierr = CoeffCellData(dmcoeff,coefflocal,i,j,&cff[idx]);CHKERRQ(ierr);
+      ierr = SolutionCellData(dm,xlocal,i,j,&X,C);CHKERRQ(ierr);
+      if (en->energy_variable == 0) {
+        H = X;
+        ierr = en->form_enthalpy_method(fd,i,j,H,C,&P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr); CHKERRQ(ierr);
       }
-
-      // if (j==0){
-        // PetscPrintf(PETSC_COMM_WORLD,"# BREAK F-A CELL [%d %d] \n",i,j);
-        // PetscPrintf(PETSC_COMM_WORLD,"#           COEF [A1 = %f B1 = %f D1 = %f] \n",cff[idx].A1,cff[idx].B1,cff[idx].D1);
-        // PetscPrintf(PETSC_COMM_WORLD,"#           COEF [A2 = %f B2 = %f D2 = %f] \n",cff[idx].A2,cff[idx].B2,cff[idx].D2);
-        // PetscPrintf(PETSC_COMM_WORLD,"#           COEF [a = %f b = %f c = %f d = %f e = %f] \n",cff[idx].a,cff[idx].b,cff[idx].c,cff[idx].d,cff[idx].e);
-        // PetscPrintf(PETSC_COMM_WORLD,"#           COEF [C10 = %f C11 = %f C12 = %f C13 = %f] \n",cff[idx].C1[0],cff[idx].C1[1],cff[idx].C1[2],cff[idx].C1[3]);
-        // PetscPrintf(PETSC_COMM_WORLD,"#           COEF [C20 = %f C21 = %f C22 = %f C23 = %f] \n",cff[idx].C2[0],cff[idx].C2[1],cff[idx].C2[2],cff[idx].C2[3]);
-        // PetscPrintf(PETSC_COMM_WORLD,"#           COEF [v0 = %f v1 = %f v2 = %f v3 = %f] \n",cff[idx].v[0],cff[idx].v[1],cff[idx].v[2],cff[idx].v[3]);
-        // PetscPrintf(PETSC_COMM_WORLD,"#           COEF [vs0 = %f vs1 = %f vs2 = %f vs3 = %f] \n",cff[idx].vs[0],cff[idx].vs[1],cff[idx].vs[2],cff[idx].vs[3]);
-        // PetscPrintf(PETSC_COMM_WORLD,"#           COEF [vf0 = %f vf1 = %f vf2 = %f vf3 = %f] \n",cff[idx].vf[0],cff[idx].vf[1],cff[idx].vf[2],cff[idx].vf[3]);
-        // PetscPrintf(PETSC_COMM_WORLD,"#           THRM [TP = %f C = %f P = %f] \n",thm[idx].TP,thm[idx].C[0],thm[idx].P);
-        // PetscPrintf(PETSC_COMM_WORLD,"#           THRM [H = %f T = %f phi = %f] \n",thm[idx].H,thm[idx].T,thm[idx].phi);
-        // PetscPrintf(PETSC_COMM_WORLD,"#           THRM [CS = %f CF = %f] \n",thm[idx].CS[0],thm[idx].CF[0]);
-      // }
-    }
-  }
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-/*@
-Enthalpy_H - updates H, T, TP, P, phi, C[], CF[], CS[] and coefficients for every cell, assuming H is primary variable
-Use: internal
-@*/
-// ---------------------------------------
-PetscErrorCode Enthalpy_H(DM dm,Vec xlocal,DM dmcoeff,Vec coefflocal,EnthalpyData *en,ThermoState *thm,CoeffState *cff)
-{
-  PetscInt       ii,i,j,sx,sz,nx,nz,idx;
-  PetscScalar    TP,C[MAX_COMPONENTS],P,phi,T,H,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
-
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-
-  for (j = sz; j<sz+nz; j++) {
-    for (i = sx; i<sx+nx; i++) {
-      idx = SingleDimIndex(i-sx,j-sz,nx);
-      ierr = CoeffCellData(dmcoeff,coefflocal,i,j,&cff[idx],&P);CHKERRQ(ierr);
-      ierr = SolutionCellData(dm,xlocal,i,j,&H,C);CHKERRQ(ierr);
-      ierr = EnthalpyCellData_HC(H,C,P,&TP,&T,&phi,CS,CF,en,cff[idx]); CHKERRQ(ierr);
-
+      if (en->energy_variable == 1) {
+        TP = X;
+        ierr = en->form_enthalpy_method(fd,i,j,TP,C,&P,&H,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr); CHKERRQ(ierr);
+      }
+      
       thm[idx].P  = P;
       thm[idx].TP = TP;
       thm[idx].T  = T;
@@ -242,11 +191,12 @@ CoeffCellData - get cell data for coefficients
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode CoeffCellData(DM dmcoeff, Vec coefflocal, PetscInt i,PetscInt j, CoeffState *cff, PetscScalar *P)
+PetscErrorCode CoeffCellData(DM dmcoeff, Vec coefflocal, PetscInt i,PetscInt j, CoeffState *_cff)
 {
+  CoeffState     cff;
   PetscInt       ii,dof0,dof1,dof2;
-  DMStagStencil  pointE[12], pointF[20];
-  PetscScalar    cE[12],cF[20];
+  DMStagStencil  pointE[6], pointF[20];
+  PetscScalar    cE[6],cF[20];
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
@@ -266,24 +216,19 @@ PetscErrorCode CoeffCellData(DM dmcoeff, Vec coefflocal, PetscInt i,PetscInt j, 
   ierr = DMStagVecGetValuesStencil(dmcoeff,coefflocal,4*dof1,pointF,cF); CHKERRQ(ierr);
 
   // assign values
-  cff->A1 = cE[COEFF_A1]; cff->A2 = cE[COEFF_A2];
-  cff->B1 = cE[COEFF_B1]; cff->B2 = cE[COEFF_B2];
-  cff->D1 = cE[COEFF_D1]; cff->D2 = cE[COEFF_D2];
-  cff->a  = cE[COEFF_a]; 
-  cff->b  = cE[COEFF_b]; 
-  cff->c  = cE[COEFF_c]; 
-  cff->d  = cE[COEFF_d]; 
-  cff->e  = cE[COEFF_e]; 
+  cff.A1 = cE[COEFF_A1]; cff.A2 = cE[COEFF_A2];
+  cff.B1 = cE[COEFF_B1]; cff.B2 = cE[COEFF_B2];
+  cff.D1 = cE[COEFF_D1]; cff.D2 = cE[COEFF_D2];
 
   for (ii = 0; ii<4; ii++) { 
-    cff->C1[ii] = cF[4*COEFF_C1+ii];
-    cff->C2[ii] = cF[4*COEFF_C2+ii];
-    cff->v[ii]  = cF[4*COEFF_v +ii];
-    cff->vf[ii] = cF[4*COEFF_vf+ii];
-    cff->vs[ii] = cF[4*COEFF_vs+ii];
+    cff.C1[ii] = cF[4*COEFF_C1+ii];
+    cff.C2[ii] = cF[4*COEFF_C2+ii];
+    cff.v[ii]  = cF[4*COEFF_v +ii];
+    cff.vf[ii] = cF[4*COEFF_vf+ii];
+    cff.vs[ii] = cF[4*COEFF_vs+ii];
   }
 
-  *P = cE[COEFF_P];
+  *_cff = cff;
 
   PetscFunctionReturn(0);
 }
@@ -313,113 +258,14 @@ PetscErrorCode SolutionCellData(DM dm, Vec xlocal, PetscInt i,PetscInt j, PetscS
 
   // assign values
   X = xE[0];
-  for (ii = 1; ii<dof2; ii++) {
-    C[ii-1] = xE[ii];
+  for (ii = 0; ii<dof2-2; ii++) {
+    C[ii] = xE[ii+1];
   }
 
   *_X = X;
 
   ierr = PetscFree(xE);CHKERRQ(ierr);
   ierr = PetscFree(pointE);CHKERRQ(ierr);
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-/*@
-EnthalpyCellData_TPC - calculate enthalpy method, input (TP,C,P) output (H,T,phi,CS,CF)
-Use: internal
-@*/
-// ---------------------------------------
-PetscErrorCode EnthalpyCellData_TPC(PetscScalar TP, PetscScalar *C, PetscScalar P, PetscScalar *_H, PetscScalar *_T, PetscScalar *_phi, PetscScalar *CS, PetscScalar *CF,EnthalpyData *en,CoeffState cff)
-{
-  PetscInt     ii;
-  PetscScalar  Tsol, Tliq, T, phi=0.0, H;
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
-
-  T = Eval_T(TP,cff.e);
-  ierr = en->form_Tsol_Tliq(C,P,en->ncomponents,en->user_context,&Tsol,&Tliq);CHKERRQ(ierr);
-  if (T <= Tsol) {
-    phi = 0.0;
-    ierr = en->form_Cs_Cf(Tsol,C,P,en->ncomponents,en->user_context,CS,CF);CHKERRQ(ierr);
-    for (ii = 0; ii<en->ncomponents-1; ii++) {
-      CS[ii] = C[ii];
-    }
-  } else if (T >= Tliq) {
-    phi = 1.0;
-    ierr = en->form_Cs_Cf(Tliq,C,P,en->ncomponents,en->user_context,CS,CF);CHKERRQ(ierr);
-    for (ii = 0; ii<en->ncomponents-1; ii++) {
-      CF[ii] = C[ii];
-    }
-  } else {
-    ierr = en->form_Cs_Cf(T,C,P,en->ncomponents,en->user_context,CS,CF);CHKERRQ(ierr);
-    ierr = en->form_phi(T,C,P,en->user_context,&phi);CHKERRQ(ierr);
-  }
-  
-  H = Eval_H(T,phi,cff.a,cff.b,cff.c,cff.d);
-  *_phi = phi;
-  *_T = T;
-  *_H = H;
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-/*@
-EnthalpyCellData_HC - calculate enthalpy method, input (H,C,P) output (TP,T,phi,CS,CF)
-Use: internal
-@*/
-// ---------------------------------------
-PetscErrorCode EnthalpyCellData_HC(PetscScalar H, PetscScalar *C, PetscScalar P, PetscScalar *_TP, PetscScalar *_T, PetscScalar *_phi, PetscScalar *CS, PetscScalar *CF,EnthalpyData *en,CoeffState cff)
-{
-  PetscInt     ii;
-  PetscScalar  Tsol, Tliq, Hsol, Hliq, T, phi=0.0, TP;
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
-
-  T = Eval_T(TP,cff.e);
-  ierr = en->form_Tsol_Tliq(C,P,en->ncomponents,en->user_context,&Tsol,&Tliq);CHKERRQ(ierr);
-  Hsol = Eval_H(Tsol,1.0,cff.a,cff.b,cff.c,cff.d);
-  Hliq = Eval_H(Tliq,0.0,cff.a,cff.b,cff.c,cff.d);
-
-  if (H <= Hsol) {
-    phi = 0.0;
-    ierr = en->form_Cs_Cf(Tsol,C,P,en->ncomponents,en->user_context,CS,CF);CHKERRQ(ierr);
-    for (ii = 0; ii<en->ncomponents-1; ii++) {
-      CS[ii] = C[ii];
-    }
-  } else if (H >= Hliq) {
-    phi = 1.0;
-    ierr = en->form_Cs_Cf(Tliq,C,P,en->ncomponents,en->user_context,CS,CF);CHKERRQ(ierr);
-    for (ii = 0; ii<en->ncomponents-1; ii++) {
-      CF[ii] = C[ii];
-    }
-  } else {
-    // non-linear local solve for porosity
-    PetscScalar  phi0, dphi;
-    PetscInt it, maxnewtonits = 8;
-    PetscBool    converged = PETSC_FALSE;
-    phi = 0.5;
-    T = Eval_T_H(H,phi,cff.a,cff.b,cff.c,cff.d);
-    ierr = en->form_phi(T,C,P,en->user_context,&phi0);CHKERRQ(ierr);
-    dphi = phi-phi0;
-
-    for (it=1; it<=maxnewtonits; it++) {
-      phi += dphi;
-      T = Eval_T_H(H,phi,cff.a,cff.b,cff.c,cff.d);
-      ierr = en->form_phi(T,C,P,en->user_context,&phi0);CHKERRQ(ierr);
-      dphi = phi-phi0;
-      PetscPrintf(PETSC_COMM_WORLD,"# Non-linear porosity solve: res = %1.6e phi = %1.6e \n",dphi,phi);
-      if (fabs(dphi) < 1.0e-12) { converged = PETSC_TRUE; break;}
-    }
-    ierr = en->form_Cs_Cf(T,C,P,en->ncomponents,en->user_context,CS,CF);CHKERRQ(ierr);
-  }
-  
-  TP = Eval_TP(T,cff.e);
-  *_TP = TP;
-  *_phi = phi;
-  *_T = T;
 
   PetscFunctionReturn(0);
 }
@@ -448,11 +294,11 @@ PetscErrorCode EnthalpyResidual(DM dm,ThermoState *thm, CoeffState *cff, ThermoS
     ierr = EnthalpySteadyStateOperator(dm,thm_prev,cff_prev,coordx,coordz,i,j,en->advtype,&fval0); CHKERRQ(ierr);
     ierr = EnthalpySteadyStateOperator(dm,thm,cff,coordx,coordz,i,j,en->advtype,&fval1); CHKERRQ(ierr);
 
-    idx = SingleDimIndex(i-sx,j-sz,nx);
+    idx = SingleDimIndex(i-sx,j-sz,nz);
     xx     = thm[idx].H;
     xxprev = thm_prev[idx].H;
 
-    fval = xx - xxprev + en->dt*(en->theta*fval1 + (1-en->theta)*fval0);
+    fval = xx - xxprev + en->dt*(en->theta*fval1 + (1.0-en->theta)*fval0);
   }
   *_fval = fval;
 
@@ -482,7 +328,7 @@ PetscErrorCode EnthalpySteadyStateOperator(DM dm, ThermoState *thm, CoeffState *
   ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
-  idx[0] = SingleDimIndex(i-sx,j-sz,nx);
+  idx[0] = SingleDimIndex(i-sx,j-sz,nz);
 
   // Coefficients
   A1 = cff[idx[0]].A1;
@@ -522,15 +368,15 @@ PetscErrorCode EnthalpySteadyStateOperator(DM dm, ThermoState *thm, CoeffState *
   dz[2] = (dz[0]+dz[1])*0.5;
 
   // Get stencil values - TP, phi
-  idx[0] = SingleDimIndex(i  -sx,j  -sz,nx); // C
-  idx[1] = SingleDimIndex(i-1-sx,j  -sz,nx); // W
-  idx[2] = SingleDimIndex(i+1-sx,j  -sz,nx); // E
-  idx[3] = SingleDimIndex(i  -sx,j-1-sz,nx); // S
-  idx[4] = SingleDimIndex(i  -sx,j+1-sz,nx); // N
-  idx[5] = SingleDimIndex(i-2-sx,j  -sz,nx); // WW
-  idx[6] = SingleDimIndex(i+2-sx,j  -sz,nx); // EE
-  idx[7] = SingleDimIndex(i  -sx,j-2-sz,nx); // SS
-  idx[8] = SingleDimIndex(i  -sx,j+2-sz,nx); // NN
+  idx[0] = SingleDimIndex(i  -sx,j  -sz,nz); // C
+  idx[1] = SingleDimIndex(i-1-sx,j  -sz,nz); // W
+  idx[2] = SingleDimIndex(i+1-sx,j  -sz,nz); // E
+  idx[3] = SingleDimIndex(i  -sx,j-1-sz,nz); // S
+  idx[4] = SingleDimIndex(i  -sx,j+1-sz,nz); // N
+  idx[5] = SingleDimIndex(i-2-sx,j  -sz,nz); // WW
+  idx[6] = SingleDimIndex(i+2-sx,j  -sz,nz); // EE
+  idx[7] = SingleDimIndex(i  -sx,j-2-sz,nz); // SS
+  idx[8] = SingleDimIndex(i  -sx,j+2-sz,nz); // NN
 
   if (i == 1) idx[5] = idx[2];
   if (j == 1) idx[7] = idx[4];
@@ -586,11 +432,11 @@ PetscErrorCode BulkCompositionResidual(DM dm,ThermoState *thm, CoeffState *cff, 
     ierr = BulkCompositionSteadyStateOperator(dm,thm_prev,cff_prev,coordx,coordz,i,j,ii,en->advtype,&fval0); CHKERRQ(ierr);
     ierr = BulkCompositionSteadyStateOperator(dm,thm,cff,coordx,coordz,i,j,ii,en->advtype,&fval1); CHKERRQ(ierr);
 
-    idx = SingleDimIndex(i-sx,j-sz,nx);
+    idx = SingleDimIndex(i-sx,j-sz,nz);
     xx     = thm[idx].C[ii];
     xxprev = thm_prev[idx].C[ii];
 
-    fval = xx - xxprev + en->dt*(en->theta*fval1 + (1-en->theta)*fval0);
+    fval = xx - xxprev + en->dt*(en->theta*fval1 + (1.0-en->theta)*fval0);
   }
   *_fval = fval;
 
@@ -623,7 +469,7 @@ PetscErrorCode BulkCompositionSteadyStateOperator(DM dm, ThermoState *thm, Coeff
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
   // Coefficients
-  idx[0] = SingleDimIndex(i-sx,j-sz,nx);
+  idx[0] = SingleDimIndex(i-sx,j-sz,nz);
   A2 = cff[idx[0]].A2;
   B2 = cff[idx[0]].B2;
   D2 = cff[idx[0]].D2;
@@ -661,15 +507,15 @@ PetscErrorCode BulkCompositionSteadyStateOperator(DM dm, ThermoState *thm, Coeff
   dz[2] = (dz[0]+dz[1])*0.5;
 
   // Get stencil values - CF, CS, phi, phis
-  idx[0] = SingleDimIndex(i  -sx,j  -sz,nx); // C
-  idx[1] = SingleDimIndex(i-1-sx,j  -sz,nx); // W
-  idx[2] = SingleDimIndex(i+1-sx,j  -sz,nx); // E
-  idx[3] = SingleDimIndex(i  -sx,j-1-sz,nx); // S
-  idx[4] = SingleDimIndex(i  -sx,j+1-sz,nx); // N
-  idx[5] = SingleDimIndex(i-2-sx,j  -sz,nx); // WW
-  idx[6] = SingleDimIndex(i+2-sx,j  -sz,nx); // EE
-  idx[7] = SingleDimIndex(i  -sx,j-2-sz,nx); // SS
-  idx[8] = SingleDimIndex(i  -sx,j+2-sz,nx); // NN
+  idx[0] = SingleDimIndex(i  -sx,j  -sz,nz); // C
+  idx[1] = SingleDimIndex(i-1-sx,j  -sz,nz); // W
+  idx[2] = SingleDimIndex(i+1-sx,j  -sz,nz); // E
+  idx[3] = SingleDimIndex(i  -sx,j-1-sz,nz); // S
+  idx[4] = SingleDimIndex(i  -sx,j+1-sz,nz); // N
+  idx[5] = SingleDimIndex(i-2-sx,j  -sz,nz); // WW
+  idx[6] = SingleDimIndex(i+2-sx,j  -sz,nz); // EE
+  idx[7] = SingleDimIndex(i  -sx,j-2-sz,nz); // SS
+  idx[8] = SingleDimIndex(i  -sx,j+2-sz,nz); // NN
 
   if (i == 1) idx[5] = idx[2];
   if (j == 1) idx[7] = idx[4];
@@ -712,44 +558,44 @@ PetscErrorCode BulkCompositionSteadyStateOperator(DM dm, ThermoState *thm, Coeff
   PetscFunctionReturn(0);
 }
 
-// ---------------------------------------
-/*@
-DMStagBCListApply_Enthalpy - function to apply boundary conditions for ENTHALPY equations
+// // ---------------------------------------
+// /*@
+// DMStagBCListApply_Enthalpy - function to apply boundary conditions for ENTHALPY equations
 
-Use: internal
-@*/
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "DMStagBCListApply_Enthalpy"
-PetscErrorCode DMStagBCListApply_Enthalpy(DM dm, Vec xlocal,DMStagBC *bclist, PetscInt nbc, PetscScalar ***ff)
-{
-  PetscScalar    xx, fval;
-  PetscInt       i, j, ibc, idx;
-  PetscErrorCode ierr;
-  PetscFunctionBeginUser;
+// Use: internal
+// @*/
+// // ---------------------------------------
+// #undef __FUNCT__
+// #define __FUNCT__ "DMStagBCListApply_Enthalpy"
+// PetscErrorCode DMStagBCListApply_Enthalpy(DM dm, Vec xlocal,DMStagBC *bclist, PetscInt nbc, PetscScalar ***ff)
+// {
+//   PetscScalar    xx, fval;
+//   PetscInt       i, j, ibc, idx;
+//   PetscErrorCode ierr;
+//   PetscFunctionBeginUser;
 
-  // Loop over all boundaries
-  for (ibc = 0; ibc<nbc; ibc++) {
-    if (bclist[ibc].type == BC_DIRICHLET) {
-      i   = bclist[ibc].point.i;
-      j   = bclist[ibc].point.j;
-      idx = bclist[ibc].idx;
+//   // Loop over all boundaries
+//   for (ibc = 0; ibc<nbc; ibc++) {
+//     if (bclist[ibc].type == BC_DIRICHLET) {
+//       i   = bclist[ibc].point.i;
+//       j   = bclist[ibc].point.j;
+//       idx = bclist[ibc].idx;
 
-      // Get residual value
-      ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
-      ff[j][i][idx] = xx - bclist[ibc].val;
-    }
+//       // Get residual value
+//       ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
+//       ff[j][i][idx] = xx - bclist[ibc].val;
+//     }
 
-    if (bclist[ibc].type == BC_NEUMANN) {
-      i   = bclist[ibc].point.i;
-      j   = bclist[ibc].point.j;
-      idx = bclist[ibc].idx;
+//     if (bclist[ibc].type == BC_NEUMANN) {
+//       i   = bclist[ibc].point.i;
+//       j   = bclist[ibc].point.j;
+//       idx = bclist[ibc].idx;
 
-      if (bclist[ibc].val) {
-        SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Non-zero BC type NEUMANN for FDPDE_ENTHALPY [ELEMENT] is not yet implemented.");
-      }
-    }
-  }
+//       if (bclist[ibc].val) {
+//         SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Non-zero BC type NEUMANN for FDPDE_ENTHALPY [ELEMENT] is not yet implemented.");
+//       }
+//     }
+//   }
 
-  PetscFunctionReturn(0);
-}
+//   PetscFunctionReturn(0);
+// }

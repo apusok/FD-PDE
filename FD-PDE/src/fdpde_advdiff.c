@@ -279,15 +279,11 @@ PetscErrorCode FDPDEAdvDiffSetTimeStepSchemeType(FDPDE fd, TimeStepSchemeType ti
 
 // ---------------------------------------
 /*@
-FDPDEAdvDiffSetTimestep - set a time step size and/or the CFL value (ADVDIFF)
+FDPDEAdvDiffSetTimestep - set a time step size (ADVDIFF)
 
 Input Parameters:
 fd - the FD-PDE object
 dt - time stepping size
-dtflg - if true, dt = min(dt,max_dt_grid) where max_dt_grid is max allowed timestep on grid. if false, dt=dt
-
-Note:
-The time step size will be checked against the max allowed timestep on grid such that dt <= max_dt_grid.
 
 Use: user
 @*/
