@@ -48,6 +48,7 @@ typedef struct {
   void               *user_context;
   void               *user_context_bc; // PRELIM
   PetscInt           ncomponents, energy_variable;
+  char               *description_enthalpy;
 } EnthalpyData;
 
 //enthalpy_method(fd,i,j,H,C,&P,&TP,&T,&phi,CF,CS,ncomp,user);
@@ -90,7 +91,7 @@ PetscErrorCode FDPDEEnthalpyGetPrevCoefficient(FDPDE,Vec*);
 
 PetscErrorCode FDPDEEnthalpySetEnergyPrimaryVariable(FDPDE,const char);
 PetscErrorCode FDPDEEnthalpySetNumberComponentsPhaseDiagram(FDPDE,PetscInt);
-PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, PetscErrorCode(*form_enthalpy_method)(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar[],PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*),void*);
+PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, PetscErrorCode(*form_enthalpy_method)(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar[],PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*),const char description[],void*);
 PetscErrorCode FDPDEEnthalpySetUserBC(FDPDE,PetscErrorCode(*form_user_bc)(DM,Vec,PetscScalar***,void*),void*); // PRELIM
 PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE,DM,Vec,DM*,Vec*);
 

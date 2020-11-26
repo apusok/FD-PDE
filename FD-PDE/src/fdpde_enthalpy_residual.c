@@ -129,7 +129,6 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   // Map local to global
   ierr = DMLocalToGlobalBegin(dm,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dm,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
-
   // ierr = VecView(f,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   ierr = VecDestroy(&flocal); CHKERRQ(ierr);
@@ -258,7 +257,7 @@ PetscErrorCode SolutionCellData(DM dm, Vec xlocal, PetscInt i,PetscInt j, PetscS
 
   // assign values
   X = xE[0];
-  for (ii = 0; ii<dof2-2; ii++) {
+  for (ii = 0; ii<dof2-1; ii++) {
     C[ii] = xE[ii+1];
   }
 

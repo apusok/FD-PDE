@@ -33,33 +33,32 @@ HDR := 	benchmark_solcx.h \
 
 OBJ := $(patsubst %.c,%.o,$(SRC))
 
-TEST_SRC = 	tests/test_enthalpy_1d_eutectic_solidification.c \
-		tests/test_enthalpy_1d_eutectic_solidification_parkinson.c \
+TEST_SRC = 	tests/test_stokes_solcx.c \
+		tests/test_stokes_solcx_vargrid.c \
+		tests/test_stokes_mor.c \
+		tests/test_stokesdarcy2field_rhebergen-siam-2014.c \
+		tests/test_stokesdarcy2field_mms_katz_ch13.c \
+		tests/test_stokesdarcy2field_mms_compare_nd.c \
+		tests/test_stokesdarcy2field_mms_porosity.c \
+		tests/test_advdiff_laplace.c \
+		tests/test_advdiff_elman.c \
+		tests/test_advdiff_advtime.c \
+		tests/test_advdiff_mms_2d_diffusion.c \
+		tests/test_advdiff_mms_convergence.c \
+		tests/test_effvisc_mms.c \
+		tests/test_dmstagbclist.c \
+		tests/test_dmstagoutput.c \
+		tests/test_fdpde.c \
+		tests/test_composite_laplace.c \
+		tests/test_decoupled_convection.c \
+		tests/test_coupling.c \
+		tests/test_material_point.c \
+		tests/test_stokes_rt.c \
+		tests/test_plastic_indenter.c \
+		tests/test_vp_inclusion_gerya.c \
+		tests/test_enthalpy_2d_diffusion.c \
 		tests/test_enthalpy_1d_solidification_TC.c \
-
-# TEST_SRC = 	tests/test_stokes_solcx.c \
-# 		tests/test_stokes_solcx_vargrid.c \
-# 		tests/test_stokes_mor.c \
-# 		tests/test_stokesdarcy2field_rhebergen-siam-2014.c \
-# 		tests/test_stokesdarcy2field_mms_katz_ch13.c \
-# 		tests/test_stokesdarcy2field_mms_compare_nd.c \
-# 		tests/test_stokesdarcy2field_mms_porosity.c \
-# 		tests/test_advdiff_laplace.c \
-# 		tests/test_advdiff_elman.c \
-# 		tests/test_advdiff_advtime.c \
-# 		tests/test_advdiff_mms_2d_diffusion.c \
-# 		tests/test_advdiff_mms_convergence.c \
-# 		tests/test_effvisc_mms.c \
-# 		tests/test_dmstagbclist.c \
-# 		tests/test_dmstagoutput.c \
-# 		tests/test_fdpde.c \
-# 		tests/test_composite_laplace.c \
-# 		tests/test_decoupled_convection.c \
-# 		tests/test_coupling.c \
-# 		tests/test_material_point.c \
-# 		tests/test_stokes_rt.c \
-# 		tests/test_plastic_indenter.c \
-# 		tests/test_vp_inclusion_gerya.c \
+		tests/test_enthalpy_1d_eutectic_solidification.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,$(TEST_SRC))
 TEST_APP := $(patsubst %.c,%.app,$(TEST_SRC))

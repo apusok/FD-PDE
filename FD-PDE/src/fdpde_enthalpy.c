@@ -40,14 +40,13 @@ const char *TimeStepSchemeTypeNames_Enthalpy[] = {
 };
 
 const char *EnergyVariableTypeNames_Enthalpy[] = {
-  "en_enthalpy",
-  "en_temperature"
+  "H_enthalpy",
+  "TP_temperature"
 };
 
 // ---------------------------------------
 /*@
 FDPDECreate_Enthalpy - creates the data structures for FDPDEType = ENTHALPY
-
 Use: internal
 @*/
 // ---------------------------------------
@@ -82,9 +81,9 @@ PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd)
   en->form_enthalpy_method = NULL;
   en->user_context   = NULL;
   en->form_user_bc   = NULL; // PRELIM
-
   en->ncomponents = fd->dof2;
   en->energy_variable = 0; // default 0-H-enthalpy, 1-TP-temperature
+  en->description_enthalpy = NULL;
 
   // fd-pde context data
   fd->data = en;
@@ -95,7 +94,6 @@ PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd)
 // ---------------------------------------
 /*@
 FDPDEView_Enthalpy - view some info for FDPDEType = ENTHALPY
-
 Use: internal
 @*/
 // ---------------------------------------
@@ -114,6 +112,8 @@ PetscErrorCode FDPDEView_Enthalpy(FDPDE fd)
   PetscPrintf(fd->comm,"  # Theta: %g\n",en->theta);
   PetscPrintf(fd->comm,"  # Number chemical components: %d\n",en->ncomponents);
   PetscPrintf(fd->comm,"  # Primary energy variable: %s\n",EnergyVariableTypeNames_Enthalpy[(int)en->energy_variable]);
+  PetscPrintf(fd->comm,"  # Enthalpy Method description:\n");
+  PetscPrintf(fd->comm,"    %s\n",en->description_enthalpy);
 
   PetscFunctionReturn(0);
 }
@@ -121,7 +121,6 @@ PetscErrorCode FDPDEView_Enthalpy(FDPDE fd)
 // ---------------------------------------
 /*@
 FDPDEDestroy_Enthalpy - destroys the data structures for FDPDEType = ENTHALPY
-
 Use: internal
 @*/
 // ---------------------------------------
@@ -141,6 +140,7 @@ PetscErrorCode FDPDEDestroy_Enthalpy(FDPDE fd)
   en->form_enthalpy_method = NULL;
   en->user_context   = NULL;
   en->form_user_bc   = NULL; // PRELIM
+  ierr = PetscFree(en->description_enthalpy);CHKERRQ(ierr);
 
   ierr = PetscFree(en);CHKERRQ(ierr);
 
@@ -150,7 +150,6 @@ PetscErrorCode FDPDEDestroy_Enthalpy(FDPDE fd)
 // ---------------------------------------
 /*@
  JacobianCreate_Enthalpy - creates and preallocates the non-zero pattern into the Jacobian for FDPDEType = FDPDE_ENTHALPY
- 
  Use: internal
  @*/
 // ---------------------------------------
@@ -168,7 +167,6 @@ PetscErrorCode JacobianCreate_Enthalpy(FDPDE fd,Mat *J)
 // ---------------------------------------
 /*@
 JacobianPreallocator_Enthalpy - preallocates the non-zero pattern into the Jacobian for FDPDEType = FDPDE_ENTHALPY
-
 Use: internal
 @*/
 // ---------------------------------------
@@ -226,7 +224,6 @@ PetscErrorCode JacobianPreallocator_Enthalpy(FDPDE fd,Mat J)
 // ---------------------------------------
 /*@
 EnthalpyNonzeroStencil - calculates the non-zero pattern for the enthalpy equations/dof for JacobianPreallocator_Enthalpy()
-
 Use: internal
 @*/
 // ---------------------------------------
@@ -625,6 +622,7 @@ form_enthalpy_method - name of the evaluation function for enthalpy method and p
 Format: 
     form_enthalpy_method(fd,i,j,H,C[],&P,&TP,&T,&phi,CS,CF,usr) - primary variable H
     form_enthalpy_method(fd,i,j,TP,C[],&P,&H,&T,&phi,CS,CF,usr) - primary variable TP
+description - the user can pass a char string to describe the enthalpy method
 data - user context to be passed for evaluation (can be NULL)
 
 Variables inside form_enthalpy_method:
@@ -647,7 +645,7 @@ Use: user
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDPDEEnthalpySetEnthalpyMethod"
-PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, PetscErrorCode(*form_enthalpy_method)(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar[],PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*),void *data)
+PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, PetscErrorCode(*form_enthalpy_method)(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar[],PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*), const char description[],void *data)
 {
   EnthalpyData   *en;
   PetscErrorCode ierr;
@@ -659,6 +657,7 @@ PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, PetscErrorCode(*form_ent
   en = fd->data;
   en->form_enthalpy_method = form_enthalpy_method;
   en->user_context = data;
+  if (description) { ierr = PetscStrallocpy(description,&en->description_enthalpy); CHKERRQ(ierr); }
 
   PetscFunctionReturn(0);
 }
