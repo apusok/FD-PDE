@@ -57,8 +57,8 @@ TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_plastic_indenter.c \
 		tests/test_vp_inclusion_gerya.c \
 		tests/test_enthalpy_2d_diffusion.c \
-		tests/test_enthalpy_1d_solidification_TC.c \
 		tests/test_enthalpy_1d_eutectic_solidification.c \
+		# tests/test_enthalpy_1d_solidification_TC.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,$(TEST_SRC))
 TEST_APP := $(patsubst %.c,%.app,$(TEST_SRC))

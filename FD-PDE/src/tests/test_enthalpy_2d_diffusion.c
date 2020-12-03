@@ -31,7 +31,7 @@ typedef struct {
   PetscScalar    L, H;
   PetscScalar    xmin, zmin;
   PetscScalar    k, dt, t, dtmax, tmax;
-  PetscInt       ts_scheme, adv_scheme, tout, tstep, energy, ncomp;
+  PetscInt       ts_scheme, adv_scheme, tout, tstep, ncomp;
   char           fname_out[FNAME_LENGTH]; 
   char           fdir_out[FNAME_LENGTH]; 
 } Params;
@@ -112,9 +112,6 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ENTHALPY,&fd);CHKERRQ(ierr);
   ierr = FDPDEEnthalpySetNumberComponentsPhaseDiagram(fd,par->ncomp);CHKERRQ(ierr);
   ierr = FDPDESetUp(fd);CHKERRQ(ierr);
-
-  if(par->energy==0) { ierr = FDPDEEnthalpySetEnergyPrimaryVariable(fd,'T');CHKERRQ(ierr);}
-  if(par->energy==1) { ierr = FDPDEEnthalpySetEnergyPrimaryVariable(fd,'H');CHKERRQ(ierr);}
 
   ierr = FDPDESetFunctionBCList(fd,FormBCList,bc_description,usr); CHKERRQ(ierr);
   ierr = FDPDEEnthalpySetUserBC(fd,ApplyBC_Enthalpy,usr);CHKERRQ(ierr);
@@ -531,7 +528,6 @@ PetscErrorCode InputParameters(UsrData **_usr)
   // Time stepping and advection parameters
   ierr = PetscBagRegisterInt(bag, &par->ts_scheme,2, "ts_scheme", "Time stepping scheme 0-forward euler, 1-backward euler, 2-crank-nicholson"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->adv_scheme,2, "adv_scheme", "Advection scheme 0-upwind, 1-upwind2, 2-fromm"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->energy,0, "energy", "Energy variable: 0-T, 1-H"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->ncomp,2, "ncomp", "Number of components of phase diagram"); CHKERRQ(ierr);
 
   ierr = PetscBagRegisterInt(bag, &par->tout,1, "tout", "Output every tout time step"); CHKERRQ(ierr);

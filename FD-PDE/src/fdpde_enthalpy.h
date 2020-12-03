@@ -48,7 +48,7 @@ typedef struct {
   PetscErrorCode    (*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*);
   void               *user_context;
   void               *user_context_bc; // PRELIM
-  PetscInt           ncomponents, energy_variable;
+  PetscInt           ncomponents;
   char               *description_enthalpy;
 } EnthalpyData;
 
@@ -90,7 +90,6 @@ PetscErrorCode FDPDEEnthalpyGetPrevCoefficient(FDPDE,Vec*);
 PetscErrorCode FDPDEEnthalpyGetPressure(FDPDE,DM*,Vec*);
 PetscErrorCode FDPDEEnthalpyGetPrevPressure(FDPDE,Vec*);
 
-PetscErrorCode FDPDEEnthalpySetEnergyPrimaryVariable(FDPDE,const char);
 PetscErrorCode FDPDEEnthalpySetNumberComponentsPhaseDiagram(FDPDE,PetscInt);
 PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, PetscErrorCode(*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*),const char description[],void*);
 PetscErrorCode FDPDEEnthalpySetUserBC(FDPDE,PetscErrorCode(*form_user_bc)(DM,Vec,PetscScalar***,void*),void*); // PRELIM

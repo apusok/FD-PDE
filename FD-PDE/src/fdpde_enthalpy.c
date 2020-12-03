@@ -39,11 +39,6 @@ const char *TimeStepSchemeTypeNames_Enthalpy[] = {
   "ts_crank_nicholson"
 };
 
-const char *EnergyVariableTypeNames_Enthalpy[] = {
-  "H_enthalpy",
-  "TP_temperature"
-};
-
 // ---------------------------------------
 /*@
 FDPDECreate_Enthalpy - creates the data structures for FDPDEType = ENTHALPY
@@ -82,7 +77,6 @@ PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd)
   en->user_context   = NULL;
   en->form_user_bc   = NULL; // PRELIM
   en->ncomponents = fd->dof2;
-  en->energy_variable = 0; // default 0-H-enthalpy, 1-TP-temperature
   en->description_enthalpy = NULL;
   en->dmP = NULL;
   en->xP = NULL;
@@ -140,7 +134,6 @@ PetscErrorCode FDPDEView_Enthalpy(FDPDE fd)
   PetscPrintf(fd->comm,"  # Time step Scheme type: %s\n",TimeStepSchemeTypeNames_Enthalpy[(int)en->timesteptype]);
   PetscPrintf(fd->comm,"  # Theta: %g\n",en->theta);
   PetscPrintf(fd->comm,"  # Number chemical components: %d\n",en->ncomponents);
-  PetscPrintf(fd->comm,"  # Primary energy variable: %s\n",EnergyVariableTypeNames_Enthalpy[(int)en->energy_variable]);
   PetscPrintf(fd->comm,"  # Enthalpy Method description:\n");
   PetscPrintf(fd->comm,"    %s\n",en->description_enthalpy);
 
@@ -594,39 +587,6 @@ PetscErrorCode FDPDEEnthalpyGetPrevCoefficient(FDPDE fd, Vec *coeffprev)
 
 // ---------------------------------------
 /*@
-FDPDEEnthalpySetEnergyPrimaryVariable - set either H or TP as primary energy variable
-
-Use: user
-@*/
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDPDEEnthalpySetEnergyPrimaryVariable"
-PetscErrorCode FDPDEEnthalpySetEnergyPrimaryVariable(FDPDE fd, const char energy_variable)
-{
-  EnthalpyData   *en;
-  PetscFunctionBegin;
-
-  if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
-  if (!fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call this routine after FDPDESetUp()!");
-  
-  en = fd->data;
-  switch (energy_variable) {
-    case 'H':
-      en->energy_variable = 0;
-      break;
-    case 'T':
-      en->energy_variable = 1;
-      break;
-    default:
-      SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Energy primary variable supported must be one of {'H','T'}");
-      break;
-  }
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-/*@
 FDPDEEnthalpySetNumberComponentsPhaseDiagram - set number of components for composition
 Default: 2 components
 Use: user
@@ -723,7 +683,7 @@ FDPDEEnthalpyUpdateDiagnostics - returns a dm/vector with all enthalpy variables
 Input Parameter:
   fd - the FD-PDE object
   dm - the default enthalpy DM
-  x  - solution vector (H/TP,C)
+  x  - solution vector (H,C)
 
 Output Parameters: 
   dmnew - new DM
@@ -750,7 +710,7 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
   PetscInt       dof_new, dof_sol;
   DM             dmnew;
   Vec            xnew, xlocal,xnewlocal;
-  PetscScalar    X,C[MAX_COMPONENTS],P,phi,H,T,TP,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
+  PetscScalar    H,C[MAX_COMPONENTS],P,phi,T,TP,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
   PetscScalar    ***xx, *xE; 
   DMStagStencil  *pointE;
   EnthalpyData   *en;
@@ -794,20 +754,13 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
       ierr = DMStagVecGetValuesStencil(dm,xlocal,dof_sol,pointE,xE); CHKERRQ(ierr);
       
       // assign variables
-      X = xE[0];
+      H = xE[0];
       for (ii = 0; ii<en->ncomponents-1; ii++) {
         C[ii] = xE[ii+1];
       }
 
       // calculate enthalpy method
-      if (en->energy_variable == 0) {
-        H = X;
-        ierr = en->form_enthalpy_method(H,C,P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
-      }
-      if (en->energy_variable == 1) {
-        TP = X;
-        ierr = en->form_enthalpy_method(TP,C,P,&H,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
-      }
+      ierr = en->form_enthalpy_method(H,C,P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
 
       point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; ind = -1;
       ind++; point.c = ind; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr); xx[j][i][iX] = H;

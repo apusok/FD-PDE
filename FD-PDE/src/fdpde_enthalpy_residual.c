@@ -151,33 +151,26 @@ Use: internal
 PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coefflocal,DM dmP, Vec Plocal,EnthalpyData *en,ThermoState *thm,CoeffState *cff)
 {
   PetscInt       ii,i,j,sx,sz,nx,nz,idx;
-  PetscScalar    X,C[MAX_COMPONENTS],P,phi,H,T,TP,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
+  PetscScalar    H,C[MAX_COMPONENTS],P,phi,T,TP,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
   DMStagStencil  point;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
-  X = 0.0;
+  H = 0.0;
   for (ii = 0; ii<en->ncomponents-1; ii++) { C[ii] = 0.0; CF[ii] = 0.0; CS[ii] = 0.0;}
 
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
       idx = SingleDimIndex(i-sx,j-sz,nz);
       ierr = CoeffCellData(dmcoeff,coefflocal,i,j,&cff[idx]);CHKERRQ(ierr);
-      ierr = SolutionCellData(dm,xlocal,i,j,&X,C);CHKERRQ(ierr);
+      ierr = SolutionCellData(dm,xlocal,i,j,&H,C);CHKERRQ(ierr);
 
       point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
       ierr = DMStagVecGetValuesStencil(dmP,Plocal,1,&point,&P); CHKERRQ(ierr);
 
-      if (en->energy_variable == 0) {
-        H = X;
-        ierr = en->form_enthalpy_method(H,C,P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
-      }
-      if (en->energy_variable == 1) {
-        TP = X;
-        ierr = en->form_enthalpy_method(TP,C,P,&H,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
-      }
+      ierr = en->form_enthalpy_method(H,C,P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
       
       thm[idx].P  = P;
       thm[idx].TP = TP;
