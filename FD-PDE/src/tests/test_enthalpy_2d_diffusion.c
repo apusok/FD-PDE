@@ -52,7 +52,7 @@ PetscErrorCode Numerical_solution(void*);
 PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
 PetscErrorCode ApplyBC_Enthalpy(DM,Vec,PetscScalar***,void*);
-PetscErrorCode Form_Enthalpy(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar[],PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
+PetscErrorCode Form_Enthalpy(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
 PetscErrorCode Analytical_solution(DM,Vec*,void*,PetscScalar);
 
 const char coeff_description[] =
@@ -87,8 +87,8 @@ PetscErrorCode Numerical_solution(void *ctx)
   UsrData       *usr = (UsrData*) ctx;
   Params        *par;
   FDPDE          fd;
-  DM             dm, dmcoeff, dmnew;
-  Vec            x, xprev, xcoeff, xcoeffprev, xAnalytic, xnew;
+  DM             dm, dmcoeff, dmnew, dmP;
+  Vec            x, xprev, xcoeff, xcoeffprev, xAnalytic, xnew, xP, xPprev;
   PetscInt       nx, nz, istep = 0;
   PetscScalar    xmin, zmin, xmax, zmax, dx, dz;
   char           fout[FNAME_LENGTH];
@@ -151,12 +151,22 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = VecDestroy(&xcoeffprev);CHKERRQ(ierr);
   ierr = VecDestroy(&xprev);CHKERRQ(ierr);
 
+  // set initial pressure
+  ierr = FDPDEEnthalpyGetPressure(fd,&dmP,NULL);CHKERRQ(ierr);
+  ierr = FDPDEEnthalpyGetPrevPressure(fd,&xPprev);CHKERRQ(ierr);
+  ierr = VecSet(xPprev,-1.0);CHKERRQ(ierr);
+  ierr = VecDestroy(&xPprev);CHKERRQ(ierr);
+
   // Time loop
   while ((par->t <= par->tmax) && (istep<par->tstep)) {
     PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep);
 
     // Update time
     par->t += par->dt;
+
+    // update pressure
+    ierr = FDPDEEnthalpyGetPressure(fd,NULL,&xP);CHKERRQ(ierr);
+    ierr = VecSet(xP,istep);CHKERRQ(ierr);
 
     // Enthalpy Solver
     ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
@@ -172,6 +182,11 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = FDPDEEnthalpyGetPrevCoefficient(fd,&xcoeffprev);CHKERRQ(ierr);
     ierr = VecCopy(xcoeff,xcoeffprev);CHKERRQ(ierr);
     ierr = VecDestroy(&xcoeffprev);CHKERRQ(ierr);
+
+    ierr = FDPDEEnthalpyGetPrevPressure(fd,&xPprev);CHKERRQ(ierr);
+    ierr = VecCopy(xP,xPprev);CHKERRQ(ierr);
+    ierr = VecDestroy(&xP);CHKERRQ(ierr);
+    ierr = VecDestroy(&xPprev);CHKERRQ(ierr);
 
     // Output solution
     if (istep % par->tout == 0 ) {
@@ -197,6 +212,7 @@ PetscErrorCode Numerical_solution(void *ctx)
 
   // Destroy objects
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
+  ierr = DMDestroy(&dmP);CHKERRQ(ierr);
   ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -204,30 +220,28 @@ PetscErrorCode Numerical_solution(void *ctx)
 // ---------------------------------------
 // Phase Diagram
 // ---------------------------------------
-PetscErrorCode Form_Enthalpy(FDPDE fd,PetscInt i,PetscInt j,PetscScalar H,PetscScalar C[],PetscScalar *_P,PetscScalar *_TP,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
+PetscErrorCode Form_Enthalpy(FDPDE fd,PetscInt i,PetscInt j,PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_TP,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
 {
   // UsrData      *usr = (UsrData*) ctx;
   PetscInt     ii;
-  PetscScalar  P, T, phi, TP;
+  PetscScalar  T, phi, TP;
   PetscFunctionBegin;
 
   TP = H;
   T  = TP;
   phi = 1.0;
-  P  = 0.0;
 
   for (ii = 0; ii<ncomp-1; ii++) { 
     CS[ii] = C[ii];
     CF[ii] = C[ii];
   }
 
-  // if ((i==1) && (j==1)) PetscPrintf(PETSC_COMM_WORLD,"# USER -> H = [%f %f %f]\n",H,TP,T);
+  // if ((i==1) && (j==1)) PetscPrintf(PETSC_COMM_WORLD,"# USER -> H,C,P = [%f %f %f]\n",H,C[0],P);
   // if ((i==1) && (j==1)) PetscPrintf(PETSC_COMM_WORLD,"# USER -> C = [%f %f %f]\n",C[0],CF[0],CS[0]);
 
   // assign pointers
   *_TP = TP;
   *_T = T;
-  *_P = P;
   *_phi = phi;
 
   PetscFunctionReturn(0);
@@ -454,7 +468,6 @@ PetscErrorCode Analytical_solution(DM dm,Vec *_x, void *ctx, PetscScalar t)
       for (ii = 0; ii <usr->par->ncomp-1; ii++) {
         ierr = DMStagGetLocationSlot(dm, ELEMENT, ii+1, &idx);CHKERRQ(ierr);
         xx[j][i][idx] = Q;
-        // xx[j][i][idx] = 0.0; // constant temperature
       }
     }
   }

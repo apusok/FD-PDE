@@ -57,7 +57,7 @@ PetscErrorCode Initial_solution(DM,Vec,void*);
 PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
 PetscErrorCode ApplyBC_Enthalpy(DM,Vec,PetscScalar***,void*);
-PetscErrorCode Form_Enthalpy(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar[],PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
+PetscErrorCode Form_Enthalpy(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
 
 const char coeff_description[] =
 "  << ENTHALPY Coefficients >> \n"
@@ -196,13 +196,13 @@ PetscErrorCode Numerical_solution(void *ctx)
 
 // ---------------------------------------
 // Phase Diagram - T,C
-// enthalpy_method(fd,i,j,TP,C,&P,&H,&T,&phi,CF,CS,ncomp,user);
+// enthalpy_method(fd,i,j,TP,C,P,&H,&T,&phi,CF,CS,ncomp,user);
 // ---------------------------------------
-PetscErrorCode Form_Enthalpy(FDPDE fd,PetscInt i,PetscInt j,PetscScalar TP,PetscScalar C[],PetscScalar *_P,PetscScalar *_H,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
+PetscErrorCode Form_Enthalpy(FDPDE fd,PetscInt i,PetscInt j,PetscScalar TP,PetscScalar C[],PetscScalar P,PetscScalar *_H,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
 {
   UsrData      *usr = (UsrData*) ctx;
   PetscInt     ii;
-  PetscScalar  Tsol, Tliq, P, T, phi=0.0, H, DT;
+  PetscScalar  Tsol, Tliq, T, phi=0.0, H, DT;
   PetscFunctionBegin;
 
   // primary and secondary temperature variable relationship
@@ -235,12 +235,10 @@ PetscErrorCode Form_Enthalpy(FDPDE fd,PetscInt i,PetscInt j,PetscScalar TP,Petsc
 
   // other enthalpy variables
   H = T+phi/usr->par->St;
-  P  = 0.0;
 
   // assign pointers
   *_H = H;
   *_T = T;
-  *_P = P;
   *_phi = phi;
 
   PetscFunctionReturn(0);

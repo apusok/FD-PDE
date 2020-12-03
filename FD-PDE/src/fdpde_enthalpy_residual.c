@@ -16,9 +16,9 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   EnthalpyData   *en;
   ThermoState    *thm, *thm_prev;
   CoeffState     *cff, *cff_prev;
-  DM             dm, dmcoeff;
+  DM             dm, dmcoeff, dmP;
   Vec            xlocal, coefflocal, flocal;
-  Vec            xprevlocal, coeffprevlocal;
+  Vec            Plocal, Pprevlocal, xprevlocal, coeffprevlocal;
   PetscInt       Nx, Nz, sx, sz, nx, nz;
   PetscInt       i,j,ii,icenter,idx;
   PetscScalar    fval;
@@ -36,6 +36,7 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   // Assign pointers and other variables
   dm    = fd->dmstag;
   dmcoeff = fd->dmcoeff;
+  dmP = en->dmP;
 
   xprevlocal     = NULL;
   coeffprevlocal = NULL;
@@ -65,14 +66,17 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
   ierr = DMGetLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
+  ierr = DMGetLocalVector(dmP, &Plocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmP, en->xP, INSERT_VALUES, Plocal); CHKERRQ(ierr);
 
   // Map the previous time step vectors
   if (en->timesteptype != TS_NONE) {
     ierr = DMGetLocalVector(dm, &xprevlocal); CHKERRQ(ierr);
     ierr = DMGlobalToLocal (dm, en->xprev, INSERT_VALUES, xprevlocal); CHKERRQ(ierr);
-
     ierr = DMGetLocalVector(dmcoeff, &coeffprevlocal); CHKERRQ(ierr);
     ierr = DMGlobalToLocal (dmcoeff, en->coeffprev, INSERT_VALUES, coeffprevlocal); CHKERRQ(ierr);
+    ierr = DMGetLocalVector(dmP, &Pprevlocal); CHKERRQ(ierr);
+    ierr = DMGlobalToLocal (dmP, en->xPprev, INSERT_VALUES, Pprevlocal); CHKERRQ(ierr);
 
     // Check time step
     if (!en->dt) {
@@ -83,12 +87,12 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   // update enthalpy and coeff cell data
   ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(ThermoState),&thm);CHKERRQ(ierr); 
   ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(CoeffState),&cff);CHKERRQ(ierr);
-  ierr = ApplyEnthalpyMethod(fd,dm,xlocal,dmcoeff,coefflocal,en,thm,cff); CHKERRQ(ierr);
+  ierr = ApplyEnthalpyMethod(fd,dm,xlocal,dmcoeff,coefflocal,dmP,Plocal,en,thm,cff); CHKERRQ(ierr);
 
   if (en->timesteptype != TS_NONE) {
     ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(ThermoState),&thm_prev);CHKERRQ(ierr);
     ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(CoeffState),&cff_prev);CHKERRQ(ierr);
-    ierr = ApplyEnthalpyMethod(fd,dm,xprevlocal,dmcoeff,coeffprevlocal,en,thm_prev,cff_prev); CHKERRQ(ierr);
+    ierr = ApplyEnthalpyMethod(fd,dm,xprevlocal,dmcoeff,coeffprevlocal,dmP,Pprevlocal,en,thm_prev,cff_prev); CHKERRQ(ierr);
   }
 
   // Residual evaluation
@@ -115,6 +119,7 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMStagVecRestoreArray(dm,flocal,&ff); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmcoeff,&coefflocal); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmP, &Plocal); CHKERRQ(ierr);
 
   ierr = PetscFree(thm);CHKERRQ(ierr);
   ierr = PetscFree(cff);CHKERRQ(ierr);
@@ -124,6 +129,7 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
     ierr = PetscFree(cff_prev);CHKERRQ(ierr);
     ierr = DMRestoreLocalVector(dm, &xprevlocal); CHKERRQ(ierr);
     ierr = DMRestoreLocalVector(dmcoeff, &coeffprevlocal); CHKERRQ(ierr);
+    ierr = DMRestoreLocalVector(dmP, &Pprevlocal); CHKERRQ(ierr);
   }
 
   // Map local to global
@@ -142,10 +148,11 @@ ApplyEnthalpyMethod - apply enthalpy method during each solver iteration; it col
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coefflocal,EnthalpyData *en,ThermoState *thm,CoeffState *cff)
+PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coefflocal,DM dmP, Vec Plocal,EnthalpyData *en,ThermoState *thm,CoeffState *cff)
 {
   PetscInt       ii,i,j,sx,sz,nx,nz,idx;
   PetscScalar    X,C[MAX_COMPONENTS],P,phi,H,T,TP,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
+  DMStagStencil  point;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
@@ -159,13 +166,17 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coe
       idx = SingleDimIndex(i-sx,j-sz,nz);
       ierr = CoeffCellData(dmcoeff,coefflocal,i,j,&cff[idx]);CHKERRQ(ierr);
       ierr = SolutionCellData(dm,xlocal,i,j,&X,C);CHKERRQ(ierr);
+
+      point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
+      ierr = DMStagVecGetValuesStencil(dmP,Plocal,1,&point,&P); CHKERRQ(ierr);
+
       if (en->energy_variable == 0) {
         H = X;
-        ierr = en->form_enthalpy_method(fd,i,j,H,C,&P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
+        ierr = en->form_enthalpy_method(fd,i,j,H,C,P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
       }
       if (en->energy_variable == 1) {
         TP = X;
-        ierr = en->form_enthalpy_method(fd,i,j,TP,C,&P,&H,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
+        ierr = en->form_enthalpy_method(fd,i,j,TP,C,P,&H,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
       }
       
       thm[idx].P  = P;

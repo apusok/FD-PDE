@@ -71,7 +71,7 @@ PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd)
   fd->ops->create_jacobian    = JacobianCreate_Enthalpy;
   fd->ops->view               = FDPDEView_Enthalpy;
   fd->ops->destroy            = FDPDEDestroy_Enthalpy;
-  fd->ops->setup              = NULL;
+  fd->ops->setup              = FDPDESetup_Enthalpy;
 
   // allocate memory to fd-pde context data
   ierr = PetscCalloc1(1,&en);CHKERRQ(ierr);
@@ -84,9 +84,39 @@ PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd)
   en->ncomponents = fd->dof2;
   en->energy_variable = 0; // default 0-H-enthalpy, 1-TP-temperature
   en->description_enthalpy = NULL;
+  en->dmP = NULL;
+  en->xP = NULL;
+  en->xPprev = NULL;
 
   // fd-pde context data
   fd->data = en;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+FDPDESetup_Enthalpy - setup some structures for FDPDEType = ENTHALPY
+Use: internal
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDESetup_Enthalpy"
+PetscErrorCode FDPDESetup_Enthalpy(FDPDE fd)
+{
+  EnthalpyData   *en;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  en = fd->data;
+
+  // Create DMStag and vector for pressure/enthalpy
+  ierr = DMStagCreateCompatibleDMStag(fd->dmstag,0,0,1,0,&en->dmP); CHKERRQ(ierr);
+  ierr = DMSetUp(en->dmP); CHKERRQ(ierr);
+  ierr = DMStagSetUniformCoordinatesProduct(en->dmP,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(en->dmP,&en->xP);CHKERRQ(ierr);
+  // initialize zero pressure vector
+  ierr = VecSet(en->xP,0.0);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -105,7 +135,6 @@ PetscErrorCode FDPDEView_Enthalpy(FDPDE fd)
   PetscFunctionBegin;
 
   en = fd->data;
-
   PetscPrintf(fd->comm,"[ENTHALPY] FDPDEView:\n");
   PetscPrintf(fd->comm,"  # Advection Scheme type: %s\n",AdvectSchemeTypeNames_Enthalpy[(int)en->advtype]);
   PetscPrintf(fd->comm,"  # Time step Scheme type: %s\n",TimeStepSchemeTypeNames_Enthalpy[(int)en->timesteptype]);
@@ -132,11 +161,15 @@ PetscErrorCode FDPDEDestroy_Enthalpy(FDPDE fd)
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
+  // enthalpy data
   en = fd->data;
   if (en->xprev)     { ierr = VecDestroy(&en->xprev);CHKERRQ(ierr); }
   if (en->coeffprev) { ierr = VecDestroy(&en->coeffprev);CHKERRQ(ierr); }
 
-  // enthalpy data
+  ierr = VecDestroy(&en->xP);CHKERRQ(ierr);
+  ierr = DMDestroy(&en->dmP);CHKERRQ(ierr);
+  if (en->xPprev) { ierr = VecDestroy(&en->xPprev);CHKERRQ(ierr); }
+
   en->form_enthalpy_method = NULL;
   en->user_context   = NULL;
   en->form_user_bc   = NULL; // PRELIM
@@ -329,6 +362,7 @@ PetscErrorCode FDPDEEnthalpySetTimeStepSchemeType(FDPDE fd, TimeStepSchemeType t
     // Create vectors for time-stepping if required
     ierr = VecDuplicate(fd->x,&en->xprev);CHKERRQ(ierr);
     ierr = VecDuplicate(fd->coeff,&en->coeffprev);CHKERRQ(ierr);
+    ierr = VecDuplicate(en->xP,&en->xPprev);CHKERRQ(ierr);
   }
 
   PetscFunctionReturn(0);
@@ -645,7 +679,7 @@ Use: user
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDPDEEnthalpySetEnthalpyMethod"
-PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, PetscErrorCode(*form_enthalpy_method)(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar[],PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*), const char description[],void *data)
+PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, PetscErrorCode(*form_enthalpy_method)(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*), const char description[],void *data)
 {
   EnthalpyData   *en;
   PetscErrorCode ierr;
@@ -772,11 +806,11 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
       // calculate enthalpy method
       if (en->energy_variable == 0) {
         H = X;
-        ierr = en->form_enthalpy_method(fd,i,j,H,C,&P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
+        ierr = en->form_enthalpy_method(fd,i,j,H,C,P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
       }
       if (en->energy_variable == 1) {
         TP = X;
-        ierr = en->form_enthalpy_method(fd,i,j,TP,C,&P,&H,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
+        ierr = en->form_enthalpy_method(fd,i,j,TP,C,P,&H,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
       }
 
       point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; ind = -1;
@@ -818,6 +852,85 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
 
   *_dmnew = dmnew;
   *_xnew  = xnew;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+FDPDEEnthalpyGetPressure - retrieves the pressure DMStag and Vector from the FD-PDE object. 
+
+Input Parameter:
+fd - the FD-PDE object
+
+Output Parameters (optional):
+dmP - the DM object
+xP - the vector
+
+Reference count on dmP and xP is incremented. User must call DMDestroy()/VecDestroy()!
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEEnthalpyGetPressure"
+PetscErrorCode FDPDEEnthalpyGetPressure(FDPDE fd, DM *dmP, Vec *xP)
+{
+  EnthalpyData   *en;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+
+  if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
+  if (!fd->data) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"The FD-PDE context data has not been set up. Call FDPDESetUp() first.");
+  
+  en = fd->data;
+
+  if (dmP) { 
+    *dmP = en->dmP;
+    ierr = PetscObjectReference((PetscObject)en->dmP);CHKERRQ(ierr); 
+  }
+  if (xP) { 
+    *xP  = en->xP;
+    ierr = PetscObjectReference((PetscObject)en->xP);CHKERRQ(ierr); 
+  }
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+FDPDEEnthalpyGetPrevPressure - retrieves the previous time step pressure vector from the FD-PDE object (ENTHALPY). 
+
+Input Parameter:
+fd - the FD-PDE object
+
+Output Parameter:
+Pprev - the previous time step pressure ector
+
+Notes:
+Reference count on Pprev is incremented. User must call VecDestroy().
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEEnthalpyGetPrevPressure"
+PetscErrorCode FDPDEEnthalpyGetPrevPressure(FDPDE fd, Vec *Pprev)
+{
+  EnthalpyData   *en;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
+  if (!fd->data) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"The FD-PDE context data has not been set up. Call FDPDESetUp() first.");
+  
+  en = fd->data;
+
+  if (Pprev) {
+    *Pprev = en->xPprev;
+    ierr = PetscObjectReference((PetscObject)en->xPprev);CHKERRQ(ierr);
+  }
 
   PetscFunctionReturn(0);
 }
