@@ -130,12 +130,19 @@ for istep in range(0,tstep,tout):
 
   # Load data - m0
   # imod = importlib.import_module(fname+'_TC'+ft)
-  fout = fname+'_TC'+ft
+  fout = fname+'_HC'+ft
   spec = importlib.util.spec_from_file_location(fout,fname_data+'/'+fout+'.py')
   imod = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(imod)
   data0 = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data0)
+
+  fout = fname+'_enthalpy'+ft
+  spec = importlib.util.spec_from_file_location(fout,fname_data+'/'+fout+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
+  data_enth = imod._PETScBinaryLoad()
+  imod._PETScBinaryLoadReportNames(data_enth)
 
   mx = data0['Nx'][0]
   mz = data0['Ny'][0]
@@ -147,9 +154,17 @@ for istep in range(0,tstep,tout):
   dof = 2
   Ti = T_data[0::dof]
   Ti_res = Ti.reshape(mz,mx)
+  # T = Ti_res[int(mz/2),:]
 
-  # T  = Ti_res[int(mz/2),:]*DT+Tm
-  T = Ti_res[int(mz/2),:]
+  # extract temperature from the enthalpy variables
+  HC_enth_data = data_enth['X_cell']
+  ncomp = 2
+  dof_en = 5 + 3*(ncomp-1)
+  H_enth = HC_enth_data[0::dof_en]
+  T_enth = HC_enth_data[1::dof_en]
+  T_enth_res = T_enth.reshape(mz,mx)
+  T = T_enth_res[int(mz/2),:]
+
   T_an = np.zeros(len(T))
 
   ic = 0
