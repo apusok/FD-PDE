@@ -772,11 +772,11 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
       // calculate enthalpy method
       if (en->energy_variable == 0) {
         H = X;
-        ierr = en->form_enthalpy_method(fd,i,j,H,C,&P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr); CHKERRQ(ierr);
+        ierr = en->form_enthalpy_method(fd,i,j,H,C,&P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
       }
       if (en->energy_variable == 1) {
         TP = X;
-        ierr = en->form_enthalpy_method(fd,i,j,TP,C,&P,&H,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr); CHKERRQ(ierr);
+        ierr = en->form_enthalpy_method(fd,i,j,TP,C,&P,&H,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
       }
 
       point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; ind = -1;

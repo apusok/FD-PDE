@@ -161,11 +161,11 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coe
       ierr = SolutionCellData(dm,xlocal,i,j,&X,C);CHKERRQ(ierr);
       if (en->energy_variable == 0) {
         H = X;
-        ierr = en->form_enthalpy_method(fd,i,j,H,C,&P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr); CHKERRQ(ierr);
+        ierr = en->form_enthalpy_method(fd,i,j,H,C,&P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
       }
       if (en->energy_variable == 1) {
         TP = X;
-        ierr = en->form_enthalpy_method(fd,i,j,TP,C,&P,&H,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr); CHKERRQ(ierr);
+        ierr = en->form_enthalpy_method(fd,i,j,TP,C,&P,&H,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
       }
       
       thm[idx].P  = P;
