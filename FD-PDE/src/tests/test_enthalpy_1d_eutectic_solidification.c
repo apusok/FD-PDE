@@ -53,7 +53,7 @@ PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode Numerical_solution(void*);
 PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
-PetscErrorCode Form_Enthalpy(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
+PetscErrorCode Form_Enthalpy(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
 PetscErrorCode ApplyBC_Enthalpy(DM,Vec,PetscScalar***,void*);
 PetscErrorCode Analytical_solution(DM,Vec*,void*);
 PetscErrorCode Initial_solution(DM,Vec,void*);
@@ -238,9 +238,9 @@ PetscErrorCode Numerical_solution(void *ctx)
 
 // ---------------------------------------
 // Phase Diagram  * relationships from Katz and Worster (2008)
-// enthalpy_method(fd,i,j,H,C,P,&TP,&T,&phi,CF,CS,ncomp,user);
+// enthalpy_method(H,C,P,&TP,&T,&phi,CF,CS,ncomp,user);
 // ---------------------------------------
-PetscErrorCode Form_Enthalpy(FDPDE fd,PetscInt i,PetscInt j,PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_TP,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
+PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_TP,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
 {
   UsrData      *usr = (UsrData*) ctx;
   PetscInt     ii;
@@ -252,9 +252,6 @@ PetscErrorCode Form_Enthalpy(FDPDE fd,PetscInt i,PetscInt j,PetscScalar H,PetscS
   Cc = usr->par->Cc;
   ps = usr->par->ps;
   cp = usr->par->cp;
-
-  // H = 4.5;
-  // C[0]= -1;
 
   // Solidus and liquidus
   Tliq = -C[0];

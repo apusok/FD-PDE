@@ -52,7 +52,7 @@ PetscErrorCode Numerical_solution(void*);
 PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
 PetscErrorCode ApplyBC_Enthalpy(DM,Vec,PetscScalar***,void*);
-PetscErrorCode Form_Enthalpy(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
+PetscErrorCode Form_Enthalpy(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
 PetscErrorCode Analytical_solution(DM,Vec*,void*,PetscScalar);
 
 const char coeff_description[] =
@@ -220,7 +220,7 @@ PetscErrorCode Numerical_solution(void *ctx)
 // ---------------------------------------
 // Phase Diagram
 // ---------------------------------------
-PetscErrorCode Form_Enthalpy(FDPDE fd,PetscInt i,PetscInt j,PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_TP,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
+PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_TP,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
 {
   // UsrData      *usr = (UsrData*) ctx;
   PetscInt     ii;
@@ -235,9 +235,6 @@ PetscErrorCode Form_Enthalpy(FDPDE fd,PetscInt i,PetscInt j,PetscScalar H,PetscS
     CS[ii] = C[ii];
     CF[ii] = C[ii];
   }
-
-  // if ((i==1) && (j==1)) PetscPrintf(PETSC_COMM_WORLD,"# USER -> H,C,P = [%f %f %f]\n",H,C[0],P);
-  // if ((i==1) && (j==1)) PetscPrintf(PETSC_COMM_WORLD,"# USER -> C = [%f %f %f]\n",C[0],CF[0],CS[0]);
 
   // assign pointers
   *_TP = TP;

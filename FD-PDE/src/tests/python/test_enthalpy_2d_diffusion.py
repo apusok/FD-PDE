@@ -35,7 +35,7 @@ ncomp = 3 # number of chemical components - warning: many of the plots below dep
 # Run simulations
 for n in ni:
   fout = fname+'_n'+str(n)
-  solver = ' -snes_converged_reason -ksp_converged_reason -snes_monitor -ksp_monitor -snes_atol 1e-10 -snes_rtol 1e-20'
+  solver = ' -snes_converged_reason -ksp_converged_reason -snes_monitor -ksp_monitor -snes_atol 1e-10 -snes_rtol 1e-20 -log_view'
   str1 = '../test_enthalpy_2d_diffusion.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -snes_max_it 200'+ \
       ' -output_file '+fout+' -output_dir '+fname_data+' -tstep '+str(tstep)+solver+' -ts_scheme 2'+' -nx '+str(n)+' -nz '+str(n) +\
       ' -energy 1 -ncomp '+str(ncomp)

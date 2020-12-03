@@ -654,15 +654,11 @@ Input Parameter:
 fd - the FD-PDE object
 form_enthalpy_method - name of the evaluation function for enthalpy method and phase diagram
 Format: 
-    form_enthalpy_method(fd,i,j,H,C[],&P,&TP,&T,&phi,CS,CF,usr) - primary variable H
-    form_enthalpy_method(fd,i,j,TP,C[],&P,&H,&T,&phi,CS,CF,usr) - primary variable TP
+    form_enthalpy_method(H,C[],P,&TP,&T,&phi,CS,CF,usr)
 description - the user can pass a char string to describe the enthalpy method
 data - user context to be passed for evaluation (can be NULL)
 
 Variables inside form_enthalpy_method:
-    fd - FDPDE object
-    i  - cell index (1-dir)
-    j  - cell index (2-dir)
     H  - enthalpy (input if H-primary variable)
     C[]- bulk composition (input) (ncomp-1)
     P  - pressure - needs to be specified by the user
@@ -679,7 +675,7 @@ Use: user
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDPDEEnthalpySetEnthalpyMethod"
-PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, PetscErrorCode(*form_enthalpy_method)(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*), const char description[],void *data)
+PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, PetscErrorCode(*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*), const char description[],void *data)
 {
   EnthalpyData   *en;
   PetscErrorCode ierr;
@@ -806,11 +802,11 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
       // calculate enthalpy method
       if (en->energy_variable == 0) {
         H = X;
-        ierr = en->form_enthalpy_method(fd,i,j,H,C,P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
+        ierr = en->form_enthalpy_method(H,C,P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
       }
       if (en->energy_variable == 1) {
         TP = X;
-        ierr = en->form_enthalpy_method(fd,i,j,TP,C,P,&H,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
+        ierr = en->form_enthalpy_method(TP,C,P,&H,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
       }
 
       point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; ind = -1;
