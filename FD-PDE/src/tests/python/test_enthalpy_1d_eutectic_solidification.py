@@ -23,18 +23,19 @@ def parse_log_file(fname):
     f.close()
     tstep = i0
 
-    # # time
-    # t = np.zeros(tstep)
-    # f = open(fname, 'r')
-    # i0=-1
-    # for line in f:
-    #   if '# TIMESTEP' in line:
-    #     i0+=1
-    #   if '[nd,dim] time ' in line:
-    #     t[i0] = float(line[23:35])
-    # f.close()
+    # time
+    max_diff = np.zeros(tstep)
 
-    return tstep
+    f = open(fname, 'r')
+    i0=-1
+    for line in f:
+      if '# TIMESTEP' in line:
+        i0+=1
+      if 'Steady-state check:' in line:
+        max_diff[i0] = float(line[79:92])
+    f.close()
+
+    return tstep, max_diff
   except OSError:
     print('Cannot open:', fname)
     return tstep
@@ -79,14 +80,16 @@ print(str1)
 os.system(str1)
 
 # parse log file
-tstep = parse_log_file(fname_data+'/log_'+fname+'.out')
+tstep, max_diff = parse_log_file(fname_data+'/log_'+fname+'.out')
+print(max_diff)
 
 # Plot solution (numerical and analytical)
-fig, axs = plt.subplots(1,3,figsize=(12,4))
+fig, axs = plt.subplots(1,4,figsize=(16,4))
 
-ax1 = plt.subplot(1,3,1)
-ax2 = plt.subplot(1,3,2)
-ax3 = plt.subplot(1,3,3)
+ax1 = plt.subplot(1,4,1)
+ax2 = plt.subplot(1,4,2)
+ax3 = plt.subplot(1,4,3)
+ax4 = plt.subplot(1,4,4)
 
 # Load analytical solutions
 # imod = importlib.import_module('out_analytic_solution_TC')
@@ -237,6 +240,13 @@ ax3.set_xlabel('phi [-]')
 ax3.legend(loc='lower left')
 ax3.axis('auto')
 ax3.grid(True,color='gray', linestyle='--', linewidth=0.5)
+
+pl = ax4.plot(np.log10(max_diff),'k-')
+ax4.set_title('d) Steady-state convergence')
+ax4.set_xlabel('tstep [-]')
+ax4.set_ylabel('log10(max|x-xprev|)')
+ax4.axis('auto')
+ax4.grid(True,color='gray', linestyle='--', linewidth=0.5)
 
 plt.savefig(fname_out+'/'+fname+'.pdf')
 
