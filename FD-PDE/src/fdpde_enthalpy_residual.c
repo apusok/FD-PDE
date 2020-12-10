@@ -102,7 +102,7 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
       ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,0,&idx); CHKERRQ(ierr);
       ff[j][i][idx] = fval;
 
-      for (ii = 0; ii<en->ncomponents-1; ii++) {
+      for (ii = 0; ii<en->ncomponents-1; ii++) { // solve only for the first N-1 components
         ierr = BulkCompositionResidual(dm,thm,cff,thm_prev,cff_prev,coordx,coordz,en,i,j,ii,&fval); CHKERRQ(ierr);
         ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,ii+1,&idx); CHKERRQ(ierr);
         ff[j][i][idx] = fval;
@@ -159,7 +159,7 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coe
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
   H = 0.0;
-  for (ii = 0; ii<en->ncomponents-1; ii++) { C[ii] = 0.0; CF[ii] = 0.0; CS[ii] = 0.0;}
+  for (ii = 0; ii<en->ncomponents; ii++) { C[ii] = 0.0; CF[ii] = 0.0; CS[ii] = 0.0;}
 
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
@@ -177,7 +177,7 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coe
       thm[idx].T  = T;
       thm[idx].H  = H;
       thm[idx].phi = phi;
-      for (ii = 0; ii<en->ncomponents-1; ii++) {
+      for (ii = 0; ii<en->ncomponents; ii++) {
         thm[idx].C[ii]  = C[ii];
         thm[idx].CS[ii] = CS[ii];
         thm[idx].CF[ii] = CF[ii];
@@ -238,7 +238,7 @@ PetscErrorCode CoeffCellData(DM dmcoeff, Vec coefflocal, PetscInt i,PetscInt j, 
 
 // ---------------------------------------
 /*@
-SolutionCellData - get cell data for solution H/TP,C
+SolutionCellData - get cell data for solution H,C
 Use: internal
 @*/
 // ---------------------------------------
@@ -246,7 +246,7 @@ PetscErrorCode SolutionCellData(DM dm, Vec xlocal, PetscInt i,PetscInt j, PetscS
 {
   PetscInt       ii,dof0,dof1,dof2;
   DMStagStencil  *pointE;
-  PetscScalar    *xE, X;
+  PetscScalar    *xE, X, sum_C = 0.0;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
@@ -261,9 +261,11 @@ PetscErrorCode SolutionCellData(DM dm, Vec xlocal, PetscInt i,PetscInt j, PetscS
 
   // assign values
   X = xE[0];
-  for (ii = 0; ii<dof2-1; ii++) {
-    C[ii] = xE[ii+1];
+  for (ii = 1; ii<dof2; ii++) {
+    sum_C  += xE[ii];
+    C[ii-1] = xE[ii];
   }
+  C[dof2-1] = 1.0 - sum_C;
 
   *_X = X;
 

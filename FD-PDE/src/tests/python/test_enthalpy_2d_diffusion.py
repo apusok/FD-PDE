@@ -112,10 +112,11 @@ for istep in range(0,tstep,tout):
   C1_num = HC_num_data[1::ncomp]
   C2_num = HC_num_data[2::ncomp]
 
-  dof_en = 5 + 3*(ncomp-1)
+  dof_en = 5 + 3*ncomp
   H_enth = HC_enth_data[0::dof_en]
   C1_enth = HC_enth_data[5::dof_en]
   C2_enth = HC_enth_data[6::dof_en]
+  C3_enth = HC_enth_data[7::dof_en]
 
   H_an_res = H_an.reshape(mz,mx)
   H_num_res = H_num.reshape(mz,mx)

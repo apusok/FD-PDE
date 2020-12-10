@@ -58,7 +58,7 @@ except OSError:
   pass
 
 print('# --------------------------------------- #')
-print('# 1-D Solidification test (ENTHALPY TC) ')
+print('# 1-D Solidification test (ENTHALPY T/HC) ')
 print('# --------------------------------------- #')
 
 n = 65
@@ -159,7 +159,7 @@ for istep in range(0,tstep,tout):
   # extract temperature from the enthalpy variables
   HC_enth_data = data_enth['X_cell']
   ncomp = 2
-  dof_en = 5 + 3*(ncomp-1)
+  dof_en = 5 + 3*ncomp
   H_enth = HC_enth_data[0::dof_en]
   T_enth = HC_enth_data[1::dof_en]
   T_enth_res = T_enth.reshape(mz,mx)

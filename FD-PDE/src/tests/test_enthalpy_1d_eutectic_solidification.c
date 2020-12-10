@@ -267,14 +267,14 @@ PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscSc
   if (H <= Hsol) { // below solidus
     phi = 0.0;
     T   = eval_T(H,phi,S,cp);
-    for (ii = 0; ii<ncomp-1; ii++) {
+    for (ii = 0; ii<ncomp; ii++) {
       CS[ii] = C[ii];
       CF[ii] = 0.0;
     }
   } else if ((H > Hsol) && (H <= Heut)) { // eutectic-solid
     phi = H/S;
     T   = 0.0;
-    for (ii = 0; ii<ncomp-1; ii++) {
+    for (ii = 0; ii<ncomp; ii++) {
       CS[ii] = C[ii]/(1.0-phi);
       CF[ii] = 0.0;
     }
@@ -283,7 +283,7 @@ PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscSc
     B = Cc*(1.0-2.0*cp)+H*(1.0-ps)-C[0]*(cp-1.0)-S*ps;
     D = (Cc+C[0])*cp+ps*H;
     phi = (-B-PetscSqrtScalar(B*B-4.0*A*D))/(2.0*A);
-    for (ii = 0; ii<ncomp-1; ii++) {
+    for (ii = 0; ii<ncomp; ii++) {
       CS[ii] = (ps*C[ii]-Cc*phi)/(phi+ps*(1.0-phi));
       CF[ii] = (C[ii]+Cc*(1.0-phi))/(phi+ps*(1.0-phi));
     }
@@ -292,7 +292,7 @@ PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscSc
   } else { // above liquidus
     phi = 1.0;
     T = eval_T(H,phi,S,cp); //H-S;
-    for (ii = 0; ii<ncomp-1; ii++) {
+    for (ii = 0; ii<ncomp; ii++) {
       CS[ii] = 0.0;
       CF[ii] = C[ii];
     }

@@ -228,7 +228,7 @@ PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscSc
   T  = TP;
   phi = 1.0;
 
-  for (ii = 0; ii<ncomp-1; ii++) { 
+  for (ii = 0; ii<ncomp; ii++) { 
     CS[ii] = C[ii];
     CF[ii] = C[ii];
   }

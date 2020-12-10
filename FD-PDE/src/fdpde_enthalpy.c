@@ -619,14 +619,14 @@ description - the user can pass a char string to describe the enthalpy method
 data - user context to be passed for evaluation (can be NULL)
 
 Variables inside form_enthalpy_method:
-    H  - enthalpy (input if H-primary variable)
-    C[]- bulk composition (input) (ncomp-1)
-    P  - pressure - needs to be specified by the user
+    H  - enthalpy (input)
+    C[]- bulk composition (input) (length ncomp)
+    P  - pressure (input) needs to be specified by the user
     TP - primary temperature variable (input if TP-primary variable)
     T  - secondary temperature variable
     phi- porosity
-    CS[] - solid composition (ncomp-1)
-    CF[] - fluid composition (ncomp-1)
+    CS[] - solid composition (length ncomp)
+    CF[] - fluid composition (length ncomp)
     ncomp - number of components
     user - user context provided
 
@@ -723,7 +723,7 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
   if (!en->form_enthalpy_method) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"This routine requires a valid form_enthalpy_method() funtion pointer. Call FDPDEEnthalpySetEnthalpyMethod() first.");
 
   dof_sol = en->ncomponents;
-  dof_new = 5 + 3*(en->ncomponents-1);
+  dof_new = 5 + 3*en->ncomponents;
 
   // create new dm with all variables in center
   ierr = DMStagCreateCompatibleDMStag(dm,0,0,dof_new,0,&dmnew); CHKERRQ(ierr);
@@ -747,6 +747,7 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
     for (i = sx; i<sx+nx; i++) {
       DMStagStencil point;
       PetscInt      iX, ind;
+      PetscScalar   sum_C = 0.0;
 
       for (ii = 0; ii<dof_sol; ii++) {
         pointE[ii].i = i; pointE[ii].j = j; pointE[ii].loc = DMSTAG_ELEMENT; pointE[ii].c = ii;
@@ -755,9 +756,11 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
       
       // assign variables
       H = xE[0];
-      for (ii = 0; ii<en->ncomponents-1; ii++) {
-        C[ii] = xE[ii+1];
+      for (ii = 1; ii<en->ncomponents; ii++) {
+        sum_C  += xE[ii];
+        C[ii-1] = xE[ii];
       }
+      C[en->ncomponents-1] = 1.0 - sum_C;
 
       // calculate enthalpy method
       ierr = en->form_enthalpy_method(H,C,P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
@@ -771,19 +774,19 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
 
       // composition
       ind++;
-      for (ii = 0; ii<en->ncomponents-1; ii++) {
+      for (ii = 0; ii<en->ncomponents; ii++) {
         point.c = ind+ii; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr);
         xx[j][i][iX] = C[ii];
       }
 
       ind++;
-      for (ii = 0; ii<en->ncomponents-1; ii++) {
+      for (ii = 0; ii<en->ncomponents; ii++) {
         point.c = ind+ii; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr);
         xx[j][i][iX] = CS[ii];
       }
 
       ind++;
-      for (ii = 0; ii<en->ncomponents-1; ii++) {
+      for (ii = 0; ii<en->ncomponents; ii++) {
         point.c = ind+ii; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr);
         xx[j][i][iX] = CF[ii];
       }

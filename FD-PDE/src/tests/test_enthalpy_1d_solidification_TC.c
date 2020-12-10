@@ -219,18 +219,18 @@ PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscSc
 
   if (H <= Hsol) {
     phi = 0.0;
-    for (ii = 0; ii<ncomp-1; ii++) { 
+    for (ii = 0; ii<ncomp; ii++) { 
       CS[ii] = C[ii];
       CF[ii] = 0.0;
     }
   } else if (H >= Hliq) {
     phi = 1.0;
-    for (ii = 0; ii<ncomp-1; ii++) { 
+    for (ii = 0; ii<ncomp; ii++) { 
       CS[ii] = 0.0;
       CF[ii] = C[ii];
     }
   } else {
-    for (ii = 0; ii<ncomp-1; ii++) { 
+    for (ii = 0; ii<ncomp; ii++) { 
       CS[ii] = usr->par->T0;
       CF[ii] = usr->par->T0;
     }

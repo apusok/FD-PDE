@@ -121,7 +121,7 @@ mx = data_an['Nx'][0]
 mz = data_an['Ny'][0]
 xc = data_an['x1d_cell']
 zc = data_an['y1d_cell']
-dof_en = 8
+dof_en = 5+3*2
 
 HC_prev_data = data_prev['X_cell']
 enth_prev_data = data_en_prev['X_cell']
@@ -138,8 +138,8 @@ T_num_en_prev = enth_prev_data[1::dof_en]
 TP_num_en_prev = enth_prev_data[2::dof_en]
 phi_num_en_prev = enth_prev_data[3::dof_en]
 C_num_en_prev = enth_prev_data[5::dof_en]
-Cs_num_en_prev = enth_prev_data[6::dof_en]
-Cf_num_en_prev = enth_prev_data[7::dof_en]
+Cs_num_en_prev = enth_prev_data[7::dof_en]
+Cf_num_en_prev = enth_prev_data[9::dof_en]
 
 Th_an_res = Th_an.reshape(mz,mx)
 phi_an_res = phi_an.reshape(mz,mx)
