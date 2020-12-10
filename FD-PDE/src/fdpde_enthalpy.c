@@ -779,13 +779,13 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
         xx[j][i][iX] = C[ii];
       }
 
-      ind++;
+      ind += en->ncomponents;
       for (ii = 0; ii<en->ncomponents; ii++) {
         point.c = ind+ii; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr);
         xx[j][i][iX] = CS[ii];
       }
 
-      ind++;
+      ind += en->ncomponents;
       for (ii = 0; ii<en->ncomponents; ii++) {
         point.c = ind+ii; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr);
         xx[j][i][iX] = CF[ii];
