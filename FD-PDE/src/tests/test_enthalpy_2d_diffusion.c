@@ -52,7 +52,8 @@ PetscErrorCode Numerical_solution(void*);
 PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
 PetscErrorCode ApplyBC_Enthalpy(DM,Vec,PetscScalar***,void*);
-PetscErrorCode Form_Enthalpy(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
+PetscErrorCode Form_Enthalpy(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
+PetscErrorCode Form_PotentialTemperature(PetscScalar,PetscScalar,PetscScalar*,void*); 
 PetscErrorCode Analytical_solution(DM,Vec*,void*,PetscScalar);
 
 const char coeff_description[] =
@@ -68,10 +69,10 @@ const char bc_description[] =
 
 const char enthalpy_method_description[] =
 "  << ENTHALPY METHOD >> \n"
-"  Input: H, C \n"
-"  Output: TP = T  = H, \n"
+"  Input: H, C, P \n"
+"  Output: T  = H, \n"
 "          Cf = Cs = C, \n"
-"          phi = 1.0, P = 0 \n";
+"          phi = 1.0 \n";
 
 static PetscScalar analytical_solution(PetscScalar x, PetscScalar z, PetscScalar t, PetscScalar k) { 
   return 1.0/(4*PETSC_PI*k*t)*PetscExpScalar(-(x*x+z*z)/(4*k*t)); 
@@ -128,6 +129,7 @@ PetscErrorCode Numerical_solution(void *ctx)
 
   ierr = FDPDEEnthalpySetTimestep(fd,par->dt); CHKERRQ(ierr);
   ierr = FDPDEEnthalpySetEnthalpyMethod(fd,Form_Enthalpy,enthalpy_method_description,usr);CHKERRQ(ierr);
+  ierr = FDPDEEnthalpySetPotentialTemp(fd,Form_PotentialTemperature,usr);CHKERRQ(ierr);
   ierr = FDPDEView(fd);CHKERRQ(ierr);
 
   // Set initial conditions at t=0.05
@@ -217,15 +219,14 @@ PetscErrorCode Numerical_solution(void *ctx)
 // ---------------------------------------
 // Phase Diagram
 // ---------------------------------------
-PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_TP,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
+PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
 {
   // UsrData      *usr = (UsrData*) ctx;
   PetscInt     ii;
-  PetscScalar  T, phi, TP;
+  PetscScalar  T, phi;
   PetscFunctionBegin;
 
-  TP = H;
-  T  = TP;
+  T = H;
   phi = 1.0;
 
   for (ii = 0; ii<ncomp; ii++) { 
@@ -234,9 +235,19 @@ PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscSc
   }
 
   // assign pointers
-  *_TP = TP;
   *_T = T;
   *_phi = phi;
+
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode Form_PotentialTemperature(PetscScalar T,PetscScalar P,PetscScalar *_TP, void *ctx) 
+{
+  PetscScalar  TP;
+  PetscFunctionBegin;
+
+  TP = T*1.0;
+  *_TP = TP;
 
   PetscFunctionReturn(0);
 }

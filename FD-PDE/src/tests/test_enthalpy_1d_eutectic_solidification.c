@@ -53,7 +53,7 @@ PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode Numerical_solution(void*);
 PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
-PetscErrorCode Form_Enthalpy(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
+PetscErrorCode Form_Enthalpy(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
 PetscErrorCode ApplyBC_Enthalpy(DM,Vec,PetscScalar***,void*);
 PetscErrorCode Analytical_solution(DM,Vec*,void*);
 PetscErrorCode Initial_solution(DM,Vec,void*);
@@ -73,8 +73,8 @@ const char bc_description[] =
 
 const char enthalpy_method_description[] =
 "  << ENTHALPY METHOD >> \n"
-"  Input: H, C \n"
-"  Output: T, TP, CF, CS, phi \n"
+"  Input: H, C, P \n"
+"  Output: T, phi, CF, CS \n"
 "   > see Parkinson et al (2020) for full equations \n";
 
 PetscScalar FrommAdvection1D(PetscScalar v, PetscScalar x[], PetscScalar dz)
@@ -238,13 +238,13 @@ PetscErrorCode Numerical_solution(void *ctx)
 
 // ---------------------------------------
 // Phase Diagram  * relationships from Katz and Worster (2008)
-// enthalpy_method(H,C,P,&TP,&T,&phi,CF,CS,ncomp,user);
+// enthalpy_method(H,C,P,&T,&phi,CF,CS,ncomp,user);
 // ---------------------------------------
-PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_TP,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
+PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
 {
   UsrData      *usr = (UsrData*) ctx;
   PetscInt     ii;
-  PetscScalar  Tsol, Tliq, Teut, Hsol, Hliq, Heut, phiE, T, phi=0.0, TP, A, B, D;
+  PetscScalar  Tsol, Tliq, Teut, Hsol, Hliq, Heut, phiE, T, phi=0.0, A, B, D;
   PetscScalar  S, Cc, ps, cp;
   PetscFunctionBegin;
 
@@ -298,11 +298,7 @@ PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscSc
     }
   }
 
-  // other enthalpy variables
-  TP = T;
-
   // assign pointers
-  *_TP = TP;
   *_T = T;
   *_phi = phi;
 

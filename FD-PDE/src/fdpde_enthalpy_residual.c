@@ -170,7 +170,9 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coe
       point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
       ierr = DMStagVecGetValuesStencil(dmP,Plocal,1,&point,&P); CHKERRQ(ierr);
 
-      ierr = en->form_enthalpy_method(H,C,P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
+      ierr = en->form_enthalpy_method(H,C,P,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
+      if (en->form_TP) { ierr = en->form_TP(T,P,&TP,en->user_context_tp);CHKERRQ(ierr); }
+      else TP = T;
       
       thm[idx].P  = P;
       thm[idx].TP = TP;

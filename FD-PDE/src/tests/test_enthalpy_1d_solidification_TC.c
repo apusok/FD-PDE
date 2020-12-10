@@ -58,7 +58,7 @@ PetscErrorCode Initial_solution(DM,Vec,void*);
 PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
 PetscErrorCode ApplyBC_Enthalpy(DM,Vec,PetscScalar***,void*);
-PetscErrorCode Form_Enthalpy(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
+PetscErrorCode Form_Enthalpy(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
 
 const char coeff_description[] =
 "  << ENTHALPY Coefficients >> \n"
@@ -73,9 +73,9 @@ const char bc_description[] =
 
 const char enthalpy_method_description[] =
 "  << ENTHALPY METHOD >> \n"
-"  Input: H, C \n"
-"  Output: H = T + 1/St*phi, T = TP, \n"
-"          Cf = Cs = C (dummy), P = 0, \n"
+"  Input: H, C, P \n"
+"  Output: H = T + 1/St*phi, \n"
+"          Cf = Cs = C (dummy), \n"
 "          phi = 10^4(T*DT+Tm)+1001, if Ts<T<=0\n";
 
 // static PetscScalar analytical_temp(PetscScalar x, PetscScalar t, PetscScalar beta) { 
@@ -201,13 +201,13 @@ PetscErrorCode Numerical_solution(void *ctx)
 
 // ---------------------------------------
 // Phase Diagram - transformed from T,C
-// enthalpy_method(H,C,P,&TP,&T,&phi,CF,CS,ncomp,user);
+// enthalpy_method(H,C,P,&T,&phi,CF,CS,ncomp,user);
 // ---------------------------------------
-PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_TP,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
+PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
 {
   UsrData      *usr = (UsrData*) ctx;
   PetscInt     ii;
-  PetscScalar  Tsol, Tliq, Hsol, Hliq, T, phi=0.0, TP, DT;
+  PetscScalar  Tsol, Tliq, Hsol, Hliq, T, phi=0.0, DT;
   PetscFunctionBegin;
 
   // Solidus and liquidus
@@ -240,10 +240,8 @@ PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscSc
 
   // other enthalpy variables
   T = H-phi/usr->par->St;
-  TP = T;
 
   // assign pointers
-  *_TP = TP;
   *_T = T;
   *_phi = phi;
 

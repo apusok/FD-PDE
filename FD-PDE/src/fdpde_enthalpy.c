@@ -73,9 +73,15 @@ PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd)
 
   en->xprev = NULL;
   en->coeffprev = NULL;
+
   en->form_enthalpy_method = NULL;
+  en->form_TP      = NULL;
+  en->form_user_bc = NULL; // PRELIM
+
   en->user_context   = NULL;
-  en->form_user_bc   = NULL; // PRELIM
+  en->user_context_bc= NULL;
+  en->user_context_tp= NULL;
+  
   en->ncomponents = fd->dof2;
   en->description_enthalpy = NULL;
   en->dmP = NULL;
@@ -164,10 +170,14 @@ PetscErrorCode FDPDEDestroy_Enthalpy(FDPDE fd)
   if (en->xPprev) { ierr = VecDestroy(&en->xPprev);CHKERRQ(ierr); }
 
   en->form_enthalpy_method = NULL;
-  en->user_context   = NULL;
+  en->form_TP        = NULL;
   en->form_user_bc   = NULL; // PRELIM
-  ierr = PetscFree(en->description_enthalpy);CHKERRQ(ierr);
 
+  en->user_context   = NULL;
+  en->user_context_bc= NULL;
+  en->user_context_tp= NULL;
+
+  ierr = PetscFree(en->description_enthalpy);CHKERRQ(ierr);
   ierr = PetscFree(en);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
@@ -635,7 +645,7 @@ Use: user
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDPDEEnthalpySetEnthalpyMethod"
-PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, PetscErrorCode(*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*), const char description[],void *data)
+PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, PetscErrorCode(*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*), const char description[],void *data)
 {
   EnthalpyData   *en;
   PetscErrorCode ierr;
@@ -648,6 +658,30 @@ PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, PetscErrorCode(*form_ent
   en->form_enthalpy_method = form_enthalpy_method;
   en->user_context = data;
   if (description) { ierr = PetscStrallocpy(description,&en->description_enthalpy); CHKERRQ(ierr); }
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+FDPDEEnthalpySetPotentialTemp - set an evaluation function for potential function
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEEnthalpySetPotentialTemp"
+PetscErrorCode FDPDEEnthalpySetPotentialTemp(FDPDE fd, PetscErrorCode(*form_TP)(PetscScalar,PetscScalar,PetscScalar*,void*),void *data)
+{
+  EnthalpyData   *en;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
+  if (!fd->data) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"The FD-PDE context data has not been set up. Call FDPDESetUp() first.");
+
+  en = fd->data;
+  en->form_TP = form_TP;
+  en->user_context_tp = data;
 
   PetscFunctionReturn(0);
 }
@@ -763,7 +797,11 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
       C[en->ncomponents-1] = 1.0 - sum_C;
 
       // calculate enthalpy method
-      ierr = en->form_enthalpy_method(H,C,P,&TP,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
+      ierr = en->form_enthalpy_method(H,C,P,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
+
+      // update TP
+      if (en->form_TP) { ierr = en->form_TP(T,P,&TP,en->user_context_tp);CHKERRQ(ierr); }
+      else TP = T;
 
       point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; ind = -1;
       ind++; point.c = ind; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr); xx[j][i][iX] = H;

@@ -45,9 +45,11 @@ typedef struct {
   Vec                xprev,coeffprev,xP,xPprev;
   PetscScalar        dt,theta;
   PetscErrorCode    (*form_user_bc)(DM,Vec,PetscScalar***,void*); // PRELIM
-  PetscErrorCode    (*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*);
+  PetscErrorCode    (*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*);
+  PetscErrorCode    (*form_TP)(PetscScalar,PetscScalar,PetscScalar*,void*);
   void               *user_context;
   void               *user_context_bc; // PRELIM
+  void               *user_context_tp;
   PetscInt           ncomponents;
   char               *description_enthalpy;
 } EnthalpyData;
@@ -78,8 +80,8 @@ PetscErrorCode BulkCompositionResidual(DM dm,ThermoState*,CoeffState*,ThermoStat
 PetscErrorCode BulkCompositionSteadyStateOperator(DM,ThermoState*,CoeffState*,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt,AdvectSchemeType,PetscScalar*);
 
 // Set/Get Functions
-PetscErrorCode FDPDEEnthalpySetAdvectSchemeType(FDPDE, AdvectSchemeType);
-PetscErrorCode FDPDEEnthalpySetTimeStepSchemeType(FDPDE, TimeStepSchemeType);
+PetscErrorCode FDPDEEnthalpySetAdvectSchemeType(FDPDE,AdvectSchemeType);
+PetscErrorCode FDPDEEnthalpySetTimeStepSchemeType(FDPDE,TimeStepSchemeType);
 
 PetscErrorCode FDPDEEnthalpySetTimestep(FDPDE,PetscScalar);
 PetscErrorCode FDPDEEnthalpyGetTimestep(FDPDE, PetscScalar*);
@@ -91,7 +93,8 @@ PetscErrorCode FDPDEEnthalpyGetPressure(FDPDE,DM*,Vec*);
 PetscErrorCode FDPDEEnthalpyGetPrevPressure(FDPDE,Vec*);
 
 PetscErrorCode FDPDEEnthalpySetNumberComponentsPhaseDiagram(FDPDE,PetscInt);
-PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, PetscErrorCode(*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*),const char description[],void*);
+PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE,PetscErrorCode(*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*),const char[],void*);
+PetscErrorCode FDPDEEnthalpySetPotentialTemp(FDPDE,PetscErrorCode(*form_TP)(PetscScalar,PetscScalar,PetscScalar*,void*),void*);
 PetscErrorCode FDPDEEnthalpySetUserBC(FDPDE,PetscErrorCode(*form_user_bc)(DM,Vec,PetscScalar***,void*),void*); // PRELIM
 PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE,DM,Vec,DM*,Vec*);
 
