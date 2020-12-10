@@ -52,9 +52,9 @@ PetscErrorCode Numerical_solution(void*);
 PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
 PetscErrorCode ApplyBC_Enthalpy(DM,Vec,PetscScalar***,void*);
-PetscErrorCode Form_Enthalpy(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
 PetscErrorCode Form_PotentialTemperature(PetscScalar,PetscScalar,PetscScalar*,void*); 
 PetscErrorCode Analytical_solution(DM,Vec*,void*,PetscScalar);
+EnthEvalErrorCode Form_Enthalpy(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
 
 const char coeff_description[] =
 "  << ENTHALPY Coefficients >> \n"
@@ -219,12 +219,11 @@ PetscErrorCode Numerical_solution(void *ctx)
 // ---------------------------------------
 // Phase Diagram
 // ---------------------------------------
-PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
+EnthEvalErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
 {
   // UsrData      *usr = (UsrData*) ctx;
   PetscInt     ii;
   PetscScalar  T, phi;
-  PetscFunctionBegin;
 
   T = H;
   phi = 1.0;
@@ -238,7 +237,8 @@ PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscSc
   *_T = T;
   *_phi = phi;
 
-  PetscFunctionReturn(0);
+  ENTH_CHECK_PHI(phi);
+  return(STATE_VALID);
 }
 
 PetscErrorCode Form_PotentialTemperature(PetscScalar T,PetscScalar P,PetscScalar *_TP, void *ctx) 

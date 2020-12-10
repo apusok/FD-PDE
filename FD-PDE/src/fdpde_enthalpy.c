@@ -645,7 +645,7 @@ Use: user
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDPDEEnthalpySetEnthalpyMethod"
-PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, PetscErrorCode(*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*), const char description[],void *data)
+PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, EnthEvalErrorCode(*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*), const char description[],void *data)
 {
   EnthalpyData   *en;
   PetscErrorCode ierr;

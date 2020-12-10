@@ -25,6 +25,18 @@
 #define STENCIL_ENTHALPY_NONZERO_PREALLOC 9
 
 // ---------------------------------------
+// Error checking
+// ---------------------------------------
+typedef enum {
+  STATE_VALID       =  0,
+  PHI_STATE_INVALID = -1,
+} EnthEvalErrorCode;
+
+#define ENTH_CHECK_PHI(phi) \
+  if (phi < 0) return(PHI_STATE_INVALID); \
+  if (phi > 1) return(PHI_STATE_INVALID); \
+
+// ---------------------------------------
 // Struct definitions
 // ---------------------------------------
 typedef struct {
@@ -45,7 +57,7 @@ typedef struct {
   Vec                xprev,coeffprev,xP,xPprev;
   PetscScalar        dt,theta;
   PetscErrorCode    (*form_user_bc)(DM,Vec,PetscScalar***,void*); // PRELIM
-  PetscErrorCode    (*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*);
+  EnthEvalErrorCode (*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*);
   PetscErrorCode    (*form_TP)(PetscScalar,PetscScalar,PetscScalar*,void*);
   void               *user_context;
   void               *user_context_bc; // PRELIM
@@ -71,7 +83,7 @@ PetscErrorCode EnthalpyNonzeroStencil(PetscInt,PetscInt,PetscInt,PetscInt,PetscI
 PetscErrorCode FormFunction_Enthalpy(SNES,Vec,Vec,void*);
 // PetscErrorCode DMStagBCListApply_Enthalpy(DM,Vec,DMStagBC*,PetscInt,PetscScalar***);
 
-PetscErrorCode ApplyEnthalpyMethod(FDPDE,DM,Vec,DM,Vec,DM,Vec,EnthalpyData*,ThermoState*,CoeffState*);
+PetscErrorCode ApplyEnthalpyMethod(FDPDE,DM,Vec,DM,Vec,DM,Vec,EnthalpyData*,ThermoState*,CoeffState*,PetscBool,PetscBool*);
 PetscErrorCode CoeffCellData(DM,Vec,PetscInt,PetscInt,CoeffState*);
 PetscErrorCode SolutionCellData(DM,Vec,PetscInt,PetscInt,PetscScalar*,PetscScalar*);
 PetscErrorCode EnthalpyResidual(DM,ThermoState*,CoeffState*,ThermoState*,CoeffState*,PetscScalar**,PetscScalar**,EnthalpyData*,PetscInt,PetscInt, PetscScalar*);
@@ -93,7 +105,7 @@ PetscErrorCode FDPDEEnthalpyGetPressure(FDPDE,DM*,Vec*);
 PetscErrorCode FDPDEEnthalpyGetPrevPressure(FDPDE,Vec*);
 
 PetscErrorCode FDPDEEnthalpySetNumberComponentsPhaseDiagram(FDPDE,PetscInt);
-PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE,PetscErrorCode(*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*),const char[],void*);
+PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE,EnthEvalErrorCode(*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*),const char[],void*);
 PetscErrorCode FDPDEEnthalpySetPotentialTemp(FDPDE,PetscErrorCode(*form_TP)(PetscScalar,PetscScalar,PetscScalar*,void*),void*);
 PetscErrorCode FDPDEEnthalpySetUserBC(FDPDE,PetscErrorCode(*form_user_bc)(DM,Vec,PetscScalar***,void*),void*); // PRELIM
 PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE,DM,Vec,DM*,Vec*);

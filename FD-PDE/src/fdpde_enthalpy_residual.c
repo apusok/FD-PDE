@@ -1,5 +1,10 @@
 #include "fdpde_enthalpy.h"
 
+const char *EnthalpyErrorTypeNames[] = {
+  "STATE_VALID",
+  "PHI_STATE_INVALID"
+};
+
 static PetscInt SingleDimIndex(PetscInt i, PetscInt j, PetscInt nz) { return i*nz+j; }
 // ---------------------------------------
 /*@
@@ -25,6 +30,7 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   DMStagBCList   bclist;
   PetscScalar    **coordx,**coordz;
   PetscScalar    ***ff;
+  PetscBool      monitor_errors = PETSC_FALSE, passed;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -84,15 +90,21 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
     }
   }
 
+  #ifdef PETSC_USE_DEBUG
+    monitor_errors = PETSC_TRUE;
+  #endif
+
   // update enthalpy and coeff cell data
   ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(ThermoState),&thm);CHKERRQ(ierr); 
   ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(CoeffState),&cff);CHKERRQ(ierr);
-  ierr = ApplyEnthalpyMethod(fd,dm,xlocal,dmcoeff,coefflocal,dmP,Plocal,en,thm,cff); CHKERRQ(ierr);
+  ierr = ApplyEnthalpyMethod(fd,dm,xlocal,dmcoeff,coefflocal,dmP,Plocal,en,thm,cff,monitor_errors,&passed); CHKERRQ(ierr);
+  if (!passed) { SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SIG,"The Enthalpy Method did not pass the sanity checks. Run in DEBUG mode for detailed information.");}
 
   if (en->timesteptype != TS_NONE) {
     ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(ThermoState),&thm_prev);CHKERRQ(ierr);
     ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(CoeffState),&cff_prev);CHKERRQ(ierr);
-    ierr = ApplyEnthalpyMethod(fd,dm,xprevlocal,dmcoeff,coeffprevlocal,dmP,Pprevlocal,en,thm_prev,cff_prev); CHKERRQ(ierr);
+    ierr = ApplyEnthalpyMethod(fd,dm,xprevlocal,dmcoeff,coeffprevlocal,dmP,Pprevlocal,en,thm_prev,cff_prev,monitor_errors,&passed); CHKERRQ(ierr);
+    if (!passed) { SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SIG,"The Enthalpy Method (prev) did not pass the sanity checks. Run in DEBUG mode for detailed information.");}
   }
 
   // Residual evaluation
@@ -148,7 +160,7 @@ ApplyEnthalpyMethod - apply enthalpy method during each solver iteration; it col
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coefflocal,DM dmP, Vec Plocal,EnthalpyData *en,ThermoState *thm,CoeffState *cff)
+PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coefflocal,DM dmP, Vec Plocal,EnthalpyData *en,ThermoState *thm,CoeffState *cff, PetscBool monitor_errors, PetscBool *passed)
 {
   PetscInt       ii,i,j,sx,sz,nx,nz,idx;
   PetscScalar    H,C[MAX_COMPONENTS],P,phi,T,TP,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
@@ -156,6 +168,7 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coe
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
+  *passed = PETSC_TRUE;
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
   H = 0.0;
@@ -163,6 +176,7 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coe
 
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
+      EnthEvalErrorCode  thermo_dyn_error_code;
       idx = SingleDimIndex(i-sx,j-sz,nz);
       ierr = CoeffCellData(dmcoeff,coefflocal,i,j,&cff[idx]);CHKERRQ(ierr);
       ierr = SolutionCellData(dm,xlocal,i,j,&H,C);CHKERRQ(ierr);
@@ -170,7 +184,12 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coe
       point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
       ierr = DMStagVecGetValuesStencil(dmP,Plocal,1,&point,&P); CHKERRQ(ierr);
 
-      ierr = en->form_enthalpy_method(H,C,P,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
+      thermo_dyn_error_code = en->form_enthalpy_method(H,C,P,&T,&phi,CF,CS,en->ncomponents,en->user_context);
+      if (thermo_dyn_error_code != 0 && monitor_errors) { 
+        PetscPrintf(fd->comm," Enthalpy Method problem %s encountered in cell [i=%d j=%d]  \n",EnthalpyErrorTypeNames[-thermo_dyn_error_code],i,j);
+        *passed = PETSC_FALSE;
+      } 
+
       if (en->form_TP) { ierr = en->form_TP(T,P,&TP,en->user_context_tp);CHKERRQ(ierr); }
       else TP = T;
       

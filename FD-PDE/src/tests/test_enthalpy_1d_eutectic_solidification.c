@@ -53,12 +53,12 @@ PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode Numerical_solution(void*);
 PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
-PetscErrorCode Form_Enthalpy(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
 PetscErrorCode ApplyBC_Enthalpy(DM,Vec,PetscScalar***,void*);
 PetscErrorCode Analytical_solution(DM,Vec*,void*);
 PetscErrorCode Initial_solution(DM,Vec,void*);
 PetscErrorCode Initial_solution2(DM,Vec,void*);
 PetscErrorCode VerifySteadyState(DM,Vec,Vec,void*);
+EnthEvalErrorCode Form_Enthalpy(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
 
 const char coeff_description[] =
 "  << ENTHALPY Coefficients >> \n"
@@ -240,13 +240,12 @@ PetscErrorCode Numerical_solution(void *ctx)
 // Phase Diagram  * relationships from Katz and Worster (2008)
 // enthalpy_method(H,C,P,&T,&phi,CF,CS,ncomp,user);
 // ---------------------------------------
-PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
+EnthEvalErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
 {
   UsrData      *usr = (UsrData*) ctx;
   PetscInt     ii;
   PetscScalar  Tsol, Tliq, Teut, Hsol, Hliq, Heut, phiE, T, phi=0.0, A, B, D;
   PetscScalar  S, Cc, ps, cp;
-  PetscFunctionBegin;
 
   S  = usr->par->S;
   Cc = usr->par->Cc;
@@ -302,7 +301,9 @@ PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscSc
   *_T = T;
   *_phi = phi;
 
-  PetscFunctionReturn(0);
+  // error checking
+  ENTH_CHECK_PHI(phi);
+  return(STATE_VALID);
 }
 
 // ---------------------------------------

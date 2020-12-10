@@ -58,7 +58,7 @@ PetscErrorCode Initial_solution(DM,Vec,void*);
 PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
 PetscErrorCode ApplyBC_Enthalpy(DM,Vec,PetscScalar***,void*);
-PetscErrorCode Form_Enthalpy(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
+EnthEvalErrorCode Form_Enthalpy(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
 
 const char coeff_description[] =
 "  << ENTHALPY Coefficients >> \n"
@@ -203,12 +203,11 @@ PetscErrorCode Numerical_solution(void *ctx)
 // Phase Diagram - transformed from T,C
 // enthalpy_method(H,C,P,&T,&phi,CF,CS,ncomp,user);
 // ---------------------------------------
-PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
+EnthEvalErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
 {
   UsrData      *usr = (UsrData*) ctx;
   PetscInt     ii;
   PetscScalar  Tsol, Tliq, Hsol, Hliq, T, phi=0.0, DT;
-  PetscFunctionBegin;
 
   // Solidus and liquidus
   Tsol = usr->par->nd_Ts;
@@ -245,7 +244,8 @@ PetscErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscSc
   *_T = T;
   *_phi = phi;
 
-  PetscFunctionReturn(0);
+  ENTH_CHECK_PHI(phi);
+  return(STATE_VALID);
 }
 
 // ---------------------------------------
