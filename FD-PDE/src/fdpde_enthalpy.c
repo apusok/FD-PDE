@@ -83,6 +83,7 @@ PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd)
   en->user_context_tp= NULL;
   
   en->ncomponents = fd->dof2;
+  en->nreports = 0;
   en->description_enthalpy = NULL;
   en->dmP = NULL;
   en->xP = NULL;
@@ -782,6 +783,7 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
       DMStagStencil point;
       PetscInt      iX, ind;
       PetscScalar   sum_C = 0.0;
+      EnthEvalErrorCode thermo_dyn_error_code;
 
       for (ii = 0; ii<dof_sol; ii++) {
         pointE[ii].i = i; pointE[ii].j = j; pointE[ii].loc = DMSTAG_ELEMENT; pointE[ii].c = ii;
@@ -797,7 +799,10 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
       C[en->ncomponents-1] = 1.0 - sum_C;
 
       // calculate enthalpy method
-      ierr = en->form_enthalpy_method(H,C,P,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
+      thermo_dyn_error_code = en->form_enthalpy_method(H,C,P,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
+      if (thermo_dyn_error_code != 0) {
+        SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SIG,"A successful Enthalpy Method is required but has failed! Investigate the enthalpy failure reports for detailed information.");
+      }
 
       // update TP
       if (en->form_TP) { ierr = en->form_TP(T,P,&TP,en->user_context_tp);CHKERRQ(ierr); }

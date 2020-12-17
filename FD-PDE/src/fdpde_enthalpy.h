@@ -28,13 +28,62 @@
 // Error checking
 // ---------------------------------------
 typedef enum {
-  STATE_VALID       =  0,
-  PHI_STATE_INVALID = -1,
+  STATE_VALID                 =  0,
+  PHI_STATE_INVALID           = -1,
+  ERR_PHI_DIVIDE_BY_ZERO      = -2,
+  ERR_DIVIDE_BY_ZERO          = -3,
+  ERR_INF_NAN_VALUE           = -4,
+  DIM_T_KELVIN_STATE_INVALID  = -5,
+  DIM_T_CELSIUS_STATE_INVALID = -6,
+  DIM_STATE_INVALID           = -7,
+  DIM_C_STATE_INVALID         = -8,
+  DIM_CF_STATE_INVALID        = -9,
+  DIM_CS_STATE_INVALID        = -10
 } EnthEvalErrorCode;
 
 #define ENTH_CHECK_PHI(phi) \
-  if (phi < 0) return(PHI_STATE_INVALID); \
-  if (phi > 1) return(PHI_STATE_INVALID); \
+  if (phi < 0.0) return(PHI_STATE_INVALID); \
+  if (phi > 1.0) return(PHI_STATE_INVALID); \
+
+#define ENTH_CHECK_PHI_DIVIDE_BY_ZERO(phi) \
+  if (1.0 - phi < 1.0e-12) return(ERR_PHI_DIVIDE_BY_ZERO); \
+  if (phi       < 1.0e-12) return(ERR_PHI_DIVIDE_BY_ZERO); \
+
+#define ENTH_CHECK_DIVIDE_BY_ZERO(Q) \
+  if (Q < 1.0e-12) return(ERR_DIVIDE_BY_ZERO); \
+
+#define ENTH_CHECK_INF_NAN(Q) \
+  if (PetscIsInfOrNan(Q)) return(ERR_INF_NAN_VALUE); \
+
+#define ENTH_CHECK_DIM_T_KELVIN(T,T0,DT) \
+  if ((T*DT+T0)<0) return(DIM_T_KELVIN_STATE_INVALID); \
+
+#define ENTH_CHECK_DIM_T_CELSIUS(T,T0,DT) \
+  if ((T*DT+T0)+ 273.15 <0) return(DIM_T_CELSIUS_STATE_INVALID); \
+
+#define ENTH_CHECK_DIM_VALUE(Q,scal) \
+  if ((Q*scal)<0) return(DIM_STATE_INVALID); \
+
+#define ENTH_CHECK_DIM_C_VALUE(C,C0,DC,N) \
+  { int i; \
+    for (i=0; i<N; i++) { \
+      if (C[i]*DC+C0 < 0) return(DIM_C_STATE_INVALID); \
+    } \
+  } \
+
+#define ENTH_CHECK_DIM_CF_VALUE(CF,C0,DC,N) \
+  { int i; \
+    for (i=0; i<N; i++) { \
+      if (CF[i]*DC+C0 < 0) return(DIM_CF_STATE_INVALID); \
+    } \
+  } \
+
+#define ENTH_CHECK_DIM_CS_VALUE(CS,C0,DC,N) \
+  { int i; \
+    for (i=0; i<N; i++) { \
+      if (CS[i]*DC+C0 < 0) return(DIM_CS_STATE_INVALID); \
+    } \
+  } \
 
 // ---------------------------------------
 // Struct definitions
@@ -62,7 +111,7 @@ typedef struct {
   void               *user_context;
   void               *user_context_bc; // PRELIM
   void               *user_context_tp;
-  PetscInt           ncomponents;
+  PetscInt           ncomponents, nreports;
   char               *description_enthalpy;
 } EnthalpyData;
 
@@ -83,7 +132,8 @@ PetscErrorCode EnthalpyNonzeroStencil(PetscInt,PetscInt,PetscInt,PetscInt,PetscI
 PetscErrorCode FormFunction_Enthalpy(SNES,Vec,Vec,void*);
 // PetscErrorCode DMStagBCListApply_Enthalpy(DM,Vec,DMStagBC*,PetscInt,PetscScalar***);
 
-PetscErrorCode ApplyEnthalpyMethod(FDPDE,DM,Vec,DM,Vec,DM,Vec,EnthalpyData*,ThermoState*,CoeffState*,PetscBool,PetscBool*);
+PetscErrorCode ApplyEnthalpyMethod(FDPDE,DM,Vec,DM,Vec,DM,Vec,EnthalpyData*,ThermoState*,CoeffState*,const char[]);
+PetscErrorCode ApplyEnthalpyReport_Failure(FDPDE,PetscViewer,EnthalpyData*,ThermoState*,CoeffState*);
 PetscErrorCode CoeffCellData(DM,Vec,PetscInt,PetscInt,CoeffState*);
 PetscErrorCode SolutionCellData(DM,Vec,PetscInt,PetscInt,PetscScalar*,PetscScalar*);
 PetscErrorCode EnthalpyResidual(DM,ThermoState*,CoeffState*,ThermoState*,CoeffState*,PetscScalar**,PetscScalar**,EnthalpyData*,PetscInt,PetscInt, PetscScalar*);

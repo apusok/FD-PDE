@@ -1,8 +1,18 @@
 #include "fdpde_enthalpy.h"
 
-const char *EnthalpyErrorTypeNames[] = {
-  "STATE_VALID",
-  "PHI_STATE_INVALID"
+static char * EnthalpyErrorTypeNames(err) {
+  if (err == 0) return "STATE_VALID";
+  if (err == -1) return "PHI_STATE_INVALID";
+  if (err == -2) return "ERR_PHI_DIVIDE_BY_ZERO";
+  if (err == -3) return "ERR_DIVIDE_BY_ZERO";
+  if (err == -4) return "ERR_INF_NAN_VALUE";
+  if (err == -5) return "DIM_T_KELVIN_STATE_INVALID";
+  if (err == -6) return "DIM_T_CELSIUS_STATE_INVALID";
+  if (err == -7) return "DIM_STATE_INVALID";
+  if (err == -8) return "DIM_C_STATE_INVALID";
+  if (err == -9) return "DIM_CF_STATE_INVALID";
+  if (err == -10) return "DIM_CS_STATE_INVALID";
+  return "UNKNOWN_INVALID_STATE"; // else
 };
 
 static PetscInt SingleDimIndex(PetscInt i, PetscInt j, PetscInt nz) { return i*nz+j; }
@@ -30,7 +40,6 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   DMStagBCList   bclist;
   PetscScalar    **coordx,**coordz;
   PetscScalar    ***ff;
-  PetscBool      monitor_errors = PETSC_FALSE, passed;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -90,22 +99,16 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
     }
   }
 
-  #ifdef PETSC_USE_DEBUG
-    monitor_errors = PETSC_TRUE;
-  #endif
+  if (en->timesteptype != TS_NONE) {
+    ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(ThermoState),&thm_prev);CHKERRQ(ierr);
+    ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(CoeffState),&cff_prev);CHKERRQ(ierr);
+    ierr = ApplyEnthalpyMethod(fd,dm,xprevlocal,dmcoeff,coeffprevlocal,dmP,Pprevlocal,en,thm_prev,cff_prev,"prev"); CHKERRQ(ierr);
+  }
 
   // update enthalpy and coeff cell data
   ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(ThermoState),&thm);CHKERRQ(ierr); 
   ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(CoeffState),&cff);CHKERRQ(ierr);
-  ierr = ApplyEnthalpyMethod(fd,dm,xlocal,dmcoeff,coefflocal,dmP,Plocal,en,thm,cff,monitor_errors,&passed); CHKERRQ(ierr);
-  if (!passed) { SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SIG,"The Enthalpy Method did not pass the sanity checks. Run in DEBUG mode for detailed information.");}
-
-  if (en->timesteptype != TS_NONE) {
-    ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(ThermoState),&thm_prev);CHKERRQ(ierr);
-    ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(CoeffState),&cff_prev);CHKERRQ(ierr);
-    ierr = ApplyEnthalpyMethod(fd,dm,xprevlocal,dmcoeff,coeffprevlocal,dmP,Pprevlocal,en,thm_prev,cff_prev,monitor_errors,&passed); CHKERRQ(ierr);
-    if (!passed) { SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SIG,"The Enthalpy Method (prev) did not pass the sanity checks. Run in DEBUG mode for detailed information.");}
-  }
+  ierr = ApplyEnthalpyMethod(fd,dm,xlocal,dmcoeff,coefflocal,dmP,Plocal,en,thm,cff,NULL); CHKERRQ(ierr);
 
   // Residual evaluation
   for (j = sz; j<sz+nz; j++) {
@@ -160,15 +163,15 @@ ApplyEnthalpyMethod - apply enthalpy method during each solver iteration; it col
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coefflocal,DM dmP, Vec Plocal,EnthalpyData *en,ThermoState *thm,CoeffState *cff, PetscBool monitor_errors, PetscBool *passed)
+PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coefflocal,DM dmP, Vec Plocal,EnthalpyData *en,ThermoState *thm,CoeffState *cff, const char prefix[])
 {
   PetscInt       ii,i,j,sx,sz,nx,nz,idx;
   PetscScalar    H,C[MAX_COMPONENTS],P,phi,T,TP,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
   DMStagStencil  point;
+  PetscBool      passed = PETSC_TRUE;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  *passed = PETSC_TRUE;
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
   H = 0.0;
@@ -185,9 +188,12 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coe
       ierr = DMStagVecGetValuesStencil(dmP,Plocal,1,&point,&P); CHKERRQ(ierr);
 
       thermo_dyn_error_code = en->form_enthalpy_method(H,C,P,&T,&phi,CF,CS,en->ncomponents,en->user_context);
-      if (thermo_dyn_error_code != 0 && monitor_errors) { 
-        PetscPrintf(fd->comm," Enthalpy Method problem %s encountered in cell [i=%d j=%d]  \n",EnthalpyErrorTypeNames[-thermo_dyn_error_code],i,j);
-        *passed = PETSC_FALSE;
+      if (thermo_dyn_error_code != 0) { 
+        const char *err_message;
+        err_message = EnthalpyErrorTypeNames(thermo_dyn_error_code);
+        if (prefix) PetscPrintf(fd->comm," Enthalpy Method (%s): Error %s encountered in cell [i=%d j=%d]  \n",prefix,err_message,i,j);
+        else PetscPrintf(fd->comm," Enthalpy Method: Error %s encountered in cell [i=%d j=%d]  \n",err_message,i,j);
+        passed = PETSC_FALSE;
       } 
 
       if (en->form_TP) { ierr = en->form_TP(T,P,&TP,en->user_context_tp);CHKERRQ(ierr); }
@@ -205,6 +211,90 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coe
       }
     }
   }
+
+  // output failure report to file
+  if (!passed) { 
+    char        fname[PETSC_MAX_PATH_LEN];
+    PetscBool   stop_failed = PETSC_FALSE;
+    PetscViewer viewer;
+
+    if (prefix) PetscSNPrintf(fname,PETSC_MAX_PATH_LEN-1,"enthalpy_failure_%s-%D.report",prefix,en->nreports);
+    else PetscSNPrintf(fname,PETSC_MAX_PATH_LEN-1,"enthalpy_failure-%D.report",en->nreports);
+    ierr = PetscViewerASCIIOpen(fd->comm,fname,&viewer);CHKERRQ(ierr);
+    ierr = ApplyEnthalpyReport_Failure(fd,viewer,en,thm,cff);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+    en->nreports++;
+
+    ierr = PetscOptionsGetBool(NULL,NULL,"-stop_enthalpy_failed",&stop_failed,NULL);CHKERRQ(ierr);
+    if (stop_failed) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SIG,"The Enthalpy Method has failed! Investigate the enthalpy failure reports for detailed information.");
+  }
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+ApplyEnthalpyReport_Failure - report failure of enthalpy data to file
+Use: internal
+@*/
+// ---------------------------------------
+PetscErrorCode ApplyEnthalpyReport_Failure(FDPDE fd,PetscViewer viewer, EnthalpyData *en,ThermoState *thm,CoeffState *cff)
+{
+  PetscInt   ii,i,j,sx,sz,nx,nz,idx, its;
+  const char *vname;
+  PetscErrorCode ierr;  
+
+  PetscFunctionBegin;
+
+  ierr = PetscViewerFileGetName(viewer,&vname);CHKERRQ(ierr);
+  PetscPrintf(fd->comm,"=====================================================================\n");
+  PetscPrintf(fd->comm,"====  ENTHALPY METHOD has failed! \n");
+  PetscPrintf(fd->comm,"====  Please inspect the following file to diagnose the problem\n");
+  PetscPrintf(fd->comm,"====  %s\n",vname);
+  PetscPrintf(fd->comm,"=====================================================================\n");
+
+  PetscViewerASCIIPrintf(viewer,"ENTHALPY METHOD FAILURE REPORT\n");
+  PetscViewerASCIIPrintf(viewer,"[PDE summary]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"pde: Enthalpy\n");
+  PetscViewerASCIIPrintf(viewer,"description: %s\n",fd->description);
+  PetscViewerASCIIPopTab(viewer);
+
+  PetscViewerASCIIPrintf(viewer,"[ENTHALPY METHOD summary]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"description: %s\n",en->description_enthalpy);
+  PetscViewerASCIIPopTab(viewer);
+
+  PetscViewerASCIIPrintf(viewer,"[SNES summary]\n");
+  PetscViewerASCIIPushTab(viewer);
+  ierr = SNESGetIterationNumber(fd->snes,&its);CHKERRQ(ierr);
+  PetscViewerASCIIPrintf(viewer,"iterations performed: %D\n",its);
+  PetscViewerASCIIPopTab(viewer);
+
+  // output enthalpy data cell wise
+  ierr = DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+
+  PetscViewerASCIIPrintf(viewer,"[ENTHALPY data]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"i  j  H            ");
+  for (ii = 0; ii<en->ncomponents; ii++) { PetscViewerASCIIPrintf(viewer,"C[%d]         ",ii);}
+  PetscViewerASCIIPrintf(viewer,"P             T             PHI          ");
+  for (ii = 0; ii<en->ncomponents; ii++) { PetscViewerASCIIPrintf(viewer,"CF[%d]        ",ii);}
+  for (ii = 0; ii<en->ncomponents; ii++) { PetscViewerASCIIPrintf(viewer,"CS[%d]        ",ii);}
+  PetscViewerASCIIPrintf(viewer,"\n");
+
+  for (j = sz; j<sz+nz; j++) {
+    for (i = sx; i<sx+nx; i++) {
+      idx = SingleDimIndex(i-sx,j-sz,nz);
+      PetscViewerASCIIPrintf(viewer,"%d  %d  %1.6e ",i,j,thm[idx].H);
+      for (ii = 0; ii<en->ncomponents; ii++) { PetscViewerASCIIPrintf(viewer,"%1.6e ",thm[idx].C[ii]);}
+      PetscViewerASCIIPrintf(viewer,"%1.6e  %1.6e  %1.6e ",thm[idx].P,thm[idx].T,thm[idx].phi);
+      for (ii = 0; ii<en->ncomponents; ii++) { PetscViewerASCIIPrintf(viewer,"%1.6e ",thm[idx].CF[ii]);}
+      for (ii = 0; ii<en->ncomponents; ii++) { PetscViewerASCIIPrintf(viewer,"%1.6e ",thm[idx].CS[ii]);}
+      PetscViewerASCIIPrintf(viewer,"\n");
+    }
+  }
+  PetscViewerASCIIPopTab(viewer);
 
   PetscFunctionReturn(0);
 }

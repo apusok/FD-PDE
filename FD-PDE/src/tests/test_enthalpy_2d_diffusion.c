@@ -237,6 +237,7 @@ EnthEvalErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,Pets
   *_T = T;
   *_phi = phi;
 
+  // error check
   ENTH_CHECK_PHI(phi);
   return(STATE_VALID);
 }
