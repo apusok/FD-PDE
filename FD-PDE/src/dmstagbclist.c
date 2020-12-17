@@ -323,7 +323,7 @@ PetscErrorCode DMStagBCListCreate(DM dm,DMStagBCList *list)
   ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
   if (Nx < 3) SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Implementation of BCList only valid for n-cells-i >= 3. Found nx=%D",Nx);
   if (Nz < 3) SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Implementation of BCList only valid for n-cells-j >= 3. Found ny=%D",Nz);
-  { /* Check for existence of a coordinateDM - I deliberately don't call CHKERRQ() after DMGetCoordinateDM() so that I can through the error message below which is more helpful than the error thrown from DMGetCoordinateDM() */
+  { /* Check for existence of a coordinateDM - I deliberately don't call CHKERRQ() after DMGetCoordinateDM() so that I can throw the error message below which is more helpful than the error thrown from DMGetCoordinateDM() */
     DM dmCoord = NULL;
     ierr = DMGetCoordinateDM(dm,&dmCoord);
     if (!dmCoord) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"DMStag must have coordinates defined. Hint - coordinates must be defined via DMPRODUCT");
@@ -442,7 +442,7 @@ Use: internal
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "_DMStagBCListGetIndices_J_left_and_right"
-PetscErrorCode _DMStagBCListGetIndices_J_left_and_right(DMStagBCList list,PetscInt J,PetscInt *n,PetscInt *_idx[])
+PetscErrorCode _DMStagBCListGetIndices_J_left_and_right(DMStagBCList list,PetscInt dof,PetscInt J,PetscInt *n,PetscInt *_idx[])
 {
   PetscInt k,Nx,Nz,count=0;
   PetscInt *idx;
@@ -455,7 +455,9 @@ PetscErrorCode _DMStagBCListGetIndices_J_left_and_right(DMStagBCList list,PetscI
     if (list->bc_f[k].point.j == J) {
       DMStagStencilLocation loc = list->bc_f[k].point.loc;
       if ((loc == DMSTAG_LEFT && list->bc_f[k].point.i != 0 )|| (loc == DMSTAG_RIGHT && list->bc_f[k].point.i != Nx-1)) {
-        idx[count++] = k;
+        if (list->bc_f[k].point.c == dof) {
+          idx[count++] = k;
+        }
       }
     }
   }
@@ -473,7 +475,7 @@ Use: internal
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "_DMStagBCListGetIndices_J_updown"
-PetscErrorCode _DMStagBCListGetIndices_J_updown(DMStagBCList list,PetscInt J,DMStagStencilLocation dir,PetscInt *n,PetscInt *_idx[])
+PetscErrorCode _DMStagBCListGetIndices_J_updown(DMStagBCList list,PetscInt dof,PetscInt J,DMStagStencilLocation dir,PetscInt *n,PetscInt *_idx[])
 {
   PetscInt k,Nx,Nz,count=0;
   PetscInt *idx;
@@ -487,7 +489,7 @@ PetscErrorCode _DMStagBCListGetIndices_J_updown(DMStagBCList list,PetscInt J,DMS
   for (k=0; k<list->nbc_face; k++) {
     if (list->bc_f[k].point.j == J) {
       DMStagStencilLocation loc = list->bc_f[k].point.loc;
-      if (loc == dir) {
+      if ((loc == dir) && (list->bc_f[k].point.c == dof)) {
         idx[count++] = k;
       }
     }
@@ -506,7 +508,7 @@ Use: internal
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "_DMStagBCListGetIndices_I_up_and_down"
-PetscErrorCode _DMStagBCListGetIndices_I_up_and_down(DMStagBCList list,PetscInt II,PetscInt *n,PetscInt *_idx[])
+PetscErrorCode _DMStagBCListGetIndices_I_up_and_down(DMStagBCList list,PetscInt dof,PetscInt II,PetscInt *n,PetscInt *_idx[])
 {
   PetscInt k,Nx,Nz,count=0;
   PetscInt *idx;
@@ -519,7 +521,9 @@ PetscErrorCode _DMStagBCListGetIndices_I_up_and_down(DMStagBCList list,PetscInt 
     if (list->bc_f[k].point.i == II) {
       DMStagStencilLocation loc = list->bc_f[k].point.loc;
       if ((loc == DMSTAG_UP && list->bc_f[k].point.j != Nz-1) || (loc == DMSTAG_DOWN && list->bc_f[k].point.j != 0)) {
-        idx[count++] = k;
+        if (list->bc_f[k].point.c == dof) {
+          idx[count++] = k;
+        }
       }
     }
   }
@@ -537,7 +541,7 @@ Use: internal
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "_DMStagBCListGetIndices_I_leftright"
-PetscErrorCode _DMStagBCListGetIndices_I_leftright(DMStagBCList list,PetscInt II,DMStagStencilLocation dir,PetscInt *n,PetscInt *_idx[])
+PetscErrorCode _DMStagBCListGetIndices_I_leftright(DMStagBCList list,PetscInt dof,PetscInt II,DMStagStencilLocation dir,PetscInt *n,PetscInt *_idx[])
 {
   PetscInt k,Nx,Nz,count=0;
   PetscInt *idx;
@@ -551,7 +555,7 @@ PetscErrorCode _DMStagBCListGetIndices_I_leftright(DMStagBCList list,PetscInt II
   for (k=0; k<list->nbc_face; k++) {
     if (list->bc_f[k].point.i == II) {
       DMStagStencilLocation loc = list->bc_f[k].point.loc;
-      if (loc == dir) {
+      if ((loc == dir) && (list->bc_f[k].point.c == dof)) {
         idx[count++] = k;
       }
     }
@@ -570,7 +574,7 @@ Use: internal
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "_DMStagBCListGetIndices_center"
-PetscErrorCode _DMStagBCListGetIndices_center(DMStagBCList list,PetscInt II,PetscInt JJ,PetscInt *n,PetscInt *_idx[])
+PetscErrorCode _DMStagBCListGetIndices_center(DMStagBCList list,PetscInt dof,PetscInt II,PetscInt JJ,PetscInt *n,PetscInt *_idx[])
 {
   PetscInt k,Nx,Nz,count=0;
   PetscInt *idx;
@@ -578,11 +582,11 @@ PetscErrorCode _DMStagBCListGetIndices_center(DMStagBCList list,PetscInt II,Pets
   
   PetscFunctionBegin;
   ierr = DMStagGetGlobalSizes(list->dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  
+
   if (II == -1) {
     ierr = PetscCalloc1(Nx,&idx);CHKERRQ(ierr);
     for (k=0; k<list->nbc_element; k++) {
-      if (list->bc_e[k].point.j == JJ) {
+      if ((list->bc_e[k].point.j == JJ) && (list->bc_e[k].point.c == dof)) {
         DMStagStencilLocation loc = list->bc_e[k].point.loc;
         if (loc == DMSTAG_ELEMENT) {
           idx[count++] = k;
@@ -593,7 +597,7 @@ PetscErrorCode _DMStagBCListGetIndices_center(DMStagBCList list,PetscInt II,Pets
   if (JJ == -1) {
     ierr = PetscCalloc1(Nz,&idx);CHKERRQ(ierr); /* over allocate */
     for (k=0; k<list->nbc_element; k++) {
-      if (list->bc_e[k].point.i == II) {
+      if ((list->bc_e[k].point.i == II) && (list->bc_e[k].point.c == dof)) {
         DMStagStencilLocation loc = list->bc_e[k].point.loc;
         if (loc == DMSTAG_ELEMENT) {
           idx[count++] = k;
@@ -644,7 +648,6 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
-  if (dof != 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Currently only dof_index = 0 is supported");
   if (label == '.') SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"No support to get vertex bc DOFs. Only support for getting face bc values. ");
   
   if (!_n || !_idx || !_value || !_type) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Must provide a valid (non-NULL) pointer for n (arg 4), idx (arg 5), value (arg 7), type (arg 8)");
@@ -654,11 +657,11 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
   switch (domain_face) {
     case 'n':
       if (label == '-') {
-        ierr = _DMStagBCListGetIndices_J_left_and_right(list,Nz-1,&n,&idx);CHKERRQ(ierr); // vx
+        ierr = _DMStagBCListGetIndices_J_left_and_right(list,dof,Nz-1,&n,&idx);CHKERRQ(ierr); // vx
       } else if (label == '|') {
-        ierr = _DMStagBCListGetIndices_J_updown(list,Nz-1,DMSTAG_UP,&n,&idx);CHKERRQ(ierr); // vy
+        ierr = _DMStagBCListGetIndices_J_updown(list,dof,Nz-1,DMSTAG_UP,&n,&idx);CHKERRQ(ierr); // vy
       } else if (label == 'o') {
-        _DMStagBCListGetIndices_center(list,-1,Nz-1,&n,&idx);CHKERRQ(ierr);
+        _DMStagBCListGetIndices_center(list,dof,-1,Nz-1,&n,&idx);CHKERRQ(ierr);
       } else {
         SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction[North] No support to get vertex data. Unknown stratum label %s provided - must be one of {'-','|','o'}",label);
       }
@@ -666,11 +669,11 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
       
     case 's':
       if (label == '-') {
-        ierr = _DMStagBCListGetIndices_J_left_and_right(list,0,&n,&idx);CHKERRQ(ierr);
+        ierr = _DMStagBCListGetIndices_J_left_and_right(list,dof,0,&n,&idx);CHKERRQ(ierr);
       } else if (label == '|') {
-        ierr = _DMStagBCListGetIndices_J_updown(list,0,DMSTAG_DOWN,&n,&idx);CHKERRQ(ierr); // vy
+        ierr = _DMStagBCListGetIndices_J_updown(list,dof,0,DMSTAG_DOWN,&n,&idx);CHKERRQ(ierr); // vy
       } else if (label == 'o') {
-        _DMStagBCListGetIndices_center(list,-1,0,&n,&idx);CHKERRQ(ierr);
+        _DMStagBCListGetIndices_center(list,dof,-1,0,&n,&idx);CHKERRQ(ierr);
       } else {
         SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction[South] No support to get vertex data. Unknown stratum label %s provided - must be one of {'-','|','o'}",label);
       }
@@ -678,11 +681,11 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
 
     case 'e':
       if (label == '-') {
-        ierr = _DMStagBCListGetIndices_I_leftright(list,Nx-1,DMSTAG_RIGHT,&n,&idx);CHKERRQ(ierr); // vx
+        ierr = _DMStagBCListGetIndices_I_leftright(list,dof,Nx-1,DMSTAG_RIGHT,&n,&idx);CHKERRQ(ierr); // vx
       } else if (label == '|') {
-        ierr = _DMStagBCListGetIndices_I_up_and_down(list,Nx-1,&n,&idx);CHKERRQ(ierr); // vy
+        ierr = _DMStagBCListGetIndices_I_up_and_down(list,dof,Nx-1,&n,&idx);CHKERRQ(ierr); // vy
       } else if (label == 'o') {
-        _DMStagBCListGetIndices_center(list,Nx-1,-1,&n,&idx);CHKERRQ(ierr);
+        _DMStagBCListGetIndices_center(list,dof,Nx-1,-1,&n,&idx);CHKERRQ(ierr);
       } else {
         SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction[East] No support to get vertex data. Unknown stratum label %s provided - must be one of {'-','|','o'}",label);
       }
@@ -690,11 +693,11 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
 
     case 'w':
       if (label == '-') {
-        ierr = _DMStagBCListGetIndices_I_leftright(list,0,DMSTAG_LEFT,&n,&idx);CHKERRQ(ierr); // vx
+        ierr = _DMStagBCListGetIndices_I_leftright(list,dof,0,DMSTAG_LEFT,&n,&idx);CHKERRQ(ierr); // vx
       } else if (label == '|') {
-        ierr = _DMStagBCListGetIndices_I_up_and_down(list,0,&n,&idx);CHKERRQ(ierr); // vy
+        ierr = _DMStagBCListGetIndices_I_up_and_down(list,dof,0,&n,&idx);CHKERRQ(ierr); // vy
       } else if (label == 'o') {
-        _DMStagBCListGetIndices_center(list,0,-1,&n,&idx);CHKERRQ(ierr);
+        _DMStagBCListGetIndices_center(list,dof,0,-1,&n,&idx);CHKERRQ(ierr);
       } else {
         SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction[West] No support to get vertex data. Unknown stratum label %s provided - must be one of {'-','|','o'}",label);
       }
@@ -861,7 +864,6 @@ PetscErrorCode DMStagBCListInsertValues(DMStagBCList list,const char label,
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
-  if (dof != 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Currently only dof_index = 0 is supported");
   if (!_n || !_idx || !_value || !_type) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Must provide a valid (non-NULL) pointer for n (arg 4) idx (arg 5), value (arg 8), type (arg 9)");
   
   n = *_n;
@@ -925,18 +927,18 @@ PetscErrorCode DMStagBCListView(DMStagBCList list)
   PetscPrintf(PETSC_COMM_SELF,"  bc_vertices: size %D\n",list->nbc_vertex);
   bc = list->bc_v;
   for (i=0; i<list->nbc_vertex; i++) {
-    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D) value %+1.2e type %D\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc,bc[i].val,(PetscInt)bc[i].type);
+    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j,loc (%D %D %D) dof %D value %+1.2e type %D\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc,bc[i].point.c,bc[i].val,(PetscInt)bc[i].type);
   }
   PetscPrintf(PETSC_COMM_SELF,"  bc_faces: size %D\n",list->nbc_face);
   bc = list->bc_f;
   for (i=0; i<list->nbc_face; i++) {
-    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D) value %+1.2e type %D\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc,bc[i].val,(PetscInt)bc[i].type);
+    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j,loc (%D %D %D) dof %D value %+1.2e type %D\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc,bc[i].point.c,bc[i].val,(PetscInt)bc[i].type);
   }
   
   PetscPrintf(PETSC_COMM_SELF,"  bc_elements: size %D\n",list->nbc_element);
   bc = list->bc_e;
   for (i=0; i<list->nbc_element; i++) {
-    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j (%D %D %D) value %+1.2e type %D\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc,bc[i].val,(PetscInt)bc[i].type);
+    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j,loc (%D %D %D) dof %D value %+1.2e type %D\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc,bc[i].point.c,bc[i].val,(PetscInt)bc[i].type);
   }
   PetscFunctionReturn(0);
 }
