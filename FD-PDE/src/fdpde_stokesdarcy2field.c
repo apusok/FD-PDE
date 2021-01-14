@@ -43,7 +43,7 @@ PetscErrorCode FDPDECreate_StokesDarcy2Field(FDPDE fd)
   fd->ops->form_function      = FormFunction_StokesDarcy2Field;
   fd->ops->form_jacobian      = NULL;
   fd->ops->create_jacobian    = JacobianCreate_StokesDarcy2Field;
-  // fd->ops->setup              = NULL;
+  fd->ops->setup              = NULL;
   fd->ops->view               = NULL;
   fd->ops->destroy            = NULL;
 

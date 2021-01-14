@@ -398,36 +398,36 @@ PetscErrorCode FormBCList_Elman311(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   PetscFunctionBegin;
   
   // Left: T = -1.0
-  ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = -1.0;
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_STAG;
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   
   // RIGHT: T = 1.0
-  ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = 1.0;
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_STAG;
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // DOWN: T = x
-  ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = x_bc[2*k];
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_STAG;
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // UP: T = 0
-  ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = 0.0;
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_STAG;
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
  
   PetscFunctionReturn(0);
 }
@@ -446,36 +446,36 @@ PetscErrorCode FormBCList_Elman312(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   PetscFunctionBegin;
 
   // Left: T = 1-z^3
-  ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = PetscPowReal(1.0-(1.0+x_bc[2*k+1])*0.5,3.0);
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_STAG;
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   
   // RIGHT: T = 1.0-z^2
-  ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = PetscPowReal(1.0-(1.0+x_bc[2*k+1])*0.5,3.0);
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_STAG;
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // DOWN: T = 1.0
-  ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = 1.0;
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_STAG;
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // UP: dT/dz = 0
-  ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = 0.0;
     type_bc[k] = BC_NEUMANN;
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
  
   PetscFunctionReturn(0);
 }
@@ -494,37 +494,37 @@ PetscErrorCode FormBCList_Elman313(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   PetscFunctionBegin;
   
   // Left: T = 0.0
-  ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = 0.0;
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_STAG;
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   
   // RIGHT: T = 1.0
-  ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = 1.0;
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_STAG;
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // DOWN: T = 0 if x<0, 1 if x>=0
-  ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     if (x_bc[2*k]<0) value_bc[k] = 0.0;
     else             value_bc[k] = 1.0;
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_STAG;
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // UP: T = 0
-  ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = 0.0;
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_STAG;
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
  
   PetscFunctionReturn(0);
 }
@@ -543,36 +543,36 @@ PetscErrorCode FormBCList_Elman314(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   PetscFunctionBegin;
   
   // Left: T = 0.0
-  ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = 0.0;
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_STAG;
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   
   // RIGHT: T = 1.0
-  ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = 1.0;
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_STAG;
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // DOWN: T = 0.0
-  ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = 0.0;
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_STAG;
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // UP: T = 0
-  ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = 0.0;
-    type_bc[k] = BC_DIRICHLET;
+    type_bc[k] = BC_DIRICHLET_STAG;
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
  
   PetscFunctionReturn(0);
 }

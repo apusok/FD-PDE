@@ -60,6 +60,7 @@ PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd)
   fd->ops->create_jacobian    = JacobianCreate_AdvDiff;
   fd->ops->view               = FDPDEView_AdvDiff;
   fd->ops->destroy            = FDPDEDestroy_AdvDiff;
+  fd->ops->setup              = NULL;
 
   // allocate memory to fd-pde context data
   ierr = PetscCalloc1(1,&ad);CHKERRQ(ierr);
@@ -278,15 +279,11 @@ PetscErrorCode FDPDEAdvDiffSetTimeStepSchemeType(FDPDE fd, TimeStepSchemeType ti
 
 // ---------------------------------------
 /*@
-FDPDEAdvDiffSetTimestep - set a time step size and/or the CFL value (ADVDIFF)
+FDPDEAdvDiffSetTimestep - set a time step size (ADVDIFF)
 
 Input Parameters:
 fd - the FD-PDE object
 dt - time stepping size
-dtflg - if true, dt = min(dt,max_dt_grid) where max_dt_grid is max allowed timestep on grid. if false, dt=dt
-
-Note:
-The time step size will be checked against the max allowed timestep on grid such that dt <= max_dt_grid.
 
 Use: user
 @*/

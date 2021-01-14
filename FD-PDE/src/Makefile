@@ -13,9 +13,10 @@ SRC := 	dmstagbclist.c \
 	fdpde_stokes_residual.c fdpde_stokes.c \
 	fdpde_stokesdarcy2field_residual.c fdpde_stokesdarcy2field.c \
 	fdpde_advdiff_advect.c fdpde_advdiff_residual.c fdpde_advdiff.c \
+	fdpde_enthalpy_residual.c fdpde_enthalpy.c \
 	fdpde_composite.c composite_prealloc_utils.c \
 	dmstag_utils.c material_point.c \
-        snes_picard.c \
+	snes_picard.c \
 
 HDR := 	benchmark_solcx.h \
 	benchmark_cornerflow.h \
@@ -26,6 +27,7 @@ HDR := 	benchmark_solcx.h \
 	fdpde.h \
 	fdpde_stokes.h \
 	fdpde_advdiff.h \
+	fdpde_enthalpy.h \
 	fdpde_composite.h composite_prealloc_utils.h \
 	dmstag_utils.h material_point.h \
 
@@ -54,6 +56,11 @@ TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_stokes_rt.c \
 		tests/test_plastic_indenter.c \
 		tests/test_vp_inclusion_gerya.c \
+		tests/test_stokes_lid4.c \
+		tests/test_trueboundary.c \
+		tests/test_enthalpy_2d_diffusion.c \
+		tests/test_enthalpy_1d_eutectic_solidification.c \
+		tests/test_enthalpy_1d_solidification_TC.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,$(TEST_SRC))
 TEST_APP := $(patsubst %.c,%.app,$(TEST_SRC))
@@ -92,4 +99,5 @@ clean_all:
 	@rm -rf *.dSYM $(TEST_DIR)/*.dSYM *.py *.vtr *.pbin *.info
 	@rm -rf out_* $(TEST_DIR)/out_* $(PYTHON_DIR)/out_*
 	@rm -rf snes_failure* $(TEST_DIR)/snes_failure* $(PYTHON_DIR)/snes_failure*
+	@rm -rf enthalpy_failure* $(TEST_DIR)/enthalpy_failure* $(PYTHON_DIR)/enthalpy_failure*
 	@rm -rf __pycache__ $(TEST_DIR)/__pycache__ $(PYTHON_DIR)/__pycache__

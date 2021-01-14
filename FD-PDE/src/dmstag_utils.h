@@ -46,4 +46,5 @@ PetscErrorCode DMStagISCreateL2L_2d(DM dmA,
                                     PetscInt dof1B[],
                                     PetscInt dof2B[],IS *isB);
 
+PetscErrorCode DMStagCellSizeLocal_2d(DM dm, PetscInt *_nx, PetscInt *_ny, PetscScalar *_dx[],PetscScalar *_dy[]);
 #endif

@@ -441,14 +441,73 @@ PetscErrorCode DMStagBCListApplyFace_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec co
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
+
+    if (bclist[ibc].type == BC_DIRICHLET_STAG) {
+      i   = bclist[ibc].point.i;
+      j   = bclist[ibc].point.j;
+      idx = bclist[ibc].idx;
+
+      // access the value on this point
+      ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
+
+      ff[j][i][idx] = xx - bclist[ibc].val;
+    }
+    
     if (bclist[ibc].type == BC_DIRICHLET) {
       i   = bclist[ibc].point.i;
       j   = bclist[ibc].point.j;
       idx = bclist[ibc].idx;
 
-      // Get residual value
+      // access the value on this point
       ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
-      ff[j][i][idx] = xx - bclist[ibc].val;
+
+      // Stokes flow - add flux terms
+      if ((j == 0) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx down
+        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_LEFT; point.c = 0;
+        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Down); CHKERRQ(ierr);
+        dz = coordz[j][inext]-coordz[j][iprev];
+        ff[j][i][idx] += -2.0 * A_Down*( xx - bclist[ibc].val)/dz/dz;
+      }
+
+      else if ((j == 0) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx down-special case
+        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_RIGHT; point.c = 0;
+        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Down); CHKERRQ(ierr);
+        dz = coordz[j][inext]-coordz[j][iprev];
+        ff[j][i][idx] += -2.0 * A_Down*( xx - bclist[ibc].val)/dz/dz;
+      }
+
+      else if ((j == Nz-1) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx up
+        point.i = i; point.j = j; point.loc = DMSTAG_UP_LEFT; point.c = 0;
+        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Up); CHKERRQ(ierr);
+        dz = coordz[j][inext]-coordz[j][iprev];
+        ff[j][i][idx] += 2.0 * A_Up*( bclist[ibc].val - xx)/dz/dz;
+      }
+
+      else if ((j == Nz-1) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx up - special case
+        point.i = i; point.j = j; point.loc = DMSTAG_UP_RIGHT; point.c = 0;
+        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Up); CHKERRQ(ierr);
+        dz = coordz[j][inext]-coordz[j][iprev];
+        ff[j][i][idx] += 2.0 * A_Up*( bclist[ibc].val - xx)/dz/dz;
+      }
+
+      else if ((i == 0) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz left
+        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_LEFT; point.c = 0;
+        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Left); CHKERRQ(ierr);
+        dx = coordx[i][inext]-coordx[i][iprev];
+        ff[j][i][idx] += -2.0 * A_Left*( xx - bclist[ibc].val)/dx/dx;
+      }
+
+      else if ((i == Nx-1) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz right
+        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_RIGHT; point.c = 0;
+        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Right); CHKERRQ(ierr);
+        dx = coordx[i][inext]-coordx[i][iprev];
+        ff[j][i][idx] += 2.0 * A_Right*( bclist[ibc].val - xx)/dx/dx;
+      }
+
+      else {
+        ff[j][i][idx] = xx - bclist[ibc].val;
+      }
+      
     }
 
     if (bclist[ibc].type == BC_NEUMANN) {
@@ -524,14 +583,14 @@ PetscErrorCode DMStagBCListApplyFace_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec co
         pointT[1].i = i; pointT[1].j = j+1; pointT[1].loc = DMSTAG_DOWN; pointT[1].c = 0;
         ierr = DMStagVecGetValuesStencil(dm,xlocal,2,pointT,xxT); CHKERRQ(ierr);
         dz = coordz[j][inext]-coordz[j][iprev];
-        ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dx;
+        ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dz;
       }
       if ((j == Nz-1) && (bclist[ibc].point.loc == DMSTAG_UP)) { // up dVz/dz = a
         pointT[0].i = i; pointT[0].j = j-1; pointT[0].loc = DMSTAG_UP; pointT[0].c = 0;
         pointT[1].i = i; pointT[1].j = j  ; pointT[1].loc = DMSTAG_UP; pointT[1].c = 0;
         ierr = DMStagVecGetValuesStencil(dm,xlocal,2,pointT,xxT); CHKERRQ(ierr);
         dz = coordz[j][inext]-coordz[j][iprev];
-        ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dx;
+        ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dz;
       }
     }
   }
@@ -556,7 +615,7 @@ PetscErrorCode DMStagBCListApplyElement_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
-    if (bclist[ibc].type == BC_DIRICHLET) {
+    if (bclist[ibc].type == BC_DIRICHLET_STAG) {
       i   = bclist[ibc].point.i;
       j   = bclist[ibc].point.j;
       idx = bclist[ibc].idx;
@@ -566,6 +625,10 @@ PetscErrorCode DMStagBCListApplyElement_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec
       ff[j][i][idx] = xx - bclist[ibc].val;
     }
 
+    if (bclist[ibc].type == BC_DIRICHLET) {
+      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"BC_DIRICHLET type on the true boundary for FDPDE_STOKES [ELEMENT] is not yet implemented. Use BC_DIRICHLET_STAG type instead!");
+    }
+    
     if (bclist[ibc].type == BC_NEUMANN) {
       SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"BC type NEUMANN for FDPDE_STOKES [ELEMENT] is not yet implemented.");
     }

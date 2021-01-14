@@ -38,6 +38,7 @@ static char help[] = "Application to verify a power-law effective viscosity for 
 
 // parameters (bag)
 typedef struct {
+  PetscInt       test;
   PetscInt       nx, nz;
   PetscScalar    L, H;
   PetscScalar    xmin, zmin;
@@ -59,7 +60,7 @@ typedef struct {
 // ---------------------------------------
 // Function definitions
 // ---------------------------------------
-PetscErrorCode Numerical_solution(void*,PetscInt);
+PetscErrorCode Numerical_solution(void*);
 PetscErrorCode ComputeManufacturedSolution(DM,Vec*,Vec*,void*,PetscInt);
 PetscErrorCode ComputeErrorNorms(DM,Vec,Vec,Vec,PetscInt test,void*);
 PetscErrorCode InputParameters(UsrData**);
@@ -146,7 +147,7 @@ static PetscScalar get_fp_stokesdarcy(PetscScalar x, PetscScalar z, PetscScalar 
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "Numerical_solution"
-PetscErrorCode Numerical_solution(void *ctx, PetscInt test)
+PetscErrorCode Numerical_solution(void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
   FDPDE          fd;
@@ -156,6 +157,7 @@ PetscErrorCode Numerical_solution(void *ctx, PetscInt test)
   PetscScalar    xmin, zmin, xmax, zmax;
   char           fout[FNAME_LENGTH];
   PetscErrorCode ierr;
+  PetscInt       test;
 
   PetscFunctionBegin;
 
@@ -169,6 +171,9 @@ PetscErrorCode Numerical_solution(void *ctx, PetscInt test)
   xmax = usr->par->xmin+usr->par->L;
   zmax = usr->par->zmin+usr->par->H;
 
+  // passing solver index to test
+  test = usr->par->test;
+  
   // Create the FD-pde object
   if (test==1) { ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKES,&fd);CHKERRQ(ierr); }
   if (test==2) { ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKESDARCY2FIELD,&fd);CHKERRQ(ierr); }
@@ -192,7 +197,7 @@ PetscErrorCode Numerical_solution(void *ctx, PetscInt test)
   if (test==1) { ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient_Stokes,"n/a",usr); CHKERRQ(ierr); }
   if (test==2) { ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient_StokesDarcy,"n/a",usr); CHKERRQ(ierr); }
   ierr = FDPDEView(fd); CHKERRQ(ierr);
-
+  
   // Create initial guess with a linear viscous (np=1.0)
   PetscScalar np;
   Vec         xguess;
@@ -205,7 +210,7 @@ PetscErrorCode Numerical_solution(void *ctx, PetscInt test)
   ierr = VecDestroy(&x);CHKERRQ(ierr);
   ierr = VecDestroy(&xguess);CHKERRQ(ierr);
   usr->par->np = np;
-
+  
   // FD SNES Solver
   ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
   ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr); 
@@ -704,7 +709,7 @@ PetscErrorCode FormCoefficient_StokesDarcy(FDPDE fd, DM dm, Vec x, DM dmcoeff, V
 PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
-  PetscInt       k,n_bc,*idx_bc;
+  PetscInt       k,n_bc,*idx_bc, test;
   PetscScalar    *value_bc,*x_bc;
   PetscScalar    eta0,eps0,np,R,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat;
   BCType         *type_bc;
@@ -725,102 +730,115 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   n    = usr->par->n;
   k_hat= usr->par->k_hat;
 
+  test = usr->par->test;
+
   // LEFT Boundary - Vx
-  ierr = DMStagBCListGetValues(bclist,'w','-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'w','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = get_ux(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
     type_bc[k] = BC_DIRICHLET;
   }
-  ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // LEFT Boundary - Vz
-  ierr = DMStagBCListGetValues(bclist,'w','|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
+  ierr = DMStagBCListGetValues(bclist,'w','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=1; k<n_bc-1; k++) {
     value_bc[k] = get_uz(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
     type_bc[k] = BC_DIRICHLET;
   }
-  ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  // LEFT Boundary - P
-  ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    value_bc[k] = get_p(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
-    type_bc[k] = BC_DIRICHLET;
-  }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  
   // RIGHT Boundary - Vx
-  ierr = DMStagBCListGetValues(bclist,'e','-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'e','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = get_ux(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
     type_bc[k] = BC_DIRICHLET;
   }
-  ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // RIGHT Boundary - Vz
-  ierr = DMStagBCListGetValues(bclist,'e','|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
+  ierr = DMStagBCListGetValues(bclist,'e','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=1; k<n_bc-1; k++) {
     value_bc[k] = get_uz(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
     type_bc[k] = BC_DIRICHLET;
   }
-  ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-
-  // RIGHT Boundary - P
-  ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    value_bc[k] = get_p(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
-    type_bc[k] = BC_DIRICHLET;
-  }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // DOWN Boundary - Vx
-  ierr = DMStagBCListGetValues(bclist,'s','-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
+  ierr = DMStagBCListGetValues(bclist,'s','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=1; k<n_bc-1; k++) {
     value_bc[k] = get_ux(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
     type_bc[k] = BC_DIRICHLET;
   }
-  ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // DOWN Boundary - Vz
-  ierr = DMStagBCListGetValues(bclist,'s','|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'s','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = get_uz(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
     type_bc[k] = BC_DIRICHLET;
   }
-  ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-
-  // DOWN Boundary - P
-  ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    value_bc[k] = get_p(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
-    type_bc[k] = BC_DIRICHLET;
-  }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // UP Boundary - Vx
-  ierr = DMStagBCListGetValues(bclist,'n','-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
+  ierr = DMStagBCListGetValues(bclist,'n','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=1; k<n_bc-1; k++) {
     value_bc[k] = get_ux(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
     type_bc[k] = BC_DIRICHLET;
   }
-  ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // UP Boundary - Vz
-  ierr = DMStagBCListGetValues(bclist,'n','|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListGetValues(bclist,'n','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     value_bc[k] = get_uz(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
     type_bc[k] = BC_DIRICHLET;
   }
-  ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  // UP Boundary - P
-  ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    value_bc[k] = get_p(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
-    type_bc[k] = BC_DIRICHLET;
+  if (test==1) {
+    // Pin pressure at the entire bottom boundary
+    ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+    for (k=0; k<n_bc; k++) {
+      value_bc[k] = get_p(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      type_bc[k] = BC_DIRICHLET_STAG;
+    }
+    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  
+  if (test==2) {
+    // LEFT Boundary - P
+    ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    for (k=0; k<n_bc; k++) {
+      value_bc[k] = get_p(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      type_bc[k] = BC_DIRICHLET;
+    }
+    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
+    // RIGHT Boundary - P
+    ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    for (k=0; k<n_bc; k++) {
+      value_bc[k] = get_p(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      type_bc[k] = BC_DIRICHLET;
+    }
+    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+
+    // DOWN Boundary - P
+    ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    for (k=0; k<n_bc; k++) {
+      value_bc[k] = get_p(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      type_bc[k] = BC_DIRICHLET;
+    }
+    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+
+    // UP Boundary - P
+    ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    for (k=0; k<n_bc; k++) {
+      value_bc[k] = get_p(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
+      type_bc[k] = BC_DIRICHLET;
+    }
+    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
@@ -1480,15 +1498,17 @@ int main (int argc,char **argv)
   ierr = InputPrintData(usr); CHKERRQ(ierr);
 
   // Numerical solution using the FD pde object - Stokes
+  usr->par->test = 1;
   ierr = PetscTime(&start_time); CHKERRQ(ierr);
-  ierr = Numerical_solution(usr,1); CHKERRQ(ierr);
+  ierr = Numerical_solution(usr); CHKERRQ(ierr);
   ierr = PetscTime(&end_time); CHKERRQ(ierr);
   PetscPrintf(PETSC_COMM_WORLD,"# Runtime Stokes: %g (sec) \n", end_time - start_time);
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
 
   // Numerical solution using the FD pde object - StokesDarcy
+  usr->par->test = 2;
   ierr = PetscTime(&start_time); CHKERRQ(ierr);
-  ierr = Numerical_solution(usr,2); CHKERRQ(ierr);
+  ierr = Numerical_solution(usr); CHKERRQ(ierr);
   ierr = PetscTime(&end_time); CHKERRQ(ierr);
   PetscPrintf(PETSC_COMM_WORLD,"# Runtime StokesDarcy: %g (sec) \n", end_time - start_time);
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
