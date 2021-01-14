@@ -11,6 +11,7 @@ SRC := 	dmstagbclist.c \
 	fdpde_stokes_residual.c fdpde_stokes.c \
 	fdpde_stokesdarcy2field_residual.c fdpde_stokesdarcy2field.c \
 	fdpde_advdiff_advect.c fdpde_advdiff_residual.c fdpde_advdiff.c \
+	fdpde_enthalpy_residual.c fdpde_enthalpy.c \
 	fdpde_composite.c composite_prealloc_utils.c \
 	dmstag_utils.c material_point.c \
 	snes_picard.c \
@@ -24,16 +25,17 @@ HDR := 	benchmark_solcx.h \
 	fdpde.h \
 	fdpde_stokes.h \
 	fdpde_advdiff.h \
+	fdpde_enthalpy.h \
 	fdpde_composite.h composite_prealloc_utils.h \
 	dmstag_utils.h material_point.h \
-
 
 FDPDE_SRC = $(patsubst %,$(FDPDE_DIR)/%,$(SRC))
 FDPDE_HDR = $(patsubst %,$(FDPDE_DIR)/%,$(HDR))
 
 FDPDE_OBJ := $(patsubst %.c,%.o,$(FDPDE_SRC))
 
-MODEL_OBJ = consteq.o utils.o initial.o input.o physics.o bc.o 
+# MODEL_OBJ = consteq.o utils.o initial.o input.o physics.o bc.o 
+MODEL_OBJ = consteq.o initial.o input.o physics.o bc.o 
 
 all:
 	@make MORbuoyancy

@@ -1,7 +1,6 @@
 #include "petsc.h"
 #include "../../src/fdpde_stokesdarcy2field.h"
-#include "../../src/fdpde_advdiff.h"
-#include "../../src/fdpde_composite.h"
+#include "../../src/fdpde_enthalpy.h"
 #include "../../src/dmstagoutput.h"
 #include "../../src/benchmark_cornerflow.h"
 
@@ -60,8 +59,7 @@ typedef struct {
   MPI_Comm       comm;
   PetscMPIInt    rank;
   DM             dmPV,dmHC;
-  Vec            xPV,xT,xTheta,xphi,xC,xCf,xCs,xH,xTsol; // non-dimensional vectors
-  Vec            xHprev, xCprev; 
+  Vec            xPV, xHC, xEnth; // non-dimensional vectors
 } UsrData;
 
 // ---------------------------------------
@@ -78,34 +76,37 @@ PetscErrorCode NondimensionalizeParameters(UsrData*);
 // physics
 PetscErrorCode Numerical_solution(void*);
 PetscErrorCode FormCoefficient_PV(FDPDE, DM, Vec, DM, Vec, void*);
-PetscErrorCode FormCoefficient_H(FDPDE, DM, Vec, DM, Vec, void*);
-PetscErrorCode FormCoefficient_C(FDPDE, DM, Vec, DM, Vec, void*);
+PetscErrorCode FormCoefficient_HC(FDPDE, DM, Vec, DM, Vec, void*);
+EnthEvalErrorCode Form_Enthalpy(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
+PetscErrorCode Form_PotentialTemperature(PetscScalar,PetscScalar,PetscScalar*,void*); 
 
 // boundary conditions
 PetscErrorCode FormBCList_PV(DM, Vec, DMStagBCList, void*);
-PetscErrorCode FormBCList_H(DM, Vec, DMStagBCList, void*);
-PetscErrorCode FormBCList_C(DM, Vec, DMStagBCList, void*);
+PetscErrorCode FormBCList_HC(DM, Vec, DMStagBCList, void*);
 
 // initial conditions
-PetscErrorCode SetInitialConditions_HS(FDPDE, FDPDE, FDPDE, void*);
+PetscErrorCode SetInitialConditions(FDPDE, FDPDE, void*);
 PetscErrorCode CornerFlow_MOR(void*);
 PetscErrorCode HalfSpaceCooling_MOR(void*);
-PetscErrorCode CorrectTemperatureForSolidus(void*);
+PetscErrorCode UpdateLithostaticPressure(DM,Vec,void*);
+// PetscErrorCode CorrectTemperatureForSolidus(void*);
 
 // constitutive equations
-PetscScalar Temp2Theta(PetscScalar,PetscScalar);
-PetscScalar Theta2Temp(PetscScalar,PetscScalar);
-PetscScalar BulkComposition(PetscScalar,PetscScalar,PetscScalar);  
+// PetscScalar Temp2Theta(PetscScalar,PetscScalar);
+// PetscScalar Theta2Temp(PetscScalar,PetscScalar);
+// PetscScalar BulkComposition(PetscScalar,PetscScalar,PetscScalar);  
 PetscScalar Solidus(PetscScalar,PetscScalar,PetscScalar,PetscBool);
 PetscScalar Liquidus(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscBool);
 PetscScalar LithostaticPressure(PetscScalar,PetscScalar,PetscScalar);
-PetscScalar TotalEnthalpy(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
+PetscScalar TotalEnthalpy(PetscScalar,PetscScalar,PetscScalar);
+PetscErrorCode Porosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar*,PetscScalar,PetscScalar,PetscScalar);
+PetscScalar PhiRes(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 
 // utils
-PetscErrorCode DoOutput(void*);
-PetscErrorCode ScaleSolutionPV(DM,Vec,Vec*,void*);
-PetscErrorCode ScaleVectorUniform(DM,Vec,Vec*,PetscScalar);
-PetscErrorCode ScaleTemperatureComposition(DM,Vec,Vec*,void*,PetscInt);
+// PetscErrorCode DoOutput(void*);
+// PetscErrorCode ScaleSolutionPV(DM,Vec,Vec*,void*);
+// PetscErrorCode ScaleVectorUniform(DM,Vec,Vec*,PetscScalar);
+// PetscErrorCode ScaleTemperatureComposition(DM,Vec,Vec*,void*,PetscInt);
 
 // ---------------------------------------
 // Useful functions

@@ -24,9 +24,9 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
   nd  = usr->nd;
   par = usr->par;
 
-  // Get dm and solution vector for phi, T, C
-  dmHC = usr->dmHC;
-  xphi = usr->xphi;
+  // Get dm and solution vector for H, C and enthalpy variables (phi, T)
+  // dmHC = usr->dmHC;
+  // xphi = usr->xphi;
 
   ierr = DMCreateLocalVector(dmHC,&xphilocal);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(dmHC,xphi,INSERT_VALUES,xphilocal);CHKERRQ(ierr);
@@ -251,217 +251,189 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
 }
 
 // ---------------------------------------
-// FormCoefficient_H
+// FormCoefficient_HC
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FormCoefficient_H"
-PetscErrorCode FormCoefficient_H(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
+#define __FUNCT__ "FormCoefficient_HC"
+PetscErrorCode FormCoefficient_HC(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
-  // UsrData        *usr = (UsrData*)ctx;
-  // PetscInt       i, j, sx, sz, nx, nz, Nx, Nz,icenter;
-  // DM             dmPV = NULL;
-  // Vec            coefflocal;
-  // PetscScalar    ***c, **coordx, **coordz;
-  // Vec            xPV = NULL, xPVlocal, xphi;
+  UsrData        *usr = (UsrData*)ctx;
+  Params         *par;
+  PetscInt       i, j, sx, sz, nx, nz, Nx,Nz,icenter,iprev,inext;
+  Vec            xlocal, coefflocal;
+  PetscScalar    ***c;
+  PetscScalar    **coordx,**coordz;
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
 
-  // // Get dm and solution vector for solid, fluid velocity, porosity
-  // dmPV = usr->dmPV;
-  // xPV  = usr->xPV;
-  // xphi = usr->xphi;
-  // // xPVf = usr->xPVf;
+  // get Stokes-Darcy velocity
+
+  par = usr->par;
+  // Get domain corners
+  ierr = DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
   
-  // ierr = DMCreateLocalVector(dmPV,&xPVlocal);CHKERRQ(ierr);
-  // ierr = DMGlobalToLocalBegin(dmPV,xPV,INSERT_VALUES,xPVlocal);CHKERRQ(ierr);
-  // ierr = DMGlobalToLocalEnd(dmPV,xPV,INSERT_VALUES,xPVlocal);CHKERRQ(ierr);
-  
-  // // Get domain corners and coordinates
-  // ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  // ierr = DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  // ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  // ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter);CHKERRQ(ierr);
+  ierr = DMGetLocalVector(dm,&xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal); CHKERRQ(ierr);
 
-  // // Create coefficient local vector
-  // ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
-  // ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
-  
-  // // Loop over local domain
-  // for (j = sz; j < sz+nz; j++) {
-  //   for (i = sx; i <sx+nx; i++) {
+  ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,LEFT,&iprev);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,RIGHT,&inext);CHKERRQ(ierr); 
 
-  //     { // A = 1.0
-  //       DMStagStencil point;
-  //       PetscInt      idx;
+  // Loop over local domain
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
 
-  //       point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 0;
-  //       ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
-  //       c[j][i][idx] = 1.0;
-  //     }
+      { // ELEMENT
+        DMStagStencil point, pointE[5];
+        PetscScalar   x[5],dz,Az;
+        PetscInt      idx;
 
-  //     { // C = e(Az)div(vI)-Sdiv((1-phi)vs)-1/PeT*e(Az)div^2(I)
-  //       DMStagStencil point;
-  //       PetscInt      idx;
-  //       point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 1;
-  //       ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
-  //       Az = -usr->nd->A*coordz[j][icenter];
-  //       c[j][i][idx] = usr->nd->Gamma;
-  //     }
+        Az = -usr->nd->A*coordz[j][icenter]; 
+        // A1 = exp(Az)
+        point.i = i; point.j = j; point.loc = ELEMENT;  
+        point.c = COEFF_A1; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = exp(Az); 
 
-  //     { // B = 1/PeT (edge)
-  //       DMStagStencil point[4];
-  //       PetscInt      ii, idx;
+        // B1 = -S
+        point.c = COEFF_B1; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = -usr->nd->S;
 
-  //       point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
-  //       point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
-  //       point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 0;
-  //       point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 0;
+        // D1 = 0
+        point.c = COEFF_D1; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 0.0;
 
-  //       for (ii = 0; ii < 4; ii++) {
-  //         ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
-  //         c[j][i][idx] = 1.0/usr->nd->PeT;
-  //       }
-  //     }
+        // A2 = 1
+        point.c = COEFF_A2; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 1.0;
 
-  //     { // u = bulk velocity (edge)
-  //       PetscScalar   vs[4],vf[4],phi[4];
-  //       DMStagStencil point[4];
-  //       PetscInt      ii, idx;
+        // B2 = 1
+        point.c = COEFF_B2; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 1.0;
 
-  //       point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
-  //       point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
-  //       point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 0;
-  //       point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 0;
+        // D2 = 0.0
+        point.c = COEFF_D2; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
+        c[j][i][idx] = 0.0;
+      }
+
+      { // FACES
+        DMStagStencil point[4];
+        PetscInt      ii, idx;
+        PetscScalar   Az[4];
+
+        point[0].i = i; point[0].j = j; point[0].loc = LEFT; 
+        point[1].i = i; point[1].j = j; point[1].loc = RIGHT;
+        point[2].i = i; point[2].j = j; point[2].loc = DOWN; 
+        point[3].i = i; point[3].j = j; point[3].loc = UP; 
         
-  //       ierr = DMStagVecGetValuesStencil(dmPV,xPVlocal, 4,point,vs); CHKERRQ(ierr);
-  //       ierr = DMStagVecGetValuesStencil(dmPV,xPVflocal,4,point,vf); CHKERRQ(ierr);
-  //       // get porosity
+        Az[0] = -usr->nd->A*coordz[j][icenter];
+        Az[1] = -usr->nd->A*coordz[j][icenter];
+        Az[2] = -usr->nd->A*coordz[j][iprev];
+        Az[3] = -usr->nd->A*coordz[j][inext]; 
 
-  //       for (ii = 0; ii < 4; ii++) {
-  //         point[ii].c = 1;
-  //         ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
-  //         c[j][i][idx] = phi[ii]*vf[ii]+(1.0-phi[ii])*vs[ii];
-  //       }
-  //     }
-  //   }
-  // }
+        for (ii = 0; ii < 4; ii++) {
+          // C1 = -1/PeT*exp(Az)
+          point[ii].c = COEFF_C1; ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = -1.0/usr->nd->PeT*exp(Az[ii]);
 
-  // // Restore arrays, local vectors
-  // ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  // ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
-  // ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
-  // ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
-  // ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
+          // C2 = -1/PeC
+          point[ii].c = COEFF_C2; ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          c[j][i][idx] = -1.0/usr->nd->PeC;
+
+          point[ii].c = COEFF_v; ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          // c[j][i][idx] = 0.0;
+
+          point[ii].c = COEFF_vf; ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          // c[j][i][idx] = 0.0;
+
+          point[ii].c = COEFF_vs; ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
+          // c[j][i][idx] = 0.0;
+        }
+      }
+    }
+  }
+
+  // Restore arrays, local vectors
+  ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
   
-  // ierr = VecDestroy(&xPVlocal);CHKERRQ(ierr);
+  ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
 
 // ---------------------------------------
-// FormCoefficient_C
+// Phase Diagram  * relationships from Katz (2008,2010)
+// enthalpy_method(H,C,P,&T,&phi,CF,CS,ncomp,user);
 // ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FormCoefficient_C"
-PetscErrorCode FormCoefficient_C(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
+EnthEvalErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
 {
-  // UsrData        *usr = (UsrData*)ctx;
-  // PetscInt       i, j, sx, sz, nx, nz, Nx, Nz,icenter;
-  // DM             dmPV = NULL;
-  // Vec            coefflocal;
-  // PetscScalar    ***c, **coordx, **coordz;
-  // Vec            xPV = NULL, xPVlocal, xphi;
+  UsrData      *usr = (UsrData*) ctx;
+  PetscInt     ii;
+  PetscScalar  Tsol, Tliq, Hsol, Hliq, phi, T, Cs, Cf, Ci;
+  PetscScalar  G, RM, S;
   PetscErrorCode ierr;
 
-  PetscFunctionBeginUser;
+  G  = usr->nd->G;
+  RM = usr->nd->RM;
+  S  = usr->nd->S;
+  Ci = C[0];
 
-  // // Get dm and solution vector for solid, fluid velocity, porosity, composition
-  // dmPV = usr->dmPV;
-  // xPV  = usr->xPV;
-  // xphi = usr->xphi;
-  // // xPVf = usr->xPVf;
-  
-  // ierr = DMCreateLocalVector(dmPV,&xPVlocal);CHKERRQ(ierr);
-  // ierr = DMGlobalToLocalBegin(dmPV,xPV,INSERT_VALUES,xPVlocal);CHKERRQ(ierr);
-  // ierr = DMGlobalToLocalEnd(dmPV,xPV,INSERT_VALUES,xPVlocal);CHKERRQ(ierr);
-  
-  // // Get domain corners and coordinates
-  // ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  // ierr = DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  // ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  // ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter);CHKERRQ(ierr);
+  Tsol = Solidus (Ci,P,G,PETSC_FALSE);
+  Tliq = Liquidus(Ci,P,G,RM,PETSC_FALSE);
+  Hsol = TotalEnthalpy(Tsol,0.0,S);
+  Hliq = TotalEnthalpy(Tliq,1.0,S);
 
-  // // Create coefficient local vector
-  // ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
-  // ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
-  
-  // // Loop over local domain
-  // for (j = sz; j < sz+nz; j++) {
-  //   for (i = sx; i <sx+nx; i++) {
+  if (H<Hsol) {
+    phi = 0.0;
+    T   = H;
+    Cs  = Ci;
+    Cf  = Liquidus(Solidus(Ci,P,G,PETSC_FALSE),P,G,RM,PETSC_TRUE);
+  } else if ((H>=Hsol) && (H<Hliq)) {
+    ierr   = Porosity(H,Ci,P,&phi,S,G,RM);CHKERRQ(ierr);
+    T  = H - phi*S;
+    Cs = Solidus (T,P,G,PETSC_TRUE);
+    Cf = Liquidus(T,P,G,RM,PETSC_TRUE);
+  } else {
+    phi = 1.0;
+    T  = H - S;
+    Cs = Solidus(Liquidus(Ci,P,G,RM,PETSC_FALSE),P,G,PETSC_TRUE);
+    Cf = Ci;
+  }
 
-  //     { // A = 1.0
-  //       DMStagStencil point;
-  //       PetscInt      idx;
+  // assign pointers
+  *_T = T;
+  *_phi = phi;
+  CS[0] = Cs;
+  CS[1] = 1.0 - Cs;
+  CF[0] = Cf;
+  CF[1] = 1.0 - Cf;
 
-  //       point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 0;
-  //       ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
-  //       c[j][i][idx] = 1.0;
-  //     }
+  // error checking
+  ENTH_CHECK_PHI(phi);
+  return(STATE_VALID);
+}
 
-  //     { // C = div((1-phi)grad(v)Theta_s) - 1/PeC*div(phi*grad(Theta_f))
-  //       DMStagStencil point;
-  //       PetscInt      idx;
-  //       point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 1;
-  //       ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
-  //       Az = -usr->nd->A*coordz[j][icenter];
-  //       c[j][i][idx] = usr->nd->Gamma;
-  //     }
+// ---------------------------------------
+// Potential Temperature
+// ---------------------------------------
+PetscErrorCode Form_PotentialTemperature(PetscScalar T,PetscScalar P,PetscScalar *_TP, void *ctx) 
+{
+  UsrData      *usr = (UsrData*) ctx;
+  PetscScalar  TP, rho, Az;
+  PetscFunctionBegin;
 
-  //     { // B = 0.0 (edge)
-  //       DMStagStencil point[4];
-  //       PetscInt      ii, idx;
-
-  //       point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
-  //       point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
-  //       point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 0;
-  //       point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 0;
-
-  //       for (ii = 0; ii < 4; ii++) {
-  //         ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
-  //         c[j][i][idx] = 0.0;
-  //       }
-  //     }
-
-  //     { // u = vf, fluid velocity (edge)
-  //       PetscScalar   vf[4];
-  //       DMStagStencil point[4];
-  //       PetscInt      ii, idx;
-
-  //       point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
-  //       point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
-  //       point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 0;
-  //       point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 0;
-        
-  //       ierr = DMStagVecGetValuesStencil(dmPV,xPVflocal,4,point,vf); CHKERRQ(ierr);
-
-  //       for (ii = 0; ii < 4; ii++) {
-  //         point[ii].c = 1;
-  //         ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
-  //         c[j][i][idx] = vf[ii];
-  //       }
-  //     }
-  //   }
-  // }
-
-  // // Restore arrays, local vectors
-  // ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  // ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
-  // ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
-  // ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
-  // ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
-  
-  // ierr = VecDestroy(&xPVlocal);CHKERRQ(ierr);
+  rho  = usr->par->rho0; // bulk density
+  Az   = usr->nd->A*P*usr->par->drho/rho;
+  TP = (T+usr->nd->thetaS)*exp(-Az) - usr->nd->thetaS;;
+  *_TP = TP;
 
   PetscFunctionReturn(0);
 }

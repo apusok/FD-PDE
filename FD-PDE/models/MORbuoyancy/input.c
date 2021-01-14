@@ -66,7 +66,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   UsrData       *usr;
   Params        *par;
   PetscBag       bag;
-  PetscScalar    dsol, Teta0;
+  PetscScalar    dsol, Teta0, DT;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -119,9 +119,10 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->DC, 0.1, "DC", "Compositional diff between solidus and liquidus at T0 [wt.  frac.]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->T0, 1565, "T0", "Solidus temperature at P=0, C=C0 [K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->Ms, 400, "Ms", "Slope of solidus dTdC [K]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->Mf, 400, "Ms", "Slope of liquidus dTdC [K]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->Mf, 400, "Mf", "Slope of liquidus dTdC [K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->gamma_inv, 60, "gamma_inv", "Inverse Clapeyron slope dT/dP [K/GPa]"); CHKERRQ(ierr);
-  par->DT = par->Ms*par->DC;
+  DT = par->Ms*par->DC;
+  ierr = PetscBagRegisterScalar(bag, &par->DT, DT, "DT", "Reference temperature difference [K]"); CHKERRQ(ierr);
 
   // two-phase flow parameters
   ierr = PetscBagRegisterScalar(bag, &par->phi0, 0.01, "phi0", "Reference porosityat which permeability equals reference permeability [-]"); CHKERRQ(ierr);
