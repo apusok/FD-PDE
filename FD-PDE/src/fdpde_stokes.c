@@ -46,6 +46,7 @@ PetscErrorCode FDPDECreate_Stokes(FDPDE fd)
   fd->ops->form_function_split = FormFunctionSplit_Stokes;
   fd->ops->form_jacobian       = NULL;
   fd->ops->create_jacobian     = JacobianCreate_Stokes;
+  fd->ops->setup               = NULL;
   fd->ops->view                = NULL;
   fd->ops->destroy             = NULL;
   fd->data                     = NULL;
