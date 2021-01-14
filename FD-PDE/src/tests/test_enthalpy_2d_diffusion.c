@@ -321,27 +321,27 @@ PetscErrorCode ApplyBC_Enthalpy(DM dm, Vec x, PetscScalar ***ff, void *ctx)
 PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
   // UsrData     *usr = (UsrData*)ctx;
-  PetscInt    k,n_bc,*idx_bc;
-  PetscScalar *value_bc,*x_bc;
-  BCType      *type_bc;
-  PetscErrorCode ierr;
+  // PetscInt    k,n_bc,*idx_bc;
+  // PetscScalar *value_bc,*x_bc;
+  // BCType      *type_bc;
+  // PetscErrorCode ierr;
   PetscFunctionBegin;
   
-  // Left: T = 0.0
-  ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    value_bc[k] = 0.0;
-    type_bc[k] = BC_DIRICHLET;
-  }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  // // Left: T = 0.0
+  // ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  // for (k=0; k<n_bc; k++) {
+  //   value_bc[k] = 0.0;
+  //   type_bc[k] = BC_DIRICHLET;
+  // }
+  // ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  // RIGHT: T = 0.0
-  ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    value_bc[k] = 0.0;
-    type_bc[k] = BC_DIRICHLET;
-  }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  // // RIGHT: T = 0.0
+  // ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  // for (k=0; k<n_bc; k++) {
+  //   value_bc[k] = 0.0;
+  //   type_bc[k] = BC_DIRICHLET;
+  // }
+  // ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

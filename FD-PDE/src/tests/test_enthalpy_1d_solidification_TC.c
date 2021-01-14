@@ -305,34 +305,34 @@ PetscErrorCode ApplyBC_Enthalpy(DM dm, Vec x, PetscScalar ***ff, void *ctx)
 #define __FUNCT__ "FormBCList"
 PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
-  UsrData     *usr = (UsrData*)ctx;
-  PetscInt    k,n_bc,*idx_bc;
-  PetscScalar *value_bc,*x_bc, H_left, H_right;
-  BCType      *type_bc;
-  PetscErrorCode ierr;
+  // UsrData     *usr = (UsrData*)ctx;
+  // PetscInt    k,n_bc,*idx_bc;
+  // PetscScalar *value_bc,*x_bc, H_left, H_right;
+  // BCType      *type_bc;
+  // PetscErrorCode ierr;
   PetscFunctionBegin;
   
-  // Left: H(T,phi) = H(Tb,0.0)
-  H_left = usr->par->nd_Tb;
+  // // Left: H(T,phi) = H(Tb,0.0)
+  // H_left = usr->par->nd_Tb;
 
-  // RIGHT: H(T,phi) = H(T0,1.0)
-  H_right = usr->par->nd_Tb + 1.0/usr->par->St;
+  // // RIGHT: H(T,phi) = H(T0,1.0)
+  // H_right = usr->par->nd_Tb + 1.0/usr->par->St;
 
-  // Left: T = Tb
-  ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    value_bc[k] = H_left;
-    type_bc[k] = BC_DIRICHLET;
-  }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  // // Left: T = Tb
+  // ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  // for (k=0; k<n_bc; k++) {
+  //   value_bc[k] = H_left;
+  //   type_bc[k] = BC_DIRICHLET;
+  // }
+  // ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  // RIGHT: T = T0
-  ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    value_bc[k] = H_right;
-    type_bc[k] = BC_DIRICHLET;
-  }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  // // RIGHT: T = T0
+  // ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  // for (k=0; k<n_bc; k++) {
+  //   value_bc[k] = H_right;
+  //   type_bc[k] = BC_DIRICHLET;
+  // }
+  // ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
