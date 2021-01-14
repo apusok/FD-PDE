@@ -105,11 +105,11 @@ typedef struct {
   DM                 dmP;
   Vec                xprev,coeffprev,xP,xPprev;
   PetscScalar        dt,theta;
-  PetscErrorCode    (*form_user_bc)(DM,Vec,PetscScalar***,void*); // PRELIM
+  PetscErrorCode    (*form_user_bc)(DM,Vec,PetscScalar***,void*); // internal BC
   EnthEvalErrorCode (*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*);
   PetscErrorCode    (*form_TP)(PetscScalar,PetscScalar,PetscScalar*,void*);
   void               *user_context;
-  void               *user_context_bc; // PRELIM
+  void               *user_context_bc; // internal BC
   void               *user_context_tp;
   PetscInt           ncomponents, nreports;
   char               *description_enthalpy;
@@ -130,7 +130,7 @@ PetscErrorCode EnthalpyNonzeroStencil(PetscInt,PetscInt,PetscInt,PetscInt,PetscI
 
 // RESIDUAL
 PetscErrorCode FormFunction_Enthalpy(SNES,Vec,Vec,void*);
-// PetscErrorCode DMStagBCListApply_Enthalpy(DM,Vec,DMStagBC*,PetscInt,PetscScalar***);
+PetscErrorCode DMStagBCListApply_Enthalpy(DM,Vec,DMStagBC*,PetscInt,PetscScalar***);
 
 PetscErrorCode ApplyEnthalpyMethod(FDPDE,DM,Vec,DM,Vec,DM,Vec,EnthalpyData*,ThermoState*,CoeffState*,const char[]);
 PetscErrorCode ApplyEnthalpyReport_Failure(FDPDE,PetscViewer,EnthalpyData*,ThermoState*,CoeffState*);
@@ -157,7 +157,7 @@ PetscErrorCode FDPDEEnthalpyGetPrevPressure(FDPDE,Vec*);
 PetscErrorCode FDPDEEnthalpySetNumberComponentsPhaseDiagram(FDPDE,PetscInt);
 PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE,EnthEvalErrorCode(*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*),const char[],void*);
 PetscErrorCode FDPDEEnthalpySetPotentialTemp(FDPDE,PetscErrorCode(*form_TP)(PetscScalar,PetscScalar,PetscScalar*,void*),void*);
-PetscErrorCode FDPDEEnthalpySetUserBC(FDPDE,PetscErrorCode(*form_user_bc)(DM,Vec,PetscScalar***,void*),void*); // PRELIM
+PetscErrorCode FDPDEEnthalpySetUserBC(FDPDE,PetscErrorCode(*form_user_bc)(DM,Vec,PetscScalar***,void*),void*); // internal BC
 PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE,DM,Vec,DM*,Vec*);
 
 #endif

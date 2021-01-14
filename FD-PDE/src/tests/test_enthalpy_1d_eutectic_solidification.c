@@ -53,7 +53,6 @@ PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode Numerical_solution(void*);
 PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
-PetscErrorCode ApplyBC_Enthalpy(DM,Vec,PetscScalar***,void*);
 PetscErrorCode Analytical_solution(DM,Vec*,void*);
 PetscErrorCode Initial_solution(DM,Vec,void*);
 PetscErrorCode Initial_solution2(DM,Vec,void*);
@@ -136,7 +135,6 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ENTHALPY,&fd);CHKERRQ(ierr);
   ierr = FDPDESetUp(fd);CHKERRQ(ierr);
   ierr = FDPDESetFunctionBCList(fd,FormBCList,bc_description,usr); CHKERRQ(ierr);
-  ierr = FDPDEEnthalpySetUserBC(fd,ApplyBC_Enthalpy,usr);CHKERRQ(ierr);
   ierr = FDPDESetFunctionCoefficient(fd,FormCoefficient,coeff_description,usr); CHKERRQ(ierr);
 
   if (par->adv_scheme==0) { ierr = FDPDEEnthalpySetAdvectSchemeType(fd,ADV_UPWIND);CHKERRQ(ierr); }
@@ -307,28 +305,19 @@ EnthEvalErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,Pets
 }
 
 // ---------------------------------------
-// ApplyBC_Enthalpy
+// FormBCList
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "ApplyBC_Enthalpy"
-PetscErrorCode ApplyBC_Enthalpy(DM dm, Vec x, PetscScalar ***ff, void *ctx)
+#define __FUNCT__ "FormBCList"
+PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
   UsrData     *usr = (UsrData*)ctx;
-  PetscInt    i,j,sx,sz,nx,nz,Nx,Nz,iH,iC;
-  PetscScalar  H_down, H_top, C_down, C_top,thE,thdown, phiE;
-  Vec          xlocal;
-  PetscScalar ***xx;
+  PetscScalar H_down, H_top, C_down, C_top,thE,thdown, phiE;
+  PetscInt    k,n_bc,*idx_bc;
+  PetscScalar *value_bc,*x_bc;
+  BCType      *type_bc;
   PetscErrorCode ierr;
   PetscFunctionBegin;
-  
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr); 
-  ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,0,&iH); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,1,&iC); CHKERRQ(ierr);
-
-  ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
 
   // eutectic - top
   thE  = 0.0;
@@ -341,72 +330,37 @@ PetscErrorCode ApplyBC_Enthalpy(DM dm, Vec x, PetscScalar ***ff, void *ctx)
   H_down = usr->par->S+thdown;
   C_down = usr->par->C0;
 
-  // Down:
-  j = 0;
-  for (i = sx; i<sx+nx; i++) {
-    ff[j][i][iH] = xx[j][i][iH] - H_down;
-    ff[j][i][iC] = xx[j][i][iC] - C_down;
+  // H Down:
+  ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = H_down;
+    type_bc[k] = BC_DIRICHLET;
   }
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  // Top: 
-  j = Nz-1;
-  for (i = sx; i<sx+nx; i++) {
-    ff[j][i][iH] = xx[j][i][iH] - H_top;
-    ff[j][i][iC] = xx[j][i][iC] - C_top;
+  // H Top:
+  ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = H_top;
+    type_bc[k] = BC_DIRICHLET;
   }
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  ierr = DMStagVecRestoreArray(dm, xlocal, &xx); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm, &xlocal); CHKERRQ(ierr);
+  // C Down:
+  ierr = DMStagBCListGetValues(bclist,'s','o',1,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = C_down;
+    type_bc[k] = BC_DIRICHLET;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'o',1,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-// FormBCList
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FormBCList"
-PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
-{
-  // UsrData     *usr = (UsrData*)ctx;
-  // PetscInt    k,n_bc,*idx_bc;
-  // PetscScalar *value_bc,*x_bc;
-  // BCType      *type_bc;
-  // PetscErrorCode ierr;
-  PetscFunctionBegin;
-  
-  // // Down:
-  // ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  // for (k=0; k<n_bc; k++) {
-  //   value_bc[k] = 0.0;
-  //   type_bc[k] = BC_DIRICHLET;
-  // }
-  // ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-
-  // // Top:
-  // ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  // for (k=0; k<n_bc; k++) {
-  //   value_bc[k] = 0.0;
-  //   type_bc[k] = BC_DIRICHLET;
-  // }
-  // ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-
-  // // Composition
-  // // Down:
-  // ierr = DMStagBCListGetValues(bclist,'s','o',1,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  // for (k=0; k<n_bc; k++) {
-  //   value_bc[k] = 0.0;
-  //   type_bc[k] = BC_DIRICHLET;
-  // }
-  // ierr = DMStagBCListInsertValues(bclist,'o',1,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-
-  // // Top:
-  // ierr = DMStagBCListGetValues(bclist,'n','o',1,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  // for (k=0; k<n_bc; k++) {
-  //   value_bc[k] = 0.0;
-  //   type_bc[k] = BC_DIRICHLET;
-  // }
-  // ierr = DMStagBCListInsertValues(bclist,'o',1,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  // C Top:
+  ierr = DMStagBCListGetValues(bclist,'n','o',1,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = C_top;
+    type_bc[k] = BC_DIRICHLET;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'o',1,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

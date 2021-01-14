@@ -256,34 +256,19 @@ EnthEvalErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,Pets
 PetscErrorCode ApplyBC_Enthalpy(DM dm, Vec x, PetscScalar ***ff, void *ctx)
 {
   UsrData     *usr = (UsrData*)ctx;
-  PetscInt    i,j,sx,sz,nx,nz,Nx,Nz,iT,iC;
+  PetscInt    i,j,sx,sz,nx,nz,Nx,Nz,iC;
   Vec          xlocal;
-  PetscScalar ***xx, H_left, H_right;
+  PetscScalar ***xx;
   PetscErrorCode ierr;
   PetscFunctionBegin;
   
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr); 
-  ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,0,&iT); CHKERRQ(ierr);
   ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,1,&iC); CHKERRQ(ierr);
 
   ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
-
-  // Left: H(T,phi) = H(Tb,0.0)
-  H_left = usr->par->nd_Tb;
-
-  // RIGHT: H(T,phi) = H(T0,1.0)
-  H_right = usr->par->nd_Tb + 1.0/usr->par->St;
-
-  for (j = sz; j<sz+nz; j++) {
-    i = 0; 
-    ff[j][i][iT] = xx[j][i][iT] - H_left;
-
-    i = Nx-1; // RIGHT: H(T,phi) = H(T0,1.0)
-    ff[j][i][iT] = xx[j][i][iT] - H_right;
-  }
 
   // Entire domain C = C0 (dummy variable)
   for (j = sz; j<sz+nz; j++) {
@@ -305,34 +290,34 @@ PetscErrorCode ApplyBC_Enthalpy(DM dm, Vec x, PetscScalar ***ff, void *ctx)
 #define __FUNCT__ "FormBCList"
 PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
-  // UsrData     *usr = (UsrData*)ctx;
-  // PetscInt    k,n_bc,*idx_bc;
-  // PetscScalar *value_bc,*x_bc, H_left, H_right;
-  // BCType      *type_bc;
-  // PetscErrorCode ierr;
+  UsrData     *usr = (UsrData*)ctx;
+  PetscInt    k,n_bc,*idx_bc;
+  PetscScalar *value_bc,*x_bc, H_left, H_right;
+  BCType      *type_bc;
+  PetscErrorCode ierr;
   PetscFunctionBegin;
   
-  // // Left: H(T,phi) = H(Tb,0.0)
-  // H_left = usr->par->nd_Tb;
+  // Left: H(T,phi) = H(Tb,0.0)
+  H_left = usr->par->nd_Tb;
 
-  // // RIGHT: H(T,phi) = H(T0,1.0)
-  // H_right = usr->par->nd_Tb + 1.0/usr->par->St;
+  // RIGHT: H(T,phi) = H(T0,1.0)
+  H_right = usr->par->nd_Tb + 1.0/usr->par->St;
 
-  // // Left: T = Tb
-  // ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  // for (k=0; k<n_bc; k++) {
-  //   value_bc[k] = H_left;
-  //   type_bc[k] = BC_DIRICHLET;
-  // }
-  // ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  // Left: T = Tb
+  ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = H_left;
+    type_bc[k] = BC_DIRICHLET;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  // // RIGHT: T = T0
-  // ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  // for (k=0; k<n_bc; k++) {
-  //   value_bc[k] = H_right;
-  //   type_bc[k] = BC_DIRICHLET;
-  // }
-  // ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  // RIGHT: T = T0
+  ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = H_right;
+    type_bc[k] = BC_DIRICHLET;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

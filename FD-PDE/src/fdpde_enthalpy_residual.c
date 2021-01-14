@@ -59,10 +59,10 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   Nx = fd->Nx;
   Nz = fd->Nz;
 
-  // Update BC list - PRELIM 
+  // Update BC list
   bclist = fd->bclist;
   if (fd->bclist->evaluate) {
-    // ierr = fd->bclist->evaluate(dm,x,bclist,bclist->data);CHKERRQ(ierr);
+    ierr = fd->bclist->evaluate(dm,x,bclist,bclist->data);CHKERRQ(ierr);
   }
 
   // Update coefficients
@@ -125,9 +125,11 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
     }
   }
 
-  // Boundary conditions - only element dofs // PRELIM
-  ierr = en->form_user_bc(dm,x,ff,en->user_context);CHKERRQ(ierr);
-  // ierr = DMStagBCListApply_Enthalpy(dm,xlocal,bclist->bc_e,bclist->nbc_element,ff);CHKERRQ(ierr);
+  // Boundary conditions - only element dofs
+  if (en->form_user_bc) { // internal BC
+    ierr = en->form_user_bc(dm,x,ff,en->user_context);CHKERRQ(ierr);
+  }
+  ierr = DMStagBCListApply_Enthalpy(dm,xlocal,bclist->bc_e,bclist->nbc_element,ff);CHKERRQ(ierr);
 
   // Restore arrays, local vectors
   ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -674,44 +676,44 @@ PetscErrorCode BulkCompositionSteadyStateOperator(DM dm, ThermoState *thm, Coeff
   PetscFunctionReturn(0);
 }
 
-// // ---------------------------------------
-// /*@
-// DMStagBCListApply_Enthalpy - function to apply boundary conditions for ENTHALPY equations
+// ---------------------------------------
+/*@
+DMStagBCListApply_Enthalpy - function to apply boundary conditions for ENTHALPY equations
 
-// Use: internal
-// @*/
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "DMStagBCListApply_Enthalpy"
-// PetscErrorCode DMStagBCListApply_Enthalpy(DM dm, Vec xlocal,DMStagBC *bclist, PetscInt nbc, PetscScalar ***ff)
-// {
-//   PetscScalar    xx, fval;
-//   PetscInt       i, j, ibc, idx;
-//   PetscErrorCode ierr;
-//   PetscFunctionBeginUser;
+Use: internal
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "DMStagBCListApply_Enthalpy"
+PetscErrorCode DMStagBCListApply_Enthalpy(DM dm, Vec xlocal,DMStagBC *bclist, PetscInt nbc, PetscScalar ***ff)
+{
+  PetscScalar    xx, fval;
+  PetscInt       i, j, ibc, idx;
+  PetscErrorCode ierr;
+  PetscFunctionBeginUser;
 
-//   // Loop over all boundaries
-//   for (ibc = 0; ibc<nbc; ibc++) {
-//     if (bclist[ibc].type == BC_DIRICHLET) {
-//       i   = bclist[ibc].point.i;
-//       j   = bclist[ibc].point.j;
-//       idx = bclist[ibc].idx;
+  // Loop over all boundaries
+  for (ibc = 0; ibc<nbc; ibc++) {
+    if (bclist[ibc].type == BC_DIRICHLET) {
+      i   = bclist[ibc].point.i;
+      j   = bclist[ibc].point.j;
+      idx = bclist[ibc].idx;
 
-//       // Get residual value
-//       ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
-//       ff[j][i][idx] = xx - bclist[ibc].val;
-//     }
+      // Get residual value
+      ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
+      ff[j][i][idx] = xx - bclist[ibc].val;
+    }
 
-//     if (bclist[ibc].type == BC_NEUMANN) {
-//       i   = bclist[ibc].point.i;
-//       j   = bclist[ibc].point.j;
-//       idx = bclist[ibc].idx;
+    if (bclist[ibc].type == BC_NEUMANN) {
+      i   = bclist[ibc].point.i;
+      j   = bclist[ibc].point.j;
+      idx = bclist[ibc].idx;
 
-//       if (bclist[ibc].val) {
-//         SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Non-zero BC type NEUMANN for FDPDE_ENTHALPY [ELEMENT] is not yet implemented.");
-//       }
-//     }
-//   }
+      if (bclist[ibc].val) {
+        SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Non-zero BC type NEUMANN for FDPDE_ENTHALPY [ELEMENT] is not yet implemented.");
+      }
+    }
+  }
 
-//   PetscFunctionReturn(0);
-// }
+  PetscFunctionReturn(0);
+}
