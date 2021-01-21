@@ -278,17 +278,21 @@ PetscErrorCode ApplyBC_Enthalpy(DM dm, Vec x, PetscScalar ***ff, void *ctx)
   H_right = usr->par->nd_Tb + 1.0/usr->par->St;
 
   for (j = sz; j<sz+nz; j++) {
-    i = 0; 
-    ff[j][i][iT] = xx[j][i][iT] - H_left;
-
-    i = Nx-1; // RIGHT: H(T,phi) = H(T0,1.0)
-    ff[j][i][iT] = xx[j][i][iT] - H_right;
+    if (sx==0) {
+      i = 0; 
+      ff[j][i][iT] = xx[j][i][iT] - H_left;
+    }
+    
+    if (sx+nx==Nx) {
+      i = Nx-1; // RIGHT: H(T,phi) = H(T0,1.0)
+      ff[j][i][iT] = xx[j][i][iT] - H_right;
+    }
   }
 
   // Entire domain C = C0 (dummy variable)
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
-    ff[j][i][iC] = xx[j][i][iC] - usr->par->C0;
+      ff[j][i][iC] = xx[j][i][iC] - usr->par->C0;
     }
   }
 

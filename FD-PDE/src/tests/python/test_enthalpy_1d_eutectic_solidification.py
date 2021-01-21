@@ -76,6 +76,13 @@ str1 = '../test_enthalpy_1d_eutectic_solidification.app -pc_type lu -pc_factor_m
     ' -ts_scheme 2 -S '+str(S)+ \
     ' -CFL '+str(CFL)+ \
     ' -Cc '+str(Cc)+' -nz '+str(nz)+' -v '+str(v)+ ' > '+fname_data+'/log_'+fname+'.out'
+# str1 = 'mpiexec -n 2 ../test_enthalpy_1d_eutectic_solidification.app -pc_type lu -pc_factor_mat_solver_type superlu_dist -snes_monitor -snes_max_it 200'+ \
+#     ' -output_file '+fname+ \
+#     ' -output_dir '+fname_data+ \
+#     ' -tstep '+str(tstep)+solver+ \
+#     ' -ts_scheme 2 -S '+str(S)+ \
+#     ' -CFL '+str(CFL)+ \
+#     ' -Cc '+str(Cc)+' -nz '+str(nz)+' -v '+str(v)+ ' > '+fname_data+'/log_'+fname+'.out'
 print(str1)
 os.system(str1)
 

@@ -86,7 +86,16 @@ beta = 0.516385
 
 # Run test
 solver = ' -snes_converged_reason -ksp_converged_reason -snes_monitor -ksp_monitor -snes_atol 1e-10 -snes_rtol 1e-20 -stop_enthalpy_failed'
-str1 = '../test_enthalpy_1d_solidification_TC.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -snes_max_it 200'+ \
+# str1 = '../test_enthalpy_1d_solidification_TC.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -snes_max_it 200'+ \
+#     ' -output_file '+fname+ \
+#     ' -output_dir '+fname_data+ \
+#     ' -dtmax '+str(dt)+ \
+#     ' -tmax '+str(tend)+ \
+#     ' -tstart '+str(tstart)+ \
+#     ' -tstep '+str(tstep)+ \
+#     ' -beta '+str(beta)+ \
+#     ' -nx '+str(n)+solver + ' > '+fname_data+'/log'+fname+'.out'
+str1 = 'mpiexec -n 2 ../test_enthalpy_1d_solidification_TC.app -pc_type lu -pc_factor_mat_solver_type superlu_dist -snes_monitor -snes_max_it 200'+ \
     ' -output_file '+fname+ \
     ' -output_dir '+fname_data+ \
     ' -dtmax '+str(dt)+ \
@@ -94,7 +103,7 @@ str1 = '../test_enthalpy_1d_solidification_TC.app -pc_type lu -pc_factor_mat_sol
     ' -tstart '+str(tstart)+ \
     ' -tstep '+str(tstep)+ \
     ' -beta '+str(beta)+ \
-    ' -nx '+str(n)+solver + ' > '+fname_data+'/log'+fname+'.out'
+    ' -nx '+str(n)+' -nz '+str(n)+solver + ' > '+fname_data+'/log'+fname+'.out'
 print(str1)
 os.system(str1)
 

@@ -342,17 +342,21 @@ PetscErrorCode ApplyBC_Enthalpy(DM dm, Vec x, PetscScalar ***ff, void *ctx)
   C_down = usr->par->C0;
 
   // Down:
-  j = 0;
-  for (i = sx; i<sx+nx; i++) {
-    ff[j][i][iH] = xx[j][i][iH] - H_down;
-    ff[j][i][iC] = xx[j][i][iC] - C_down;
+  if (sz==0) {
+    j = 0;
+    for (i = sx; i<sx+nx; i++) {
+      ff[j][i][iH] = xx[j][i][iH] - H_down;
+      ff[j][i][iC] = xx[j][i][iC] - C_down;
+    }
   }
 
   // Top: 
-  j = Nz-1;
-  for (i = sx; i<sx+nx; i++) {
-    ff[j][i][iH] = xx[j][i][iH] - H_top;
-    ff[j][i][iC] = xx[j][i][iC] - C_top;
+  if (sz+nz==Nz) {
+    j = Nz-1;
+    for (i = sx; i<sx+nx; i++) {
+      ff[j][i][iH] = xx[j][i][iH] - H_top;
+      ff[j][i][iC] = xx[j][i][iC] - C_top;
+    }
   }
 
   ierr = DMStagVecRestoreArray(dm, xlocal, &xx); CHKERRQ(ierr);

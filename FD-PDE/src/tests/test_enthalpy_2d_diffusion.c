@@ -34,6 +34,7 @@ typedef struct {
   PetscInt       ts_scheme, adv_scheme, tout, tstep, ncomp;
   char           fname_out[FNAME_LENGTH]; 
   char           fdir_out[FNAME_LENGTH]; 
+  PetscInt       test_enth_error, istep;
 } Params;
 
 typedef struct {
@@ -162,6 +163,7 @@ PetscErrorCode Numerical_solution(void *ctx)
 
     // Update time
     par->t += par->dt;
+    par->istep = istep;
 
     // update pressure
     ierr = FDPDEEnthalpyGetPressure(fd,NULL,&xP);CHKERRQ(ierr);
@@ -221,9 +223,11 @@ PetscErrorCode Numerical_solution(void *ctx)
 // ---------------------------------------
 EnthEvalErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,PetscScalar *_T,PetscScalar *_phi,PetscScalar *CF,PetscScalar *CS,PetscInt ncomp, void *ctx) 
 {
-  // UsrData      *usr = (UsrData*) ctx;
+  UsrData      *usr = (UsrData*) ctx;
   PetscInt     ii;
   PetscScalar  T, phi;
+  PetscMPIInt  rank;
+  PetscErrorCode ierr;
 
   T = H;
   phi = 1.0;
@@ -233,6 +237,14 @@ EnthEvalErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,Pets
     CF[ii] = C[ii];
   }
 
+  // tests for enthalpy error output
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  if (usr->par->test_enth_error == 1) { // error on both processors - alternating
+    if ((rank == 0) && (usr->par->istep==0)) phi = 2.5;
+    else if ((rank == 1) && (usr->par->istep==1)) phi = 3.5;
+    else phi = 4.5;
+  }
+  
   // assign pointers
   *_T = T;
   *_phi = phi;
@@ -277,33 +289,49 @@ PetscErrorCode ApplyBC_Enthalpy(DM dm, Vec x, PetscScalar ***ff, void *ctx)
 
   // Vertical boundaries
   for (j = sz; j<sz+nz; j++) {
-    i = 0;
-    ff[j][i][iT] = xx[j][i][iT] - 0.0;
-    i = Nx-1;
-    ff[j][i][iT] = xx[j][i][iT] - 0.0;
+    if (sx==0) {
+      i = 0;
+      ff[j][i][iT] = xx[j][i][iT] - 0.0;
+    }
+    if (sx+nx==Nx) {
+      i = Nx-1;
+      ff[j][i][iT] = xx[j][i][iT] - 0.0;
+    }
 
     for (ii=0; ii<usr->par->ncomp-1; ii++) {
       ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,ii+1,&iC); CHKERRQ(ierr);
-      i = 0;
-      ff[j][i][iC] = xx[j][i][iC] - 0.0;
-      i = Nx-1;
-      ff[j][i][iC] = xx[j][i][iC] - 0.0;
+      if (sx==0) {
+        i = 0;
+        ff[j][i][iC] = xx[j][i][iC] - 0.0;
+      }
+      if (sx+nx==Nx) {
+        i = Nx-1;
+        ff[j][i][iC] = xx[j][i][iC] - 0.0;
+      }
     }
   }
 
   // Horizontal boundaries
   for (i = sx; i<sx+nx; i++) {
-    j = 0;
-    ff[j][i][iT] = xx[j][i][iT] - 0.0;
-    j = Nz-1;
-    ff[j][i][iT] = xx[j][i][iT] - 0.0;
+    if (sz==0) {
+      j = 0;
+      ff[j][i][iT] = xx[j][i][iT] - 0.0;
+    }
+    if (sz+nz==Nz) {
+      j = Nz-1;
+      ff[j][i][iT] = xx[j][i][iT] - 0.0;
+    }
 
     for (ii=0; ii<usr->par->ncomp-1; ii++) {
       ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,ii+1,&iC); CHKERRQ(ierr);
-      j = 0;
-      ff[j][i][iC] = xx[j][i][iC] - 0.0;
-      j = Nz-1;
-      ff[j][i][iC] = xx[j][i][iC] - 0.0;
+      if (sz==0) {
+        j = 0;
+        ff[j][i][iC] = xx[j][i][iC] - 0.0;
+      }
+      if (sz+nz==Nz) {
+        j = Nz-1;
+        ff[j][i][iC] = xx[j][i][iC] - 0.0;
+      }
     }
   }
 
@@ -548,6 +576,9 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->dtmax,0.01, "dtmax", "Maximum time step [-]"); CHKERRQ(ierr);
   par->t = 0.05;
   par->dt = par->dtmax;
+
+  ierr = PetscBagRegisterInt(bag, &par->test_enth_error,0,"test_enth_error", "Check enthalpy error output"); CHKERRQ(ierr);
+  par->istep = 0;
 
   // Input/output 
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_2d_diff_enth","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
