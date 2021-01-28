@@ -106,11 +106,6 @@ typedef struct {
   PetscScalar  C1[4],C2[4],v[4],vs[4],vf[4];
 } CoeffState;
 
-typedef struct {
-  ThermoState  *thm_send, *thm_recv;
-  CoeffState   *cff_send, *cff_recv;
-} ThermoExchange;
-
 // user defined and model-dependent variables
 typedef struct {
   AdvectSchemeType   advtype;
@@ -146,7 +141,6 @@ PetscErrorCode FormFunction_Enthalpy(SNES,Vec,Vec,void*);
 // PetscErrorCode DMStagBCListApply_Enthalpy(DM,Vec,DMStagBC*,PetscInt,PetscScalar***);
 
 PetscErrorCode ApplyEnthalpyMethod(FDPDE,DM,Vec,DM,Vec,DM,Vec,EnthalpyData*,ThermoState*,CoeffState*,const char[]);
-PetscErrorCode ExchangeEnthalpyMethod(FDPDE,DM,ThermoState*,CoeffState*);
 PetscErrorCode ApplyEnthalpyReport_Failure(FDPDE,PetscViewer,EnthalpyData*,ThermoState*,CoeffState*);
 PetscErrorCode CoeffCellData(DM,Vec,PetscInt,PetscInt,CoeffState*);
 PetscErrorCode SolutionCellData(DM,Vec,PetscInt,PetscInt,PetscScalar*,PetscScalar*);

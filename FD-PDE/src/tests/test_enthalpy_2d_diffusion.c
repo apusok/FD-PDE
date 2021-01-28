@@ -1,6 +1,6 @@
 // ---------------------------------------
 // 2D diffusion to test the enthalpy implementation
-// run: ./test_enthalpy_2d_diffusion.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -log_view
+// run: ./test_enthalpy_2d_diffusion.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -log_view
 // python output: test_enthalpy_2d_diffusion.py
 // ---------------------------------------
 static char help[] = "2D Diffusion problem using the Enthalpy Method\n\n";
@@ -172,6 +172,11 @@ PetscErrorCode Numerical_solution(void *ctx)
     // Enthalpy Solver
     ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
     ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr);
+    
+    // PetscPrintf(PETSC_COMM_WORLD,"# RESIDUAL \n");
+    // ierr = VecView(fd->r,PETSC_VIEWER_STDOUT_WORLD);
+
+    // PetscPrintf(PETSC_COMM_WORLD,"# JACOBIAN \n");
     // ierr = MatView(fd->J,PETSC_VIEWER_STDOUT_WORLD);
 
     // Copy solution and coefficient to old

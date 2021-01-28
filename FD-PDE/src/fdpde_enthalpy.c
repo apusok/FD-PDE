@@ -211,7 +211,7 @@ Use: internal
 #define __FUNCT__ "JacobianPreallocator_Enthalpy"
 PetscErrorCode JacobianPreallocator_Enthalpy(FDPDE fd,Mat J)
 {
-  PetscInt       Nx, Nz, *loc;             // global variables
+  PetscInt       Nx, Nz;               // global variables
   PetscInt       ii, i, j, sx, sz, nx, nz; // local variables
   PetscInt       nEntries = STENCIL_ENTHALPY_NONZERO_PREALLOC; 
   Mat            preallocator = NULL;
@@ -234,21 +234,13 @@ PetscErrorCode JacobianPreallocator_Enthalpy(FDPDE fd,Mat J)
   // Zero entries
   ierr = PetscCalloc1(nEntries,&xx); CHKERRQ(ierr);
   ierr = PetscCalloc1(nEntries,&point); CHKERRQ(ierr);
-  ierr = PetscCalloc1(nEntries,&loc); CHKERRQ(ierr);
 
   // Get non-zero pattern for preallocator
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
       for (ii = 0; ii<fd->dof2; ii++) { // loop over all dofs
         ierr = EnthalpyNonzeroStencil(i,j,ii,Nx,Nz,point);CHKERRQ(ierr);
-        {
-          PetscInt ix;
-          for (ix = 0; ix<nEntries; ix++) {
-            loc[ix] = fd->dof2*(point[ix].j*Nx+point[ix].i)+ii;
-          }
-        }
-        // ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries,point,xx,INSERT_VALUES); CHKERRQ(ierr);
-        ierr = MatSetValues(preallocator,1,loc,nEntries,loc,xx,INSERT_VALUES); CHKERRQ(ierr);
+        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
     }
   }
@@ -265,7 +257,6 @@ PetscErrorCode JacobianPreallocator_Enthalpy(FDPDE fd,Mat J)
 
   ierr = PetscFree(xx);CHKERRQ(ierr);
   ierr = PetscFree(point);CHKERRQ(ierr);
-  ierr = PetscFree(loc);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

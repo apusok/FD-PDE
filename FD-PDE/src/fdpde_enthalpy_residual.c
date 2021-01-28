@@ -51,18 +51,6 @@ static char * EnthalpyErrorTypeNames(err) {
 };
 
 static PetscInt SingleDimIndex(PetscInt i, PetscInt j, PetscInt nz) { return i*nz+j; }
-
-static void getLocalRank(PetscInt *i, PetscInt *j, PetscMPIInt rank, PetscInt m) 
-{
-  (*j) =  rank/m;
-  (*i) =  rank-(*j)*m;
-}
-
-static PetscMPIInt getGlobalRank(PetscInt i, PetscInt j, PetscInt m, PetscInt n)
-{
-  if (i < 0 || i >= m || j < 0 || j >= n ) return -1;
-  return (PetscMPIInt)(i + j*m);
-}
 // ---------------------------------------
 /*@
 FormFunction_Enthalpy - (ENTHALPY) Residual evaluation function
@@ -150,14 +138,12 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
     ierr = PetscCalloc1((size_t)((nx+4)*(nz+4))*sizeof(ThermoState),&thm_prev);CHKERRQ(ierr);
     ierr = PetscCalloc1((size_t)((nx+4)*(nz+4))*sizeof(CoeffState),&cff_prev);CHKERRQ(ierr);
     ierr = ApplyEnthalpyMethod(fd,dm,xprevlocal,dmcoeff,coeffprevlocal,dmP,Pprevlocal,en,thm_prev,cff_prev,"prev"); CHKERRQ(ierr);
-    ierr = ExchangeEnthalpyMethod(fd,dm,thm_prev,cff_prev); CHKERRQ(ierr);
   }
 
   // update enthalpy and coeff cell data
   ierr = PetscCalloc1((size_t)((nx+4)*(nz+4))*sizeof(ThermoState),&thm);CHKERRQ(ierr); 
   ierr = PetscCalloc1((size_t)((nx+4)*(nz+4))*sizeof(CoeffState),&cff);CHKERRQ(ierr);
   ierr = ApplyEnthalpyMethod(fd,dm,xlocal,dmcoeff,coefflocal,dmP,Plocal,en,thm,cff,NULL); CHKERRQ(ierr);
-  ierr = ExchangeEnthalpyMethod(fd,dm,thm,cff); CHKERRQ(ierr);
 
   // Residual evaluation
   for (j = sz; j<sz+nz; j++) {
@@ -215,45 +201,61 @@ Use: internal
 PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coefflocal,DM dmP, Vec Plocal,EnthalpyData *en,ThermoState *thm,CoeffState *cff, const char prefix[])
 {
   PetscInt       ii,i,j,sx,sz,nx,nz,idx,nreports, gnreports;
+  PetscInt       Nx, Nz;
   PetscScalar    H,C[MAX_COMPONENTS],P,phi,T,TP,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
   DMStagStencil  point;
   PetscBool      passed = PETSC_TRUE;
+  PetscMPIInt    rank;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
+  Nx = fd->Nx;
+  Nz = fd->Nz;
+
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  
+  // get coefficient data
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
-      EnthEvalErrorCode  thermo_dyn_error_code;
-
-      H = 0.0; phi = 0.0; T = 0.0; P = 0.0;
-      for (ii = 0; ii<en->ncomponents; ii++) { C[ii] = 0.0; CF[ii] = 0.0; CS[ii] = 0.0;}
-
       idx = SingleDimIndex(i-sx+2,j-sz+2,nz+4);
       ierr = CoeffCellData(dmcoeff,coefflocal,i,j,&cff[idx]);CHKERRQ(ierr);
-      ierr = SolutionCellData(dm,xlocal,i,j,&H,C);CHKERRQ(ierr);
+    }
+  }
 
-      point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
-      ierr = DMStagVecGetValuesStencil(dmP,Plocal,1,&point,&P); CHKERRQ(ierr);
+  // compute ghosted enthalpy data
+  for (j = sz-2; j<sz+nz+2; j++) {
+    for (i = sx-2; i<sx+nx+2; i++) {
+      if ((i>=0) && (j>=0) && (i<Nx) && (j<Nz)) {
+        EnthEvalErrorCode  thermo_dyn_error_code = 0;
 
-      thermo_dyn_error_code = en->form_enthalpy_method(H,C,P,&T,&phi,CF,CS,en->ncomponents,en->user_context);
-      if (thermo_dyn_error_code != 0) passed = PETSC_FALSE;
+        H = 0.0; phi = 0.0; T = 0.0; P = 0.0;
+        for (ii = 0; ii<en->ncomponents; ii++) { C[ii] = 0.0; CF[ii] = 0.0; CS[ii] = 0.0;}
 
-      if (en->form_TP) { ierr = en->form_TP(T,P,&TP,en->user_context_tp);CHKERRQ(ierr); }
-      else TP = T;
-      
-      thm[idx].P  = P;
-      thm[idx].TP = TP;
-      thm[idx].T  = T;
-      thm[idx].H  = H;
-      thm[idx].phi = phi;
-      for (ii = 0; ii<en->ncomponents; ii++) {
-        thm[idx].C[ii]  = C[ii];
-        thm[idx].CS[ii] = CS[ii];
-        thm[idx].CF[ii] = CF[ii];
+        idx = SingleDimIndex(i-sx+2,j-sz+2,nz+4);
+        ierr = SolutionCellData(dm,xlocal,i,j,&H,C);CHKERRQ(ierr);
+        point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
+        ierr = DMStagVecGetValuesStencil(dmP,Plocal,1,&point,&P); CHKERRQ(ierr);
+
+        thermo_dyn_error_code = en->form_enthalpy_method(H,C,P,&T,&phi,CF,CS,en->ncomponents,en->user_context);
+        if (thermo_dyn_error_code != 0) passed = PETSC_FALSE;
+
+        if (en->form_TP) { ierr = en->form_TP(T,P,&TP,en->user_context_tp);CHKERRQ(ierr); }
+        else TP = T;
+        
+        thm[idx].P  = P;
+        thm[idx].TP = TP;
+        thm[idx].T  = T;
+        thm[idx].H  = H;
+        thm[idx].phi = phi;
+        for (ii = 0; ii<en->ncomponents; ii++) {
+          thm[idx].C[ii]  = C[ii];
+          thm[idx].CS[ii] = CS[ii];
+          thm[idx].CF[ii] = CF[ii];
+        }
+        thm[idx].err = thermo_dyn_error_code;
       }
-      thm[idx].err = thermo_dyn_error_code;
     }
   }
 
@@ -278,151 +280,6 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coe
   }
   ierr = MPI_Allreduce(&en->nreports,&gnreports,1,MPI_INT,MPI_MAX,fd->comm);CHKERRQ(ierr);
   en->nreports = gnreports;
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-/*@
-ExchangeEnthalpyMethod - collects the coefficients and enthalpy variables locally in the buffer zone
-Use: internal
-@*/
-// ---------------------------------------
-PetscErrorCode ExchangeEnthalpyMethod(FDPDE fd,DM dm,ThermoState *thm,CoeffState *cff)
-{
-  PetscInt       i,j,sx,sz,nx,nz,dim,Px,Py,rx,ry;
-  PetscInt       ind,idx,ii,jj,iproc,is,ie,js,je, num_neigh = 9;
-  PetscInt       nsend[9], nrecv[9], scnt1, scnt2, rcnt1, rcnt2, scnt,rcnt;
-  const PetscInt *lx, *ly;
-  PetscMPIInt    rank,size,neigh[9];
-  MPI_Request    srequest1[9],srequest2[9],rrequest1[9],rrequest2[9],srequest[9],rrequest[9],nbyte;
-  ThermoExchange data[9];
-
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
-  
-  // return if not parallel (not needed)
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
-  if (size==1) PetscFunctionReturn(0);
-
-  // count proc neighbors 
-  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
-  if (dim != 2) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Only valid for 2d DM"); 
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-  ierr = DMStagGetNumRanks(dm,&Px,&Py,NULL); CHKERRQ(ierr);
-  getLocalRank(&rx,&ry,rank,Px);
-  ierr = DMStagGetOwnershipRanges(dm,&lx,&ly,NULL);
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-
-  iproc = 0;
-  for (j = -1; j<2; j++) {
-    for (i = -1; i<2; i++) {
-      neigh[iproc] = getGlobalRank(rx+i,ry+j,Px,Py);
-      if ((neigh[iproc]!=-1) && (neigh[iproc]!=rank)) {
-        if      (i == 0) nsend[iproc] = 2*lx[rx];
-        else if (j == 0) nsend[iproc] = 2*ly[ry];
-        else             nsend[iproc] = 4; // proc corners
-      } else nsend[iproc] = 0;
-      nrecv[iproc] = nsend[iproc];
-      iproc++;
-    }
-  }
-
-  // allocate memory 
-  for (iproc = 0; iproc < num_neigh; iproc++) {
-    if ((neigh[iproc]!=-1) && (neigh[iproc]!=rank)) {
-      ierr = PetscCalloc1((size_t)(nsend[iproc])*sizeof(ThermoState),&data[iproc].thm_send);CHKERRQ(ierr);
-      ierr = PetscCalloc1((size_t)(nsend[iproc])*sizeof(CoeffState),&data[iproc].cff_send);CHKERRQ(ierr);
-
-      ierr = PetscCalloc1((size_t)(nrecv[iproc])*sizeof(ThermoState),&data[iproc].thm_recv);CHKERRQ(ierr);
-      ierr = PetscCalloc1((size_t)(nrecv[iproc])*sizeof(CoeffState),&data[iproc].cff_recv);CHKERRQ(ierr);
-    }
-  }
-
-  // send thm and coeff data to valid neighbours except itself
-  scnt1 = 0; scnt2 = 0;
-  for (iproc = 0; iproc < num_neigh; iproc++) {
-    if ((neigh[iproc]!=-1) && (neigh[iproc]!=rank)) {
-      getLocalRank(&ii,&jj,neigh[iproc],Px);
-      if      (rx==ii) { is = sx     ; ie = sx+nx;}
-      else if (rx >ii) { is = sx     ; ie = sx+2 ;}
-      else             { is = sx+nx-2; ie = sx+nx;}
-      if      (ry==jj) { js = sz     ; je = sz+nz;}
-      else if (ry >jj) { js = sz     ; je = sz+2 ;}
-      else             { js = sz+nz-2; je = sz+nz;}
-
-      // fill data
-      ind=0;
-      for (j = js; j<je; j++) {
-        for (i = is; i<ie; i++) {
-          idx = SingleDimIndex(i-sx+2,j-sz+2,nz+4);
-          data[iproc].thm_send[ind] = thm[idx];
-          data[iproc].cff_send[ind] = cff[idx];
-          ind++;
-        }
-      }
-
-      nbyte = (PetscMPIInt)(nsend[iproc]*(PetscInt)sizeof(ThermoState));
-      ierr = MPI_Isend(data[iproc].thm_send,nbyte,MPI_BYTE,neigh[iproc],100,fd->comm,&srequest1[scnt1++]); CHKERRQ(ierr);
-
-      nbyte = (PetscMPIInt)(nsend[iproc]*(PetscInt)sizeof(CoeffState));
-      ierr = MPI_Isend(data[iproc].cff_send,nbyte,MPI_BYTE,neigh[iproc],200,fd->comm,&srequest2[scnt2++]); CHKERRQ(ierr);
-    }
-  }
-
-  // receive thm and coeff data
-  rcnt1 = 0; rcnt2 = 0;
-  for (iproc = 0; iproc < num_neigh; iproc++) {
-    if ((neigh[iproc]!=-1) && (neigh[iproc]!=rank)) {
-
-      nbyte = (PetscMPIInt)(nrecv[iproc]*(PetscInt)sizeof(ThermoState));
-      ierr = MPI_Irecv(data[iproc].thm_recv,nbyte,MPI_BYTE,neigh[iproc],100,fd->comm,&rrequest1[rcnt1++]); CHKERRQ(ierr);
-
-      nbyte = (PetscMPIInt)(nrecv[iproc]*(PetscInt)sizeof(CoeffState));
-      ierr = MPI_Irecv(data[iproc].cff_recv,nbyte,MPI_BYTE,neigh[iproc],200,fd->comm,&rrequest2[rcnt2++]); CHKERRQ(ierr);
-    }
-  }
-
-  // wait until all communication processes have been terminated
-  if (scnt1) { ierr = MPI_Waitall(scnt1,srequest1,MPI_STATUSES_IGNORE); CHKERRQ(ierr); }
-  if (rcnt1) { ierr = MPI_Waitall(rcnt1,rrequest1,MPI_STATUSES_IGNORE); CHKERRQ(ierr); }
-  if (scnt2) { ierr = MPI_Waitall(scnt2,srequest2,MPI_STATUSES_IGNORE); CHKERRQ(ierr); }
-  if (rcnt2) { ierr = MPI_Waitall(rcnt2,rrequest2,MPI_STATUSES_IGNORE); CHKERRQ(ierr); }
-
-  // save thm and coeff data
-  for (iproc = 0; iproc < num_neigh; iproc++) {
-    if ((neigh[iproc]!=-1) && (neigh[iproc]!=rank)) {
-      getLocalRank(&ii,&jj,neigh[iproc],Px);
-      if      (rx==ii) { is = sx     ; ie = sx+nx  ;}
-      else if (rx >ii) { is = sx-2   ; ie = sx     ;}
-      else             { is = sx+nx  ; ie = sx+nx+2;}
-      if      (ry==jj) { js = sz     ; je = sz+nz  ;}
-      else if (ry >jj) { js = sz-2   ; je = sz     ;}
-      else             { js = sz+nz  ; je = sz+nz+2;}
-
-      // fill data
-      ind=0;
-      for (j = js; j<je; j++) {
-        for (i = is; i<ie; i++) {
-          idx = SingleDimIndex(i-sx+2,j-sz+2,nz+4);
-          thm[idx] = data[iproc].thm_recv[ind];
-          cff[idx] = data[iproc].cff_recv[ind];
-          ind++;
-        }
-      }
-
-    }
-  }
-
-  // free data
-  for (iproc = 0; iproc < num_neigh; iproc++) {
-    if ((neigh[iproc]!=-1) && (neigh[iproc]!=rank)) {
-      ierr = PetscFree(data[iproc].thm_send);CHKERRQ(ierr);
-      ierr = PetscFree(data[iproc].cff_send);CHKERRQ(ierr);
-      ierr = PetscFree(data[iproc].thm_recv);CHKERRQ(ierr);
-      ierr = PetscFree(data[iproc].cff_recv);CHKERRQ(ierr);
-    }
-  }
 
   PetscFunctionReturn(0);
 }
@@ -474,7 +331,7 @@ PetscErrorCode ApplyEnthalpyReport_Failure(FDPDE fd,PetscViewer viewer, Enthalpy
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
       const char *err_message;
-      idx = SingleDimIndex(i-sx+2,j-sz+2,nz+4);
+      idx = SingleDimIndex(i-sx+2,j-sz+2,nz+4);;
       err_message = EnthalpyErrorTypeNames(thm[idx].err);
       PetscViewerASCIIPrintf(viewer," Error %s encountered in cell [i=%d j=%d]  \n",err_message,i,j);
     }
