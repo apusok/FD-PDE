@@ -594,8 +594,8 @@ static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
   PetscViewerASCIIPrintf(viewer,"[SNES failure summary]\n");
   PetscViewerASCIIPushTab(viewer);
   PetscViewerASCIIPrintf(viewer,"reason: %D (error code) ->\n",(PetscInt)reason);
-  ierr = SNESReasonView(fd->snes,viewer);CHKERRQ(ierr);
-  // ierr = SNESConvergedReasonView(fd->snes,viewer);CHKERRQ(ierr);
+  // ierr = SNESReasonView(fd->snes,viewer);CHKERRQ(ierr);
+  ierr = SNESConvergedReasonView(fd->snes,viewer);CHKERRQ(ierr);
 
   {
     PetscInt its;
