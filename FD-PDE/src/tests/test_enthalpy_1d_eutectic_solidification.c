@@ -789,7 +789,7 @@ PetscErrorCode VerifySteadyState(DM dm,Vec x,Vec xprev, void *ctx)
   UsrData       *usr = (UsrData*) ctx;
   PetscInt       i, j, sx, sz, nx, nz;
   Vec            xlocal,xprevlocal;
-  PetscScalar    tol, xx, xxprev,max_val;
+  PetscScalar    tol, xx, xxprev,max_val,gmax_val = 0.0;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
@@ -813,9 +813,10 @@ PetscErrorCode VerifySteadyState(DM dm,Vec x,Vec xprev, void *ctx)
     }
   }
 
-  if (max_val<tol) usr->par->steady_state = 1;
+  ierr = MPI_Allreduce(&max_val,&gmax_val,1,MPI_DOUBLE,MPI_MAX,usr->comm);CHKERRQ(ierr);
+  if (gmax_val<tol) usr->par->steady_state = 1;
 
-  PetscPrintf(PETSC_COMM_WORLD,"# >> Steady-state check: dt = %1.6e tol = %1.6e max(|x-xprev|) = %1.6e\n",usr->par->dt,tol,max_val);
+  PetscPrintf(PETSC_COMM_WORLD,"# >> Steady-state check: dt = %1.6e tol = %1.6e max(|x-xprev|) = %1.6e\n",usr->par->dt,tol,gmax_val);
 
   // Restore vectors
   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
