@@ -169,9 +169,10 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
   }
 
   // Create dms and vector - specific to FD-PDE
+  PetscInt stencil_width = 2;
   ierr = DMStagCreate2d(fd->comm, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, fd->Nx, fd->Nz, 
             PETSC_DECIDE, PETSC_DECIDE, fd->dof0, fd->dof1, fd->dof2, 
-            DMSTAG_STENCIL_BOX, 1, NULL,NULL, &fd->dmstag); CHKERRQ(ierr);
+            DMSTAG_STENCIL_BOX, stencil_width, NULL,NULL, &fd->dmstag); CHKERRQ(ierr);
   ierr = DMSetFromOptions(fd->dmstag); CHKERRQ(ierr);
   ierr = DMSetUp         (fd->dmstag); CHKERRQ(ierr);
   ierr = DMStagSetUniformCoordinatesProduct(fd->dmstag,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
@@ -594,8 +595,8 @@ static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
   PetscViewerASCIIPrintf(viewer,"[SNES failure summary]\n");
   PetscViewerASCIIPushTab(viewer);
   PetscViewerASCIIPrintf(viewer,"reason: %D (error code) ->\n",(PetscInt)reason);
-  ierr = SNESReasonView(fd->snes,viewer);CHKERRQ(ierr);
-  // ierr = SNESConvergedReasonView(fd->snes,viewer);CHKERRQ(ierr);
+  // ierr = SNESReasonView(fd->snes,viewer);CHKERRQ(ierr);
+  ierr = SNESConvergedReasonView(fd->snes,viewer);CHKERRQ(ierr);
 
   {
     PetscInt its;

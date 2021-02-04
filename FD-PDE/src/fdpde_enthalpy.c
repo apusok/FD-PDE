@@ -252,6 +252,9 @@ PetscErrorCode JacobianPreallocator_Enthalpy(FDPDE fd,Mat J)
   ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
   ierr = MatAssemblyEnd  (J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
 
+  // PetscPrintf(PETSC_COMM_WORLD,"# PREALLOCATOR \n");
+  // ierr = MatView(J,PETSC_VIEWER_STDOUT_WORLD);
+
   ierr = PetscFree(xx);CHKERRQ(ierr);
   ierr = PetscFree(point);CHKERRQ(ierr);
 
@@ -744,7 +747,7 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
   PetscInt       i, j, ii, sx,sz,nx,nz,idx;
   PetscInt       dof_new, dof_sol;
   DM             dmnew;
-  Vec            xnew, xlocal,xnewlocal;
+  Vec            xnew, xlocal,xnewlocal,Plocal;
   PetscScalar    H,C[MAX_COMPONENTS],P,phi,T,TP,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
   PetscScalar    ***xx, *xE; 
   DMStagStencil  *pointE;
@@ -774,6 +777,9 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
   ierr = DMGetLocalVector(dm,&xlocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal); CHKERRQ(ierr);
 
+  ierr = DMGetLocalVector(en->dmP, &Plocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (en->dmP, en->xP, INSERT_VALUES, Plocal); CHKERRQ(ierr);
+
   ierr = PetscCalloc1(dof_sol,&xE); CHKERRQ(ierr);
   ierr = PetscCalloc1(dof_sol,&pointE); CHKERRQ(ierr);
 
@@ -797,6 +803,9 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
         C[ii-1] = xE[ii];
       }
       C[en->ncomponents-1] = 1.0 - sum_C;
+
+      point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
+      ierr = DMStagVecGetValuesStencil(en->dmP,Plocal,1,&point,&P); CHKERRQ(ierr);
 
       // calculate enthalpy method
       thermo_dyn_error_code = en->form_enthalpy_method(H,C,P,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
@@ -844,6 +853,7 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
   ierr = DMLocalToGlobalEnd  (dmnew,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
   ierr = VecDestroy(&xnewlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(en->dmP, &Plocal); CHKERRQ(ierr);
 
   *_dmnew = dmnew;
   *_xnew  = xnew;
