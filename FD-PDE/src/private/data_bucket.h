@@ -1,9 +1,9 @@
 #if !defined(__DMSWARM_DATA_BUCKET_H__)
 #define __DMSWARM_DATA_BUCKET_H__
 
-#if ((PETSC_VERSION_MAJOR == 3) && (PETSC_VERSION_MINOR == 13))
+#if ((PETSC_VERSION_MAJOR == 3) && (PETSC_VERSION_MINOR == 14))
 #else
-		#error "PETSc version dependency: private/data_bucket.h is only compatible with petsc 3.13!"
+		#error "PETSc version dependency: private/data_bucket.h is only compatible with petsc 3.14!"
 #endif
 
 #include <petsc/private/dmswarmimpl.h>    /*I   "petscdmswarm.h"   I*/
