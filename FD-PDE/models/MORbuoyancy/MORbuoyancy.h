@@ -30,12 +30,12 @@ typedef struct {
   PetscInt       nx, nz;
   PetscScalar    L, H, xmin, zmin, xMOR;
   PetscScalar    k_hat, g, U0;
-  PetscScalar    Tp, cp, La, rho0, drho, alpha, beta, kappa, D;
-  PetscScalar    phi0, n, K0, phi_max, eta0, zeta0, mu, eta_min, eta_max, lambda, EoR, Teta0; 
+  PetscScalar    Tp, Ts, cp, La, rho0, drho, alpha, beta, kappa, D;
+  PetscScalar    phi0, n, K0, phi_max, eta0, zeta0, mu, eta_min, eta_max, lambda, EoR, Teta0, zetaExp; 
   PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT;
-  PetscInt       ts_scheme, adv_scheme, tout, tstep;
+  PetscInt       ts_scheme, adv_scheme, tout, tstep, istep;
   PetscScalar    tmax, dtmax;
-  PetscInt       out_count;
+  PetscInt       out_count, buoyancy;
   PetscBool      dim_out;
   char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH]; 
 } Params;
@@ -45,8 +45,8 @@ typedef struct {
 } ScalParams;
 
 typedef struct {
-  PetscScalar    L, H, xmin, zmin, xMOR, U0, eta0, zeta0;
-  PetscScalar    tmax, dtmax, t, dt, tprev;
+  PetscScalar    L, H, xmin, zmin, xMOR, U0, visc_ratio;
+  PetscScalar    tmax, dtmax, t, dt;
   PetscScalar    delta, alpha_s, beta_s, A, S, PeT, PeC, thetaS, G, RM;
 } NdParams;
 
@@ -58,8 +58,8 @@ typedef struct {
   PetscBag       bag;
   MPI_Comm       comm;
   PetscMPIInt    rank;
-  DM             dmPV,dmHC;
-  Vec            xPV, xHC, xEnth; // non-dimensional vectors
+  DM             dmPV, dmHC, dmVel;
+  Vec            xPV, xHC, xVel, xphiT;
 } UsrData;
 
 // ---------------------------------------
@@ -89,18 +89,25 @@ PetscErrorCode SetInitialConditions(FDPDE, FDPDE, void*);
 PetscErrorCode CornerFlow_MOR(void*);
 PetscErrorCode HalfSpaceCooling_MOR(void*);
 PetscErrorCode UpdateLithostaticPressure(DM,Vec,void*);
-// PetscErrorCode CorrectTemperatureForSolidus(void*);
+PetscErrorCode CorrectInitialHCZeroPorosity(DM,Vec,void*);
+PetscErrorCode ExtractTemperaturePorosity(DM,Vec,void*,PetscBool);
+PetscErrorCode ComputeFluidAndBulkVelocity(DM,Vec,DM,Vec,DM,Vec,void*);
 
 // constitutive equations
-// PetscScalar Temp2Theta(PetscScalar,PetscScalar);
-// PetscScalar Theta2Temp(PetscScalar,PetscScalar);
-// PetscScalar BulkComposition(PetscScalar,PetscScalar,PetscScalar);  
+PetscErrorCode Porosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar*,PetscScalar,PetscScalar,PetscScalar);
 PetscScalar Solidus(PetscScalar,PetscScalar,PetscScalar,PetscBool);
 PetscScalar Liquidus(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscBool);
 PetscScalar LithostaticPressure(PetscScalar,PetscScalar,PetscScalar);
 PetscScalar TotalEnthalpy(PetscScalar,PetscScalar,PetscScalar);
-PetscErrorCode Porosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar*,PetscScalar,PetscScalar,PetscScalar);
 PetscScalar PhiRes(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
+PetscScalar FluidVelocity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar); 
+PetscScalar BulkVelocity(PetscScalar,PetscScalar,PetscScalar);
+PetscScalar Permeability(PetscScalar,PetscScalar,PetscScalar,PetscScalar);
+PetscScalar FluidBuoyancy(PetscScalar,PetscScalar,PetscScalar,PetscScalar);
+PetscScalar HalfSpaceCoolingTemp(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
+PetscScalar ShearViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);  
+PetscScalar BulkViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar); 
+PetscScalar Buoyancy(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt); 
 
 // utils
 // PetscErrorCode DoOutput(void*);

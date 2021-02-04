@@ -1,35 +1,5 @@
 #include "MORbuoyancy.h"
 
-// // ---------------------------------------
-// // Temp2Theta
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "Temp2Theta"
-// PetscScalar Temp2Theta(PetscScalar x, PetscScalar Az) 
-// { 
-//   return x*exp(-Az);
-// }
-
-// // ---------------------------------------
-// // Theta2Temp
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "Theta2Temp"
-// PetscScalar Theta2Temp(PetscScalar x, PetscScalar Az) 
-// { 
-//   return x*exp( Az);
-// }
-
-// // ---------------------------------------
-// // BulkComposition
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "BulkComposition"
-// PetscScalar BulkComposition(PetscScalar Cf, PetscScalar Cs, PetscScalar phi) 
-// { 
-//   return phi*Cf+(1.0-phi)*Cs;
-// }
-
 // ---------------------------------------
 // Solidus - calculates either the solid composition (bool=1) or temp (bool=0)
 // ---------------------------------------
@@ -144,4 +114,98 @@ PetscScalar PhiRes(PetscScalar phi, PetscScalar H, PetscScalar C, PetscScalar P,
 {
   return Solidus (H-S*phi,P,G,PETSC_TRUE)*(1.0-phi)
       +  Liquidus(H-S*phi,P,G,RM,PETSC_TRUE)*phi - C;
+}
+
+// ---------------------------------------
+// FluidVelocity
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FluidVelocity"
+PetscScalar FluidVelocity(PetscScalar vs, PetscScalar phi, PetscScalar gradP, PetscScalar Bf, PetscScalar K, PetscScalar k_hat) 
+{ 
+  if (phi < 1e-12) return 0.0;
+  else             return vs-K/phi*(gradP+(1+Bf)*k_hat);
+}
+
+// ---------------------------------------
+// BlukVelocity
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "BulkVelocity"
+PetscScalar BulkVelocity(PetscScalar vs, PetscScalar vf, PetscScalar phi) 
+{ 
+  return vf*phi + vs*(1-phi);
+}
+
+// ---------------------------------------
+// Permeability
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "Permeability"
+PetscScalar Permeability(PetscScalar phi, PetscScalar phi0, PetscScalar phi_max, PetscScalar n) 
+{ 
+  return pow(phi/phi0,n);
+  // return pow(pow(phi/phi0,-n)+pow(phi_max/phi0,-n),-1); // harmonic averaging
+}
+
+// ---------------------------------------
+// FluidBuoyancy
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FluidBuoyancy"
+PetscScalar FluidBuoyancy(PetscScalar T, PetscScalar CF, PetscScalar alpha_s, PetscScalar beta_s) 
+{ 
+  return 0.0;
+  // return alpha_s*T + beta_s*CF
+}
+
+// ---------------------------------------
+// Buoyancy
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "Buoyancy"
+PetscScalar Buoyancy(PetscScalar phi, PetscScalar T, PetscScalar C, PetscScalar alpha_s, PetscScalar beta_s, PetscInt buoy) 
+{ 
+  if (buoy == 0) return 0.0;
+  if (buoy == 1) return phi;
+  if (buoy == 2) return phi + beta_s*C; 
+  if (buoy == 3) return phi + beta_s*C + alpha_s*T;
+  return 0.0;
+}
+
+// ---------------------------------------
+// HalfSpaceCoolingTemp
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "HalfSpaceCoolingTemp"
+PetscScalar HalfSpaceCoolingTemp(PetscScalar Tm, PetscScalar T0, PetscScalar z, PetscScalar kappa, PetscScalar t) 
+{ 
+  return T0 + (Tm-T0)*erf(z/(2.0*sqrt(kappa*t)));
+}
+
+// ---------------------------------------
+// ShearViscosity
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "ShearViscosity"
+PetscScalar ShearViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar lambda, PetscScalar eta0, PetscScalar eta_min, PetscScalar eta_max) 
+{ 
+  PetscScalar eta;
+  eta = exp(EoR*(.0/T-1.0/Teta0)-lambda*phi);
+  // return eta;
+  return 1.0/(1.0/eta + eta0/eta_max) + eta_min/eta0; // harmonic averaging
+}
+
+// ---------------------------------------
+// BulkViscosity
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "BulkViscosity"
+PetscScalar BulkViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar visc_ratio, PetscScalar zetaExp, PetscScalar eta0, PetscScalar eta_min, PetscScalar eta_max) 
+{ 
+  PetscScalar zeta;
+  // if (phi < 1e-12) phi = 1e-12;
+  zeta = visc_ratio*exp(EoR*(1.0/T-1.0/Teta0))*pow(phi,zetaExp);
+  // return visc_ratio*exp(EoR*(1.0/T-1.0/Teta0))*pow(phi,zetaExp);
+  return 1.0/(1.0/zeta + eta0/eta_max) + eta_min/eta0; // harmonic averaging
 }

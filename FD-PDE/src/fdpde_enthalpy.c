@@ -818,17 +818,17 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
       else TP = T;
 
       point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; ind = -1;
-      ind++; point.c = ind; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr); xx[j][i][iX] = H;
-      ind++; point.c = ind; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr); xx[j][i][iX] = T;
-      ind++; point.c = ind; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr); xx[j][i][iX] = TP;
-      ind++; point.c = ind; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr); xx[j][i][iX] = phi;
-      ind++; point.c = ind; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr); xx[j][i][iX] = P;
+      ind++; point.c = ind; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr); xx[j][i][iX] = H; //0
+      ind++; point.c = ind; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr); xx[j][i][iX] = T; //1
+      ind++; point.c = ind; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr); xx[j][i][iX] = TP; //2
+      ind++; point.c = ind; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr); xx[j][i][iX] = phi; //3
+      ind++; point.c = ind; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr); xx[j][i][iX] = P; //4
 
       // composition
       ind++;
       for (ii = 0; ii<en->ncomponents; ii++) {
         point.c = ind+ii; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr);
-        xx[j][i][iX] = C[ii];
+        xx[j][i][iX] = C[ii]; //5+ncomponents
       }
 
       ind += en->ncomponents;

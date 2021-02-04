@@ -74,6 +74,20 @@ PetscErrorCode InputParameters(UsrData **_usr)
   // Allocate memory to application context
   ierr = PetscMalloc1(1, &usr); CHKERRQ(ierr);
 
+  // initialize
+  usr->par  = NULL;
+  usr->nd   = NULL;
+  usr->scal = NULL; 
+
+  usr->dmPV = NULL;
+  usr->dmHC = NULL;
+  usr->dmVel= NULL;
+
+  usr->xPV  = NULL;
+  usr->xHC  = NULL;
+  usr->xVel = NULL;
+  usr->xphiT= NULL;
+
   // Get time, comm and rank
   usr->comm = PETSC_COMM_WORLD;
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &usr->rank); CHKERRQ(ierr);
@@ -96,7 +110,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   ierr = PetscBagRegisterScalar(bag, &par->L, 200.0e3, "L", "Length of domain in x-dir [m]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->H, 100.0e3, "H", "Height of domain in z-dir [m]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->xMOR, 6.0e3, "xMOR", "Distance from mid-ocean ridge axis for melt extraction [m]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->xMOR, 0.0e3, "xMOR", "Distance from mid-ocean ridge axis for melt extraction ~6km [m]"); CHKERRQ(ierr);
 
   // physical and material parameters
   ierr = PetscBagRegisterScalar(bag, &par->k_hat, -1.0, "k_hat", "Direction of unit vertical vector [-]"); CHKERRQ(ierr);
@@ -104,6 +118,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->U0, 4.0, "U0", "Half-spreading rate [cm/yr]"); CHKERRQ(ierr);
 
   ierr = PetscBagRegisterScalar(bag, &par->Tp, 1648, "Tp", "Potential temperature of mantle [K]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->Ts, T_KELVIN, "Ts", "Surface temperature [K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->cp, 1200, "cp", "Specific heat of matrix and magma [J/kg/K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->La, 4.0e5, "La", "Latent fusion of heat [J/kg]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->kappa, 1.0e-6, "kappa", "Thermal diffusivity [m^2/s]"); CHKERRQ(ierr);
@@ -112,7 +127,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->drho, 500, "drho", "Reference density difference [kg/m^3]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->alpha, 3.0e-5, "alpha", "Coefficient of thermal expansion [1/K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->beta, 0.0, "beta", "Coefficient of compositional expansion [1/wt. frac.]"); CHKERRQ(ierr);
-  // ierr = PetscBagRegisterInt(bag, &par->buoyancy, 0, "buoyancy", "Level of matrix buoyancy incorporation: 0=off, 1=phi, 2=phi-C, 3=phi-C-T"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->buoyancy, 0, "buoyancy", "Level of matrix buoyancy incorporation: 0=off, 1=phi, 2=phi-C, 3=phi-C-T"); CHKERRQ(ierr);
 
   // phase diagram
   ierr = PetscBagRegisterScalar(bag, &par->C0, 0.85, "C0", "Reference composition [wt. frac.]"); CHKERRQ(ierr);
@@ -136,6 +151,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->eta_max, 1.0e25, "eta_max", "Cutoff maximum shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->lambda, 27, "lambda", "Porosity weakening of shear viscosity [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->EoR, 3.6e4, "EoR", "Activation energy divided by gas constant [K]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->zetaExp, -1.0, "zetaExp", "Porosity exponent in bulk viscosity [-]"); CHKERRQ(ierr);
   
   dsol = par->cp*(par->Tp-par->T0)/par->gamma_inv*1e9/par->g/(par->rho0*par->cp - par->Tp*par->alpha/par->gamma_inv*1e9);
   Teta0 = par->Tp*exp(dsol*par->alpha*par->g/par->cp);
@@ -149,7 +165,8 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterInt(bag, &par->tstep,1, "tstep", "Maximum no of time steps"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->tmax, 1.0e6, "tmax", "Maximum time [yr]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->dtmax, 1.0e3, "dtmax", "Maximum time step size [yr]"); CHKERRQ(ierr);
-  
+  par->istep = 0;
+
   // input/output 
   par->fname_in[0] = '\0';
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_solution","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
@@ -271,14 +288,12 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   nd->L     = nd_param(par->L,scal->x);
   nd->xMOR  = nd_param(par->xMOR,scal->x);
   nd->U0    = nd_param(par->U0,scal->v);
-  nd->eta0  = nd_param(par->eta0,scal->eta);
-  nd->zeta0 = nd_param(par->zeta0,scal->eta);
+  nd->visc_ratio = nd_param(par->zeta0,scal->eta);
   nd->tmax  = nd_param(par->tmax,scal->t);
   nd->dtmax = nd_param(par->dtmax,scal->t);
 
   nd->dt    = 0.0;
   nd->t     = 0.0;
-  nd->tprev = 0.0;
 
   // non-dimensional parameters
   nd->delta   = PetscSqrtScalar(scal->eta*scal->K/usr->par->mu)/scal->x;
@@ -289,7 +304,7 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   nd->PeT     = scal->x*scal->v/par->kappa;
   nd->PeC     = scal->x*scal->v/par->D;
   nd->thetaS  = par->T0/par->DT;
-  nd->G       = scal->x*par->drho*par->g*par->gamma_inv/par->DT;
+  nd->G       = scal->x*par->drho*par->g*par->gamma_inv/par->DT*1e-9; // GPa from gamma_inv
   nd->RM      = par->Ms/par->Mf;
 
   PetscPrintf(usr->comm,"# --------------------------------------- #\n");

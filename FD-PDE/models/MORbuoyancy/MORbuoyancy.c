@@ -91,12 +91,12 @@ PetscErrorCode Numerical_solution(void *ctx)
   UsrData       *usr = (UsrData*) ctx;
   NdParams      *nd;
   Params        *par;
-  PetscInt      nx, nz, istep = 0; 
+  PetscInt      nx, nz; 
   PetscScalar   xmin, xmax, zmin, zmax;
   FDPDE         fdPV, fdHC;
-  DM            dmPV, dmHC, dmHCcoeff;
-  Vec           xPV, xHC, xHCprev, xHCguess, xHCcoeffprev;
-  // PetscBool     converged;
+  DM            dmPV, dmHC, dmHCcoeff, dmPVcoeff, dmEnth;
+  Vec           xPV, xHC, xHCprev, xHCguess, xHCcoeffprev, xPVcoeff, xEnth;
+  PetscBool     converged;
   char           fout[FNAME_LENGTH];
   PetscErrorCode ierr;
 
@@ -120,7 +120,6 @@ PetscErrorCode Numerical_solution(void *ctx)
   PetscPrintf(PETSC_COMM_WORLD,"# Set-up MECHANICS: FD-PDE StokesDarcy2Field (PV)\n");
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKESDARCY2FIELD,&fdPV);CHKERRQ(ierr);
   ierr = FDPDESetUp(fdPV);CHKERRQ(ierr);
-  ierr = FDPDEGetDM(fdPV,&dmPV); CHKERRQ(ierr);
   ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV,bc_description_PV,usr); CHKERRQ(ierr);
   ierr = FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV,coeff_description_PV,usr); CHKERRQ(ierr);
   ierr = SNESSetFromOptions(fdPV->snes); CHKERRQ(ierr);
@@ -132,7 +131,6 @@ PetscErrorCode Numerical_solution(void *ctx)
   PetscPrintf(PETSC_COMM_WORLD,"# Set-up ENERGY and COMPOSITION: FD-PDE Enthalpy (HC) \n");
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ENTHALPY,&fdHC);CHKERRQ(ierr);
   ierr = FDPDESetUp(fdHC);CHKERRQ(ierr);
-  ierr = FDPDEGetDM(fdHC,&dmHC); CHKERRQ(ierr);
   ierr = FDPDESetFunctionBCList(fdHC,FormBCList_HC,bc_description_HC,usr); CHKERRQ(ierr);
   ierr = FDPDESetFunctionCoefficient(fdHC,FormCoefficient_HC,coeff_description_HC,usr); CHKERRQ(ierr);
   ierr = FDPDEEnthalpySetEnthalpyMethod(fdHC,Form_Enthalpy,enthalpy_method_description,usr);CHKERRQ(ierr);
@@ -155,70 +153,112 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = FDPDEEnthalpySetTimeStepSchemeType(fdHC,timesteptype);CHKERRQ(ierr);
 
   // Prepare data for coupling HC-PV
+  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscPrintf(PETSC_COMM_WORLD,"# Preparing data for PV-HC coupling \n");
+  ierr = FDPDEGetDM(fdPV,&dmPV); CHKERRQ(ierr);
   usr->dmPV = dmPV;
-  usr->dmHC = dmHC;
 
+  ierr = FDPDEGetDM(fdHC,&dmHC); CHKERRQ(ierr);
+  usr->dmHC = dmHC;
+  
   ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
   ierr = VecDuplicate(xPV,&usr->xPV);CHKERRQ(ierr);
   ierr = VecDestroy(&xPV);CHKERRQ(ierr);
 
   ierr = FDPDEGetSolution(fdHC,&xHC);CHKERRQ(ierr);
   ierr = VecDuplicate(xHC,&usr->xHC);CHKERRQ(ierr);
+  ierr = VecDuplicate(xHC,&usr->xphiT);CHKERRQ(ierr);
   ierr = VecDestroy(&xHC);CHKERRQ(ierr);
+
+  // create dmVel for bulk and fluid velocities (dof=2 on faces)
+  ierr = DMStagCreateCompatibleDMStag(usr->dmPV,0,2,0,0,&usr->dmVel); CHKERRQ(ierr);
+  ierr = DMSetUp(usr->dmVel); CHKERRQ(ierr);
+  ierr = DMStagSetUniformCoordinatesProduct(usr->dmVel,xmin,xmax,zmin,zmax,0.0,0.0);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(usr->dmVel,&usr->xVel);CHKERRQ(ierr);
 
   // Initial conditions - corner flow and half-space cooling model
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
   PetscPrintf(PETSC_COMM_WORLD,"# Set initial conditions \n");
   ierr = SetInitialConditions(fdPV,fdHC,usr);CHKERRQ(ierr);
 
+  // Initialize guess and previous solution in fdHC
   ierr = FDPDEEnthalpyGetPrevSolution(fdHC,&xHCprev);CHKERRQ(ierr);
-  // copy xHCprev
-  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHCprev_initial",par->fdir_out);
-  // ierr = DMStagViewBinaryPython(dmHC,xHCprev,fout);CHKERRQ(ierr);
-
-  // Initialize guess with previous solution 
+  ierr = VecCopy(usr->xHC,xHCprev);CHKERRQ(ierr);
   ierr = FDPDEGetSolutionGuess(fdHC,&xHCguess);CHKERRQ(ierr);
   ierr = VecCopy(xHCprev,xHCguess);CHKERRQ(ierr);
+  ierr = VecDestroy(&xHCprev);CHKERRQ(ierr);
+  ierr = VecDestroy(&xHCguess);CHKERRQ(ierr);
 
   // Set initial coefficient structure
   ierr = FDPDEGetCoefficient(fdHC,&dmHCcoeff,NULL);CHKERRQ(ierr);
   ierr = FDPDEEnthalpyGetPrevCoefficient(fdHC,&xHCcoeffprev);CHKERRQ(ierr);
-  // ierr = FormCoefficient_HC(fdHC,dmHC,xHCprev,dmHCcoeff,xHCcoeffprev,usr);CHKERRQ(ierr);
-  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xcoeffprev_initial",par->fdir_out);
-  // ierr = DMStagViewBinaryPython(dmHCcoeff,xHCcoeffprev,fout);CHKERRQ(ierr);
+  ierr = FormCoefficient_HC(fdHC,usr->dmHC,usr->xHC,dmHCcoeff,xHCcoeffprev,usr);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"out_xHCcoeff_ts%d",usr->par->istep);
+  ierr = DMStagViewBinaryPython(dmHCcoeff,xHCcoeffprev,fout);CHKERRQ(ierr);
   ierr = VecDestroy(&xHCcoeffprev);CHKERRQ(ierr);
-  ierr = VecDestroy(&xHCprev);CHKERRQ(ierr);
-  ierr = VecDestroy(&xHCguess);CHKERRQ(ierr);
 
-  // get previous lithostatic pressure for the Enthalpy method
-  // ierr = FDPDEEnthalpyGetPrevPressure(fdHC,&Pprev);CHKERRQ(ierr);
+  // // Initialize guess fdPV
+  // ierr = FDPDEGetSolutionGuess(fdPV,&xPV);CHKERRQ(ierr);
+  // ierr = VecCopy(usr->xPV,xPV);CHKERRQ(ierr);
+  // ierr = VecDestroy(&xPV);CHKERRQ(ierr);
+
+  par->istep++;
 
   // Time loop
-  while ((nd->t <= nd->tmax) && (istep < par->tstep)) {
+  while ((nd->t <= nd->tmax) && (par->istep <= par->tstep)) {
     PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-    PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep);
+    PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",par->istep);
     
-  // Update time
-  // ierr = FDPDEEnthalpyComputeExplicitTimestep(fdHC,&dt);CHKERRQ(ierr);
-  // nd->dt = PetscMin(dt,nd->dtmax);
-  // PetscPrintf(PETSC_COMM_WORLD,"# dt = %1.12e dtmax = %1.12e \n",nd->dt,nd->dtmax);
-  // ierr = FDPDEEnthalpySetTimestep(fdHC,par->dt); CHKERRQ(ierr);
-    nd->tprev = nd->t;
-    nd->t    += nd->dt;
-
     // Solve energy and composition
-    // PetscPrintf(PETSC_COMM_WORLD,"# HC Solver \n");
-    // ierr = FDPDESolve(fdHC,&converged);CHKERRQ(ierr);
-    // ierr = FDPDEGetSolution(fdHC,&xHC);CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD,"# HC Solver \n");
+
+    // Set time step size
+    nd->dt = nd->dtmax;
+    ierr = FDPDEEnthalpySetTimestep(fdHC,nd->dt); CHKERRQ(ierr);
+
+    converged = PETSC_FALSE;
+    while (!converged) {
+      ierr = FDPDESolve(fdHC,&converged);CHKERRQ(ierr);
+      if (!converged) { // Reduce dt if not converged
+        ierr = FDPDEEnthalpyComputeExplicitTimestep(fdHC,&nd->dt);CHKERRQ(ierr);
+        ierr = FDPDEEnthalpySetTimestep(fdHC,nd->dt); CHKERRQ(ierr);
+      }
+    }
+    PetscPrintf(PETSC_COMM_WORLD,"# Time-step size (non-dimensional): dt = %1.12e dtmax = %1.12e \n",nd->dt,nd->dtmax);
+
+    // Get solution
+    ierr = FDPDEGetSolution(fdHC,&xHC);CHKERRQ(ierr);
+    ierr = VecCopy(xHC,usr->xHC);CHKERRQ(ierr);
+    ierr = VecDestroy(&xHC);CHKERRQ(ierr);
+    ierr = PetscSNPrintf(fout,sizeof(fout),"out_xHC_ts%d",usr->par->istep);
+    ierr = DMStagViewBinaryPython(usr->dmHC,usr->xHC,fout);CHKERRQ(ierr);
 
     // Update fields
-    // ierr = FDPDEEnthalpyUpdateDiagnostics(fdHC,dmHC,xHC,&dmnew,&xnew); CHKERRQ(ierr);
-    // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_enthalpy_ts%1.3d",par->fdir_out,par->fname_out,istep);
-    // ierr = DMStagViewBinaryPython(dmnew,xnew,fout);CHKERRQ(ierr);
-    // ierr = DMDestroy(&dmnew);CHKERRQ(ierr);
-    // ierr = VecDestroy(&xnew); CHKERRQ(ierr);
+    ierr = FDPDEEnthalpyUpdateDiagnostics(fdHC,usr->dmHC,usr->xHC,&dmEnth,&xEnth); CHKERRQ(ierr);
+    ierr = PetscSNPrintf(fout,sizeof(fout),"out_Enthalpy_ts%d",usr->par->istep);
+    ierr = DMStagViewBinaryPython(dmEnth,xEnth,fout);CHKERRQ(ierr);
 
-    // HC: copy solution and coefficient to old
+    // Extract porosity and temperature needed for PV
+    ierr = ExtractTemperaturePorosity(dmEnth,xEnth,usr,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = PetscSNPrintf(fout,sizeof(fout),"out_xphiT_ts%d",usr->par->istep);
+    ierr = DMStagViewBinaryPython(usr->dmHC,usr->xphiT,fout);CHKERRQ(ierr);
+    ierr = DMDestroy(&dmEnth);CHKERRQ(ierr);
+    ierr = VecDestroy(&xEnth);CHKERRQ(ierr);
+
+    // Solve PV
+    PetscPrintf(PETSC_COMM_WORLD,"# PV Solver \n");
+    ierr = FDPDESolve(fdPV,NULL);CHKERRQ(ierr);
+    ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
+    ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
+    ierr = VecDestroy(&xPV);CHKERRQ(ierr);
+    ierr = PetscSNPrintf(fout,sizeof(fout),"out_xPV_ts%d",usr->par->istep);
+    ierr = DMStagViewBinaryPython(usr->dmPV,usr->xPV,fout);CHKERRQ(ierr);
+
+    ierr = FDPDEGetCoefficient(fdPV,&dmPVcoeff,&xPVcoeff);CHKERRQ(ierr);
+    ierr = PetscSNPrintf(fout,sizeof(fout),"out_xPVcoeff_ts%d",usr->par->istep);
+    ierr = DMStagViewBinaryPython(dmPVcoeff,xPVcoeff,fout);CHKERRQ(ierr);
+
+    // Prepare data for next time-step
     // ierr = FDPDEEnthalpyGetPrevSolution(fdHC,&xHCprev);CHKERRQ(ierr);
     // ierr = VecCopy(xHC,xHCprev);CHKERRQ(ierr);
     // ierr = VecDestroy(&xHCprev);CHKERRQ(ierr);
@@ -228,13 +268,6 @@ PetscErrorCode Numerical_solution(void *ctx)
     // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_coeff_ts%1.3d",par->fdir_out,par->fname_out,istep);
     // ierr = DMStagViewBinaryPython(dmHCcoeff,xHCcoeff,fout);CHKERRQ(ierr);
     // ierr = VecDestroy(&xHCcoeffprev);CHKERRQ(ierr);
-
-    // Solve PV
-    // PetscPrintf(PETSC_COMM_WORLD,"# PV Solver \n");
-    // ierr = FDPDESolve(fdPV,NULL);CHKERRQ(ierr);
-    // ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
-    // ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
-    // ierr = VecDestroy(&xPV);CHKERRQ(ierr);
 
     // Update fluid velocity
 
@@ -250,22 +283,27 @@ PetscErrorCode Numerical_solution(void *ctx)
     //   ierr = DMStagViewBinaryPython(dmPV,xPV,fout);CHKERRQ(ierr);
     // }
 
+    // Update time
+    nd->t += nd->dt;
+
     // increment timestep
-    istep++;
+    par->istep++;
 
     PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e [yr] dt = %1.12e [yr] \n\n",nd->t*usr->scal->t/SEC_YEAR,nd->dt*usr->scal->t/SEC_YEAR);
   }
 
   // // Destroy objects
-  ierr = DMDestroy(&dmPV);CHKERRQ(ierr);
-  ierr = DMDestroy(&dmHC);CHKERRQ(ierr);
   ierr = FDPDEDestroy(&fdPV);CHKERRQ(ierr);
   ierr = FDPDEDestroy(&fdHC);CHKERRQ(ierr);
 
   ierr = VecDestroy(&usr->xPV);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xHC);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xphiT);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xVel);CHKERRQ(ierr);
+
   ierr = DMDestroy(&usr->dmPV);CHKERRQ(ierr);
   ierr = DMDestroy(&usr->dmHC);CHKERRQ(ierr);
+  ierr = DMDestroy(&usr->dmVel);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
