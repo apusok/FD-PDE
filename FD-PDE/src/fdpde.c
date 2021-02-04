@@ -755,10 +755,12 @@ PetscErrorCode FDPDESolve(FDPDE fd, PetscBool *converged)
   
   /* Activate a logger which records norm of F and number of KSP iterations at each SNES iteration */
   {
-    PetscInt maxit;
+    PetscInt maxit, *its = NULL;
+    PetscReal *a = NULL;
     
     ierr = SNESGetTolerances(fd->snes,NULL,NULL,NULL,&maxit,NULL);CHKERRQ(ierr);
-    ierr = SNESSetConvergenceHistory(fd->snes,NULL,NULL,maxit+1,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = SNESGetConvergenceHistory(fd->snes,&a,&its,NULL);CHKERRQ(ierr);
+    ierr = SNESSetConvergenceHistory(fd->snes,a,its,maxit+1,PETSC_TRUE);CHKERRQ(ierr);
   }
   
   // Copy initial guess to solution
