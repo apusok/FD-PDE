@@ -43,7 +43,7 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdHC, void *ctx)
   ierr = PetscSNPrintf(fout,sizeof(fout),"out_Enthalpy_ts%d",usr->par->istep);
   ierr = DMStagViewBinaryPython(dmEnth,xEnth,fout);CHKERRQ(ierr);
 
-  // Correct H-S*phi to ensure phi=0
+  // Correct H-S*phi and C=Cs to ensure phi=0
   ierr = CorrectInitialHCZeroPorosity(dmEnth,xEnth,usr);CHKERRQ(ierr);
   ierr = PetscSNPrintf(fout,sizeof(fout),"out_xHC_ts%d",usr->par->istep);
   ierr = DMStagViewBinaryPython(usr->dmHC,usr->xHC,fout);CHKERRQ(ierr);
@@ -254,12 +254,12 @@ PetscErrorCode UpdateLithostaticPressure(DM dm, Vec x, void *ctx)
 }
 
 // ---------------------------------------
-// Correct initial enthalpy for zero porosity
+// Correct initial enthalpy and bulk composition for zero porosity
 // ---------------------------------------
 PetscErrorCode CorrectInitialHCZeroPorosity(DM dmEnth, Vec xEnth, void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
-  PetscInt       i, j, sx, sz, nx, nz, iH;
+  PetscInt       i, j, sx, sz, nx, nz, iH, iC;
   PetscScalar    ***xx;
   Vec            x, xlocal, xnewlocal;
   DM             dm;
@@ -271,6 +271,7 @@ PetscErrorCode CorrectInitialHCZeroPorosity(DM dmEnth, Vec xEnth, void *ctx)
 
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &iH); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm, ELEMENT, 1, &iC); CHKERRQ(ierr);
 
   ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
@@ -282,11 +283,16 @@ PetscErrorCode CorrectInitialHCZeroPorosity(DM dmEnth, Vec xEnth, void *ctx)
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
-      DMStagStencil point;
-      PetscScalar   phi = 0.0;
-      point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 3;
-      ierr = DMStagVecGetValuesStencil(dmEnth,xnewlocal,1,&point,&phi); CHKERRQ(ierr);
-      xx[j][i][iH] -= usr->nd->S*phi; // H - S*phi
+      DMStagStencil point[2];
+      PetscScalar   xs[2];
+      point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = 3; // phi // add labels for Enthalpy dofs
+      point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_ELEMENT; point[1].c = 7; // CS
+      ierr = DMStagVecGetValuesStencil(dmEnth,xnewlocal,2,point,xs); CHKERRQ(ierr);
+      // H - S*phi
+      xx[j][i][iH] -= usr->nd->S*xs[0]; 
+
+      // C = CS
+      xx[j][i][iC] = xs[1]; 
     }
   }
 
