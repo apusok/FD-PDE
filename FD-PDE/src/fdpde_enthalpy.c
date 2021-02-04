@@ -252,6 +252,9 @@ PetscErrorCode JacobianPreallocator_Enthalpy(FDPDE fd,Mat J)
   ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
   ierr = MatAssemblyEnd  (J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
 
+  // PetscPrintf(PETSC_COMM_WORLD,"# PREALLOCATOR \n");
+  // ierr = MatView(J,PETSC_VIEWER_STDOUT_WORLD);
+
   ierr = PetscFree(xx);CHKERRQ(ierr);
   ierr = PetscFree(point);CHKERRQ(ierr);
 

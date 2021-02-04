@@ -169,9 +169,10 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
   }
 
   // Create dms and vector - specific to FD-PDE
+  PetscInt stencil_width = 2;
   ierr = DMStagCreate2d(fd->comm, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, fd->Nx, fd->Nz, 
             PETSC_DECIDE, PETSC_DECIDE, fd->dof0, fd->dof1, fd->dof2, 
-            DMSTAG_STENCIL_BOX, 1, NULL,NULL, &fd->dmstag); CHKERRQ(ierr);
+            DMSTAG_STENCIL_BOX, stencil_width, NULL,NULL, &fd->dmstag); CHKERRQ(ierr);
   ierr = DMSetFromOptions(fd->dmstag); CHKERRQ(ierr);
   ierr = DMSetUp         (fd->dmstag); CHKERRQ(ierr);
   ierr = DMStagSetUniformCoordinatesProduct(fd->dmstag,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
@@ -759,10 +760,12 @@ PetscErrorCode FDPDESolve(FDPDE fd, PetscBool *converged)
   
   /* Activate a logger which records norm of F and number of KSP iterations at each SNES iteration */
   {
-    PetscInt maxit;
+    PetscInt maxit, *its = NULL;
+    PetscReal *a = NULL;
     
     ierr = SNESGetTolerances(fd->snes,NULL,NULL,NULL,&maxit,NULL);CHKERRQ(ierr);
-    ierr = SNESSetConvergenceHistory(fd->snes,NULL,NULL,maxit+1,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = SNESGetConvergenceHistory(fd->snes,&a,&its,NULL);CHKERRQ(ierr);
+    ierr = SNESSetConvergenceHistory(fd->snes,a,its,maxit+1,PETSC_TRUE);CHKERRQ(ierr);
   }
   
   // Copy initial guess to solution

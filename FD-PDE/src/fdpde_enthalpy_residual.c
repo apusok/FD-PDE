@@ -1,18 +1,53 @@
 #include "fdpde_enthalpy.h"
 
 static char * EnthalpyErrorTypeNames(err) {
-  if (err == 0) return "STATE_VALID";
-  if (err == -1) return "PHI_STATE_INVALID";
-  if (err == -2) return "ERR_PHI_DIVIDE_BY_ZERO";
-  if (err == -3) return "ERR_DIVIDE_BY_ZERO";
-  if (err == -4) return "ERR_INF_NAN_VALUE";
-  if (err == -5) return "DIM_T_KELVIN_STATE_INVALID";
-  if (err == -6) return "DIM_T_CELSIUS_STATE_INVALID";
-  if (err == -7) return "DIM_STATE_INVALID";
-  if (err == -8) return "DIM_C_STATE_INVALID";
-  if (err == -9) return "DIM_CF_STATE_INVALID";
-  if (err == -10) return "DIM_CS_STATE_INVALID";
-  return "UNKNOWN_INVALID_STATE"; // else
+  switch (err) {
+    case STATE_VALID:
+    return "STATE_VALID";
+    break;
+  case PHI_STATE_INVALID:
+    return "PHI_STATE_INVALID";
+    break;
+  case ERR_PHI_DIVIDE_BY_ZERO:
+    return "ERR_PHI_DIVIDE_BY_ZERO";
+    break;
+  case ERR_SOLID_PHI_DIVIDE_BY_ZERO:
+    return "ERR_SOLID_PHI_DIVIDE_BY_ZERO";
+    break;
+  case ERR_DIVIDE_BY_ZERO:
+    return "ERR_DIVIDE_BY_ZERO";
+    break;
+  case ERR_INF_NAN_VALUE:
+    return "ERR_INF_NAN_VALUE";
+    break;
+  case DIM_T_KELVIN_STATE_INVALID:
+    return "DIM_T_KELVIN_STATE_INVALID";
+    break;
+  case DIM_T_CELSIUS_STATE_INVALID:
+    return "DIM_T_CELSIUS_STATE_INVALID";
+    break;
+  case DIM_STATE_INVALID:
+    return "DIM_STATE_INVALID";
+    break;
+  case DIM_C_STATE_INVALID:
+    return "DIM_C_STATE_INVALID";
+    break;
+  case DIM_CF_STATE_INVALID:
+    return "DIM_CF_STATE_INVALID";
+    break;
+  case DIM_CS_STATE_INVALID:
+    return "DIM_CS_STATE_INVALID";
+    break;
+  case STATE_INVALID_IERR:
+    return "STATE_INVALID_IERR";
+    break;
+  case STATE_INVALID:
+    return "STATE_INVALID";
+    break;
+  default:
+    return "UNKNOWN_INVALID_STATE";
+    break;
+  }
 };
 
 static PetscInt SingleDimIndex(PetscInt i, PetscInt j, PetscInt nz) { return i*nz+j; }
@@ -100,14 +135,14 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   }
 
   if (en->timesteptype != TS_NONE) {
-    ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(ThermoState),&thm_prev);CHKERRQ(ierr);
-    ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(CoeffState),&cff_prev);CHKERRQ(ierr);
+    ierr = PetscCalloc1((size_t)((nx+4)*(nz+4))*sizeof(ThermoState),&thm_prev);CHKERRQ(ierr);
+    ierr = PetscCalloc1((size_t)((nx+4)*(nz+4))*sizeof(CoeffState),&cff_prev);CHKERRQ(ierr);
     ierr = ApplyEnthalpyMethod(fd,dm,xprevlocal,dmcoeff,coeffprevlocal,dmP,Pprevlocal,en,thm_prev,cff_prev,"prev"); CHKERRQ(ierr);
   }
 
   // update enthalpy and coeff cell data
-  ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(ThermoState),&thm);CHKERRQ(ierr); 
-  ierr = PetscCalloc1((size_t)(nx*nz)*sizeof(CoeffState),&cff);CHKERRQ(ierr);
+  ierr = PetscCalloc1((size_t)((nx+4)*(nz+4))*sizeof(ThermoState),&thm);CHKERRQ(ierr); 
+  ierr = PetscCalloc1((size_t)((nx+4)*(nz+4))*sizeof(CoeffState),&cff);CHKERRQ(ierr);
   ierr = ApplyEnthalpyMethod(fd,dm,xlocal,dmcoeff,coefflocal,dmP,Plocal,en,thm,cff,NULL); CHKERRQ(ierr);
 
   // Residual evaluation
@@ -167,69 +202,86 @@ Use: internal
 // ---------------------------------------
 PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coefflocal,DM dmP, Vec Plocal,EnthalpyData *en,ThermoState *thm,CoeffState *cff, const char prefix[])
 {
-  PetscInt       ii,i,j,sx,sz,nx,nz,idx;
+  PetscInt       ii,i,j,sx,sz,nx,nz,idx,nreports, gnreports;
+  PetscInt       Nx, Nz;
   PetscScalar    H,C[MAX_COMPONENTS],P,phi,T,TP,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
   DMStagStencil  point;
   PetscBool      passed = PETSC_TRUE;
+  PetscMPIInt    rank;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
+  Nx = fd->Nx;
+  Nz = fd->Nz;
+
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
-  H = 0.0;
-  for (ii = 0; ii<en->ncomponents; ii++) { C[ii] = 0.0; CF[ii] = 0.0; CS[ii] = 0.0;}
-
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  
+  // get coefficient data
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
-      EnthEvalErrorCode  thermo_dyn_error_code;
-      idx = SingleDimIndex(i-sx,j-sz,nz);
+      idx = SingleDimIndex(i-sx+2,j-sz+2,nz+4);
       ierr = CoeffCellData(dmcoeff,coefflocal,i,j,&cff[idx]);CHKERRQ(ierr);
-      ierr = SolutionCellData(dm,xlocal,i,j,&H,C);CHKERRQ(ierr);
+    }
+  }
 
-      point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
-      ierr = DMStagVecGetValuesStencil(dmP,Plocal,1,&point,&P); CHKERRQ(ierr);
+  // compute ghosted enthalpy data
+  for (j = sz-2; j<sz+nz+2; j++) {
+    for (i = sx-2; i<sx+nx+2; i++) {
+      if ((i>=0) && (j>=0) && (i<Nx) && (j<Nz)) {
+        EnthEvalErrorCode  thermo_dyn_error_code = 0;
 
-      thermo_dyn_error_code = en->form_enthalpy_method(H,C,P,&T,&phi,CF,CS,en->ncomponents,en->user_context);
-      if (thermo_dyn_error_code != 0) { 
-        const char *err_message;
-        err_message = EnthalpyErrorTypeNames(thermo_dyn_error_code);
-        if (prefix) PetscPrintf(fd->comm," Enthalpy Method (%s): Error %s encountered in cell [i=%d j=%d]  \n",prefix,err_message,i,j);
-        else PetscPrintf(fd->comm," Enthalpy Method: Error %s encountered in cell [i=%d j=%d]  \n",err_message,i,j);
-        passed = PETSC_FALSE;
-      } 
+        H = 0.0; phi = 0.0; T = 0.0; P = 0.0;
+        for (ii = 0; ii<en->ncomponents; ii++) { C[ii] = 0.0; CF[ii] = 0.0; CS[ii] = 0.0;}
 
-      if (en->form_TP) { ierr = en->form_TP(T,P,&TP,en->user_context_tp);CHKERRQ(ierr); }
-      else TP = T;
-      
-      thm[idx].P  = P;
-      thm[idx].TP = TP;
-      thm[idx].T  = T;
-      thm[idx].H  = H;
-      thm[idx].phi = phi;
-      for (ii = 0; ii<en->ncomponents; ii++) {
-        thm[idx].C[ii]  = C[ii];
-        thm[idx].CS[ii] = CS[ii];
-        thm[idx].CF[ii] = CF[ii];
+        idx = SingleDimIndex(i-sx+2,j-sz+2,nz+4);
+        ierr = SolutionCellData(dm,xlocal,i,j,&H,C);CHKERRQ(ierr);
+        point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
+        ierr = DMStagVecGetValuesStencil(dmP,Plocal,1,&point,&P); CHKERRQ(ierr);
+
+        thermo_dyn_error_code = en->form_enthalpy_method(H,C,P,&T,&phi,CF,CS,en->ncomponents,en->user_context);
+        if (thermo_dyn_error_code != 0) passed = PETSC_FALSE;
+
+        if (en->form_TP) { ierr = en->form_TP(T,P,&TP,en->user_context_tp);CHKERRQ(ierr); }
+        else TP = T;
+        
+        thm[idx].P  = P;
+        thm[idx].TP = TP;
+        thm[idx].T  = T;
+        thm[idx].H  = H;
+        thm[idx].phi = phi;
+        for (ii = 0; ii<en->ncomponents; ii++) {
+          thm[idx].C[ii]  = C[ii];
+          thm[idx].CS[ii] = CS[ii];
+          thm[idx].CF[ii] = CF[ii];
+        }
+        thm[idx].err = thermo_dyn_error_code;
       }
     }
   }
 
-  // output failure report to file
+  // output failure report to file per rank
+  // nreports = en->nreports;
   if (!passed) { 
     char        fname[PETSC_MAX_PATH_LEN];
     PetscBool   stop_failed = PETSC_FALSE;
     PetscViewer viewer;
+    PetscMPIInt rank;
 
-    if (prefix) PetscSNPrintf(fname,PETSC_MAX_PATH_LEN-1,"enthalpy_failure_%s-%D.report",prefix,en->nreports);
-    else PetscSNPrintf(fname,PETSC_MAX_PATH_LEN-1,"enthalpy_failure-%D.report",en->nreports);
-    ierr = PetscViewerASCIIOpen(fd->comm,fname,&viewer);CHKERRQ(ierr);
+    ierr = MPI_Comm_rank(fd->comm,&rank);CHKERRQ(ierr);
+    if (prefix) PetscSNPrintf(fname,PETSC_MAX_PATH_LEN-1,"enthalpy_failure_%s_%D.rank%D.report",prefix,en->nreports,rank);
+    else PetscSNPrintf(fname,PETSC_MAX_PATH_LEN-1,"enthalpy_failure_%D.rank%D.report",en->nreports,rank);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_SELF,fname,&viewer);CHKERRQ(ierr);
     ierr = ApplyEnthalpyReport_Failure(fd,viewer,en,thm,cff);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
     en->nreports++;
 
     ierr = PetscOptionsGetBool(NULL,NULL,"-stop_enthalpy_failed",&stop_failed,NULL);CHKERRQ(ierr);
-    if (stop_failed) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SIG,"The Enthalpy Method has failed! Investigate the enthalpy failure reports for detailed information.");
+    if (stop_failed) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SIG,"The Enthalpy Method has failed! Investigate the enthalpy failure reports for detailed information.");
   }
+  ierr = MPI_Allreduce(&en->nreports,&gnreports,1,MPI_INT,MPI_MAX,fd->comm);CHKERRQ(ierr);
+  en->nreports = gnreports;
 
   PetscFunctionReturn(0);
 }
@@ -249,11 +301,11 @@ PetscErrorCode ApplyEnthalpyReport_Failure(FDPDE fd,PetscViewer viewer, Enthalpy
   PetscFunctionBegin;
 
   ierr = PetscViewerFileGetName(viewer,&vname);CHKERRQ(ierr);
-  PetscPrintf(fd->comm,"=====================================================================\n");
-  PetscPrintf(fd->comm,"====  ENTHALPY METHOD has failed! \n");
-  PetscPrintf(fd->comm,"====  Please inspect the following file to diagnose the problem\n");
-  PetscPrintf(fd->comm,"====  %s\n",vname);
-  PetscPrintf(fd->comm,"=====================================================================\n");
+  PetscPrintf(PETSC_COMM_SELF,"=====================================================================\n");
+  PetscPrintf(PETSC_COMM_SELF,"====  ENTHALPY METHOD has failed! \n");
+  PetscPrintf(PETSC_COMM_SELF,"====  Please inspect the following file to diagnose the problem\n");
+  PetscPrintf(PETSC_COMM_SELF,"====  %s\n",vname);
+  PetscPrintf(PETSC_COMM_SELF,"=====================================================================\n");
 
   PetscViewerASCIIPrintf(viewer,"ENTHALPY METHOD FAILURE REPORT\n");
   PetscViewerASCIIPrintf(viewer,"[PDE summary]\n");
@@ -276,6 +328,18 @@ PetscErrorCode ApplyEnthalpyReport_Failure(FDPDE fd,PetscViewer viewer, Enthalpy
   // output enthalpy data cell wise
   ierr = DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
+  PetscViewerASCIIPrintf(viewer,"[ENTHALPY ERRORS]\n");
+  PetscViewerASCIIPushTab(viewer);
+  for (j = sz; j<sz+nz; j++) {
+    for (i = sx; i<sx+nx; i++) {
+      const char *err_message;
+      idx = SingleDimIndex(i-sx+2,j-sz+2,nz+4);;
+      err_message = EnthalpyErrorTypeNames(thm[idx].err);
+      PetscViewerASCIIPrintf(viewer," Error %s encountered in cell [i=%d j=%d]  \n",err_message,i,j);
+    }
+  }
+  PetscViewerASCIIPopTab(viewer);
+
   PetscViewerASCIIPrintf(viewer,"[ENTHALPY data]\n");
   PetscViewerASCIIPushTab(viewer);
   PetscViewerASCIIPrintf(viewer,"i  j  H            ");
@@ -287,7 +351,7 @@ PetscErrorCode ApplyEnthalpyReport_Failure(FDPDE fd,PetscViewer viewer, Enthalpy
 
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
-      idx = SingleDimIndex(i-sx,j-sz,nz);
+      idx = SingleDimIndex(i-sx+2,j-sz+2,nz+4);
       PetscViewerASCIIPrintf(viewer,"%d  %d  %1.6e ",i,j,thm[idx].H);
       for (ii = 0; ii<en->ncomponents; ii++) { PetscViewerASCIIPrintf(viewer,"%1.6e ",thm[idx].C[ii]);}
       PetscViewerASCIIPrintf(viewer,"%1.6e  %1.6e  %1.6e ",thm[idx].P,thm[idx].T,thm[idx].phi);
@@ -412,7 +476,7 @@ PetscErrorCode EnthalpyResidual(DM dm,ThermoState *thm, CoeffState *cff, ThermoS
     ierr = EnthalpySteadyStateOperator(dm,thm_prev,cff_prev,coordx,coordz,i,j,en->advtype,&fval0); CHKERRQ(ierr);
     ierr = EnthalpySteadyStateOperator(dm,thm,cff,coordx,coordz,i,j,en->advtype,&fval1); CHKERRQ(ierr);
 
-    idx = SingleDimIndex(i-sx,j-sz,nz);
+    idx = SingleDimIndex(i-sx+2,j-sz+2,nz+4);
     xx     = thm[idx].H;
     xxprev = thm_prev[idx].H;
 
@@ -446,7 +510,7 @@ PetscErrorCode EnthalpySteadyStateOperator(DM dm, ThermoState *thm, CoeffState *
   ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
-  idx[0] = SingleDimIndex(i-sx,j-sz,nz);
+  idx[0] = SingleDimIndex(i-sx+2,j-sz+2,nz+4);
 
   // Coefficients
   A1 = cff[idx[0]].A1;
@@ -486,15 +550,15 @@ PetscErrorCode EnthalpySteadyStateOperator(DM dm, ThermoState *thm, CoeffState *
   dz[2] = (dz[0]+dz[1])*0.5;
 
   // Get stencil values - TP, phi
-  idx[0] = SingleDimIndex(i  -sx,j  -sz,nz); // C
-  idx[1] = SingleDimIndex(i-1-sx,j  -sz,nz); // W
-  idx[2] = SingleDimIndex(i+1-sx,j  -sz,nz); // E
-  idx[3] = SingleDimIndex(i  -sx,j-1-sz,nz); // S
-  idx[4] = SingleDimIndex(i  -sx,j+1-sz,nz); // N
-  idx[5] = SingleDimIndex(i-2-sx,j  -sz,nz); // WW
-  idx[6] = SingleDimIndex(i+2-sx,j  -sz,nz); // EE
-  idx[7] = SingleDimIndex(i  -sx,j-2-sz,nz); // SS
-  idx[8] = SingleDimIndex(i  -sx,j+2-sz,nz); // NN
+  idx[0] = SingleDimIndex(i  -sx+2,j  -sz+2,nz+4); // C
+  idx[1] = SingleDimIndex(i-1-sx+2,j  -sz+2,nz+4); // W
+  idx[2] = SingleDimIndex(i+1-sx+2,j  -sz+2,nz+4); // E
+  idx[3] = SingleDimIndex(i  -sx+2,j-1-sz+2,nz+4); // S
+  idx[4] = SingleDimIndex(i  -sx+2,j+1-sz+2,nz+4); // N
+  idx[5] = SingleDimIndex(i-2-sx+2,j  -sz+2,nz+4); // WW
+  idx[6] = SingleDimIndex(i+2-sx+2,j  -sz+2,nz+4); // EE
+  idx[7] = SingleDimIndex(i  -sx+2,j-2-sz+2,nz+4); // SS
+  idx[8] = SingleDimIndex(i  -sx+2,j+2-sz+2,nz+4); // NN
 
   if (i == 1) idx[5] = idx[2];
   if (j == 1) idx[7] = idx[4];
@@ -550,7 +614,7 @@ PetscErrorCode BulkCompositionResidual(DM dm,ThermoState *thm, CoeffState *cff, 
     ierr = BulkCompositionSteadyStateOperator(dm,thm_prev,cff_prev,coordx,coordz,i,j,ii,en->advtype,&fval0); CHKERRQ(ierr);
     ierr = BulkCompositionSteadyStateOperator(dm,thm,cff,coordx,coordz,i,j,ii,en->advtype,&fval1); CHKERRQ(ierr);
 
-    idx = SingleDimIndex(i-sx,j-sz,nz);
+    idx = SingleDimIndex(i-sx+2,j-sz+2,nz+4);
     xx     = thm[idx].C[ii];
     xxprev = thm_prev[idx].C[ii];
 
@@ -587,7 +651,7 @@ PetscErrorCode BulkCompositionSteadyStateOperator(DM dm, ThermoState *thm, Coeff
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
 
   // Coefficients
-  idx[0] = SingleDimIndex(i-sx,j-sz,nz);
+  idx[0] = SingleDimIndex(i-sx+2,j-sz+2,nz+4);
   A2 = cff[idx[0]].A2;
   B2 = cff[idx[0]].B2;
   D2 = cff[idx[0]].D2;
@@ -625,15 +689,15 @@ PetscErrorCode BulkCompositionSteadyStateOperator(DM dm, ThermoState *thm, Coeff
   dz[2] = (dz[0]+dz[1])*0.5;
 
   // Get stencil values - CF, CS, phi, phis
-  idx[0] = SingleDimIndex(i  -sx,j  -sz,nz); // C
-  idx[1] = SingleDimIndex(i-1-sx,j  -sz,nz); // W
-  idx[2] = SingleDimIndex(i+1-sx,j  -sz,nz); // E
-  idx[3] = SingleDimIndex(i  -sx,j-1-sz,nz); // S
-  idx[4] = SingleDimIndex(i  -sx,j+1-sz,nz); // N
-  idx[5] = SingleDimIndex(i-2-sx,j  -sz,nz); // WW
-  idx[6] = SingleDimIndex(i+2-sx,j  -sz,nz); // EE
-  idx[7] = SingleDimIndex(i  -sx,j-2-sz,nz); // SS
-  idx[8] = SingleDimIndex(i  -sx,j+2-sz,nz); // NN
+  idx[0] = SingleDimIndex(i  -sx+2,j  -sz+2,nz+4); // C
+  idx[1] = SingleDimIndex(i-1-sx+2,j  -sz+2,nz+4); // W
+  idx[2] = SingleDimIndex(i+1-sx+2,j  -sz+2,nz+4); // E
+  idx[3] = SingleDimIndex(i  -sx+2,j-1-sz+2,nz+4); // S
+  idx[4] = SingleDimIndex(i  -sx+2,j+1-sz+2,nz+4); // N
+  idx[5] = SingleDimIndex(i-2-sx+2,j  -sz+2,nz+4); // WW
+  idx[6] = SingleDimIndex(i+2-sx+2,j  -sz+2,nz+4); // EE
+  idx[7] = SingleDimIndex(i  -sx+2,j-2-sz+2,nz+4); // SS
+  idx[8] = SingleDimIndex(i  -sx+2,j+2-sz+2,nz+4); // NN
 
   if (i == 1) idx[5] = idx[2];
   if (j == 1) idx[7] = idx[4];

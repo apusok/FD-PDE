@@ -31,14 +31,17 @@ typedef enum {
   STATE_VALID                 =  0,
   PHI_STATE_INVALID           = -1,
   ERR_PHI_DIVIDE_BY_ZERO      = -2,
-  ERR_DIVIDE_BY_ZERO          = -3,
-  ERR_INF_NAN_VALUE           = -4,
-  DIM_T_KELVIN_STATE_INVALID  = -5,
-  DIM_T_CELSIUS_STATE_INVALID = -6,
-  DIM_STATE_INVALID           = -7,
-  DIM_C_STATE_INVALID         = -8,
-  DIM_CF_STATE_INVALID        = -9,
-  DIM_CS_STATE_INVALID        = -10
+  ERR_SOLID_PHI_DIVIDE_BY_ZERO= -3,
+  ERR_DIVIDE_BY_ZERO          = -4,
+  ERR_INF_NAN_VALUE           = -5,
+  DIM_T_KELVIN_STATE_INVALID  = -6,
+  DIM_T_CELSIUS_STATE_INVALID = -7,
+  DIM_STATE_INVALID           = -8,
+  DIM_C_STATE_INVALID         = -9,
+  DIM_CF_STATE_INVALID        = -10,
+  DIM_CS_STATE_INVALID        = -11,
+  STATE_INVALID_IERR          = -12,
+  STATE_INVALID               = -100
 } EnthEvalErrorCode;
 
 #define ENTH_CHECK_PHI(phi) \
@@ -46,8 +49,10 @@ typedef enum {
   if (phi > 1.0) return(PHI_STATE_INVALID); \
 
 #define ENTH_CHECK_PHI_DIVIDE_BY_ZERO(phi) \
-  if (1.0 - phi < 1.0e-12) return(ERR_PHI_DIVIDE_BY_ZERO); \
-  if (phi       < 1.0e-12) return(ERR_PHI_DIVIDE_BY_ZERO); \
+  if (phi < 1.0e-12) return(ERR_PHI_DIVIDE_BY_ZERO); \
+
+#define ENTH_CHECK_SOLID_PHI_DIVIDE_BY_ZERO(phi) \
+  if (1.0 - phi < 1.0e-12) return(ERR_SOLID_PHI_DIVIDE_BY_ZERO); \
 
 #define ENTH_CHECK_DIVIDE_BY_ZERO(Q) \
   if (Q < 1.0e-12) return(ERR_DIVIDE_BY_ZERO); \
@@ -85,12 +90,15 @@ typedef enum {
     } \
   } \
 
+#define ENTH_CHECK_IERR(ierr) if ((ierr) < 0) return(STATE_INVALID_IERR);
+
 // ---------------------------------------
 // Struct definitions
 // ---------------------------------------
 typedef struct {
   PetscScalar  H,T,TP,P,phi;
   PetscScalar  C[MAX_COMPONENTS],CF[MAX_COMPONENTS],CS[MAX_COMPONENTS];
+  EnthEvalErrorCode err;
 } ThermoState;
 
 typedef struct {
