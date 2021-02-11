@@ -172,11 +172,17 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = VecDuplicate(xHC,&usr->xphiT);CHKERRQ(ierr);
   ierr = VecDestroy(&xHC);CHKERRQ(ierr);
 
-  // create dmVel for bulk and fluid velocities (dof=2 on faces)
+  // Create dmVel for bulk and fluid velocities (dof=2 on faces)
   ierr = DMStagCreateCompatibleDMStag(usr->dmPV,0,2,0,0,&usr->dmVel); CHKERRQ(ierr);
   ierr = DMSetUp(usr->dmVel); CHKERRQ(ierr);
   ierr = DMStagSetUniformCoordinatesProduct(usr->dmVel,xmin,xmax,zmin,zmax,0.0,0.0);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(usr->dmVel,&usr->xVel);CHKERRQ(ierr);
+
+  // Create dmmatProp for material properties (dof=6 in center)
+  ierr = DMStagCreateCompatibleDMStag(usr->dmPV,0,0,6,0,&usr->dmmatProp); CHKERRQ(ierr);
+  ierr = DMSetUp(usr->dmmatProp); CHKERRQ(ierr);
+  ierr = DMStagSetUniformCoordinatesProduct(usr->dmmatProp,xmin,xmax,zmin,zmax,0.0,0.0);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(usr->dmmatProp,&usr->xmatProp);CHKERRQ(ierr);
 
   // Initial conditions - corner flow and half-space cooling model
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
@@ -234,6 +240,12 @@ PetscErrorCode Numerical_solution(void *ctx)
     // PetscPrintf(PETSC_COMM_WORLD,"# RESIDUAL \n");
     // ierr = VecView(fdPV->r,PETSC_VIEWER_STDOUT_WORLD);
 
+    // Update material properties for output
+    ierr = UpdateMaterialProperties(usr->dmHC,usr->xHC,usr->xphiT,usr->dmEnth,usr->xEnth,usr->dmmatProp,usr->xmatProp,usr);CHKERRQ(ierr);
+
+    // Update fluid velocity
+    ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmHC,usr->xphiT,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
+
     // Prepare data for next time-step
     ierr = FDPDEEnthalpyGetPrevSolution(fdHC,&xHCprev);CHKERRQ(ierr);
     ierr = VecCopy(usr->xHC,xHCprev);CHKERRQ(ierr);
@@ -251,9 +263,6 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = VecDestroy(&xP);CHKERRQ(ierr);
     ierr = VecDestroy(&xPprev);CHKERRQ(ierr);
     ierr = DMDestroy(&dmP);CHKERRQ(ierr);
-
-    // Update fluid velocity
-    ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmHC,usr->xphiT,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
 
     // Output solution
     if (par->istep % par->tout == 0 ) {
@@ -276,11 +285,13 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = VecDestroy(&usr->xphiT);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xVel);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xEnth);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xmatProp);CHKERRQ(ierr);
 
   ierr = DMDestroy(&usr->dmPV);CHKERRQ(ierr);
   ierr = DMDestroy(&usr->dmHC);CHKERRQ(ierr);
   ierr = DMDestroy(&usr->dmVel);CHKERRQ(ierr);
   ierr = DMDestroy(&usr->dmEnth);CHKERRQ(ierr);
+  ierr = DMDestroy(&usr->dmmatProp);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

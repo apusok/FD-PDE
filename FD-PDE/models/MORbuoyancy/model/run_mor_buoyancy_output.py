@@ -48,6 +48,10 @@ lbl_resP = r'res $P$ [-]'
 lbl_resvs= r'res $V_s$ [-]'
 lbl_resC = r'res $\Theta$ [-]'
 lbl_resH = r'res $H$ [-]'
+lbl_eta = r'$\eta$ [-]'
+lbl_zeta = r'$\zeta$ [-]'
+lbl_K = r'$K$ [-]'
+lbl_rho = r'$\rho$ [-]'
 
 scalx  = 1
 scalP  = 1
@@ -56,6 +60,9 @@ scalH  = 1
 scalphi= 1
 scalC  = 0
 scalT  = 0
+scaleta= 1
+scalK  = 1
+scalrho= 1
 
 # if (dim == 1):
 #   scalx  = 1e2 # km
@@ -111,6 +118,8 @@ for istep in range(0,tstep+1):
     vizB.plot_HC(resH,resC,nx,nz,xc,zc,scalH,scalC,scalx,lbl_resH,lbl_resC,lbl_x,fname,istep,7,8)
 
     fname = 'out_matProp_ts'+str(istep)
+    eta,zeta,K,rho,rhof,rhos = vizB.parse_matProps_file(fname,fdir)
+    vizB.plot_matProp(eta,zeta,K,rho,rhof,rhos,nx,nz,xc,zc,scaleta,scalK,scalrho,scalx,lbl_eta,lbl_zeta,lbl_K,lbl_rho,lbl_x,fname,istep)
 
   fname = 'out_divmass_ts'+str(istep)
   os.system('rm -r Timestep'+str(istep)+'/__pycache__')

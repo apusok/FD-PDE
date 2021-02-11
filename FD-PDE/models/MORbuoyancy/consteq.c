@@ -128,7 +128,7 @@ PetscScalar FluidVelocity(PetscScalar vs, PetscScalar phi, PetscScalar gradP, Pe
 }
 
 // ---------------------------------------
-// BlukVelocity
+// BulkVelocity
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "BulkVelocity"
@@ -210,4 +210,46 @@ PetscScalar BulkViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, Petsc
   // return visc_ratio*exp(EoR*(1.0/T-1.0/Teta0))*pow(phi,zetaExp);
   // return 1.0/(1.0/zeta + eta0/eta_max) + eta_min/eta0; // harmonic averaging
   return visc_ratio;
+}
+
+// ---------------------------------------
+// SolidDensity (scaled by drho)
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "SolidDensity"
+PetscScalar SolidDensity(PetscScalar rho0, PetscScalar drho, PetscScalar T, PetscScalar C, PetscScalar alpha_s, PetscScalar beta_s, PetscInt buoy) 
+{ 
+  PetscScalar prho0;
+  prho0 = rho0/drho;
+  if (buoy <= 1) return prho0;
+  if (buoy == 2) return prho0 - beta_s*C; 
+  if (buoy == 3) return prho0 - beta_s*C - alpha_s*T;
+  return 0.0;
+}
+
+// ---------------------------------------
+// FluidDensity (scaled by drho)
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FluidDensity"
+PetscScalar FluidDensity(PetscScalar rho0, PetscScalar drho, PetscScalar T, PetscScalar C, PetscScalar alpha_s, PetscScalar beta_s, PetscInt buoy) 
+{ 
+  PetscScalar prho0, prho1;
+  prho0 = 1.0 - drho/rho0;
+  prho1 = rho0/drho;
+  if (buoy <= 1) return prho0*(prho1);
+  if (buoy == 2) return prho0*(prho1 - beta_s*C); 
+  if (buoy == 3) return prho0*(prho1 - beta_s*C - alpha_s*T);
+  return 0.0;
+}
+
+// ---------------------------------------
+// BulkDensity
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "BulkDensity"
+PetscScalar BulkDensity(PetscScalar rhos, PetscScalar rhof, PetscScalar phi, PetscInt buoy) 
+{ 
+  if (buoy == 0) return rhos;
+  else           return rhof*phi + rhos*(1-phi);
 }

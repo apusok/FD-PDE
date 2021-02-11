@@ -144,6 +144,42 @@ def parse_Enth_file(fname,fdir):
     return 0.0
 
 # ---------------------------------
+def parse_matProps_file(fname,fdir):
+  try: 
+    spec = importlib.util.spec_from_file_location(fname,fdir+'/'+fname+'.py')
+    imod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(imod)
+    data = imod._PETScBinaryLoad()
+
+    # Split data
+    nx = data['Nx'][0]
+    nz = data['Ny'][0]
+    xc = data['x1d_cell']
+    zc = data['y1d_cell']
+    Matprops_data = data['X_cell']
+    dof = 6
+
+    etar  = Matprops_data[0::dof]
+    zetar = Matprops_data[1::dof]
+    Kr    = Matprops_data[2::dof]
+    rhor  = Matprops_data[3::dof]
+    rhofr = Matprops_data[4::dof]
+    rhosr = Matprops_data[5::dof]
+
+    # Reshape data in 2D
+    eta  = etar.reshape(nz,nx)
+    zeta = zetar.reshape(nz,nx)
+    K    = Kr.reshape(nz,nx)
+    rho  = rhor.reshape(nz,nx)
+    rhof = rhofr.reshape(nz,nx)
+    rhos = rhosr.reshape(nz,nx)
+
+    return eta,zeta,K,rho,rhof,rhos
+  except OSError:
+    print('Cannot open: '+fdir+'/'+fname+'.py')
+    return 0.0
+
+# ---------------------------------
 def parse_PVcoeff_file(fname,fdir):
   try: 
     # Load output data including directory or path
@@ -682,4 +718,61 @@ def plot_HCcoeff(A1,B1,D1,A2,B2,D2,C1x,C1z,C2x,C2z,vx,vz,vfx,vfz,vsx,vsz,nx,nz,x
   ax.set_ylabel('z '+lbl_x)
 
   plt.savefig(fname+'_part2.pdf', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_matProp(eta,zeta,K,rho,rhof,rhos,nx,nz,xc,zc,scaleta,scalK,scalrho,scalx,lbl_eta,lbl_zeta,lbl_K,lbl_rho,lbl_x,fname,istep):
+
+  fig = plt.figure(1,figsize=(14,14))
+
+  ax = plt.subplot(4,2,1)
+  im = ax.imshow(np.log10(eta*scaleta),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
+  cbar.ax.set_title('log10 '+lbl_eta)
+  ax.axis('image')
+  ax.set_xlabel('x '+lbl_x)
+  ax.set_ylabel('z '+lbl_x)
+  ax.set_title('tstep = '+str(istep))
+
+  ax = plt.subplot(4,2,2)
+  im = ax.imshow(np.log10(zeta*scaleta),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
+  cbar.ax.set_title('log10 '+lbl_zeta)
+  ax.axis('image')
+  ax.set_xlabel('x '+lbl_x)
+  ax.set_ylabel('z '+lbl_x)
+
+  ax = plt.subplot(4,2,3)
+  im = ax.imshow(np.log10(K*scalK),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
+  cbar.ax.set_title('log10 '+lbl_K)
+  ax.axis('image')
+  ax.set_xlabel('x '+lbl_x)
+  ax.set_ylabel('z '+lbl_x)
+
+  ax = plt.subplot(4,2,4)
+  im = ax.imshow(rho*scalrho,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
+  cbar.ax.set_title(lbl_rho)
+  ax.axis('image')
+  ax.set_xlabel('x '+lbl_x)
+  ax.set_ylabel('z '+lbl_x)
+
+  ax = plt.subplot(4,2,5)
+  im = ax.imshow(rhof*scalrho,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
+  cbar.ax.set_title(lbl_rho+' (f)')
+  ax.axis('image')
+  ax.set_xlabel('x '+lbl_x)
+  ax.set_ylabel('z '+lbl_x)
+
+  ax = plt.subplot(4,2,6)
+  im = ax.imshow(rhos*scalrho,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
+  cbar.ax.set_title(lbl_rho+' (s)')
+  ax.axis('image')
+  ax.set_xlabel('x '+lbl_x)
+  ax.set_ylabel('z '+lbl_x)
+
+  plt.savefig(fname+'.pdf', bbox_inches = 'tight')
   plt.close()

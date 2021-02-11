@@ -58,8 +58,8 @@ typedef struct {
   PetscBag       bag;
   MPI_Comm       comm;
   PetscMPIInt    rank;
-  DM             dmPV, dmHC, dmVel, dmEnth;
-  Vec            xPV, xHC, xVel, xphiT, xEnth;
+  DM             dmPV, dmHC, dmVel, dmEnth, dmmatProp;
+  Vec            xPV, xHC, xVel, xphiT, xEnth, xmatProp;
 } UsrData;
 
 // ---------------------------------------
@@ -92,6 +92,7 @@ PetscErrorCode UpdateLithostaticPressure(DM,Vec,void*);
 PetscErrorCode CorrectInitialHCZeroPorosity(DM,Vec,void*);
 PetscErrorCode ExtractTemperaturePorosity(DM,Vec,void*,PetscBool);
 PetscErrorCode ComputeFluidAndBulkVelocity(DM,Vec,DM,Vec,DM,Vec,void*);
+PetscErrorCode UpdateMaterialProperties(DM,Vec,Vec,DM,Vec,DM,Vec,void*);
 
 // constitutive equations
 PetscErrorCode Porosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar*,PetscScalar,PetscScalar,PetscScalar);
@@ -108,6 +109,9 @@ PetscScalar HalfSpaceCoolingTemp(PetscScalar,PetscScalar,PetscScalar,PetscScalar
 PetscScalar ShearViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);  
 PetscScalar BulkViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar); 
 PetscScalar Buoyancy(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt); 
+PetscScalar SolidDensity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt);
+PetscScalar FluidDensity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt); 
+PetscScalar BulkDensity(PetscScalar,PetscScalar,PetscScalar,PetscInt); 
 
 // utils
 PetscErrorCode DoOutput(FDPDE,FDPDE,void*);

@@ -506,3 +506,89 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmHC, Vec xphiT,
 
   PetscFunctionReturn(0);
 }
+
+// ---------------------------------------
+// Update eta, zeta, permeability, rho, rho_f, rho_s for output
+// ---------------------------------------
+PetscErrorCode UpdateMaterialProperties(DM dmHC, Vec xHC, Vec xphiT, DM dmEnth, Vec xEnth, DM dmmatProp, Vec xmatProp, void *ctx)
+{
+  UsrData        *usr = (UsrData*) ctx;
+  NdParams       *nd;
+  Params         *par;
+  ScalParams     *scal;
+  PetscInt       i, j, sx, sz, nx, nz, idx;
+  PetscScalar    ***xx;
+  Vec            xmatProplocal,xEnthlocal,xphiTlocal,xHClocal;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  nd  = usr->nd;
+  par = usr->par;
+  scal= usr->scal;
+
+  ierr = DMStagGetCorners(dmmatProp,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL); CHKERRQ(ierr);  
+  ierr = DMCreateLocalVector(dmmatProp,&xmatProplocal);CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmmatProp, xmatProplocal, &xx); CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(dmEnth, &xEnthlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmEnth, xEnth, INSERT_VALUES, xEnthlocal); CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(dmHC, &xphiTlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmHC, xphiT, INSERT_VALUES, xphiTlocal); CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(dmHC, &xHClocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmHC, xHC, INSERT_VALUES, xHClocal); CHKERRQ(ierr);
+
+  // Loop over local domain
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      DMStagStencil point;
+      PetscScalar   eta, zeta, K, rho, rhof, rhos, CF, CS, T, phi;
+
+      point.i = i; point.j = j; point.loc = ELEMENT;
+      point.c = 0; ierr = DMStagVecGetValuesStencil(dmHC,xphiTlocal,1,&point,&phi); CHKERRQ(ierr);
+      point.c = 1; ierr = DMStagVecGetValuesStencil(dmHC,xphiTlocal,1,&point,&T); CHKERRQ(ierr);
+
+      point.c = 7; ierr = DMStagVecGetValuesStencil(dmEnth,xEnthlocal,1,&point,&CS); CHKERRQ(ierr);
+      point.c = 9; ierr = DMStagVecGetValuesStencil(dmEnth,xEnthlocal,1,&point,&CF); CHKERRQ(ierr);
+      
+      eta  = ShearViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->lambda,scal->eta,par->eta_min,par->eta_max);
+      zeta = BulkViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,nd->visc_ratio,par->zetaExp,scal->eta,par->eta_min,par->eta_max);
+      K    = Permeability(phi,usr->par->phi0,usr->par->phi_max,usr->par->n);
+       
+      rhos = SolidDensity(par->rho0,par->drho,T,CS,nd->alpha_s,nd->beta_s,par->buoyancy);
+      rhof = FluidDensity(par->rho0,par->drho,T,CF,nd->alpha_s,nd->beta_s,par->buoyancy);
+      rho  = BulkDensity(rhos,rhof,phi,par->buoyancy);
+      
+      ierr = DMStagGetLocationSlot(dmmatProp, point.loc, 0, &idx); CHKERRQ(ierr);
+      xx[j][i][idx] = eta;
+
+      ierr = DMStagGetLocationSlot(dmmatProp, point.loc, 1, &idx); CHKERRQ(ierr);
+      xx[j][i][idx] = zeta;
+
+      ierr = DMStagGetLocationSlot(dmmatProp, point.loc, 2, &idx); CHKERRQ(ierr);
+      xx[j][i][idx] = K;
+
+      ierr = DMStagGetLocationSlot(dmmatProp, point.loc, 3, &idx); CHKERRQ(ierr);
+      xx[j][i][idx] = rho;
+
+      ierr = DMStagGetLocationSlot(dmmatProp, point.loc, 4, &idx); CHKERRQ(ierr);
+      xx[j][i][idx] = rhof;
+
+      ierr = DMStagGetLocationSlot(dmmatProp, point.loc, 5, &idx); CHKERRQ(ierr);
+      xx[j][i][idx] = rhos;
+    }
+  }
+
+  // Restore arrays
+  ierr = DMStagVecRestoreArray(dmmatProp,xmatProplocal,&xx); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dmmatProp,xmatProplocal,INSERT_VALUES,xmatProp); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dmmatProp,xmatProplocal,INSERT_VALUES,xmatProp); CHKERRQ(ierr);
+  ierr = VecDestroy(&xmatProplocal); CHKERRQ(ierr);
+
+  ierr = DMRestoreLocalVector(dmHC, &xphiTlocal); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmHC, &xHClocal); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmEnth,&xEnthlocal); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}

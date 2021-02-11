@@ -254,7 +254,8 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdHC, void *ctx)
     ierr = DMStagViewBinaryPython(dmPVcoeff,xPVcoeff,fout);CHKERRQ(ierr);
 
     // material properties eta, permeability, density
-
+    ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_matProp_ts%d",usr->par->fdir_out,usr->par->istep);
+    ierr = DMStagViewBinaryPython(usr->dmmatProp,usr->xmatProp,fout);CHKERRQ(ierr);
   }
 
   // residuals
