@@ -234,7 +234,7 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdHC, void *ctx)
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHC_ts%d",usr->par->fdir_out,usr->par->istep);
   ierr = DMStagViewBinaryPython(usr->dmHC,usr->xHC,fout);CHKERRQ(ierr);
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_Enthalpy_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xEnth_ts%d",usr->par->fdir_out,usr->par->istep);
   ierr = DMStagViewBinaryPython(usr->dmEnth,usr->xEnth,fout);CHKERRQ(ierr);
 
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xphiT_ts%d",usr->par->fdir_out,usr->par->istep);
@@ -252,9 +252,17 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdHC, void *ctx)
     ierr = FDPDEGetCoefficient(fdPV,&dmPVcoeff,&xPVcoeff);CHKERRQ(ierr);
     ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPVcoeff_ts%d",usr->par->fdir_out,usr->par->istep);
     ierr = DMStagViewBinaryPython(dmPVcoeff,xPVcoeff,fout);CHKERRQ(ierr);
+
+    // material properties eta, permeability, density
+
   }
 
-  // div (mass), eta, residuals, permeability, density
+  // residuals
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_resPV_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = DMStagViewBinaryPython(usr->dmPV,fdPV->r,fout);CHKERRQ(ierr);
+
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_resHC_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = DMStagViewBinaryPython(usr->dmHC,fdHC->r,fout);CHKERRQ(ierr);
 
   // Dimensional output
   if (usr->par->dim_out) {
