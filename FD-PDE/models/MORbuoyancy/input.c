@@ -82,11 +82,13 @@ PetscErrorCode InputParameters(UsrData **_usr)
   usr->dmPV = NULL;
   usr->dmHC = NULL;
   usr->dmVel= NULL;
+  usr->dmEnth=NULL;
 
   usr->xPV  = NULL;
   usr->xHC  = NULL;
   usr->xVel = NULL;
   usr->xphiT= NULL;
+  usr->xEnth= NULL;
 
   // Get time, comm and rank
   usr->comm = PETSC_COMM_WORLD;

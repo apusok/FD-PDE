@@ -37,7 +37,7 @@ typedef struct {
   PetscScalar    tmax, dtmax;
   PetscInt       out_count, buoyancy;
   PetscBool      dim_out;
-  char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH]; 
+  char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH], fdir_out[FNAME_LENGTH]; 
 } Params;
 
 typedef struct {
@@ -58,8 +58,8 @@ typedef struct {
   PetscBag       bag;
   MPI_Comm       comm;
   PetscMPIInt    rank;
-  DM             dmPV, dmHC, dmVel;
-  Vec            xPV, xHC, xVel, xphiT;
+  DM             dmPV, dmHC, dmVel, dmEnth;
+  Vec            xPV, xHC, xVel, xphiT, xEnth;
 } UsrData;
 
 // ---------------------------------------
@@ -110,10 +110,11 @@ PetscScalar BulkViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscS
 PetscScalar Buoyancy(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt); 
 
 // utils
-// PetscErrorCode DoOutput(void*);
+PetscErrorCode DoOutput(FDPDE,FDPDE,void*);
 // PetscErrorCode ScaleSolutionPV(DM,Vec,Vec*,void*);
 // PetscErrorCode ScaleVectorUniform(DM,Vec,Vec*,PetscScalar);
 // PetscErrorCode ScaleTemperatureComposition(DM,Vec,Vec*,void*,PetscInt);
+PetscErrorCode CreateDirectory(const char*);
 
 // ---------------------------------------
 // Useful functions

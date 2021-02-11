@@ -34,8 +34,7 @@ FDPDE_HDR = $(patsubst %,$(FDPDE_DIR)/%,$(HDR))
 
 FDPDE_OBJ := $(patsubst %.c,%.o,$(FDPDE_SRC))
 
-# MODEL_OBJ = consteq.o utils.o initial.o input.o physics.o bc.o 
-MODEL_OBJ = consteq.o initial.o input.o physics.o bc.o 
+MODEL_OBJ = consteq.o utils.o initial.o input.o physics.o bc.o 
 
 all:
 	@make MORbuoyancy

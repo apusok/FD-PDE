@@ -25,7 +25,10 @@ def plot_solution_PV(fname,istep,dim):
   #   fout = fname+'_PV_'+str(istep)
   
   fout = 'out_xPV_ts'+str(istep)
-  imod = importlib.import_module(fout) # P,v
+  spec = importlib.util.spec_from_file_location(fout,'Timestep'+str(istep)+'/'+fout+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
+  # imod = importlib.import_module(fout) # P,v
   data_PV = imod._PETScBinaryLoad()
 
   # Split data
@@ -123,7 +126,10 @@ def plot_solution_PV(fname,istep,dim):
 def plot_solution_HC(fname,istep,dim):
 
   fout = 'out_xHC_ts'+str(istep)
-  imod = importlib.import_module(fout)
+  # imod = importlib.import_module(fout)
+  spec = importlib.util.spec_from_file_location(fout,'Timestep'+str(istep)+'/'+fout+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
   data_HC = imod._PETScBinaryLoad()
 
   # Split data
@@ -136,18 +142,18 @@ def plot_solution_HC(fname,istep,dim):
   H = HC_data[0::dof]
   C = HC_data[1::dof]
 
-  if (istep==0):
-    fout = 'out_Plith_ts'+str(istep)
-    imod = importlib.import_module(fout)
-    data_P = imod._PETScBinaryLoad()
-    P = data_P['X_cell']
+  # if (istep==0):
+  #   fout = 'out_Plith_ts'+str(istep)
+  #   imod = importlib.import_module(fout)
+  #   data_P = imod._PETScBinaryLoad()
+  #   P = data_P['X_cell']
 
-    fout = 'out_xHC_halfspace_ts'+str(istep)
-    imod = importlib.import_module(fout)
-    data_HC_hs = imod._PETScBinaryLoad()
+  #   fout = 'out_xHC_halfspace_ts'+str(istep)
+  #   imod = importlib.import_module(fout)
+  #   data_HC_hs = imod._PETScBinaryLoad()
 
-    HC_data_hs = data_HC_hs['X_cell']
-    H_hs = HC_data_hs[0::dof]
+  #   HC_data_hs = data_HC_hs['X_cell']
+  #   H_hs = HC_data_hs[0::dof]
 
   # Plot one figure
   fig = plt.figure(1,figsize=(14,7))
@@ -185,22 +191,22 @@ def plot_solution_HC(fname,istep,dim):
   ax.set_ylabel(labelz)
   ax.set_title('b) C ')
 
-  if (istep==0):
-    ax = plt.subplot(2,2,3)
-    im = ax.imshow((H.reshape(mz,mx)-H_hs.reshape(mz,mx))*scalH,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
-    cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelH)
-    ax.axis(aspect='image')
-    ax.set_xlabel(labelx)
-    ax.set_ylabel(labelz)
-    ax.set_title('c) H residual (corrected-halfspace)')
+  # if (istep==0):
+  #   ax = plt.subplot(2,2,3)
+  #   im = ax.imshow((H.reshape(mz,mx)-H_hs.reshape(mz,mx))*scalH,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  #   cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelH)
+  #   ax.axis(aspect='image')
+  #   ax.set_xlabel(labelx)
+  #   ax.set_ylabel(labelz)
+  #   ax.set_title('c) H residual (corrected-halfspace)')
 
-    ax = plt.subplot(2,2,4)
-    im = ax.imshow(P.reshape(mz,mx),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
-    cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelC)
-    ax.axis(aspect='image')
-    ax.set_xlabel(labelx)
-    ax.set_ylabel(labelz)
-    ax.set_title('d) Plith ')
+  #   ax = plt.subplot(2,2,4)
+  #   im = ax.imshow(P.reshape(mz,mx),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  #   cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelC)
+  #   ax.axis(aspect='image')
+  #   ax.set_xlabel(labelx)
+  #   ax.set_ylabel(labelz)
+  #   ax.set_title('d) Plith ')
 
   if (dim == 1):
     fout = fname+'_HC_dim_'+str(istep)
@@ -213,7 +219,10 @@ def plot_solution_HC(fname,istep,dim):
 def plot_solution_phiT(fname,istep,dim):
 
   fout = 'out_xphiT_ts'+str(istep)
-  imod = importlib.import_module(fout)
+  # imod = importlib.import_module(fout)
+  spec = importlib.util.spec_from_file_location(fout,'Timestep'+str(istep)+'/'+fout+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
   data_phiT = imod._PETScBinaryLoad()
 
   # Split data
@@ -273,7 +282,10 @@ def plot_solution_phiT(fname,istep,dim):
 def plot_solution_Vel(fname,istep,dim):
 
   fout = 'out_xVel_ts'+str(istep)
-  imod = importlib.import_module(fout)
+  # imod = importlib.import_module(fout)
+  spec = importlib.util.spec_from_file_location(fout,'Timestep'+str(istep)+'/'+fout+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
   data_Vel = imod._PETScBinaryLoad()
 
   # Split data
@@ -359,7 +371,10 @@ def plot_solution_Enthalpy(fname,istep,dim):
   # else:
   #   fout = fname+'_T_'+str(istep)
   fout = 'out_Enthalpy_ts'+str(istep)
-  imod = importlib.import_module(fout)
+  # imod = importlib.import_module(fout)
+  spec = importlib.util.spec_from_file_location(fout,'Timestep'+str(istep)+'/'+fout+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
   data_Enth = imod._PETScBinaryLoad()
 
   # Split data
@@ -485,7 +500,7 @@ def plot_solution_Enthalpy(fname,istep,dim):
 
 # Parameters
 fname = 'out_model'
-tstep = 5
+tstep = 1
 ndim  = 0
 
 # Run test
@@ -496,24 +511,17 @@ str1 = '../MORbuoyancy.app'+ \
   # ' -options_file ../model_test.opts -nx 30 -nz 15 -log_view -dim_output '#+' > '+fname+'.out'
 # str1 = '../MORbuoyancy.app -options_file ../model_test.opts -log_view '
 print(str1)
-os.system(str1)
+# os.system(str1)
 
-for istep in range(0,tstep):
+for istep in range(0,tstep+1):
   plot_solution_PV(fname,istep,ndim)
   plot_solution_HC(fname,istep,ndim)
   plot_solution_phiT(fname,istep,ndim)
   plot_solution_Vel(fname,istep,ndim)
   plot_solution_Enthalpy(fname,istep,ndim)
-
-# istep = 1
-# plot_solution_HC(fname,istep,ndim)
-# plot_solution_Enthalpy(fname,istep,ndim)
-# plot_solution_phiT(fname,istep,ndim)
-# plot_solution_PV(fname,istep,ndim)
-# plot_solution_Vel(fname,istep,ndim)
+  os.system('rm -r Timestep'+str(istep)+'/__pycache__')
 
 # print coeff - command line
 # import dmstagoutput as dmout
 # dmout.general_output_imshow('out_xcoeff_ts0',None,None)
 
-os.system('rm -r __pycache__')
