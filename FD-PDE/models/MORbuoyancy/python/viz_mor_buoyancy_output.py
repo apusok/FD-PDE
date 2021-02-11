@@ -80,7 +80,7 @@ def plot_solution_PV(fname,istep,dim):
   ax = plt.subplot(2,2,1)
   im = ax.imshow( p.reshape(mz,mx)*scalP, extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],
                   origin='lower', cmap='ocean', interpolation='nearest')
-  im.set_clim(-10,0)
+  # im.set_clim(-10,0)
   cbar = fig.colorbar(im,ax=ax, shrink=0.60,label=labelP )
   Q  = ax.quiver( xc[::nind]*scalx, zc[::nind]*scalx, vxc[::nind,::nind]*scalv, vzc[::nind,::nind]*scalv, color='grey', units='width', pivot='mid')
   ax.axis(aspect='image')

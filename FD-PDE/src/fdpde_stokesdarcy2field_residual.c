@@ -329,42 +329,42 @@ PetscErrorCode DMStagBCListApplyFace_StokesDarcy2Field(DM dm, Vec xlocal,DM dmco
       ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
 
       // Stokes flow - add flux terms
-      if ((j == 0) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx down
+      if ((j == 0) && (i > 0) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx down - only interior points
         point.i = i; point.j = j; point.loc = DMSTAG_DOWN_LEFT; point.c = 0;
         ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Down); CHKERRQ(ierr);
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += -2.0 * A_Down*( xx - bclist[ibc].val)/dz/dz;
       }
 
-      else if ((j == 0) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx down-special case
+      else if ((j == 0) && (i < Nx-1) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx down-special case
         point.i = i; point.j = j; point.loc = DMSTAG_DOWN_RIGHT; point.c = 0;
         ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Down); CHKERRQ(ierr);
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += -2.0 * A_Down*( xx - bclist[ibc].val)/dz/dz;
       }
 
-      else if ((j == Nz-1) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx up
+      else if ((j == Nz-1) && (i > 0) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx up - only interior points
         point.i = i; point.j = j; point.loc = DMSTAG_UP_LEFT; point.c = 0;
         ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Up); CHKERRQ(ierr);
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += 2.0 * A_Up*( bclist[ibc].val - xx)/dz/dz;
       }
 
-      else if ((j == Nz-1) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx up - special case
+      else if ((j == Nz-1) && (i < Nx-1) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx up - special case
         point.i = i; point.j = j; point.loc = DMSTAG_UP_RIGHT; point.c = 0;
         ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Up); CHKERRQ(ierr);
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += 2.0 * A_Up*( bclist[ibc].val - xx)/dz/dz;
       }
 
-      else if ((i == 0) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz left
+      else if ((i == 0) && (j > 0) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz left
         point.i = i; point.j = j; point.loc = DMSTAG_DOWN_LEFT; point.c = 0;
         ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Left); CHKERRQ(ierr);
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] += -2.0 * A_Left*( xx - bclist[ibc].val)/dx/dx;
       }
 
-      else if ((i == Nx-1) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz right
+      else if ((i == Nx-1) && (j > 0) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz right
         point.i = i; point.j = j; point.loc = DMSTAG_DOWN_RIGHT; point.c = 0;
         ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Right); CHKERRQ(ierr);
         dx = coordx[i][inext]-coordx[i][iprev];

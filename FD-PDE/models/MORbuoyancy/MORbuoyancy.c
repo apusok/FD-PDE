@@ -254,6 +254,12 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = PetscSNPrintf(fout,sizeof(fout),"out_xPV_ts%d",usr->par->istep);
     ierr = DMStagViewBinaryPython(usr->dmPV,usr->xPV,fout);CHKERRQ(ierr);
 
+    // PetscPrintf(PETSC_COMM_WORLD,"# JACOBIAN \n");
+    // ierr = MatView(fdPV->J,PETSC_VIEWER_STDOUT_WORLD);
+
+    // PetscPrintf(PETSC_COMM_WORLD,"# RESIDUAL \n");
+    // ierr = VecView(fdPV->r,PETSC_VIEWER_STDOUT_WORLD);
+
     ierr = FDPDEGetCoefficient(fdPV,&dmPVcoeff,&xPVcoeff);CHKERRQ(ierr);
     ierr = PetscSNPrintf(fout,sizeof(fout),"out_xPVcoeff_ts%d",usr->par->istep);
     ierr = DMStagViewBinaryPython(dmPVcoeff,xPVcoeff,fout);CHKERRQ(ierr);
