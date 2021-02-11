@@ -317,6 +317,7 @@ def plot_PV(P,Vx,Vz,nx,nz,xc,zc,xv,zv,scalP,scalv,scalx,lbl_P,lbl_v,lbl_x,fname,
   ax = plt.subplot(3,1,1)
   im = ax.imshow( P*scalP, extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],
                   origin='lower', cmap='ocean', interpolation='nearest')
+  # im.set_clim(-100,0)
   cbar = fig.colorbar(im,ax=ax, shrink=0.85)
   cbar.ax.set_title(lbl_P)
   Q  = ax.quiver( xc[::nind]*scalx, zc[::nind]*scalx, vxc[::nind,::nind]*scalv, vzc[::nind,::nind]*scalv, color='grey', units='width', pivot='mid')
@@ -328,6 +329,7 @@ def plot_PV(P,Vx,Vz,nx,nz,xc,zc,xv,zv,scalP,scalv,scalx,lbl_P,lbl_v,lbl_x,fname,
 
   ax = plt.subplot(3,1,2)
   im = ax.imshow(Vx*scalv,extent=[min(xv)*scalx, max(xv)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  im.set_clim(0,2.5)
   cbar = fig.colorbar(im,ax=ax, shrink=0.85)
   cbar.ax.set_title(label=lbl_v+' x')
   ax.axis('image')
@@ -337,6 +339,7 @@ def plot_PV(P,Vx,Vz,nx,nz,xc,zc,xv,zv,scalP,scalv,scalx,lbl_P,lbl_v,lbl_x,fname,
 
   ax = plt.subplot(3,1,3)
   im = ax.imshow(Vz*scalv,extent=[min(xc)*scalx, max(xc)*scalx, min(zv)*scalx, max(zv)*scalx],cmap='viridis',origin='lower')
+  im.set_clim(-1,6)
   cbar = fig.colorbar(im,ax=ax, shrink=0.85)
   cbar.ax.set_title(label=lbl_v+' z')
   ax.axis('image')
@@ -354,6 +357,8 @@ def plot_HC(H,C,nx,nz,xc,zc,scalH,scalC,scalx,lbl_H,lbl_C,lbl_x,fname,istep,fram
 
   ax = plt.subplot(2,1,1)
   im = ax.imshow(H*scalH,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  # im.set_clim(-30,0)
+  # im.set_clim(0,0.005)
   cbar = fig.colorbar(im,ax=ax, shrink=0.85)
   cbar.ax.set_title(lbl_H)
   ax.axis('image')
@@ -364,6 +369,8 @@ def plot_HC(H,C,nx,nz,xc,zc,scalH,scalC,scalx,lbl_H,lbl_C,lbl_x,fname,istep,fram
 
   ax = plt.subplot(2,1,2)
   im = ax.imshow(C,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  # im.set_clim(0,0.2)
+  # im.set_clim(-30,0)
   cbar = fig.colorbar(im,ax=ax, shrink=0.85)
   cbar.ax.set_title(lbl_C)
   ax.axis('image')
@@ -381,6 +388,7 @@ def plot_Enth(H,T,TP,phi,P,C,Cs,Cf,nx,nz,xc,zc,scalH,scalT,scalC,scalx,lbl_H,lbl
 
   ax = plt.subplot(4,2,1)
   im = ax.imshow(H*scalH,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  im.set_clim(-30,0)
   cbar = fig.colorbar(im,ax=ax, shrink=0.60)
   cbar.ax.set_title(lbl_H)
   ax.axis('image')
@@ -390,6 +398,7 @@ def plot_Enth(H,T,TP,phi,P,C,Cs,Cf,nx,nz,xc,zc,scalH,scalT,scalC,scalx,lbl_H,lbl
 
   ax = plt.subplot(4,2,2)
   im = ax.imshow(C,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  im.set_clim(0,0.2)
   cbar = fig.colorbar(im,ax=ax, shrink=0.60)
   cbar.ax.set_title(lbl_C)
   ax.axis('image')
@@ -398,6 +407,7 @@ def plot_Enth(H,T,TP,phi,P,C,Cs,Cf,nx,nz,xc,zc,scalH,scalT,scalC,scalx,lbl_H,lbl
 
   ax = plt.subplot(4,2,3)
   im = ax.imshow(T-scalT,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  im.set_clim(-30,0)
   cbar = fig.colorbar(im,ax=ax, shrink=0.60)
   cbar.ax.set_title(lbl_T)
   ax.axis('image')
@@ -406,6 +416,7 @@ def plot_Enth(H,T,TP,phi,P,C,Cs,Cf,nx,nz,xc,zc,scalH,scalT,scalC,scalx,lbl_H,lbl
 
   ax = plt.subplot(4,2,4)
   im = ax.imshow(Cf,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  im.set_clim(-1,-0.8)
   cbar = fig.colorbar(im,ax=ax, shrink=0.60)
   cbar.ax.set_title(lbl_Cf)
   ax.axis('image')
@@ -414,6 +425,7 @@ def plot_Enth(H,T,TP,phi,P,C,Cs,Cf,nx,nz,xc,zc,scalH,scalT,scalC,scalx,lbl_H,lbl
 
   ax = plt.subplot(4,2,5)
   im = ax.imshow(TP-scalT,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  im.set_clim(-30,0)
   cbar = fig.colorbar(im,ax=ax, shrink=0.60)
   cbar.ax.set_title(lbl_TP)
   ax.axis('image')
@@ -422,6 +434,7 @@ def plot_Enth(H,T,TP,phi,P,C,Cs,Cf,nx,nz,xc,zc,scalH,scalT,scalC,scalx,lbl_H,lbl
 
   ax = plt.subplot(4,2,6)
   im = ax.imshow(Cs,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  im.set_clim(0,0.2)
   cbar = fig.colorbar(im,ax=ax, shrink=0.60)
   cbar.ax.set_title(lbl_Cs)
   ax.axis('image')
@@ -438,6 +451,7 @@ def plot_Enth(H,T,TP,phi,P,C,Cs,Cf,nx,nz,xc,zc,scalH,scalT,scalC,scalx,lbl_H,lbl
 
   ax = plt.subplot(4,2,8)
   im = ax.imshow(phi,extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  im.set_clim(0,0.01)
   cbar = fig.colorbar(im,ax=ax, shrink=0.60)
   cbar.ax.set_title(lbl_phi)
   ax.axis('image')
@@ -727,6 +741,7 @@ def plot_matProp(eta,zeta,K,rho,rhof,rhos,nx,nz,xc,zc,scaleta,scalK,scalrho,scal
 
   ax = plt.subplot(4,2,1)
   im = ax.imshow(np.log10(eta*scaleta),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
+  im.set_clim(-4,6)
   cbar = fig.colorbar(im,ax=ax, shrink=0.60)
   cbar.ax.set_title('log10 '+lbl_eta)
   ax.axis('image')
@@ -737,6 +752,7 @@ def plot_matProp(eta,zeta,K,rho,rhof,rhos,nx,nz,xc,zc,scaleta,scalK,scalrho,scal
   ax = plt.subplot(4,2,2)
   im = ax.imshow(np.log10(zeta*scaleta),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
   cbar = fig.colorbar(im,ax=ax, shrink=0.60)
+  im.set_clim(-4,6)
   cbar.ax.set_title('log10 '+lbl_zeta)
   ax.axis('image')
   ax.set_xlabel('x '+lbl_x)
@@ -745,6 +761,7 @@ def plot_matProp(eta,zeta,K,rho,rhof,rhos,nx,nz,xc,zc,scaleta,scalK,scalrho,scal
   ax = plt.subplot(4,2,3)
   im = ax.imshow(np.log10(K*scalK),extent=[min(xc)*scalx, max(xc)*scalx, min(zc)*scalx, max(zc)*scalx],cmap='viridis',origin='lower')
   cbar = fig.colorbar(im,ax=ax, shrink=0.60)
+  im.set_clim(-20,0)
   cbar.ax.set_title('log10 '+lbl_K)
   ax.axis('image')
   ax.set_xlabel('x '+lbl_x)

@@ -10,7 +10,7 @@ PetscErrorCode FormBCList_PV(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       k,n_bc,*idx_bc;
-  PetscInt       i, sx, sz, nx, nz, iprev, icenter;
+  PetscInt       i, sx, sz, nx, nz, Nx, Nz, iprev, icenter;
   PetscScalar    *value_bc,*x_bc,*x_bc_true, xx[2], dx;
   BCType         *type_bc;
   DMStagStencil  point[2];
@@ -21,6 +21,7 @@ PetscErrorCode FormBCList_PV(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   PetscFunctionBegin;
 
   // Get solution dm/vector
+  ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
   ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr);
@@ -133,6 +134,13 @@ PetscErrorCode FormBCList_PV(DM dm, Vec x, DMStagBCList bclist, void *ctx)
     value_bc[k] = 0.0;
     type_bc[k] = BC_DIRICHLET_STAG; //BC_DIRICHLET; 
   }
+
+  // // Pinpoint pressure in lower right corner
+  // if ((sz == 0) && (sx+nx == Nx)) {
+  //   value_bc[n_bc-1] = 0.0;
+  //   type_bc[n_bc-1] = BC_DIRICHLET_STAG; //BC_DIRICHLET; 
+  // }
+
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // restore

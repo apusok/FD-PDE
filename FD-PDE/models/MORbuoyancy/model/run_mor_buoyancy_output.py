@@ -17,13 +17,17 @@ import vizMORBuoyancy as vizB
 
 # Parameters
 fname = 'out_model'
-tstep = 1
+tstep = 21
 SEC_YEAR = 31536000
+buoyancy = 0 # 0=off, 1=phi, 2=phi-C, 3=phi-C-T
+k_hat = 1.0
 
 # Run test
 str1 = '../MORbuoyancy.app'+ \
     ' -options_file model_test.opts -nx 200 -nz 100'+ \
     ' -tstep '+str(tstep)+ \
+    ' -buoyancy '+str(buoyancy)+ \
+    ' -k_hat '+str(k_hat)+ \
     ' -log_view '
 print(str1)
 os.system(str1)
