@@ -94,8 +94,9 @@ PetscErrorCode Numerical_solution(void *ctx)
   PetscInt      nx, nz; 
   PetscScalar   xmin, xmax, zmin, zmax;
   FDPDE         fdPV, fdHC;
-  DM            dmPV, dmHC, dmHCcoeff, dmPVcoeff, dmEnth;
-  Vec           xPV, xHC, xHCprev, xHCguess, xHCcoeffprev, xPVcoeff, xEnth;
+  DM            dmPV, dmHC, dmHCcoeff, dmPVcoeff, dmEnth, dmP;
+  Vec           xPV, xPVcoeff, xP, xPprev;
+  Vec           xHC, xHCprev, xHCguess, xHCcoeff, xHCcoeffprev,  xEnth;
   PetscBool     converged;
   char           fout[FNAME_LENGTH];
   PetscErrorCode ierr;
@@ -265,28 +266,35 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = DMStagViewBinaryPython(dmPVcoeff,xPVcoeff,fout);CHKERRQ(ierr);
 
     // Prepare data for next time-step
-    // ierr = FDPDEEnthalpyGetPrevSolution(fdHC,&xHCprev);CHKERRQ(ierr);
-    // ierr = VecCopy(xHC,xHCprev);CHKERRQ(ierr);
-    // ierr = VecDestroy(&xHCprev);CHKERRQ(ierr);
-    // ierr = FDPDEGetCoefficient(fdHC,&dmHCcoeff,&xHCcoeff);CHKERRQ(ierr);
-    // ierr = FDPDEEnthalpyGetPrevCoefficient(fdHC,&xHCcoeffprev);CHKERRQ(ierr);
-    // ierr = VecCopy(xHCcoeff,xHCcoeffprev);CHKERRQ(ierr);
-    // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_coeff_ts%1.3d",par->fdir_out,par->fname_out,istep);
-    // ierr = DMStagViewBinaryPython(dmHCcoeff,xHCcoeff,fout);CHKERRQ(ierr);
-    // ierr = VecDestroy(&xHCcoeffprev);CHKERRQ(ierr);
+    ierr = FDPDEEnthalpyGetPrevSolution(fdHC,&xHCprev);CHKERRQ(ierr);
+    ierr = VecCopy(usr->xHC,xHCprev);CHKERRQ(ierr);
+    ierr = VecDestroy(&xHCprev);CHKERRQ(ierr);
+    ierr = FDPDEGetCoefficient(fdHC,&dmHCcoeff,&xHCcoeff);CHKERRQ(ierr);
+    ierr = FDPDEEnthalpyGetPrevCoefficient(fdHC,&xHCcoeffprev);CHKERRQ(ierr);
+    ierr = VecCopy(xHCcoeff,xHCcoeffprev);CHKERRQ(ierr);
+    ierr = PetscSNPrintf(fout,sizeof(fout),"out_xHCcoeff_ts%d",usr->par->istep);
+    ierr = DMStagViewBinaryPython(dmHCcoeff,xHCcoeff,fout);CHKERRQ(ierr);
+    ierr = VecDestroy(&xHCcoeffprev);CHKERRQ(ierr);
+
+    // Update lithostatic pressure 
+    ierr = FDPDEEnthalpyGetPressure(fdHC,&dmP,&xP);CHKERRQ(ierr);
+    ierr = UpdateLithostaticPressure(dmP,xP,usr);CHKERRQ(ierr);
+    ierr = PetscSNPrintf(fout,sizeof(fout),"out_Plith_ts%d",usr->par->istep);
+    ierr = DMStagViewBinaryPython(dmP,xP,fout);CHKERRQ(ierr);
+    ierr = FDPDEEnthalpyGetPrevPressure(fdHC,&xPprev);CHKERRQ(ierr);
+    ierr = VecCopy(xP,xPprev);CHKERRQ(ierr);
+    ierr = VecDestroy(&xP);CHKERRQ(ierr);
+    ierr = VecDestroy(&xPprev);CHKERRQ(ierr);
+    ierr = DMDestroy(&dmP);CHKERRQ(ierr);
 
     // Update fluid velocity
-
-    // Update pressure 
-    // ierr = FDPDEEnthalpyGetPressure(fdHC,&dmP,&xP);CHKERRQ(ierr);
+    ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmHC,usr->xphiT,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
+    ierr = PetscSNPrintf(fout,sizeof(fout),"out_xVel_ts%d",usr->par->istep);
+    ierr = DMStagViewBinaryPython(usr->dmVel,usr->xVel,fout);CHKERRQ(ierr);
 
     // Output solution
     // if (istep % par->tout == 0 ) {
-    //   // ierr = DoOutput(usr);CHKERRQ(ierr);
-    //   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_HC_ts%1.3d",par->fdir_out,par->fname_out,istep);
-    //   ierr = DMStagViewBinaryPython(dmHC,xHC,fout);CHKERRQ(ierr);
-    //   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_PV_ts%1.3d",par->fdir_out,par->fname_out,istep);
-    //   ierr = DMStagViewBinaryPython(dmPV,xPV,fout);CHKERRQ(ierr);
+    //   ierr = DoOutput(usr);CHKERRQ(ierr);
     // }
 
     // Update time

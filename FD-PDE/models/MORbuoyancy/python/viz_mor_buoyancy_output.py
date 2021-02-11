@@ -485,30 +485,32 @@ def plot_solution_Enthalpy(fname,istep,dim):
 
 # Parameters
 fname = 'out_model'
+tstep = 5
+ndim  = 0
 
 # Run test
 str1 = '../MORbuoyancy.app'+ \
-    ' -options_file ../model_test.opts -nx 200 -nz 100 -log_view -dim_output '#+' > '+fname+'.out'
+    ' -options_file ../model_test.opts -nx 200 -nz 100'+ \
+    ' -tstep '+str(tstep)+ \
+    ' -log_view -dim_output '#+' > '+fname+'.out'
   # ' -options_file ../model_test.opts -nx 30 -nz 15 -log_view -dim_output '#+' > '+fname+'.out'
 # str1 = '../MORbuoyancy.app -options_file ../model_test.opts -log_view '
 print(str1)
 os.system(str1)
 
-istep = 0
-ndim  = 0
+for istep in range(0,tstep):
+  plot_solution_PV(fname,istep,ndim)
+  plot_solution_HC(fname,istep,ndim)
+  plot_solution_phiT(fname,istep,ndim)
+  plot_solution_Vel(fname,istep,ndim)
+  plot_solution_Enthalpy(fname,istep,ndim)
 
-# Plot initial conditions
-plot_solution_PV(fname,istep,ndim)
-plot_solution_HC(fname,istep,ndim)
-plot_solution_phiT(fname,istep,ndim)
-plot_solution_Vel(fname,istep,ndim)
-plot_solution_Enthalpy(fname,istep,ndim)
-
-istep = 1
-plot_solution_HC(fname,istep,ndim)
-plot_solution_Enthalpy(fname,istep,ndim)
-plot_solution_phiT(fname,istep,ndim)
-plot_solution_PV(fname,istep,ndim)
+# istep = 1
+# plot_solution_HC(fname,istep,ndim)
+# plot_solution_Enthalpy(fname,istep,ndim)
+# plot_solution_phiT(fname,istep,ndim)
+# plot_solution_PV(fname,istep,ndim)
+# plot_solution_Vel(fname,istep,ndim)
 
 # print coeff - command line
 # import dmstagoutput as dmout
