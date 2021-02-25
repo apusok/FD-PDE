@@ -23,9 +23,10 @@ A = SimStruct()
 A.modelopts    = 'model_test.opts'
 A.nx           = 200
 A.nz           = 100
-A.tstep        = 1
+A.tstep        = 10
 A.buoyancy     = 0 # 0=off, 1=phi, 2=phi-C, 3=phi-C-T
-A.k_hat        = -1.0
+A.visc         = 0 # 0-constant, 1-Temp,porosity dependent
+A.k_hat        = -1.0 # 0.0 or -1.0
 A.dim_output   = 1 # 0 - nondimensional, 1 - dimensional
 A.debug_output = 1 # 0 - no debug output, 1 - debug output
 
@@ -35,6 +36,7 @@ str1 = '../MORbuoyancy.app'+ \
     ' -nx '+str(A.nx)+' -nz '+str(A.nz)+ \
     ' -tstep '+str(A.tstep)+ \
     ' -buoyancy '+str(A.buoyancy)+ \
+    ' -visc '+str(A.visc)+ \
     ' -dim_output '+str(A.dim_output)+ \
     ' -k_hat '+str(A.k_hat)+ \
     ' -log_view '
@@ -78,6 +80,10 @@ for istep in range(0,A.tstep+1):
   A.Vfcx, A.Vfcz = vizB.calc_center_velocities(A.Vfx,A.Vfz,A.nx,A.nz)
   A.Vcx, A.Vcz   = vizB.calc_center_velocities(A.Vx,A.Vz,A.nx,A.nz)
 
+  # nice output
+  vizB.plot_porosity_contours(A,'out_porosity_contours_ts'+str(istep),istep)
+
+  # debug output
   if (A.debug_output):
     vizB.plot_PV(0,A,A.fname_debug_out+'/out_xPV_ts'+str(istep),istep,7,12)
     vizB.plot_HC(0,A,A.fname_debug_out+'/out_xHC_ts'+str(istep),istep,7,8) # H,C

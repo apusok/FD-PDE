@@ -210,7 +210,7 @@ PetscScalar BulkViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, Petsc
 { 
   PetscScalar zeta;
 
-  if (phi < 1e-12) phi = 1e-12;
+  if (phi < PHI_CUTOFF) phi = PHI_CUTOFF;
   if (visc == 0) { // constant 
     zeta = visc_ratio;
     return zeta;

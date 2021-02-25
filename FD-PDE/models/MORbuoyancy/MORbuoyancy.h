@@ -11,6 +11,7 @@
 #define FNAME_LENGTH  200
 #define SEC_YEAR      31536000 //3600.00*24.00*365.00
 #define T_KELVIN      273.15
+#define PHI_CUTOFF    1e-10
 
 // define convenient names for DMStagStencilLocation
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT

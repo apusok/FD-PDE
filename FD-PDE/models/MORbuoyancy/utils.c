@@ -487,13 +487,13 @@ PetscErrorCode ScaleSolutionMaterialProp(DM dm, Vec x, Vec *_x, void *ctx)
       xxnew[j][i][idx] = xx[j][i][idx]*usr->scal->K; // K
 
       ierr = DMStagGetLocationSlot(dm,ELEMENT,3,&idx); CHKERRQ(ierr); 
-      xxnew[j][i][idx] = xx[j][i][idx]*usr->scal->rho; // rho
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->drho; // rho
 
       ierr = DMStagGetLocationSlot(dm,ELEMENT,4,&idx); CHKERRQ(ierr); 
-      xxnew[j][i][idx] = xx[j][i][idx]*usr->scal->rho; // rhof
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->drho; // rhof
 
       ierr = DMStagGetLocationSlot(dm,ELEMENT,5,&idx); CHKERRQ(ierr); 
-      xxnew[j][i][idx] = xx[j][i][idx]*usr->scal->rho; // rhos
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->par->drho; // rhos
     }
   }
 

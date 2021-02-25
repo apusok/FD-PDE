@@ -1015,3 +1015,82 @@ def plot_matProp(A,fname,istep):
 
   plt.savefig(fname+'.pdf', bbox_inches = 'tight')
   plt.close()
+
+# ---------------------------------
+def plot_porosity_contours(A,fname,istep):
+
+  fig = plt.figure(1,figsize=(14,5))
+  extentE =[min(A.grid.xc)*A.scal.x, max(A.grid.xc)*A.scal.x, min(A.grid.zc)*A.scal.x, max(A.grid.zc)*A.scal.x]
+  extentVz=[min(A.grid.xc)*A.scal.x, max(A.grid.xc)*A.scal.x, min(A.grid.zv)*A.scal.x, max(A.grid.zv)*A.scal.x]
+
+  # 1. porosity
+  ax = plt.subplot(1,2,1)
+  im = ax.imshow(A.phi,extent=extentE,cmap='ocean_r',origin='lower')
+  im.set_clim(0,0.002)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.50)
+
+  xa = A.grid.xc[::4]*A.scal.x
+  stream_points = []
+  for xi in xa:
+    stream_points.append([xi,A.grid.zc[0]*A.scal.x])
+
+  # solid streamlines
+  # stream = ax.streamplot(A.grid.xc*A.scal.x,A.grid.zc*A.scal.x, A.Vscx*A.scal.v, A.Vscz*A.scal.v,
+  #       color='grey',linewidth=0.5, start_points=stream_points, density=2.0, minlength=0.5, arrowstyle='-')
+
+  # fluid streamlines
+  mask = np.zeros(A.Vfcx.shape, dtype=bool)
+  mask[np.where(A.phi<1e-8)] = True
+  Vfx = np.ma.array(A.Vfcx, mask=mask)
+  Vfz = np.ma.array(A.Vfcz, mask=mask)
+  nind = 4
+  if (istep>0):
+    Q  = ax.quiver(A.grid.xc[::nind]*A.scal.x, A.grid.zc[::nind]*A.scal.x, Vfx[::nind,::nind]*A.scal.v, Vfz[::nind,::nind]*A.scal.v, 
+      color='orange', units='width', pivot='mid', width=0.002, headaxislength=3, minlength=0)
+
+  #   stream_fluid = ax.streamplot(A.grid.xc*A.scal.x,A.grid.zc*A.scal.x, Vfx*A.scal.v, Vfz*A.scal.v,
+  #       color='r', linewidth=0.5, density=2.0, minlength=0.5, arrowstyle='-')
+
+  # temperature contour
+  if (A.dim_output):
+    levels = [250, 500, 750, 1000, 1200, 1300,]
+    fmt = r'%0.0f $^o$C'
+  else:
+    levels = [-30, -25, -20, -10, -5, -2.5,]
+    fmt = r'%0.1f'
+  ts = ax.contour(A.grid.xc*A.scal.x, A.grid.zc*A.scal.x, A.T-A.scal.T, levels=levels,linewidths=(0.8,), extend='both')
+  ax.clabel(ts, fmt=fmt, fontsize=8)
+
+  # solidus contour
+  if (istep>0):
+    cs = ax.contour(A.grid.xc*A.scal.x, A.grid.zc*A.scal.x, A.phi, levels=[1e-8,], colors = ('k',),linewidths=(0.8,), extend='both')
+
+  ax.axis('image')
+  ax.set_xlabel(A.lbl.x)
+  ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.phi+' tstep = '+str(istep))
+
+  # 2. Vertical solid velocity
+  ax = plt.subplot(1,2,2)
+  im = ax.imshow(A.Vsz*A.scal.v,extent=extentVz,cmap='viridis',origin='lower')
+  if (A.dim_output):
+    im.set_clim(0,4.0)
+  else:
+    im.set_clim(0,2.5)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.50)
+
+  # solid streamlines
+  stream = ax.streamplot(A.grid.xc*A.scal.x,A.grid.zc*A.scal.x, A.Vscx*A.scal.v, A.Vscz*A.scal.v,
+        color='grey',linewidth=0.5, start_points=stream_points, density=2.0, minlength=0.5, arrowstyle='-')
+  
+  # solidus contour
+  if (istep>0):
+    cs = ax.contour(A.grid.xc*A.scal.x, A.grid.zc*A.scal.x, A.phi, levels=[1e-8,], colors = ('k',),linewidths=(0.8,), extend='both')
+  
+  ax.axis('image')
+  ax.set_xlabel(A.lbl.x)
+  ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.vsz)
+
+  plt.savefig(fname+'.pdf', bbox_inches = 'tight')
+  plt.close()

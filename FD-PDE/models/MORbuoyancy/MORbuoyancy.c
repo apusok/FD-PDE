@@ -211,7 +211,7 @@ PetscErrorCode Numerical_solution(void *ctx)
         ierr = FDPDEEnthalpySetTimestep(fdHC,nd->dt); CHKERRQ(ierr);
       }
     }
-    PetscPrintf(PETSC_COMM_WORLD,"# Time-step size (non-dimensional): dt = %1.12e dtmax = %1.12e \n",nd->dt,nd->dtmax);
+    PetscPrintf(PETSC_COMM_WORLD,"# Time-step (non-dimensional): dt = %1.12e dtmax = %1.12e \n",nd->dt,nd->dtmax);
 
     // Get solution
     ierr = FDPDEGetSolution(fdHC,&xHC);CHKERRQ(ierr);
@@ -273,7 +273,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     nd->t += nd->dt;
     par->istep++;
 
-    PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e [yr] dt = %1.12e [yr] \n\n",nd->t*usr->scal->t/SEC_YEAR,nd->dt*usr->scal->t/SEC_YEAR);
+    PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e [Myr] dt = %1.12e [Myr] \n\n",nd->t*usr->scal->t/SEC_YEAR*1e-6,nd->dt*usr->scal->t/SEC_YEAR*1e-6);
   }
 
   // // Destroy objects
