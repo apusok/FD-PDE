@@ -5,6 +5,7 @@ print('# --------------------------------------- #')
 # Import modules
 import os
 import sys
+import numpy as np
 
 # Add path to vizMORBuoyancy
 pathViz = '../python/'
@@ -21,14 +22,14 @@ A = SimStruct()
 
 # Parameters
 A.modelopts    = 'model_test.opts'
-A.nx           = 200
-A.nz           = 100
-A.tstep        = 10
-A.K0           = 1.0e-13
+A.nx           = 20
+A.nz           = 10
+A.tstep        = 1
+A.K0           = 1.0e-7
 A.buoyancy     = 0 # 0=off, 1=phi, 2=phi-C, 3=phi-C-T
 A.visc         = 0 # 0-constant, 1-Temp,porosity dependent
 A.k_hat        = -1.0 # 0.0 or -1.0
-A.phi_extract  = 1.0  # 1=full extraction, 0.95-some porosity left
+A.phi_init     = 1.0e-4  # 0=full extraction, 1e-4-some porosity left
 A.dim_output   = 1 # 0 - nondimensional, 1 - dimensional
 A.debug_output = 1 # 0 - no debug output, 1 - debug output
 
@@ -40,7 +41,7 @@ str1 = '../MORbuoyancy.app'+ \
     ' -K0 '+str(A.K0)+ \
     ' -buoyancy '+str(A.buoyancy)+ \
     ' -visc '+str(A.visc)+ \
-    ' -phi_extract '+str(A.phi_extract)+ \
+    ' -phi_init '+str(A.phi_init)+ \
     ' -dim_output '+str(A.dim_output)+ \
     ' -k_hat '+str(A.k_hat)+ \
     ' -log_view '
@@ -73,6 +74,10 @@ for istep in range(0,A.tstep+1):
   A.Enth = vizB.parse_Enth_file('out_xEnth_ts'+str(istep),fdir)
   A.Vfx, A.Vfz, A.Vx, A.Vz = vizB.parse_Vel_file('out_xVel_ts'+str(istep),fdir)
   A.HC_coeff = vizB.parse_HCcoeff_file('out_xHCcoeff_ts'+str(istep),fdir)
+
+  print(np.max(np.max(A.Vsx*A.scal.v)))
+  print(np.max(np.max(A.Vsz*A.scal.v)))
+  print(np.min(np.min(A.P*A.scal.P)))
 
   if (istep > 0):
     A.PV_coeff = vizB.parse_PVcoeff_file('out_xPVcoeff_ts'+str(istep),fdir)

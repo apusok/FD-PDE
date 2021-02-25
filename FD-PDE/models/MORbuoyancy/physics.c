@@ -407,22 +407,17 @@ EnthEvalErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,Pets
   Hsol = TotalEnthalpy(Tsol,0.0,S);
   Hliq = TotalEnthalpy(Tliq,1.0,S);
 
-  // PetscPrintf(PETSC_COMM_WORLD,"# [Tsol = %f Tliq = %f] [H = %f Hsol = %f Hliq = %f] \n",Tsol,Tliq,H,Hsol,Hliq);
-
   if (H<Hsol) {
-    // PetscPrintf(PETSC_COMM_WORLD,"# BELOW SOLIDUS \n");
     phi = 0.0;
     T   = H;
     Cs  = Ci;
     Cf  = Liquidus(Solidus(Ci,P,G,PETSC_FALSE),P,G,RM,PETSC_TRUE);
   } else if ((H>=Hsol) && (H<Hliq)) {
-    // PetscPrintf(PETSC_COMM_WORLD,"# MUSH \n");
     ierr   = Porosity(H,Ci,P,&phi,S,G,RM);CHKERRQ(ierr);
     T  = H - phi*S;
     Cs = Solidus (T,P,G,PETSC_TRUE);
     Cf = Liquidus(T,P,G,RM,PETSC_TRUE);
   } else {
-    // PetscPrintf(PETSC_COMM_WORLD,"# ABOVE LIQUIDUS \n");
     phi = 1.0;
     T  = H - S;
     Cs = Solidus(Liquidus(Ci,P,G,RM,PETSC_FALSE),P,G,PETSC_TRUE);
@@ -452,8 +447,8 @@ PetscErrorCode Form_PotentialTemperature(PetscScalar T,PetscScalar P,PetscScalar
   PetscFunctionBegin;
 
   rho  = usr->par->rho0; // bulk density
-  Az   = usr->nd->A*P*usr->par->drho/rho;
-  TP = (T+usr->nd->thetaS)*exp(-Az) - usr->nd->thetaS;;
+  Az   = -usr->nd->A*P*usr->par->drho/rho;
+  TP = (T+usr->nd->thetaS)*exp(-Az) - usr->nd->thetaS;
   *_TP = TP;
 
   PetscFunctionReturn(0);

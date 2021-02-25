@@ -146,15 +146,16 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->K0, 1.0e-13, "K0", "Reference permeability [m^2]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->phi_max, 0.1, "phi_max", "Porosity at which permeability reaches maximum [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta0, 1.0e19, "eta0", "Reference shear viscosity [Pa.s]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->zeta0, 5.0e19, "zeta0", "Reference bulk viscosity [Pa.s]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->zeta0, 2.0e19, "zeta0", "Reference bulk viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mu, 1.0, "mu", "Reference magma viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta_min, 1.0e15, "eta_min", "Cutoff minimum shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta_max, 1.0e25, "eta_max", "Cutoff maximum shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->lambda, 27, "lambda", "Porosity weakening of shear viscosity [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->EoR, 3.6e4, "EoR", "Activation energy divided by gas constant [K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->zetaExp, -1.0, "zetaExp", "Porosity exponent in bulk viscosity [-]"); CHKERRQ(ierr);
+
   ierr = PetscBagRegisterInt(bag, &par->visc,0, "visc", "0-constant, 1-Temp,porosity dependent"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->phi_extract, 1.0, "phi_extract", "Extract initial porosity [0-1]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->phi_init, 1.0e-4, "phi_init", "Extract initial porosity phi*phi_init"); CHKERRQ(ierr);
 
   dsol = par->cp*(par->Tp-par->T0)/par->gamma_inv*1e9/par->g/(par->rho0*par->cp - par->Tp*par->alpha/par->gamma_inv*1e9);
   Teta0 = par->Tp*exp(dsol*par->alpha*par->g/par->cp);

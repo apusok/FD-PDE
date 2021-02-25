@@ -39,7 +39,7 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdHC, void *ctx)
   ierr = CorrectInitialHCZeroPorosity(usr->dmEnth,usr->xEnth,usr);CHKERRQ(ierr);
 
   // Extract porosity and temperature and set phi=0.0
-  ierr = ExtractTemperaturePorosity(usr->dmEnth,usr->xEnth,usr,PETSC_FALSE);CHKERRQ(ierr);
+  ierr = ExtractTemperaturePorosity(usr->dmEnth,usr->xEnth,usr,PETSC_TRUE);CHKERRQ(ierr);
 
   // Update fluid velocity to zero and v=vs
   ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmHC,usr->xphiT,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
@@ -296,16 +296,18 @@ PetscErrorCode CorrectInitialHCZeroPorosity(DM dmEnth, Vec xEnth, void *ctx)
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
       DMStagStencil point[3];
-      PetscScalar   xs[3];
+      PetscScalar   xs[3],phi;
       point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = 3; // phi // add labels for Enthalpy dofs
       point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_ELEMENT; point[1].c = 7; // CS
       point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_ELEMENT; point[2].c = 9; // CF
       ierr = DMStagVecGetValuesStencil(dmEnth,xnewlocal,3,point,xs); CHKERRQ(ierr);
-      // H - S*phi
-      xx[j][i][iH] -= usr->par->phi_extract*usr->nd->S*xs[0]; 
+      phi = xs[0]*usr->par->phi_init;
 
-      // C = CS (if 100% porosity extracted)
-      xx[j][i][iC] = xs[1] + (1.0-usr->par->phi_extract)*(xs[2]-xs[1]); 
+      // H + S*(phi-phi0)
+      xx[j][i][iH] += usr->nd->S*(phi - xs[0]); 
+
+      // bulk composition
+      xx[j][i][iC] = (1.0-phi)*xs[1] + phi*xs[2]; 
     }
   }
 
@@ -356,7 +358,7 @@ PetscErrorCode ExtractTemperaturePorosity(DM dmEnth, Vec xEnth, void *ctx, Petsc
       point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 1; 
       ierr = DMStagVecGetValuesStencil(dmEnth,xnewlocal,1,&point,&T); CHKERRQ(ierr);
       point.c = 3; ierr = DMStagVecGetValuesStencil(dmEnth,xnewlocal,1,&point,&phi); CHKERRQ(ierr);
-      if (!flag) phi *= 1.0 - usr->par->phi_extract;
+      if (flag) phi *= usr->par->phi_init;
 
       xx[j][i][iphi] = phi;
       xx[j][i][iT]   = T;

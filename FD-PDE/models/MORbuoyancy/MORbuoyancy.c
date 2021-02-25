@@ -225,7 +225,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = VecDestroy(&xEnth);CHKERRQ(ierr);
     
     // Extract porosity and temperature needed for PV
-    ierr = ExtractTemperaturePorosity(usr->dmEnth,usr->xEnth,usr,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = ExtractTemperaturePorosity(usr->dmEnth,usr->xEnth,usr,PETSC_FALSE);CHKERRQ(ierr);
   
     // Solve PV
     PetscPrintf(PETSC_COMM_WORLD,"# PV Solver \n");
