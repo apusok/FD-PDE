@@ -66,7 +66,6 @@ PetscErrorCode FormBCList_PV(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   // UP Vx = u0 (not on true boundary)
   ierr = DMStagBCListGetValues(bclist,'n','-',0,&n_bc,&idx_bc,&x_bc,&x_bc_true,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    // PetscPrintf(PETSC_COMM_WORLD,"# UP VX %d [x = %f z = %f] [x_true = %f z_true = %f] \n",k,x_bc[2*k],x_bc[2*k+1],x_bc_true[2*k],x_bc_true[2*k+1]);
     value_bc[k] = usr->nd->U0;
     type_bc[k] = BC_DIRICHLET; // BC_DIRICHLET_STAG; 
   }
@@ -203,18 +202,22 @@ PetscErrorCode FormBCList_HC(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  // UP: H = Hc, MOR: dH/dz = 0, Hc is enthalpy corresponding to 0 deg C
+  // UP: H = Hc, xsill: dH/dz = 0, Hc is enthalpy corresponding to 0 deg C
   ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    if (x_bc[2*k]<=usr->nd->xMOR) {
-      value_bc[k] = 0.0;
-      type_bc[k] = BC_NEUMANN;
-    } else {
-      age = dim_param(x_bc[2*k],scalx)/dim_param(u0,scalv);
-      T = HalfSpaceCoolingTemp(Tp,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age); 
-      Hc = (T - usr->par->T0)/usr->par->DT;
-      value_bc[k] = Hc;
-      type_bc[k] = BC_DIRICHLET;
+    age = dim_param(x_bc[2*k],scalx)/dim_param(u0,scalv);
+    T = HalfSpaceCoolingTemp(Tp,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age); 
+    Hc = (T - usr->par->T0)/usr->par->DT;
+    value_bc[k] = Hc;
+    type_bc[k] = BC_DIRICHLET;
+  }
+
+  if (usr->par->extract_mech==0) {
+    for (k=0; k<n_bc; k++) {
+      if (x_bc[2*k]<=usr->nd->xsill) {
+        value_bc[k] = 0.0;
+        type_bc[k] = BC_NEUMANN;
+      } 
     }
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);

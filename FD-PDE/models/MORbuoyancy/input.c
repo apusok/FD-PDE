@@ -112,7 +112,6 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   ierr = PetscBagRegisterScalar(bag, &par->L, 200.0e3, "L", "Length of domain in x-dir [m]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->H, 100.0e3, "H", "Height of domain in z-dir [m]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->xMOR, 0.0e3, "xMOR", "Distance from mid-ocean ridge axis for melt extraction ~6km [m]"); CHKERRQ(ierr);
 
   // physical and material parameters
   ierr = PetscBagRegisterScalar(bag, &par->k_hat, -1.0, "k_hat", "Direction of unit vertical vector [-]"); CHKERRQ(ierr);
@@ -160,6 +159,10 @@ PetscErrorCode InputParameters(UsrData **_usr)
   dsol = par->cp*(par->Tp-par->T0)/par->gamma_inv*1e9/par->g/(par->rho0*par->cp - par->Tp*par->alpha/par->gamma_inv*1e9);
   Teta0 = par->Tp*exp(dsol*par->alpha*par->g/par->cp);
   ierr = PetscBagRegisterScalar(bag, &par->Teta0, Teta0, "Teta0", "Temperature at which viscosity is equal to eta0 [K]"); CHKERRQ(ierr);
+
+  // melt extraction
+  ierr = PetscBagRegisterInt(bag, &par->extract_mech,0, "extract_mech", "0-sill (dH/dz=0), 1-dike (dP/dx)"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->xsill, 6.0e3, "xsill", "Distance from mid-ocean ridge axis for melt extraction ~6km [m]"); CHKERRQ(ierr);
 
   // time stepping and advection parameters
   ierr = PetscBagRegisterInt(bag, &par->ts_scheme,2, "ts_scheme", "Time stepping scheme 0-forward euler, 1-backward euler, 2-crank-nicholson"); CHKERRQ(ierr);
@@ -290,7 +293,7 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   nd->zmin  = nd_param(par->zmin,scal->x);
   nd->H     = nd_param(par->H,scal->x);
   nd->L     = nd_param(par->L,scal->x);
-  nd->xMOR  = nd_param(par->xMOR,scal->x);
+  nd->xsill = nd_param(par->xsill,scal->x);
   nd->U0    = nd_param(par->U0,scal->v);
   nd->visc_ratio = nd_param(par->zeta0,scal->eta);
   nd->tmax  = nd_param(par->tmax,scal->t);

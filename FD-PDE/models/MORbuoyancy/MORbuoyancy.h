@@ -29,14 +29,14 @@
 // ---------------------------------------
 typedef struct {
   PetscInt       nx, nz;
-  PetscScalar    L, H, xmin, zmin, xMOR;
+  PetscScalar    L, H, xmin, zmin, xsill;
   PetscScalar    k_hat, g, U0;
   PetscScalar    Tp, Ts, cp, La, rho0, drho, alpha, beta, kappa, D;
   PetscScalar    phi0, n, K0, phi_max, eta0, zeta0, mu, eta_min, eta_max, lambda, EoR, Teta0, zetaExp; 
   PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT, phi_extract;
   PetscInt       ts_scheme, adv_scheme, tout, tstep, istep;
   PetscScalar    tmax, dtmax;
-  PetscInt       out_count, buoyancy, visc, dim_out;
+  PetscInt       out_count, buoyancy, visc, dim_out, extract_mech;
   char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH], fdir_out[FNAME_LENGTH]; 
 } Params;
 
@@ -45,7 +45,7 @@ typedef struct {
 } ScalParams;
 
 typedef struct {
-  PetscScalar    L, H, xmin, zmin, xMOR, U0, visc_ratio;
+  PetscScalar    L, H, xmin, zmin, xsill, U0, visc_ratio;
   PetscScalar    tmax, dtmax, t, dt;
   PetscScalar    delta, alpha_s, beta_s, A, S, PeT, PeC, thetaS, G, RM;
 } NdParams;
