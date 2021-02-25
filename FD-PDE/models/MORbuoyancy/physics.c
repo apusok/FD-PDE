@@ -453,3 +453,118 @@ PetscErrorCode Form_PotentialTemperature(PetscScalar T,PetscScalar P,PetscScalar
 
   PetscFunctionReturn(0);
 }
+
+// ---------------------------------------
+// Compute Melting Rate (Gamma)
+// ---------------------------------------
+PetscErrorCode ComputeGamma(DM dmmatProp, Vec xmatProp, DM dmPV, Vec xPV, DM dmHC, Vec xphiT, Vec xphiTold, void *ctx) 
+{
+  UsrData       *usr = (UsrData*) ctx;
+  PetscInt       i, j, ii, sx, sz, nx, nz, Nx, Nz,idx,iprev,inext,icenter;
+  PetscScalar    **coordx,**coordz,***xx;
+  Vec            xmatProplocal,xPVlocal,xphiTlocal,xphiToldlocal;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  ierr = DMStagGetGlobalSizes(dmPV,&Nx,&Nz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetCorners(dmPV,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL); CHKERRQ(ierr);
+
+  // get coordinates of dmPV for center and edges
+  ierr = DMStagGetProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,LEFT,&iprev);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,RIGHT,&inext);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,ELEMENT,&icenter);CHKERRQ(ierr); 
+  
+  ierr = DMGetLocalVector(dmmatProp,&xmatProplocal);CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmmatProp, xmatProp, INSERT_VALUES, xmatProplocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmmatProp, xmatProplocal, &xx); CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(dmPV, &xPVlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmPV, xPV, INSERT_VALUES, xPVlocal); CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(dmHC, &xphiTlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmHC, xphiT, INSERT_VALUES, xphiTlocal); CHKERRQ(ierr);
+  ierr = DMGetLocalVector(dmHC, &xphiToldlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmHC, xphiTold, INSERT_VALUES, xphiToldlocal); CHKERRQ(ierr);
+
+  // Loop over local domain
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      DMStagStencil point[9];
+      PetscScalar v[5], phi[9], phis[9], phiold[9], adv, dx[3], dz[3];
+
+      // get solid velocity
+      point[0].i = i; point[0].j = j; point[0].loc = ELEMENT; point[0].c = 0; // element
+      point[1].i = i; point[1].j = j; point[1].loc = LEFT;    point[1].c = 0; // u_left
+      point[2].i = i; point[2].j = j; point[2].loc = RIGHT;   point[2].c = 0; // u_right
+      point[3].i = i; point[3].j = j; point[3].loc = DOWN;    point[3].c = 0; // u_down
+      point[4].i = i; point[4].j = j; point[4].loc = UP;      point[4].c = 0; // u_up
+
+      ierr = DMStagVecGetValuesStencil(dmPV,xPVlocal,5,point,v); CHKERRQ(ierr);
+      v[0] = 0.0; 
+
+      // get phi data
+      point[0].i = i  ; point[0].j = j  ; point[0].loc = ELEMENT; point[0].c = 0; // Qi,j -C
+      point[1].i = i-1; point[1].j = j  ; point[1].loc = ELEMENT; point[1].c = 0; // Qi-1,j -W
+      point[2].i = i+1; point[2].j = j  ; point[2].loc = ELEMENT; point[2].c = 0; // Qi+1,j -E
+      point[3].i = i  ; point[3].j = j-1; point[3].loc = ELEMENT; point[3].c = 0; // Qi,j-1 -S
+      point[4].i = i  ; point[4].j = j+1; point[4].loc = ELEMENT; point[4].c = 0; // Qi,j+1 -N
+      point[5].i = i-2; point[5].j = j  ; point[5].loc = ELEMENT; point[5].c = 0; // Qi-2,j -WW
+      point[6].i = i+2; point[6].j = j  ; point[6].loc = ELEMENT; point[6].c = 0; // Qi+2,j -EE
+      point[7].i = i  ; point[7].j = j-2; point[7].loc = ELEMENT; point[7].c = 0; // Qi,j-2 -SS
+      point[8].i = i  ; point[8].j = j+2; point[8].loc = ELEMENT; point[8].c = 0; // Qi,j+2 -NN
+
+      if (i == 1) point[5] = point[2];
+      if (j == 1) point[7] = point[4];
+      if (i == Nx-2) point[6] = point[1];
+      if (j == Nz-2) point[8] = point[3];
+
+      if (i == 0) { point[1] = point[0]; point[5] = point[2]; }
+      if (j == 0) { point[3] = point[0]; point[7] = point[4]; }
+
+      if (i == Nx-1) { point[2] = point[0]; point[6] = point[1]; }
+      if (j == Nz-1) { point[4] = point[0]; point[8] = point[3]; }
+
+      ierr = DMStagVecGetValuesStencil(dmHC,xphiTlocal,9,point,phi); CHKERRQ(ierr);
+      ierr = DMStagVecGetValuesStencil(dmHC,xphiToldlocal,9,point,phiold); CHKERRQ(ierr);
+
+      for (ii = 0; ii <9; ii++) { phis[ii] = 1.0 - phi[ii]; }
+
+      // Grid spacings
+      if (i == Nx-1) dx[0] = coordx[i  ][icenter]-coordx[i-1][icenter];
+      else           dx[0] = coordx[i+1][icenter]-coordx[i  ][icenter];
+
+      if (i == 0) dx[1] = coordx[i+1][icenter]-coordx[i  ][icenter];
+      else        dx[1] = coordx[i  ][icenter]-coordx[i-1][icenter];
+      dx[2]  = (dx[0]+dx[1])*0.5;
+
+      if (j == Nz-1) dz[0] = coordz[j  ][icenter]-coordz[j-1][icenter];
+      else           dz[0] = coordz[j+1][icenter]-coordz[j  ][icenter];
+
+      if (j == 0) dz[1] = coordz[j+1][icenter]-coordz[j  ][icenter];
+      else        dz[1] = coordz[j  ][icenter]-coordz[j-1][icenter];
+      dz[2] = (dz[0]+dz[1])*0.5;
+
+      // advection term div(phis*vs)
+      // here it is assumed a backward Euler: gamma = dphi/dt - adv^new
+      ierr = AdvectionResidual(v,phis,dx,dz,ADV_FROMM,&adv); CHKERRQ(ierr);
+
+      // update gamma
+      ierr = DMStagGetLocationSlot(dmmatProp,ELEMENT,6,&idx); CHKERRQ(ierr);
+      xx[j][i][idx] = (phi[0]-phiold[0])/usr->nd->dt - adv;
+    }
+  }
+
+  // Restore arrays
+  ierr = DMStagVecRestoreArray(dmmatProp,xmatProplocal,&xx); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dmmatProp,xmatProplocal,INSERT_VALUES,xmatProp); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dmmatProp,xmatProplocal,INSERT_VALUES,xmatProp); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmmatProp,&xmatProplocal); CHKERRQ(ierr);
+
+  ierr = DMStagRestoreProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmPV, &xPVlocal); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmHC, &xphiTlocal); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmHC, &xphiToldlocal); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}

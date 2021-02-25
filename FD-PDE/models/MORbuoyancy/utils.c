@@ -494,6 +494,9 @@ PetscErrorCode ScaleSolutionMaterialProp(DM dm, Vec x, Vec *_x, void *ctx)
 
       ierr = DMStagGetLocationSlot(dm,ELEMENT,5,&idx); CHKERRQ(ierr); 
       xxnew[j][i][idx] = xx[j][i][idx]*usr->par->drho; // rhos
+
+      ierr = DMStagGetLocationSlot(dm,ELEMENT,6,&idx); CHKERRQ(ierr); 
+      xxnew[j][i][idx] = xx[j][i][idx]*usr->scal->Gamma; // gamma
     }
   }
 

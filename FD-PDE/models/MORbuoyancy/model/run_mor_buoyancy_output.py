@@ -68,6 +68,8 @@ A.scal, A.lbl = vizB.get_scaling_labels('parameters_file.out','Timestep0',A.dim_
 
 # Read grid parameters - choose PV file timestep0
 A.grid = vizB.parse_grid_info('out_xPV_ts0','Timestep0')
+A.dx = A.grid.xc[1]-A.grid.xc[0]
+A.dz = A.grid.zc[1]-A.grid.zc[0]
 # print(A.__dict__)
 
 # Visualize data
@@ -91,6 +93,7 @@ for istep in range(0,A.tstep+1):
   A.Vscx, A.Vscz = vizB.calc_center_velocities(A.Vsx,A.Vsz,A.nx,A.nz)
   A.Vfcx, A.Vfcz = vizB.calc_center_velocities(A.Vfx,A.Vfz,A.nx,A.nz)
   A.Vcx, A.Vcz   = vizB.calc_center_velocities(A.Vx,A.Vz,A.nx,A.nz)
+  A.divmass = vizB.calc_divergence(A.Vx,A.Vz,A.dx,A.dz,A.nx,A.nz)
 
   # nice output
   vizB.plot_porosity_contours(A,'out_porosity_contours_ts'+str(istep),istep)

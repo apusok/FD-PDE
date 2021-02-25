@@ -36,6 +36,7 @@ def get_scaling_labels(fname,fdir,dim):
     scal.eta= 1
     scal.K  = 1
     scal.rho= 1
+    scal.Gamma= 1
 
     # Units and labels - default
     lbl.x = r'x/H [-]'
@@ -69,12 +70,15 @@ def get_scaling_labels(fname,fdir,dim):
     lbl.rho = r'$\rho$ [-]'
     lbl.rhof = r'$\rho_f$ [-]'
     lbl.rhos = r'$\rho_s$ [-]'
+    lbl.Gamma = r'$\Gamma$ [-]'
+    lbl.divmass = r'$\nabla\cdot(v)$ [-]'
 
     if (dim == 1):
       scal.x  = 1e2 # h0/1e3 km
       scal.P  = 1e-6 # MPa
       scal.v  = 1.0e2*SEC_YEAR # cm/yr
       scal.T  = 273.15 # deg C
+      scal.Gamma= 1000*SEC_YEAR # g/m3/yr
 
       lbl.P = r'$P$ [MPa]'
       lbl.x = r'x [km]'
@@ -107,6 +111,8 @@ def get_scaling_labels(fname,fdir,dim):
       lbl.rho = r'$\rho$ [kg/m3]'
       lbl.rhof = r'$\rho_f$ [kg/m3]'
       lbl.rhos = r'$\rho_s$ [kg/m3]'
+      lbl.Gamma = r'$\Gamma$ [g/m$^3$/yr]'
+      lbl.divmass = r'$\nabla\cdot v$ [/s]'
 
     # set clim 
 
@@ -280,7 +286,7 @@ def parse_matProps_file(fname,fdir):
     xc = data['x1d_cell']
     zc = data['y1d_cell']
     Matprops_data = data['X_cell']
-    dof = 6
+    dof = 7
 
     etar  = Matprops_data[0::dof]
     zetar = Matprops_data[1::dof]
@@ -288,6 +294,7 @@ def parse_matProps_file(fname,fdir):
     rhor  = Matprops_data[3::dof]
     rhofr = Matprops_data[4::dof]
     rhosr = Matprops_data[5::dof]
+    Gammar= Matprops_data[6::dof]
 
     # Reshape data in 2D
     matProp = EmptyStruct()
@@ -297,6 +304,7 @@ def parse_matProps_file(fname,fdir):
     matProp.rho  = rhor.reshape(nz,nx)
     matProp.rhof = rhofr.reshape(nz,nx)
     matProp.rhos = rhosr.reshape(nz,nx)
+    matProp.Gamma= Gammar.reshape(nz,nx)
 
     return matProp
   except OSError:
@@ -438,6 +446,17 @@ def calc_center_velocities(vx,vz,nx,nz):
       vzc[j][i]  = 0.5 * (vz[j+1][i] + vz[j][i])
 
   return vxc, vzc
+
+# ---------------------------------
+def calc_divergence(vx,vz,dx,dz,nx,nz):
+
+  div  = np.zeros([nz,nx])
+
+  for i in range(0,nx):
+    for j in range(0,nz):
+      div[j][i]  = (vx[j][i+1] - vx[j][i])/dx + (vz[j+1][i] - vz[j][i])/dz
+
+  return div
 
 # ---------------------------------
 def plot_PV(iplot,A,fname,istep,framex,framez):
@@ -1013,6 +1032,23 @@ def plot_matProp(A,fname,istep):
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
   ax.set_title(A.lbl.rhos)
+
+  ax = plt.subplot(4,2,7)
+  im = ax.imshow(A.matProp.Gamma*A.scal.Gamma,extent=extentE,cmap='viridis',origin='lower')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  ax.axis('image')
+  ax.set_xlabel(A.lbl.x)
+  ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.Gamma)
+
+  # div(mass)
+  ax = plt.subplot(4,2,8)
+  im = ax.imshow(A.divmass,extent=extentE,cmap='viridis',origin='lower')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  ax.axis('image')
+  ax.set_xlabel(A.lbl.x)
+  ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.divmass)
 
   plt.savefig(fname+'.pdf', bbox_inches = 'tight')
   plt.close()

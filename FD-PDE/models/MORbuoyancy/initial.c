@@ -43,6 +43,7 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdHC, void *ctx)
 
   // Extract porosity and temperature and set phi=0.0
   ierr = ExtractTemperaturePorosity(usr->dmEnth,usr->xEnth,usr,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = VecCopy(usr->xphiT,usr->xphiTold);CHKERRQ(ierr);
 
   // Update fluid velocity to zero and v=vs
   ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmHC,usr->xphiT,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);

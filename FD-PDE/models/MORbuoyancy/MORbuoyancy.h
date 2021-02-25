@@ -1,6 +1,7 @@
 #include "petsc.h"
 #include "../../src/fdpde_stokesdarcy2field.h"
 #include "../../src/fdpde_enthalpy.h"
+#include "../../src/fdpde_advdiff.h"
 #include "../../src/dmstagoutput.h"
 #include "../../src/benchmark_cornerflow.h"
 
@@ -59,7 +60,7 @@ typedef struct {
   MPI_Comm       comm;
   PetscMPIInt    rank;
   DM             dmPV, dmHC, dmVel, dmEnth, dmmatProp;
-  Vec            xPV, xHC, xVel, xphiT, xEnth, xmatProp;
+  Vec            xPV, xHC, xVel, xphiT, xphiTold, xEnth, xmatProp;
 } UsrData;
 
 // ---------------------------------------
@@ -79,6 +80,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormCoefficient_HC(FDPDE, DM, Vec, DM, Vec, void*);
 EnthEvalErrorCode Form_Enthalpy(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
 PetscErrorCode Form_PotentialTemperature(PetscScalar,PetscScalar,PetscScalar*,void*); 
+PetscErrorCode ComputeGamma(DM,Vec,DM,Vec,DM,Vec,Vec,void*); 
 
 // boundary conditions
 PetscErrorCode FormBCList_PV(DM, Vec, DMStagBCList, void*);

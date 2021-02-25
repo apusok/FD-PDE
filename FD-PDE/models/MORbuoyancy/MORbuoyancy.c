@@ -170,6 +170,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = FDPDEGetSolution(fdHC,&xHC);CHKERRQ(ierr);
   ierr = VecDuplicate(xHC,&usr->xHC);CHKERRQ(ierr);
   ierr = VecDuplicate(xHC,&usr->xphiT);CHKERRQ(ierr);
+  ierr = VecDuplicate(xHC,&usr->xphiTold);CHKERRQ(ierr);
   ierr = VecDestroy(&xHC);CHKERRQ(ierr);
 
   // Create dmVel for bulk and fluid velocities (dof=2 on faces)
@@ -178,8 +179,8 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = DMStagSetUniformCoordinatesProduct(usr->dmVel,xmin,xmax,zmin,zmax,0.0,0.0);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(usr->dmVel,&usr->xVel);CHKERRQ(ierr);
 
-  // Create dmmatProp for material properties (dof=6 in center)
-  ierr = DMStagCreateCompatibleDMStag(usr->dmPV,0,0,6,0,&usr->dmmatProp); CHKERRQ(ierr);
+  // Create dmmatProp for material properties (dof=7 in center)
+  ierr = DMStagCreateCompatibleDMStag(usr->dmPV,0,0,7,0,&usr->dmmatProp); CHKERRQ(ierr);
   ierr = DMSetUp(usr->dmmatProp); CHKERRQ(ierr);
   ierr = DMStagSetUniformCoordinatesProduct(usr->dmmatProp,xmin,xmax,zmin,zmax,0.0,0.0);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(usr->dmmatProp,&usr->xmatProp);CHKERRQ(ierr);
@@ -246,6 +247,10 @@ PetscErrorCode Numerical_solution(void *ctx)
     // Update fluid velocity
     ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmHC,usr->xphiT,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
 
+    // Update melting rate and copy 
+    ierr = ComputeGamma(usr->dmmatProp,usr->xmatProp,usr->dmPV,usr->xPV,usr->dmHC,usr->xphiT,usr->xphiTold,usr); CHKERRQ(ierr);
+    ierr = VecCopy(usr->xphiT,usr->xphiTold);CHKERRQ(ierr);
+
     // Prepare data for next time-step
     ierr = FDPDEEnthalpyGetPrevSolution(fdHC,&xHCprev);CHKERRQ(ierr);
     ierr = VecCopy(usr->xHC,xHCprev);CHKERRQ(ierr);
@@ -283,6 +288,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = VecDestroy(&usr->xPV);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xHC);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xphiT);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xphiTold);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xVel);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xEnth);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xmatProp);CHKERRQ(ierr);
