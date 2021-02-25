@@ -552,8 +552,8 @@ PetscErrorCode UpdateMaterialProperties(DM dmHC, Vec xHC, Vec xphiT, DM dmEnth, 
       point.c = 7; ierr = DMStagVecGetValuesStencil(dmEnth,xEnthlocal,1,&point,&CS); CHKERRQ(ierr);
       point.c = 9; ierr = DMStagVecGetValuesStencil(dmEnth,xEnthlocal,1,&point,&CF); CHKERRQ(ierr);
       
-      eta  = ShearViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->lambda,scal->eta,par->eta_min,par->eta_max);
-      zeta = BulkViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,nd->visc_ratio,par->zetaExp,scal->eta,par->eta_min,par->eta_max);
+      eta  = ShearViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->lambda,scal->eta,par->eta_min,par->eta_max,par->visc);
+      zeta = BulkViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,nd->visc_ratio,par->zetaExp,scal->eta,par->eta_min,par->eta_max,par->visc);
       K    = Permeability(phi,usr->par->phi0,usr->par->phi_max,usr->par->n);
        
       rhos = SolidDensity(par->rho0,par->drho,T,CS,nd->alpha_s,nd->beta_s,par->buoyancy);

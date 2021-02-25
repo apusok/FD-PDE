@@ -188,14 +188,17 @@ PetscScalar HalfSpaceCoolingTemp(PetscScalar Tm, PetscScalar T0, PetscScalar z, 
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "ShearViscosity"
-PetscScalar ShearViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar lambda, PetscScalar eta0, PetscScalar eta_min, PetscScalar eta_max) 
+PetscScalar ShearViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar lambda, PetscScalar eta0, PetscScalar eta_min, PetscScalar eta_max,PetscInt visc) 
 { 
   PetscScalar eta;
-  // eta = 1.0; // constant 
-  // eta = exp(EoR*(1.0/T-1.0/Teta0)); // T-dep
-  eta = exp(EoR*(1.0/T-1.0/Teta0)-lambda*phi); // T,phi-dep
-  // return eta;
-  return 1.0/(1.0/eta + eta0/eta_max) + eta_min/eta0; // harmonic averaging
+  if (visc == 0) { // constant 
+    eta = 1.0; 
+    return eta;
+  } else if (visc==1) { // T,phi-dep
+    // eta = exp(EoR*(1.0/T-1.0/Teta0)); // T-dep
+    eta = exp(EoR*(1.0/T-1.0/Teta0)-lambda*phi);
+    return 1.0/(1.0/eta + eta0/eta_max) + eta_min/eta0; // harmonic averaging
+  } else return 0.0;
 }
 
 // ---------------------------------------
@@ -203,16 +206,19 @@ PetscScalar ShearViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, Pets
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "BulkViscosity"
-PetscScalar BulkViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar visc_ratio, PetscScalar zetaExp, PetscScalar eta0, PetscScalar eta_min, PetscScalar eta_max) 
+PetscScalar BulkViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar visc_ratio, PetscScalar zetaExp, PetscScalar eta0, PetscScalar eta_min, PetscScalar eta_max,PetscInt visc) 
 { 
   PetscScalar zeta;
 
   if (phi < 1e-12) phi = 1e-12;
-  // zeta = visc_ratio; // constant
-  // zeta = visc_ratio*exp(EoR*(1.0/T-1.0/Teta0)); // T-dep
-  zeta = visc_ratio*exp(EoR*(1.0/T-1.0/Teta0))*pow(phi,zetaExp); // T,phi-dep
-  // return zeta;
-  return 1.0/(1.0/zeta + eta0/eta_max) + eta_min/eta0; // harmonic averaging
+  if (visc == 0) { // constant 
+    zeta = visc_ratio;
+    return zeta;
+  } else if (visc==1) { // T,phi-dep
+    // zeta = visc_ratio*exp(EoR*(1.0/T-1.0/Teta0)); // T-dep
+    zeta = visc_ratio*exp(EoR*(1.0/T-1.0/Teta0))*pow(phi,zetaExp);
+    return 1.0/(1.0/zeta + eta0/eta_max) + eta_min/eta0; // harmonic averaging
+  } else return 0.0;
 }
 
 // ---------------------------------------
