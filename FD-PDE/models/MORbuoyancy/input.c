@@ -155,7 +155,8 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->EoR, 3.6e4, "EoR", "Activation energy divided by gas constant [K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->zetaExp, -1.0, "zetaExp", "Porosity exponent in bulk viscosity [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->visc,0, "visc", "0-constant, 1-Temp,porosity dependent"); CHKERRQ(ierr);
-  
+  ierr = PetscBagRegisterScalar(bag, &par->phi_extract, 1.0, "phi_extract", "Extract initial porosity [0-1]"); CHKERRQ(ierr);
+
   dsol = par->cp*(par->Tp-par->T0)/par->gamma_inv*1e9/par->g/(par->rho0*par->cp - par->Tp*par->alpha/par->gamma_inv*1e9);
   Teta0 = par->Tp*exp(dsol*par->alpha*par->g/par->cp);
   ierr = PetscBagRegisterScalar(bag, &par->Teta0, Teta0, "Teta0", "Temperature at which viscosity is equal to eta0 [K]"); CHKERRQ(ierr);

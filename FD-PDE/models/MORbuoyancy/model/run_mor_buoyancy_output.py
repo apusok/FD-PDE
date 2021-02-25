@@ -24,9 +24,11 @@ A.modelopts    = 'model_test.opts'
 A.nx           = 200
 A.nz           = 100
 A.tstep        = 10
+A.K0           = 1.0e-13
 A.buoyancy     = 0 # 0=off, 1=phi, 2=phi-C, 3=phi-C-T
 A.visc         = 0 # 0-constant, 1-Temp,porosity dependent
 A.k_hat        = -1.0 # 0.0 or -1.0
+A.phi_extract  = 1.0  # 1=full extraction, 0.95-some porosity left
 A.dim_output   = 1 # 0 - nondimensional, 1 - dimensional
 A.debug_output = 1 # 0 - no debug output, 1 - debug output
 
@@ -35,8 +37,10 @@ str1 = '../MORbuoyancy.app'+ \
     ' -options_file '+A.modelopts+ \
     ' -nx '+str(A.nx)+' -nz '+str(A.nz)+ \
     ' -tstep '+str(A.tstep)+ \
+    ' -K0 '+str(A.K0)+ \
     ' -buoyancy '+str(A.buoyancy)+ \
     ' -visc '+str(A.visc)+ \
+    ' -phi_extract '+str(A.phi_extract)+ \
     ' -dim_output '+str(A.dim_output)+ \
     ' -k_hat '+str(A.k_hat)+ \
     ' -log_view '

@@ -295,16 +295,17 @@ PetscErrorCode CorrectInitialHCZeroPorosity(DM dmEnth, Vec xEnth, void *ctx)
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
-      DMStagStencil point[2];
-      PetscScalar   xs[2];
+      DMStagStencil point[3];
+      PetscScalar   xs[3];
       point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = 3; // phi // add labels for Enthalpy dofs
       point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_ELEMENT; point[1].c = 7; // CS
-      ierr = DMStagVecGetValuesStencil(dmEnth,xnewlocal,2,point,xs); CHKERRQ(ierr);
+      point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_ELEMENT; point[2].c = 9; // CF
+      ierr = DMStagVecGetValuesStencil(dmEnth,xnewlocal,3,point,xs); CHKERRQ(ierr);
       // H - S*phi
-      xx[j][i][iH] -= usr->nd->S*xs[0]; 
+      xx[j][i][iH] -= usr->par->phi_extract*usr->nd->S*xs[0]; 
 
-      // C = CS
-      xx[j][i][iC] = xs[1]; 
+      // C = CS (if 100% porosity extracted)
+      xx[j][i][iC] = xs[1] + (1.0-usr->par->phi_extract)*(xs[2]-xs[1]); 
     }
   }
 
@@ -354,7 +355,8 @@ PetscErrorCode ExtractTemperaturePorosity(DM dmEnth, Vec xEnth, void *ctx, Petsc
 
       point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 1; 
       ierr = DMStagVecGetValuesStencil(dmEnth,xnewlocal,1,&point,&T); CHKERRQ(ierr);
-      if (flag) { point.c = 3; ierr = DMStagVecGetValuesStencil(dmEnth,xnewlocal,1,&point,&phi); CHKERRQ(ierr);}
+      point.c = 3; ierr = DMStagVecGetValuesStencil(dmEnth,xnewlocal,1,&point,&phi); CHKERRQ(ierr);
+      if (!flag) phi *= 1.0 - usr->par->phi_extract;
 
       xx[j][i][iphi] = phi;
       xx[j][i][iT]   = T;
