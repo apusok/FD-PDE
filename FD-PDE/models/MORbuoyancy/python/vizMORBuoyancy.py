@@ -121,6 +121,45 @@ def get_scaling_labels(fname,fdir,dim):
     print('Cannot open: '+fdir+'/'+fname+'.py')
     return 0.0
 
+# ---------------------------------------
+def parse_log_file_sill(fname):
+  tstep = 0
+  try: # try to open directory
+    # parse number of timesteps
+    f = open(fname, 'r')
+    i0=0
+    for line in f:
+      if '# TIMESTEP' in line:
+        i0+=1
+    f.close()
+    tstep = i0
+
+    # variables
+    sill = EmptyStruct()
+    sill.t = np.zeros(tstep)
+    sill.F = np.zeros(tstep)
+    sill.C = np.zeros(tstep)
+    sill.h = np.zeros(tstep)
+
+    # Parse output and save norm info
+    f = open(fname, 'r')
+    i0=-1
+    for line in f:
+      if '# TIMESTEP' in line:
+          i0+=1
+      if 'SILL FLUXES:' in line:
+          sill.t[i0] = float(line[19:37])
+          sill.F[i0] = float(line[83:101])
+          sill.C[i0] = float(line[48:66])
+          sill.h[i0] = float(line[122:140])
+
+    f.close()
+
+    return tstep, sill
+  except OSError:
+    print('Cannot open:', fdir)
+    return tstep
+
 # ---------------------------------
 def parse_grid_info(fname,fdir):
   try: 
@@ -1147,6 +1186,32 @@ def plot_temperature_slices(A,fname,istep):
 
   ax.set_xlabel(A.lbl.T)
   ax.set_ylabel(A.lbl.z)
+
+  plt.savefig(fname+'.pdf', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_sill_outflux(A,fname):
+
+  fig = plt.figure(1,figsize=(4,10))
+
+  ax = plt.subplot(3,1,1)
+  pl = ax.plot(A.sill.t, A.sill.h/1000)
+  plt.grid(True)
+  ax.set_xlabel('Time [Myr]')
+  ax.set_ylabel('Crustal thickness [km]')
+
+  ax = plt.subplot(3,1,2)
+  pl = ax.plot(A.sill.t, A.sill.F)
+  plt.grid(True)
+  ax.set_xlabel('Time [Myr]')
+  ax.set_ylabel('Flux out - sill [kg/m/yr]')
+
+  ax = plt.subplot(3,1,3)
+  pl = ax.plot(A.sill.t, A.sill.C)
+  plt.grid(True)
+  ax.set_xlabel('Time [Myr]')
+  ax.set_ylabel('C out - sill [wt. frac.]')
 
   plt.savefig(fname+'.pdf', bbox_inches = 'tight')
   plt.close()

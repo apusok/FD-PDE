@@ -51,7 +51,7 @@ str1 = '../MORbuoyancy.app'+ \
     ' -Tp '+str(A.Tp)+ \
     ' -dim_output '+str(A.dim_output)+ \
     ' -k_hat '+str(A.k_hat)+ \
-    ' -log_view '
+    ' -log_view > log_run.out'
 print(str1)
 os.system(str1)
 
@@ -71,6 +71,10 @@ A.grid = vizB.parse_grid_info('out_xPV_ts0','Timestep0')
 A.dx = A.grid.xc[1]-A.grid.xc[0]
 A.dz = A.grid.zc[1]-A.grid.zc[0]
 # print(A.__dict__)
+
+# Plot sill outflux
+A.tstep_read, A.sill = vizB.parse_log_file_sill('log_run.out')
+vizB.plot_sill_outflux(A,'out_sill_flux')
 
 # Visualize data
 for istep in range(0,A.tstep+1):

@@ -269,6 +269,9 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = VecDestroy(&xPprev);CHKERRQ(ierr);
     ierr = DMDestroy(&dmP);CHKERRQ(ierr);
 
+    // Compute fluxes out and crustal thickness
+    ierr = ComputeSillOutflux(usr); CHKERRQ(ierr);
+
     // Output solution
     if (par->istep % par->tout == 0 ) {
       ierr = DoOutput(fdPV,fdHC,usr);CHKERRQ(ierr);

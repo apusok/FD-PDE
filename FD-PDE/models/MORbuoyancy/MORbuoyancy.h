@@ -124,6 +124,7 @@ PetscErrorCode ScaleSolutionPorosityTemp(DM,Vec,Vec*,void*);
 PetscErrorCode ScaleSolutionEnthalpy(DM,Vec,Vec*,void*);
 PetscErrorCode ScaleSolutionUniform(DM,Vec,Vec*,PetscScalar);
 PetscErrorCode ScaleSolutionMaterialProp(DM,Vec,Vec*,void*);
+PetscErrorCode ComputeSillOutflux(void*); 
 
 // ---------------------------------------
 // Useful functions

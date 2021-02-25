@@ -515,3 +515,103 @@ PetscErrorCode ScaleSolutionMaterialProp(DM dm, Vec x, Vec *_x, void *ctx)
   
   PetscFunctionReturn(0);
 }
+
+// ---------------------------------------
+// Compute crustal thickness and fluxes out in sill
+// ---------------------------------------
+PetscErrorCode ComputeSillOutflux(void *ctx) 
+{
+  UsrData       *usr = (UsrData*) ctx;
+  PetscInt       i, j, isill, sx, sz, nx, nz, iprev,inext;
+  PetscScalar    **coordx,**coordz;
+  PetscScalar    sill_F, sill_C, gsill_F, gsill_C;
+  DM             dmHC, dmVel, dmEnth;
+  Vec            xphiTlocal, xVellocal, xEnthlocal;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  dmHC = usr->dmHC;
+  dmVel= usr->dmVel;
+  dmEnth=usr->dmEnth;
+
+  // get coordinates of dmVel for edges
+  ierr = DMStagGetCorners(dmVel,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL); CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dmVel,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmVel,LEFT,&iprev);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmVel,RIGHT,&inext);CHKERRQ(ierr); 
+
+  ierr = DMGetLocalVector(dmHC, &xphiTlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmHC, usr->xphiT, INSERT_VALUES, xphiTlocal); CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(dmVel, &xVellocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmVel, usr->xVel, INSERT_VALUES, xVellocal); CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(dmEnth, &xEnthlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmEnth, usr->xEnth, INSERT_VALUES, xEnthlocal); CHKERRQ(ierr);
+
+  // check indices for sill
+  for (i = sx; i <sx+nx; i++) {
+    PetscScalar xc;
+    xc = (coordx[i][inext]+coordx[i][iprev])*0.5;
+    if (xc <= usr->nd->xsill) isill = i;
+  }
+
+  // maybe check depth corresponding to max fluid velocity 
+  // (how far deep can a melt package still travel to the surface?)
+
+  sill_F = 0.0;
+  sill_C = 0.0;
+
+  // Loop over local domain for sill - make it parallel (isill may not be on this processor)
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i < isill+1; i++) {
+      DMStagStencil point[2], pointT;
+      PetscScalar v[2], vf, dz, phi, Cf, zf, zc, flux_ij;
+
+      // get fluid velocity (z)
+      point[0].i = i; point[0].j = j; point[0].loc = DOWN; point[0].c = 0;
+      point[1].i = i; point[1].j = j; point[1].loc = UP;   point[1].c = 0;
+      ierr = DMStagVecGetValuesStencil(dmVel,xVellocal,2,point,v); CHKERRQ(ierr);
+      vf = (v[0]+v[1])*0.5;
+
+      // get porosity and CF
+      pointT.i = i; pointT.j = j; pointT.loc = ELEMENT; 
+      pointT.c = 0; ierr = DMStagVecGetValuesStencil(dmHC,xphiTlocal,1,&pointT,&phi); CHKERRQ(ierr);
+      pointT.c = 9; ierr = DMStagVecGetValuesStencil(dmEnth,xEnthlocal,1,&pointT,&Cf); CHKERRQ(ierr);
+
+      dz = coordz[j][inext]-coordz[j][iprev];
+      zc = -(coordz[j][inext]+coordz[j][iprev])*0.5;
+      zf = vf*usr->nd->dt;
+
+      // compute fluxes - check if flux reaches the surface in this time step
+      if (zf > zc) { // outflux
+        flux_ij = phi*vf*dz;
+        sill_F += flux_ij;
+        sill_C += flux_ij*Cf;
+      }
+    }
+  }
+
+  // Parallel
+  ierr = MPI_Allreduce(&sill_F,&gsill_F,1,MPI_REAL,MPI_SUM,usr->comm);CHKERRQ(ierr);
+  ierr = MPI_Allreduce(&sill_C,&gsill_C,1,MPI_REAL,MPI_SUM,usr->comm);CHKERRQ(ierr);
+
+  PetscScalar C, F, h_crust, t;
+  t = (usr->nd->t+usr->nd->dt)*usr->scal->t/SEC_YEAR*1e-6; 
+  if (gsill_F==0.0) C = usr->par->C0;
+  else C = gsill_C/gsill_F*usr->par->DC+usr->par->C0;
+  F = gsill_F*usr->par->rho0*usr->scal->v*usr->scal->x*SEC_YEAR; // kg/m/year
+  h_crust = F/(usr->par->rho0*usr->par->U0)*1.0e2; // m
+
+  // Output
+  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscPrintf(PETSC_COMM_WORLD,"# SILL FLUXES: t = %1.12e [Myr] C = %1.12e [wt. frac.] F = %1.12e [kg/m/yr] h_crust = %1.12e [m]\n",t,C,F,h_crust);
+
+  // Restore arrays
+  ierr = DMStagRestoreProductCoordinateArraysRead(dmVel,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmHC, &xphiTlocal); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmVel, &xVellocal); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmEnth,&xEnthlocal); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
