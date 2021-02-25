@@ -1,6 +1,6 @@
 # model options
--nx 50
--nz 20
+-L 200.0e3
+-H 100.0e3
 -output_file out_model
 
 # solver options
