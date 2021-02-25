@@ -38,6 +38,9 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdHC, void *ctx)
   // Correct H-S*phi and C=Cs to ensure phi=0
   ierr = CorrectInitialHCZeroPorosity(usr->dmEnth,usr->xEnth,usr);CHKERRQ(ierr);
 
+  // Update Enthalpy again
+  ierr = FDPDEEnthalpyUpdateDiagnostics(fdHC,usr->dmHC,usr->xHC,&usr->dmEnth,&usr->xEnth); CHKERRQ(ierr);
+
   // Extract porosity and temperature and set phi=0.0
   ierr = ExtractTemperaturePorosity(usr->dmEnth,usr->xEnth,usr,PETSC_TRUE);CHKERRQ(ierr);
 
@@ -176,7 +179,7 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, iH, iC, icenter;
-  PetscScalar    **coordx,**coordz, ***xx, Cs0;
+  PetscScalar    **coordx,**coordz, ***xx, Cs0, Tm;
   Vec            x, xlocal;
   DM             dm;
   PetscErrorCode ierr;
@@ -185,6 +188,7 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
   dm  = usr->dmHC;
   x   = usr->xHC;
   Cs0 = usr->par->C0;
+  Tm  = (usr->par->Tp-T_KELVIN)*exp(-usr->nd->A*usr->nd->zmin)+T_KELVIN;
 
   ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -203,8 +207,7 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
 
       // half-space cooling temperature
       age  = dim_param(coordx[i][icenter],usr->scal->x)/dim_param(usr->nd->U0,usr->scal->v);
-      // T    = usr->par->Ts + (usr->par->Tp-usr->par->Ts)*erf(-dim_param(coordz[j][icenter],usr->scal->x)/(2.0*sqrt(usr->par->kappa*age)));
-      T = HalfSpaceCoolingTemp(usr->par->Tp,usr->par->Ts,-dim_param(coordz[j][icenter],usr->scal->x),usr->par->kappa,age); 
+      T = HalfSpaceCoolingTemp(Tm,usr->par->Ts,-dim_param(coordz[j][icenter],usr->scal->x),usr->par->kappa,age); 
       nd_T = (T - usr->par->T0)/usr->par->DT;
 
       // enthalpy H = S*phi+T (phi=0)

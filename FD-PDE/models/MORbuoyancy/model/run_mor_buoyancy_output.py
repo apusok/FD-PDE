@@ -29,9 +29,11 @@ A.K0           = 1.0e-7
 A.buoyancy     = 0 # 0=off, 1=phi, 2=phi-C, 3=phi-C-T
 A.visc         = 0 # 0-constant, 1-Temp,porosity dependent
 A.k_hat        = -1.0 # 0.0 or -1.0
-A.phi_init     = 1.0e-4  # 0=full extraction, 1e-4-some porosity left
+A.phi_init     = 0.0  # 0=full extraction, 1e-4-some porosity left
 A.dim_output   = 1 # 0 - nondimensional, 1 - dimensional
 A.debug_output = 1 # 0 - no debug output, 1 - debug output
+
+A.Tp = 1648
 
 # Run test
 str1 = '../MORbuoyancy.app'+ \
@@ -42,6 +44,7 @@ str1 = '../MORbuoyancy.app'+ \
     ' -buoyancy '+str(A.buoyancy)+ \
     ' -visc '+str(A.visc)+ \
     ' -phi_init '+str(A.phi_init)+ \
+    ' -Tp '+str(A.Tp)+ \
     ' -dim_output '+str(A.dim_output)+ \
     ' -k_hat '+str(A.k_hat)+ \
     ' -log_view '
@@ -75,9 +78,12 @@ for istep in range(0,A.tstep+1):
   A.Vfx, A.Vfz, A.Vx, A.Vz = vizB.parse_Vel_file('out_xVel_ts'+str(istep),fdir)
   A.HC_coeff = vizB.parse_HCcoeff_file('out_xHCcoeff_ts'+str(istep),fdir)
 
-  print(np.max(np.max(A.Vsx*A.scal.v)))
-  print(np.max(np.max(A.Vsz*A.scal.v)))
-  print(np.min(np.min(A.P*A.scal.P)))
+  # print(np.max(np.max(A.Vsx*A.scal.v)))
+  # print(np.max(np.max(A.Vsz*A.scal.v)))
+  # print(np.min(np.min(A.P*A.scal.P)))
+  # print(np.max(np.max(A.phi)))
+  # print(np.max(np.max(A.Enth.T)))
+  # print(np.max(np.max(A.Enth.TP)))
 
   if (istep > 0):
     A.PV_coeff = vizB.parse_PVcoeff_file('out_xPVcoeff_ts'+str(istep),fdir)

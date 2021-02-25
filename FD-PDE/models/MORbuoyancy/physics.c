@@ -448,7 +448,7 @@ PetscErrorCode Form_PotentialTemperature(PetscScalar T,PetscScalar P,PetscScalar
 
   rho  = usr->par->rho0; // bulk density
   Az   = -usr->nd->A*P*usr->par->drho/rho;
-  TP = (T+usr->nd->thetaS)*exp(-Az) - usr->nd->thetaS;
+  TP = (T+usr->nd->thetaS-T_KELVIN/usr->par->DT)*exp(Az) - usr->nd->thetaS+T_KELVIN/usr->par->DT;
   *_TP = TP;
 
   PetscFunctionReturn(0);
