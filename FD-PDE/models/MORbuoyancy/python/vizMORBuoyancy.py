@@ -23,6 +23,7 @@ def get_scaling_labels(fname,fdir,dim):
     # Create data object
     scal = EmptyStruct()
     lbl  = EmptyStruct()
+    SEC_YEAR = 31536000
 
     # non-dimensional - default
     scal.x  = 1
@@ -36,15 +37,9 @@ def get_scaling_labels(fname,fdir,dim):
     scal.K  = 1
     scal.rho= 1
 
-    # if (dim == 1):
-    #   scal.x  = 1e2 # km
-    #   scal.P  = 1e-9 # GPa
-    #   scal.v  = 1.0e2*SEC_YEAR # cm/yr
-    #   scal.T  = 273.15 # deg C
-
     # Units and labels - default
-    lbl.x = r'x [-]'
-    lbl.z = r'z [-]'
+    lbl.x = r'x/H [-]'
+    lbl.z = r'z/H [-]'
     lbl.P = r'$P$ [-]'
     lbl.vs= r'$V_s$ [-]'
     lbl.vsx= r'$V_s^x$ [-]'
@@ -75,13 +70,43 @@ def get_scaling_labels(fname,fdir,dim):
     lbl.rhof = r'$\rho_f$ [-]'
     lbl.rhos = r'$\rho_s$ [-]'
 
-    # if (dim == 1):
-    #   lbl_P = r'$P [GPa]$'
-    #   lbl_v = r'$V [cm/yr]$'
-    #   lbl_x = '[km]'
-    #   lbl_C = r'$\Theta$'
-    #   lbl_H  = r'$H [-]$'
-    #   lbl_T = r'$T [^oC]$'
+    if (dim == 1):
+      scal.x  = 1e2 # h0/1e3 km
+      scal.P  = 1e-6 # MPa
+      scal.v  = 1.0e2*SEC_YEAR # cm/yr
+      scal.T  = 273.15 # deg C
+
+      lbl.P = r'$P$ [MPa]'
+      lbl.x = r'x [km]'
+      lbl.z = r'z [km]'      
+      lbl.vs= r'$V_s$ [cm/yr]'
+      lbl.vsx= r'$V_s^x$ [cm/yr]'
+      lbl.vsz= r'$V_s^z$ [cm/yr]'
+      lbl.vf= r'$V_f$ [cm/yr]'
+      lbl.vfx= r'$V_f^x$ [cm/yr]'
+      lbl.vfz= r'$V_f^z$ [cm/yr]'
+      lbl.v = r'$V$ [cm/yr]'
+      lbl.vx= r'$V^x$ [cm/yr]'
+      lbl.vz= r'$V^z$ [cm/yr]'
+      lbl.H = r'$H$ [J/kg]'
+      lbl.C = r'$C$'
+      lbl.Cf = r'$C_f$'
+      lbl.Cs = r'$C_s$'
+      lbl.T = r'$T$ $[^oC]$'
+      lbl.TP = r'$T$ potential $[^oC]$'
+      lbl.Plith = r'$P_{lith}$ [MPa]'
+      lbl.phi = r'$\phi$ '
+      lbl.resP = r'res $P$ [MPa]'
+      lbl.resvsx= r'res $V_s^x$ [cm/yr]'
+      lbl.resvsz= r'res $V_s^z$ [cm/yr]'
+      lbl.resC = r'res $C$'
+      lbl.resH = r'res $H$ [J/kg]'
+      lbl.eta = r'$\eta$ [Pa.s]'
+      lbl.zeta = r'$\zeta$ [Pa.s]'
+      lbl.K = r'$K$ [m2]'
+      lbl.rho = r'$\rho$ [kg/m3]'
+      lbl.rhof = r'$\rho_f$ [kg/m3]'
+      lbl.rhos = r'$\rho_s$ [kg/m3]'
 
     # set clim 
 
@@ -444,34 +469,36 @@ def plot_PV(iplot,A,fname,istep,framex,framez):
 
   ax = plt.subplot(3,1,1)
   im = ax.imshow(X1,extent=extentP,cmap='viridis',origin='lower',interpolation='nearest')
-  xa = A.grid.xc[::4]
+  xa = A.grid.xc[::4]*A.scal.x
   stream_points = []
   for xi in xa:
-    stream_points.append([xi,A.grid.zc[0]])
-  stream = ax.streamplot(A.grid.xc,A.grid.zc, A.Vscx, A.Vscz,color='k',linewidth=0.5, start_points=stream_points, density=2.0, minlength=0.5, arrowstyle='-')
+    stream_points.append([xi,A.grid.zc[0]*A.scal.x])
+  stream = ax.streamplot(A.grid.xc*A.scal.x,A.grid.zc*A.scal.x, A.Vscx*A.scal.v, A.Vscz*A.scal.v,color='k',linewidth=0.5, start_points=stream_points, density=2.0, minlength=0.5, arrowstyle='-')
 
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title(lbl1)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(lbl1)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
-  ax.set_title('tstep = '+str(istep))
+  ax.set_title(lbl1+' tstep = '+str(istep))
 
   ax = plt.subplot(3,1,2)
   im = ax.imshow(X2,extent=extentVx,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title(lbl2)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(lbl2)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title(lbl2)
 
   ax = plt.subplot(3,1,3)
   im = ax.imshow(X3,extent=extentVz,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title(lbl3)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(lbl3)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title(lbl3)
 
   plt.savefig(fname+'.pdf', bbox_inches = 'tight')
   plt.close()
@@ -492,7 +519,7 @@ def plot_HC(iplot,A,fname,istep,framex,framez):
 
   if (iplot==1):
     X1 = A.phi
-    X2 = A.T
+    X2 = A.T-A.scal.T
     lbl1 = A.lbl.phi
     lbl2 = A.lbl.T
     # im.set_clim(0,0.005)
@@ -506,20 +533,21 @@ def plot_HC(iplot,A,fname,istep,framex,framez):
 
   ax = plt.subplot(2,1,1)
   im = ax.imshow(X1,extent=extentC,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title(lbl1)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.75)
+  # cbar.ax.set_title(lbl1)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
-  ax.set_title('tstep = '+str(istep))
+  ax.set_title(lbl1+' tstep = '+str(istep))
 
   ax = plt.subplot(2,1,2)
   im = ax.imshow(X2,extent=extentC,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title(lbl2)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.75)
+  # cbar.ax.set_title(lbl2)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title(lbl2)
 
   plt.savefig(fname+'.pdf', bbox_inches = 'tight')
   plt.close()
@@ -533,74 +561,81 @@ def plot_Enth(A,fname,istep):
   ax = plt.subplot(4,2,1)
   im = ax.imshow(A.Enth.H*A.scal.H,extent=extentC,cmap='viridis',origin='lower')
   # im.set_clim(-30,0)
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
-  cbar.ax.set_title(A.lbl.H)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(A.lbl.H)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
-  ax.set_title('tstep = '+str(istep))
+  ax.set_title(A.lbl.H+' tstep = '+str(istep))
 
   ax = plt.subplot(4,2,2)
   im = ax.imshow(A.Enth.C,extent=extentC,cmap='viridis',origin='lower')
   # im.set_clim(0,0.2)
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
-  cbar.ax.set_title(A.lbl.C)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(A.lbl.C)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.C)
 
   ax = plt.subplot(4,2,3)
   im = ax.imshow(A.Enth.T-A.scal.T,extent=extentC,cmap='viridis',origin='lower')
   # im.set_clim(-30,0)
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
-  cbar.ax.set_title(A.lbl.T)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(A.lbl.T)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.T)
 
   ax = plt.subplot(4,2,4)
   im = ax.imshow(A.Enth.Cf,extent=extentC,cmap='viridis',origin='lower')
   # im.set_clim(-1,-0.8)
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
-  cbar.ax.set_title(A.lbl.Cf)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(A.lbl.Cf)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.Cf)
 
   ax = plt.subplot(4,2,5)
   im = ax.imshow(A.Enth.TP-A.scal.T,extent=extentC,cmap='viridis',origin='lower')
   # im.set_clim(-30,0)
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
-  cbar.ax.set_title(A.lbl.TP)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(A.lbl.TP)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.TP)
 
   ax = plt.subplot(4,2,6)
   im = ax.imshow(A.Enth.Cs,extent=extentC,cmap='viridis',origin='lower')
   # im.set_clim(0,0.2)
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
-  cbar.ax.set_title(A.lbl.Cs)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(A.lbl.Cs)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.Cs)
 
   ax = plt.subplot(4,2,7)
-  im = ax.imshow(A.Enth.P,extent=extentC,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
-  cbar.ax.set_title(A.lbl.Plith)
+  im = ax.imshow(A.Enth.P*A.scal.P,extent=extentC,cmap='viridis',origin='lower')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(A.lbl.Plith)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.Plith)
 
   ax = plt.subplot(4,2,8)
   im = ax.imshow(A.Enth.phi,extent=extentC,cmap='viridis',origin='lower')
   # im.set_clim(0,0.01)
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
-  cbar.ax.set_title(A.lbl.phi)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(A.lbl.phi)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.phi)
 
   plt.savefig(fname+'.pdf', bbox_inches = 'tight')
   plt.close()
@@ -614,36 +649,39 @@ def plot_Vel(A,fname,istep):
 
   ax = plt.subplot(2,2,1)
   im = ax.imshow(A.Vfx*A.scal.v,extent=extentVx,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
-  cbar.ax.set_title(A.lbl.vfx)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(A.lbl.vfx)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
-  ax.set_title('tstep = '+str(istep))
+  ax.set_title(A.lbl.vfx+' tstep = '+str(istep))
 
   ax = plt.subplot(2,2,2)
   im = ax.imshow(A.Vfz*A.scal.v,extent=extentVz,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
-  cbar.ax.set_title(A.lbl.vfz)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(A.lbl.vfz)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.vfz)
 
   ax = plt.subplot(2,2,3)
   im = ax.imshow(A.Vx*A.scal.v,extent=extentVx,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
-  cbar.ax.set_title(A.lbl.vx)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(A.lbl.vx)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.vx)
 
   ax = plt.subplot(2,2,4)
   im = ax.imshow(A.Vz*A.scal.v,extent=extentVz,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
-  cbar.ax.set_title(A.lbl.vz)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(A.lbl.vz)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.vz)
 
   plt.savefig(fname+'.pdf', bbox_inches = 'tight')
   plt.close()
@@ -651,7 +689,7 @@ def plot_Vel(A,fname,istep):
 # ---------------------------------
 def plot_PVcoeff(A,fname,istep):
 
-  fig = plt.figure(1,figsize=(14,14))
+  fig = plt.figure(1,figsize=(14,16))
   extentE =[min(A.grid.xc)*A.scal.x, max(A.grid.xc)*A.scal.x, min(A.grid.zc)*A.scal.x, max(A.grid.zc)*A.scal.x]
   extentFx=[min(A.grid.xv)*A.scal.x, max(A.grid.xv)*A.scal.x, min(A.grid.zc)*A.scal.x, max(A.grid.zc)*A.scal.x]
   extentFz=[min(A.grid.xc)*A.scal.x, max(A.grid.xc)*A.scal.x, min(A.grid.zv)*A.scal.x, max(A.grid.zv)*A.scal.x]
@@ -659,84 +697,93 @@ def plot_PVcoeff(A,fname,istep):
 
   ax = plt.subplot(5,2,1)
   im = ax.imshow(A.PV_coeff.A_cor,extent=extentN,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('A corner')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('A corner')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
-  ax.set_title('tstep = '+str(istep))
+  ax.set_title('A corner tstep = '+str(istep))
 
   ax = plt.subplot(5,2,2)
   im = ax.imshow(A.PV_coeff.A,extent=extentE,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('A center')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('A center')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('A center')
 
   ax = plt.subplot(5,2,3)
   im = ax.imshow(A.PV_coeff.C,extent=extentE,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('C center')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('C center')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('C center')
 
   ax = plt.subplot(5,2,4)
   im = ax.imshow(A.PV_coeff.D1,extent=extentE,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('D1 center')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('D1 center')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('D1 center')
 
   ax = plt.subplot(5,2,5)
   im = ax.imshow(A.PV_coeff.Bx,extent=extentFx,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('Bx face')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('Bx face')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('Bx face')
 
   ax = plt.subplot(5,2,6)
   im = ax.imshow(A.PV_coeff.Bz,extent=extentFz,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('Bz face')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('Bz face')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('Bz face')
 
   ax = plt.subplot(5,2,7)
   im = ax.imshow(A.PV_coeff.D2x,extent=extentFx,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('D2x face')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('D2x face')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('D2x face')
 
   ax = plt.subplot(5,2,8)
   im = ax.imshow(A.PV_coeff.D2z,extent=extentFz,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('D2z face')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('D2z face')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('D2z face')
 
   ax = plt.subplot(5,2,9)
   im = ax.imshow(A.PV_coeff.D3x,extent=extentFx,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('D3x face')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('D3x face')
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('D3x face')
 
   ax = plt.subplot(5,2,10)
   im = ax.imshow(A.PV_coeff.D3z,extent=extentFz,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('D3z face')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('D3z face')
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('D3z face')
 
   plt.savefig(fname+'.pdf', bbox_inches = 'tight')
   plt.close()
@@ -744,7 +791,7 @@ def plot_PVcoeff(A,fname,istep):
 # ---------------------------------
 def plot_HCcoeff(A,fname,istep):
 
-  fig = plt.figure(1,figsize=(14,14))
+  fig = plt.figure(1,figsize=(14,16))
   extentE =[min(A.grid.xc)*A.scal.x, max(A.grid.xc)*A.scal.x, min(A.grid.zc)*A.scal.x, max(A.grid.zc)*A.scal.x]
   extentFx=[min(A.grid.xv)*A.scal.x, max(A.grid.xv)*A.scal.x, min(A.grid.zc)*A.scal.x, max(A.grid.zc)*A.scal.x]
   extentFz=[min(A.grid.xc)*A.scal.x, max(A.grid.xc)*A.scal.x, min(A.grid.zv)*A.scal.x, max(A.grid.zv)*A.scal.x]
@@ -752,138 +799,153 @@ def plot_HCcoeff(A,fname,istep):
 
   ax = plt.subplot(5,2,1)
   im = ax.imshow(A.HC_coeff.A1,extent=extentE,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('A1 center')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('A1 center')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
-  ax.set_title('tstep = '+str(istep))
+  ax.set_title('A1 center tstep = '+str(istep))
 
   ax = plt.subplot(5,2,2)
   im = ax.imshow(A.HC_coeff.A2,extent=extentE,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('A2 center')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('A2 center')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('A2 center')
 
   ax = plt.subplot(5,2,3)
   im = ax.imshow(A.HC_coeff.B1,extent=extentE,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('B1 center')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('B1 center')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('B1 center')
 
   ax = plt.subplot(5,2,4)
   im = ax.imshow(A.HC_coeff.B2,extent=extentE,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('B2 center')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('B2 center')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('B2 center')
 
   ax = plt.subplot(5,2,5)
   im = ax.imshow(A.HC_coeff.D1,extent=extentE,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('D1 center')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('D1 center')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('D1 center')
 
   ax = plt.subplot(5,2,6)
   im = ax.imshow(A.HC_coeff.D2,extent=extentE,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('D2 center')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('D2 center')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('D2 center')
 
   ax = plt.subplot(5,2,7)
   im = ax.imshow(A.HC_coeff.C1x,extent=extentFx,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('C1x face')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('C1x face')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('C1x face')
 
   ax = plt.subplot(5,2,8)
   im = ax.imshow(A.HC_coeff.C1z,extent=extentFz,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('C1z face')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('C1z face')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('C1z face')
 
   ax = plt.subplot(5,2,9)
   im = ax.imshow(A.HC_coeff.C2x,extent=extentFx,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('C1x face')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('C1x face')
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('C1x face')
 
   ax = plt.subplot(5,2,10)
   im = ax.imshow(A.HC_coeff.C2z,extent=extentFz,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('C1z face')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('C1z face')
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('C1z face')
 
   plt.savefig(fname+'_part1.pdf', bbox_inches = 'tight')
   plt.close()
 
   # part 2
-  fig = plt.figure(1,figsize=(14,14))
+  fig = plt.figure(1,figsize=(14,16))
 
   ax = plt.subplot(5,2,1)
   im = ax.imshow(A.HC_coeff.vx,extent=extentFx,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('vx face')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('vx face')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('vx face tstep = '+str(istep))
 
   ax = plt.subplot(5,2,2)
   im = ax.imshow(A.HC_coeff.vz,extent=extentFz,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('vz face')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('vz face')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('vz face')
 
   ax = plt.subplot(5,2,3)
   im = ax.imshow(A.HC_coeff.vfx,extent=extentFx,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('vfx face')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('vfx face')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('vfx face')
 
   ax = plt.subplot(5,2,4)
   im = ax.imshow(A.HC_coeff.vfz,extent=extentFz,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('vfz face')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('vfz face')
   ax.axis('image')
   # ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('vfz face')
 
   ax = plt.subplot(5,2,5)
   im = ax.imshow(A.HC_coeff.vsx,extent=extentFx,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('vsx face')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('vsx face')
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('vsx face')
 
   ax = plt.subplot(5,2,6)
   im = ax.imshow(A.HC_coeff.vsz,extent=extentFz,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.85)
-  cbar.ax.set_title('vsz face')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  # cbar.ax.set_title('vsz face')
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('vsz face')
 
   plt.savefig(fname+'_part2.pdf', bbox_inches = 'tight')
   plt.close()
@@ -897,54 +959,59 @@ def plot_matProp(A,fname,istep):
   ax = plt.subplot(4,2,1)
   im = ax.imshow(np.log10(A.matProp.eta*A.scal.eta),extent=extentE,cmap='viridis',origin='lower')
   # im.set_clim(-4,6)
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
-  cbar.ax.set_title('log10 '+A.lbl.eta)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title('log10 '+A.lbl.eta)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
-  ax.set_title('tstep = '+str(istep))
+  ax.set_title('log10 '+A.lbl.eta+' tstep = '+str(istep))
 
   ax = plt.subplot(4,2,2)
   im = ax.imshow(np.log10(A.matProp.zeta*A.scal.eta),extent=extentE,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
   # im.set_clim(-4,6)
-  cbar.ax.set_title('log10 '+A.lbl.zeta)
+  # cbar.ax.set_title('log10 '+A.lbl.zeta)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title('log10 '+A.lbl.zeta)
 
   ax = plt.subplot(4,2,3)
   im = ax.imshow(A.matProp.K*A.scal.K,extent=extentE,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
   # im.set_clim(-20,0)
-  cbar.ax.set_title(A.lbl.K)
+  # cbar.ax.set_title(A.lbl.K)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.K)
 
   ax = plt.subplot(4,2,4)
   im = ax.imshow(A.matProp.rho*A.scal.rho,extent=extentE,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
-  cbar.ax.set_title(A.lbl.rho)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(A.lbl.rho)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.rho)
 
   ax = plt.subplot(4,2,5)
   im = ax.imshow(A.matProp.rhof*A.scal.rho,extent=extentE,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
-  cbar.ax.set_title(A.lbl.rhof)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(A.lbl.rhof)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.rhof)
 
   ax = plt.subplot(4,2,6)
   im = ax.imshow(A.matProp.rhos*A.scal.rho,extent=extentE,cmap='viridis',origin='lower')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
-  cbar.ax.set_title(A.lbl.rhos)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.80)
+  # cbar.ax.set_title(A.lbl.rhos)
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
+  ax.set_title(A.lbl.rhos)
 
   plt.savefig(fname+'.pdf', bbox_inches = 'tight')
   plt.close()

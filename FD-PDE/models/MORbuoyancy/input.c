@@ -173,7 +173,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   // input/output 
   par->fname_in[0] = '\0';
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_solution","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterBool(bag, &par->dim_out, PETSC_FALSE, "dim_output", "Output dimensional parameters"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->dim_out, 0, "dim_output", "Output dimensional parameters: 0-nondim, 1-dimensional"); CHKERRQ(ierr);
   par->out_count = 0; 
 
   // return pointer

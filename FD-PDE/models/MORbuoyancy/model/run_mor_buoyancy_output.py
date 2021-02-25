@@ -20,16 +20,14 @@ class SimStruct:
 A = SimStruct()
 
 # Parameters
-# A.fname = 'out_model'
-A.modelopts = 'model_test.opts'
-A.nx = 200
-A.nz = 100
-A.tstep = 1
-A.buoyancy = 0 # 0=off, 1=phi, 2=phi-C, 3=phi-C-T
-A.k_hat = 1.0
-A.dim = 0 # 0 - nondimensional, 1 - dimensional
+A.modelopts    = 'model_test.opts'
+A.nx           = 200
+A.nz           = 100
+A.tstep        = 1
+A.buoyancy     = 0 # 0=off, 1=phi, 2=phi-C, 3=phi-C-T
+A.k_hat        = -1.0
+A.dim_output   = 1 # 0 - nondimensional, 1 - dimensional
 A.debug_output = 1 # 0 - no debug output, 1 - debug output
-# SEC_YEAR = 31536000
 
 # Run test
 str1 = '../MORbuoyancy.app'+ \
@@ -37,10 +35,11 @@ str1 = '../MORbuoyancy.app'+ \
     ' -nx '+str(A.nx)+' -nz '+str(A.nz)+ \
     ' -tstep '+str(A.tstep)+ \
     ' -buoyancy '+str(A.buoyancy)+ \
+    ' -dim_output '+str(A.dim_output)+ \
     ' -k_hat '+str(A.k_hat)+ \
     ' -log_view '
 print(str1)
-# os.system(str1)
+os.system(str1)
 
 # Create visualization directories
 if (A.debug_output):
@@ -51,7 +50,7 @@ if (A.debug_output):
     pass
 
 # Read parameters file and get scaling params
-A.scal, A.lbl = vizB.get_scaling_labels('parameters_file.out','Timestep0',A.dim)
+A.scal, A.lbl = vizB.get_scaling_labels('parameters_file.out','Timestep0',A.dim_output)
 
 # Read grid parameters - choose PV file timestep0
 A.grid = vizB.parse_grid_info('out_xPV_ts0','Timestep0')

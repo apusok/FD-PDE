@@ -35,8 +35,7 @@ typedef struct {
   PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT;
   PetscInt       ts_scheme, adv_scheme, tout, tstep, istep;
   PetscScalar    tmax, dtmax;
-  PetscInt       out_count, buoyancy, visc;
-  PetscBool      dim_out;
+  PetscInt       out_count, buoyancy, visc, dim_out;
   char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH], fdir_out[FNAME_LENGTH]; 
 } Params;
 
@@ -115,10 +114,13 @@ PetscScalar BulkDensity(PetscScalar,PetscScalar,PetscScalar,PetscInt);
 
 // utils
 PetscErrorCode DoOutput(FDPDE,FDPDE,void*);
-// PetscErrorCode ScaleSolutionPV(DM,Vec,Vec*,void*);
-// PetscErrorCode ScaleVectorUniform(DM,Vec,Vec*,PetscScalar);
-// PetscErrorCode ScaleTemperatureComposition(DM,Vec,Vec*,void*,PetscInt);
 PetscErrorCode CreateDirectory(const char*);
+PetscErrorCode ScaleSolutionPV(DM,Vec,Vec*,void*);
+PetscErrorCode ScaleSolutionHC(DM,Vec,Vec*,void*);
+PetscErrorCode ScaleSolutionPorosityTemp(DM,Vec,Vec*,void*);
+PetscErrorCode ScaleSolutionEnthalpy(DM,Vec,Vec*,void*);
+PetscErrorCode ScaleSolutionUniform(DM,Vec,Vec*,PetscScalar);
+PetscErrorCode ScaleSolutionMaterialProp(DM,Vec,Vec*,void*);
 
 // ---------------------------------------
 // Useful functions
