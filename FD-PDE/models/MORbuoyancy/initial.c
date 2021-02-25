@@ -203,11 +203,17 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
-      PetscScalar T, nd_T, age;
+      PetscScalar T, nd_T, age, Ta;
 
       // half-space cooling temperature
       age  = dim_param(coordx[i][icenter],usr->scal->x)/dim_param(usr->nd->U0,usr->scal->v);
       T = HalfSpaceCoolingTemp(Tm,usr->par->Ts,-dim_param(coordz[j][icenter],usr->scal->x),usr->par->kappa,age); 
+
+      // check adiabat in the mantle
+      {
+        Ta  = (usr->par->Tp-T_KELVIN)*exp(-usr->nd->A*coordz[j][icenter])+T_KELVIN;
+        if (T>Ta) T = Ta;
+      }
       nd_T = (T - usr->par->T0)/usr->par->DT;
 
       // enthalpy H = S*phi+T (phi=0)

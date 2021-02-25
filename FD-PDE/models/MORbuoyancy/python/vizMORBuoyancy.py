@@ -644,11 +644,12 @@ def plot_Enth(A,fname,istep):
 def plot_Vel(A,fname,istep):
 
   fig = plt.figure(1,figsize=(14,7))
+  extentVfx=[min(A.grid.xv[1:])*A.scal.x, max(A.grid.xv[1:])*A.scal.x, min(A.grid.zc)*A.scal.x, max(A.grid.zc)*A.scal.x]
   extentVx=[min(A.grid.xv)*A.scal.x, max(A.grid.xv)*A.scal.x, min(A.grid.zc)*A.scal.x, max(A.grid.zc)*A.scal.x]
   extentVz=[min(A.grid.xc)*A.scal.x, max(A.grid.xc)*A.scal.x, min(A.grid.zv)*A.scal.x, max(A.grid.zv)*A.scal.x]
 
   ax = plt.subplot(2,2,1)
-  im = ax.imshow(A.Vfx*A.scal.v,extent=extentVx,cmap='viridis',origin='lower')
+  im = ax.imshow(A.Vfx[:,1:]*A.scal.v,extent=extentVfx,cmap='viridis',origin='lower')
   cbar = fig.colorbar(im,ax=ax, shrink=0.80)
   # cbar.ax.set_title(A.lbl.vfx)
   ax.axis('image')
@@ -1091,6 +1092,25 @@ def plot_porosity_contours(A,fname,istep):
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
   ax.set_title(A.lbl.vsz)
+
+  plt.savefig(fname+'.pdf', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_temperature_slices(A,fname,istep):
+
+  fig = plt.figure(1,figsize=(4,4))
+
+  ax = plt.subplot(1,1,1)
+  pl = ax.plot(A.T[:,1]-A.scal.T, A.grid.zc*A.scal.x, label = 'x = '+str(A.grid.xc[1]*A.scal.x))
+  pl = ax.plot(A.T[:,50]-A.scal.T, A.grid.zc*A.scal.x, label = 'x = '+str(A.grid.xc[50]*A.scal.x))
+  pl = ax.plot(A.T[:,-1]-A.scal.T, A.grid.zc*A.scal.x, label = 'x = '+str(A.grid.xc[-1]*A.scal.x))
+  ax.legend()
+  plt.grid(True)
+  # plt.xlim(1200, 1450)
+
+  ax.set_xlabel(A.lbl.T)
+  ax.set_ylabel(A.lbl.z)
 
   plt.savefig(fname+'.pdf', bbox_inches = 'tight')
   plt.close()

@@ -194,11 +194,11 @@ PetscScalar ShearViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, Pets
   if (visc == 0) { // constant 
     eta = 1.0; 
     return eta;
-  } else if (visc==1) { // T,phi-dep
-    // eta = exp(EoR*(1.0/T-1.0/Teta0)); // T-dep
-    eta = exp(EoR*(1.0/T-1.0/Teta0)-lambda*phi);
-    return 1.0/(1.0/eta + eta0/eta_max) + eta_min/eta0; // harmonic averaging
-  } else return 0.0;
+  } 
+
+  // eta = exp(EoR*(1.0/T-1.0/Teta0)); // T-dep
+  eta = exp(EoR*(1.0/T-1.0/Teta0)-lambda*phi); // T,phi-dep
+  return 1.0/(1.0/eta + eta0/eta_max) + eta_min/eta0; // harmonic averaging
 }
 
 // ---------------------------------------
@@ -210,15 +210,15 @@ PetscScalar BulkViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, Petsc
 { 
   PetscScalar zeta;
 
-  if (phi < PHI_CUTOFF) phi = PHI_CUTOFF;
   if (visc == 0) { // constant 
     zeta = visc_ratio;
     return zeta;
-  } else if (visc==1) { // T,phi-dep
-    // zeta = visc_ratio*exp(EoR*(1.0/T-1.0/Teta0)); // T-dep
-    zeta = visc_ratio*exp(EoR*(1.0/T-1.0/Teta0))*pow(phi,zetaExp);
-    return 1.0/(1.0/zeta + eta0/eta_max) + eta_min/eta0; // harmonic averaging
-  } else return 0.0;
+  } 
+
+  if (phi < PHI_CUTOFF) phi = PHI_CUTOFF;
+  // zeta = visc_ratio*exp(EoR*(1.0/T-1.0/Teta0)); // T-dep
+  zeta = visc_ratio*exp(EoR*(1.0/T-1.0/Teta0))*pow(phi,zetaExp); // T,phi-dep
+  return 1.0/(1.0/zeta + eta0/eta_max) + eta_min/eta0; // harmonic averaging
 }
 
 // ---------------------------------------

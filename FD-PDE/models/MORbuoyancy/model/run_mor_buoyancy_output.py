@@ -25,15 +25,17 @@ A.modelopts    = 'model_test.opts'
 A.nx           = 20
 A.nz           = 10
 A.tstep        = 1
-A.K0           = 1.0e-7
+A.K0           = 1.0e-9
+A.zeta0        = 1.0e20
 A.buoyancy     = 0 # 0=off, 1=phi, 2=phi-C, 3=phi-C-T
 A.visc         = 0 # 0-constant, 1-Temp,porosity dependent
 A.k_hat        = -1.0 # 0.0 or -1.0
 A.phi_init     = 0.0  # 0=full extraction, 1e-4-some porosity left
 A.dim_output   = 1 # 0 - nondimensional, 1 - dimensional
 A.debug_output = 1 # 0 - no debug output, 1 - debug output
+A.xsill        = 6e3
 
-A.Tp = 1648
+A.Tp = 1648 #1573 #1623
 
 # Run test
 str1 = '../MORbuoyancy.app'+ \
@@ -41,6 +43,8 @@ str1 = '../MORbuoyancy.app'+ \
     ' -nx '+str(A.nx)+' -nz '+str(A.nz)+ \
     ' -tstep '+str(A.tstep)+ \
     ' -K0 '+str(A.K0)+ \
+    ' -zeta0 '+str(A.zeta0)+ \
+    ' -xsill '+str(A.xsill)+ \
     ' -buoyancy '+str(A.buoyancy)+ \
     ' -visc '+str(A.visc)+ \
     ' -phi_init '+str(A.phi_init)+ \
@@ -78,13 +82,6 @@ for istep in range(0,A.tstep+1):
   A.Vfx, A.Vfz, A.Vx, A.Vz = vizB.parse_Vel_file('out_xVel_ts'+str(istep),fdir)
   A.HC_coeff = vizB.parse_HCcoeff_file('out_xHCcoeff_ts'+str(istep),fdir)
 
-  # print(np.max(np.max(A.Vsx*A.scal.v)))
-  # print(np.max(np.max(A.Vsz*A.scal.v)))
-  # print(np.min(np.min(A.P*A.scal.P)))
-  # print(np.max(np.max(A.phi)))
-  # print(np.max(np.max(A.Enth.T)))
-  # print(np.max(np.max(A.Enth.TP)))
-
   if (istep > 0):
     A.PV_coeff = vizB.parse_PVcoeff_file('out_xPVcoeff_ts'+str(istep),fdir)
     A.resP, A.resVsx, A.resVsz = vizB.parse_PV_file('out_resPV_ts'+str(istep),fdir)
@@ -97,6 +94,7 @@ for istep in range(0,A.tstep+1):
 
   # nice output
   vizB.plot_porosity_contours(A,'out_porosity_contours_ts'+str(istep),istep)
+  # vizB.plot_temperature_slices(A,'out_temp_slices_ts'+str(istep),istep)
 
   # debug output
   if (A.debug_output):
