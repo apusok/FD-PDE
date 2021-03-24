@@ -232,7 +232,7 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coe
       if ((i>=0) && (j>=0) && (i<Nx) && (j<Nz)) {
         EnthEvalErrorCode  thermo_dyn_error_code = 0;
 
-        H = 0.0; phi = 0.0; T = 0.0; P = 0.0;
+        H = 0.0; phi = 0.0; T = 0.0; P = 0.0; TP = 0.0;
         for (ii = 0; ii<en->ncomponents; ii++) { C[ii] = 0.0; CF[ii] = 0.0; CS[ii] = 0.0;}
 
         idx = SingleDimIndex(i-sx+2,j-sz+2,nz+4);

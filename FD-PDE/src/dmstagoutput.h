@@ -9,5 +9,6 @@
 // Function definitions
 // ---------------------------------------
 PetscErrorCode DMStagViewBinaryPython(DM,Vec,const char*);
+PetscErrorCode DMStagReadBinaryPython(DM*,Vec*,const char*);
 
 #endif

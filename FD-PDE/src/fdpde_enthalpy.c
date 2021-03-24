@@ -791,6 +791,9 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
       PetscScalar   sum_C = 0.0;
       EnthEvalErrorCode thermo_dyn_error_code;
 
+      H = 0.0; phi = 0.0; T = 0.0; TP = 0.0; P = 0.0;
+      for (ii = 0; ii<en->ncomponents; ii++) { C[ii] = 0.0; CF[ii] = 0.0; CS[ii] = 0.0;}
+
       for (ii = 0; ii<dof_sol; ii++) {
         pointE[ii].i = i; pointE[ii].j = j; pointE[ii].loc = DMSTAG_ELEMENT; pointE[ii].c = ii;
       }
@@ -855,8 +858,11 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(en->dmP, &Plocal); CHKERRQ(ierr);
 
-  *_dmnew = dmnew;
-  *_xnew  = xnew;
+  if (_dmnew) *_dmnew = dmnew;
+  else { ierr = DMDestroy(&dmnew);CHKERRQ(ierr); }
+
+  if (_xnew) *_xnew  = xnew;
+  else { ierr = VecDestroy(&xnew);CHKERRQ(ierr); }
 
   PetscFunctionReturn(0);
 }

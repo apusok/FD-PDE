@@ -105,6 +105,23 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char prefix[])
   pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['Nx'] = v\n");
   pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['Ny'] = v\n");
   pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['Nz'] = v\n");
+
+  { // output  
+    PetscInt dof[4];
+    ierr = DMStagGetDOF(dm,&dof[0],&dof[1],&dof[2],&dof[3]);CHKERRQ(ierr);
+
+    ierr = PetscViewerBinaryWrite(v,(void*)&dim,1,PETSC_INT);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryWrite(v,(void*)&dof[0],1,PETSC_INT);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryWrite(v,(void*)&dof[1],1,PETSC_INT);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryWrite(v,(void*)&dof[2],1,PETSC_INT);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryWrite(v,(void*)&dof[3],1,PETSC_INT);CHKERRQ(ierr);
+    
+    pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['dim'] = v\n");
+    pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['dof0'] = v\n");
+    pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['dof1'] = v\n");
+    pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['dof2'] = v\n");
+    pythonemit(fp,"    v = io.readInteger(fp)\n"); pythonemit(fp,"    data['dof3'] = v\n");
+  }
   
   if (view_coords) {
     DM cdm,subDM;
@@ -124,20 +141,19 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char prefix[])
         pythonemitvec(fp,"x1d");
         
         ierr = DMStagGetDOF(subDM,&dof[0],&dof[1],&dof[2],&dof[3]);CHKERRQ(ierr);
-        if (dof[0] != 0) {
-          ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_LEFT,-dof[0],&pda,&subX);CHKERRQ(ierr);
-          ierr = VecView(subX,v);CHKERRQ(ierr);
-          pythonemitvec(fp,"x1d_vertex");
-          ierr = VecDestroy(&subX);CHKERRQ(ierr);
-          ierr = DMDestroy(&pda);CHKERRQ(ierr);
-        }
-        if (dof[1] != 0) {
-          ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_ELEMENT,-dof[1],&pda,&subX);CHKERRQ(ierr);
-          ierr = VecView(subX,v);CHKERRQ(ierr);
-          pythonemitvec(fp,"x1d_cell");
-          ierr = VecDestroy(&subX);CHKERRQ(ierr);
-          ierr = DMDestroy(&pda);CHKERRQ(ierr);
-        }
+
+        // no need to check for dofs - output both vertex and center coordinates
+        ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_LEFT,-dof[0],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecView(subX,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"x1d_vertex");
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+
+        ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_ELEMENT,-dof[1],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecView(subX,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"x1d_cell");
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
       }
       if (dim >= 2) {
         ierr = DMProductGetDM(cdm,1,&subDM);CHKERRQ(ierr);
@@ -146,20 +162,18 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char prefix[])
         pythonemitvec(fp,"y1d");
         
         ierr = DMStagGetDOF(subDM,&dof[0],&dof[1],&dof[2],&dof[3]);CHKERRQ(ierr);
-        if (dof[0] != 0) {
-          ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_LEFT,-dof[0],&pda,&subX);CHKERRQ(ierr);
-          ierr = VecView(subX,v);CHKERRQ(ierr);
-          pythonemitvec(fp,"y1d_vertex");
-          ierr = VecDestroy(&subX);CHKERRQ(ierr);
-          ierr = DMDestroy(&pda);CHKERRQ(ierr);
-        }
-        if (dof[1] != 0) {
-          ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_ELEMENT,-dof[1],&pda,&subX);CHKERRQ(ierr);
-          ierr = VecView(subX,v);CHKERRQ(ierr);
-          pythonemitvec(fp,"y1d_cell");
-          ierr = VecDestroy(&subX);CHKERRQ(ierr);
-          ierr = DMDestroy(&pda);CHKERRQ(ierr);
-        }
+
+        ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_LEFT,-dof[0],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecView(subX,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"y1d_vertex");
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+
+        ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_ELEMENT,-dof[1],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecView(subX,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"y1d_cell");
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
       }
       if (dim == 3) {
         ierr = DMProductGetDM(cdm,2,&subDM);CHKERRQ(ierr);
@@ -168,21 +182,19 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char prefix[])
         pythonemitvec(fp,"z1d");
         
         ierr = DMStagGetDOF(subDM,&dof[0],&dof[1],&dof[2],&dof[3]);CHKERRQ(ierr);
-        if (dof[0] != 0) {
-          ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_LEFT,-dof[0],&pda,&subX);CHKERRQ(ierr);
-          ierr = VecView(subX,v);CHKERRQ(ierr);
-          pythonemitvec(fp,"z1d_vertex");
-          ierr = VecDestroy(&subX);CHKERRQ(ierr);
-          ierr = DMDestroy(&pda);CHKERRQ(ierr);
-        }
-        if (dof[1] != 0) {
-          ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_ELEMENT,-dof[1],&pda,&subX);CHKERRQ(ierr);
-          ierr = VecView(subX,v);CHKERRQ(ierr);
-          pythonemitvec(fp,"z1d_cell");
-          ierr = VecDestroy(&subX);CHKERRQ(ierr);
-          ierr = DMDestroy(&pda);CHKERRQ(ierr);
-        }
-        
+
+        ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_LEFT,-dof[0],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecView(subX,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"z1d_vertex");
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+
+        ierr = DMStagVecSplitToDMDA(subDM,coor,DMSTAG_ELEMENT,-dof[1],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecView(subX,v);CHKERRQ(ierr);
+        pythonemitvec(fp,"z1d_cell");
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+
       }
     } else SETERRQ(comm,PETSC_ERR_SUP,"Only supports coordinated defined via DMPRODUCT");
   }
@@ -811,6 +823,285 @@ PetscErrorCode DMStagViewBinaryPython(DM dm,Vec X,const char prefix[])
     ierr = DMStagViewBinaryPython_SEQ(dm,X,prefix);CHKERRQ(ierr);
   } else {
     ierr = DMStagViewBinaryPython_MPI(dm,X,prefix);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "DMStagReadBinaryPython_SEQ"
+PetscErrorCode DMStagReadBinaryPython_SEQ(DM *_dm,Vec *_x,const char prefix[])
+{
+  DM  dm;
+  Vec x;
+  PetscViewer v;
+  char fname[PETSC_MAX_PATH_LEN];
+  PetscInt M,N,P,dim,dof[4];
+  MPI_Comm comm;
+  PetscMPIInt size;
+  PetscErrorCode ierr;
+
+  comm = PETSC_COMM_WORLD;
+  ierr = MPI_Comm_size(comm,&size); CHKERRQ(ierr);
+  if (size != 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Read is supported 'sequential' only");
+
+  // this seems to be the fix for multiple dofs
+  ierr = PetscOptionsSetValue(NULL, "-viewer_binary_skip_info", ""); CHKERRQ(ierr);
+
+  ierr = PetscSNPrintf(fname,PETSC_MAX_PATH_LEN-1,"%s.pbin",prefix);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(comm,fname,FILE_MODE_READ,&v);CHKERRQ(ierr);
+
+  ierr = PetscViewerBinaryRead(v,(void*)&M,1,NULL,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryRead(v,(void*)&N,1,NULL,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryRead(v,(void*)&P,1,NULL,PETSC_INT);CHKERRQ(ierr);
+
+  ierr = PetscViewerBinaryRead(v,(void*)&dim,1,NULL,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryRead(v,(void*)&dof[0],1,NULL,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryRead(v,(void*)&dof[1],1,NULL,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryRead(v,(void*)&dof[2],1,NULL,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryRead(v,(void*)&dof[3],1,NULL,PETSC_INT);CHKERRQ(ierr);
+
+  // create dm and vector at this point
+  if (dim==2) {
+    ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE,M,N,PETSC_DECIDE,PETSC_DECIDE, 
+                        dof[0], dof[1], dof[2], DMSTAG_STENCIL_BOX,1, NULL,NULL, &dm);CHKERRQ(ierr);
+    ierr = DMSetFromOptions(dm);CHKERRQ(ierr);
+    ierr = DMSetUp(dm);CHKERRQ(ierr);
+    ierr = DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
+    ierr = DMCreateGlobalVector(dm,&x);CHKERRQ(ierr);
+  } else {
+    SETERRQ(comm,PETSC_ERR_SUP,"Only valid for 2d DM");
+  }
+
+  { // read coordinates
+    DM cdm, subDM;
+    Vec coor, subX;
+
+    ierr = DMGetCoordinateDM(dm,&cdm);CHKERRQ(ierr);
+    if (dim >= 1) {
+      ierr = DMProductGetDM(cdm,0,&subDM);CHKERRQ(ierr);
+      ierr = DMGetCoordinates(subDM,&coor);CHKERRQ(ierr);
+      ierr = VecLoad(coor,v); CHKERRQ(ierr); // x1d
+      ierr = DMSetCoordinates(subDM,coor);CHKERRQ(ierr);
+
+      // the following vectors are not needed
+      ierr = VecCreate(comm,&subX);CHKERRQ(ierr);
+      ierr = VecLoad(subX,v);CHKERRQ(ierr); // x1d_vertex
+      ierr = VecDestroy(&subX);CHKERRQ(ierr);
+
+      ierr = VecCreate(comm,&subX);CHKERRQ(ierr);
+      ierr = VecLoad(subX,v);CHKERRQ(ierr);  // x1d_cell
+      ierr = VecDestroy(&subX);CHKERRQ(ierr);
+    }
+    if (dim >= 2) {
+      ierr = DMProductGetDM(cdm,1,&subDM);CHKERRQ(ierr);
+      ierr = DMGetCoordinates(subDM,&coor);CHKERRQ(ierr);
+      ierr = VecLoad(coor,v); CHKERRQ(ierr); // y1d
+      ierr = DMSetCoordinates(subDM,coor);CHKERRQ(ierr);
+
+      ierr = VecCreate(comm,&subX);CHKERRQ(ierr);
+      ierr = VecLoad(subX,v);CHKERRQ(ierr); // y1d_vertex
+      ierr = VecDestroy(&subX);CHKERRQ(ierr); 
+
+      ierr = VecCreate(comm,&subX);CHKERRQ(ierr);
+      ierr = VecLoad(subX,v);CHKERRQ(ierr); // y1d_cell
+      ierr = VecDestroy(&subX);CHKERRQ(ierr); 
+    }
+    if (dim == 3) {
+      ierr = DMProductGetDM(cdm,2,&subDM);CHKERRQ(ierr);
+      ierr = DMGetCoordinates(subDM,&coor);CHKERRQ(ierr);
+      ierr = VecLoad(coor,v); CHKERRQ(ierr); // z1d
+      ierr = DMSetCoordinates(subDM,coor);CHKERRQ(ierr);
+
+      ierr = VecCreate(comm,&subX);CHKERRQ(ierr);
+      ierr = VecLoad(subX,v);CHKERRQ(ierr); // z1d_vertex
+      ierr = VecDestroy(&subX);CHKERRQ(ierr); 
+
+      ierr = VecCreate(comm,&subX);CHKERRQ(ierr);
+      ierr = VecLoad(subX,v);CHKERRQ(ierr); // z1d_cell
+      ierr = VecDestroy(&subX);CHKERRQ(ierr); 
+    }
+  }
+
+  { // read data
+    DM pda;
+    Vec subX;
+
+    if (dim == 1) {
+      SETERRQ(comm,PETSC_ERR_SUP,"Only valid for 2d DM");
+    } else if (dim == 2) {
+
+      PetscInt sx,sz,nx,nz,i,j,iloc,idof;
+      Vec xlocal;
+      PetscScalar ***xx;
+
+      ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+      
+      if (dof[0] != 0) {
+        ierr = DMStagVecSplitToDMDA(dm,x,DMSTAG_DOWN_LEFT,-dof[0],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecLoad(subX,v);CHKERRQ(ierr); // X_vertex
+
+        ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
+        ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+        ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+
+        // Loop over local domain
+        for (idof = 0; idof < dof[0]; idof++) {
+          ierr = DMStagGetLocationSlot(dm, DMSTAG_DOWN_LEFT, idof, &iloc); CHKERRQ(ierr);
+          for (i = sx; i < sx+nx+1; i++) {
+            for (j = sz; j <sz+nz+1; j++) {
+              PetscScalar xval;
+              PetscInt    ii;
+              ii = (dof[0]*i+idof)+(dof[0]*j)*(M+1);
+              ierr = VecGetValues(subX,1,&ii,&xval); 
+              xx[j][i][iloc] = xval; 
+            }
+          }
+        }
+
+        // Restore arrays
+        ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+        ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+        ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+        ierr = DMRestoreLocalVector(dm, &xlocal); CHKERRQ(ierr);
+
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+      }
+      if (dof[1] != 0) {
+        ierr = DMStagVecSplitToDMDA(dm,x,DMSTAG_LEFT,-dof[1],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecLoad(subX,v);CHKERRQ(ierr); // X_face_x
+
+        ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
+        ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+        ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+
+        // Loop over local domain
+        PetscInt icount = 0;
+        for (idof = 0; idof < dof[1]; idof++) {
+          ierr = DMStagGetLocationSlot(dm, DMSTAG_LEFT, idof, &iloc); CHKERRQ(ierr);
+          for (i = sx; i < sx+nx+1; i++) {
+            for (j = sz; j <sz+nz; j++) {
+              PetscScalar xval;
+              PetscInt    ii;
+              ii = (dof[1]*i+idof)+(dof[1]*j)*(M+1);
+              ierr = VecGetValues(subX,1,&ii,&xval);  
+              xx[j][i][iloc] = xval;
+            }
+          }
+        }
+
+        // Restore arrays
+        ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+        ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+        ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+        ierr = DMRestoreLocalVector(dm, &xlocal); CHKERRQ(ierr);
+
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+
+        ierr = DMStagVecSplitToDMDA(dm,x,DMSTAG_DOWN,-dof[1],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecLoad(subX,v);CHKERRQ(ierr); // X_face_y
+
+        ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
+        ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+        ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+
+        // Loop over local domain
+        for (idof = 0; idof < dof[1]; idof++) {
+          ierr = DMStagGetLocationSlot(dm, DMSTAG_DOWN, idof, &iloc); CHKERRQ(ierr);
+          for (j = sz; j < sz+nz+1; j++) {
+            for (i = sx; i <sx+nx; i++) {
+              PetscScalar xval;
+              PetscInt    ii;
+              ii = (dof[1]*i+idof)+(dof[1]*j)*M;
+              ierr = VecGetValues(subX,1,&ii,&xval);  
+              xx[j][i][iloc] = xval;
+            }
+          }
+        }
+
+        // Restore arrays
+        ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+        ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+        ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+        ierr = DMRestoreLocalVector(dm, &xlocal); CHKERRQ(ierr);
+
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+      }
+      if (dof[2] != 0) {
+        ierr = DMStagVecSplitToDMDA(dm,x,DMSTAG_ELEMENT,-dof[2],&pda,&subX);CHKERRQ(ierr);
+        ierr = VecLoad(subX,v);CHKERRQ(ierr); // X_cell
+        
+        ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
+        ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+        ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+
+        // Loop over local domain
+        for (idof = 0; idof < dof[2]; idof++) {
+          ierr = DMStagGetLocationSlot(dm, DMSTAG_ELEMENT, idof, &iloc); CHKERRQ(ierr);
+          for (j = sz; j <sz+nz; j++) {
+            for (i = sx; i < sx+nx; i++) {
+              PetscScalar xval;
+              PetscInt    ii;
+              ii = (dof[2]*i+idof)+(dof[2]*j)*M;
+              ierr = VecGetValues(subX,1,&ii,&xval); 
+              xx[j][i][iloc] = xval; 
+            }
+          }
+        }
+
+        // Restore arrays
+        ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+        ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+        ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+        ierr = DMRestoreLocalVector(dm, &xlocal); CHKERRQ(ierr);
+
+        ierr = VecDestroy(&subX);CHKERRQ(ierr);
+        ierr = DMDestroy(&pda);CHKERRQ(ierr);
+      }
+    } else if (dim == 3) {
+      SETERRQ(comm,PETSC_ERR_SUP,"Only valid for 2d DM");
+    }
+  }
+
+  ierr = PetscViewerDestroy(&v);CHKERRQ(ierr);
+
+  *_dm = dm;
+  *_x = x;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+DMStagReadBinaryPython - read file written with PetscBinary/python
+
+Input parameters:
+prefix - output name (no file extension)
+
+Output parameters:
+dm - the DMStag object
+X  - associated vector with dm
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "DMStagReadBinaryPython"
+PetscErrorCode DMStagReadBinaryPython(DM *dm,Vec *x,const char prefix[])
+{
+  PetscErrorCode ierr;
+  MPI_Comm comm;
+  PetscMPIInt size;
+  
+  comm = PETSC_COMM_WORLD;
+  ierr = MPI_Comm_size(comm,&size); CHKERRQ(ierr);
+  if (size == 1) {
+    ierr = DMStagReadBinaryPython_SEQ(&(*dm),&(*x),prefix);CHKERRQ(ierr);
+  } else {
+    SETERRQ(comm,PETSC_ERR_SUP,"Parallel read is not yet implemented.");
   }
   PetscFunctionReturn(0);
 }

@@ -48,6 +48,7 @@ TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_effvisc_mms.c \
 		tests/test_dmstagbclist.c \
 		tests/test_dmstagoutput.c \
+		tests/test_dmstagoutput_read.c \
 		tests/test_fdpde.c \
 		tests/test_composite_laplace.c \
 		tests/test_decoupled_convection.c \
