@@ -38,8 +38,10 @@ phi = phi0*(1.0+phi0*cos(m*pi*x)*cos(m*pi*z))
 
 # pressure
 p  = p_s*cos(m*pi*x)*cos(m*pi*z)
-pc = p_s*sin(m*pi*x)*sin(m*pi*z)
-pc = 0.0
+
+# compaction pressure
+# pc = p_s*sin(m*pi*x)*sin(m*pi*z)
+pc = 1.0
 
 psi = psi_s*(1.0-cos(m*pi*x))*(1.0-cos(m*pi*z))
 U   = -U_s*cos(m*pi*x)*cos(m*pi*z)
@@ -56,11 +58,15 @@ uz = curl_psiz + gradUz
 # mobility
 K = (phi/phi0)**n
 
-# viscosity
+# shear viscosity
 eta = 1.0
+
+# bulk viscosity
 # zeta = vzeta*1.0/(phi+phi_min)
 zeta = vzeta
-xi = (zeta-2.0/3.0*eta)
+
+# compaction vicosity
+# xi = (zeta-2.0/3.0*eta)
 xi = 1.0
 
 # Compute equations
@@ -69,13 +75,13 @@ dvxdz = diff(ux,z)
 dvzdz = diff(uz,z)
 dvzdx = diff(uz,x)
 
-dvx2dx = diff(dvxdx,x)
-dvx2dz = diff(dvxdz,z)
-dvz2dxdz = diff(dvzdx,z)
+dvx2dx = diff(eta*dvxdx,x)
+dvx2dz = diff(eta*dvxdz,z)
+dvz2dxdz = diff(eta*dvzdx,z)
 
-dvz2dx = diff(dvzdx,x)
-dvz2dz = diff(dvzdz,z)
-dvx2dzdx = diff(dvxdz,x)
+dvz2dx = diff(eta*dvzdx,x)
+dvz2dz = diff(eta*dvzdz,z)
+dvx2dzdx = diff(eta*dvxdz,x)
 
 divu  = diff(ux,x) + diff(uz,z)
 
@@ -118,3 +124,5 @@ write_c_method(f3pc,'f3pc')
 write_c_method(K,'K')
 write_c_method(phi,'phi')
 write_c_method(zeta,'zeta')
+write_c_method(eta,'eta')
+write_c_method(xi,'xi')

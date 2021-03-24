@@ -159,10 +159,10 @@ PetscErrorCode ContinuityResidual_Darcy3Field(DM dm, Vec xlocal, DM dmcoeff,Vec 
   point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_UP;    point[3].c = SD3_COEFF_FACE_D2;
   ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 4, point, D2); CHKERRQ(ierr);
 
-  for (ii = 0; ii < 4; ii++) { point[0].c = SD3_COEFF_FACE_D3; }
+  for (ii = 0; ii < 4; ii++) { point[ii].c = SD3_COEFF_FACE_D3; }
   ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 4, point, D3); CHKERRQ(ierr);
 
-  for (ii = 0; ii < 4; ii++) { point[0].c = SD3_COEFF_FACE_D4; }
+  for (ii = 0; ii < 4; ii++) { point[ii].c = SD3_COEFF_FACE_D4; }
   ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 4, point, D4); CHKERRQ(ierr);
 
   // Grid spacings - Correct for boundaries

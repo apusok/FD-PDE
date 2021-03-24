@@ -98,7 +98,7 @@ PetscErrorCode JacobianPreallocator_StokesDarcy3Field(FDPDE fd,Mat J)
 
       // Continuity equation - add terms for Darcy
       ierr = ContinuityStencil_StokesDarcy3Field(i,j,Nx,Nz,point); CHKERRQ(ierr);
-      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,13,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,14,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       // Compaction equation
       ierr = CompactionStencil_StokesDarcy3Field(i,j,Nx,Nz,point); CHKERRQ(ierr);
@@ -176,16 +176,17 @@ PetscErrorCode ContinuityStencil_StokesDarcy3Field(PetscInt i,PetscInt j,PetscIn
   point[7].i = i  ; point[7].j = j+1; point[7].loc = DMSTAG_ELEMENT; point[7].c = SD3_DOF_P;
   point[8].i = i  ; point[8].j = j-1; point[8].loc = DMSTAG_ELEMENT; point[8].c = SD3_DOF_P;
 
-  point[9].i  = i+1; point[9].j  = j  ; point[9].loc  = DMSTAG_ELEMENT; point[9].c  = SD3_DOF_PC;
-  point[10].i = i-1; point[10].j = j  ; point[10].loc = DMSTAG_ELEMENT; point[10].c = SD3_DOF_PC;
-  point[11].i = i  ; point[11].j = j+1; point[11].loc = DMSTAG_ELEMENT; point[11].c = SD3_DOF_PC;
-  point[12].i = i  ; point[12].j = j-1; point[12].loc = DMSTAG_ELEMENT; point[12].c = SD3_DOF_PC;
+  point[9].i  = i  ; point[9].j  = j  ; point[9].loc  = DMSTAG_ELEMENT; point[9].c  = SD3_DOF_PC; 
+  point[10].i = i+1; point[10].j = j  ; point[10].loc = DMSTAG_ELEMENT; point[10].c = SD3_DOF_PC;
+  point[11].i = i-1; point[11].j = j  ; point[11].loc = DMSTAG_ELEMENT; point[11].c = SD3_DOF_PC;
+  point[12].i = i  ; point[12].j = j+1; point[12].loc = DMSTAG_ELEMENT; point[12].c = SD3_DOF_PC;
+  point[13].i = i  ; point[13].j = j-1; point[13].loc = DMSTAG_ELEMENT; point[13].c = SD3_DOF_PC;
 
   // correct for boundaries
-  if (i == Nx-1) { point[5] = point[0]; point[9]  = point[0]; }
-  if (i == 0   ) { point[6] = point[0]; point[10] = point[0]; }
-  if (j == Nz-1) { point[7] = point[0]; point[11] = point[0]; }
-  if (j == 0   ) { point[8] = point[0]; point[12] = point[0]; }
+  if (i == Nx-1) { point[5] = point[0]; point[10] = point[9]; }
+  if (i == 0   ) { point[6] = point[0]; point[11] = point[9]; }
+  if (j == Nz-1) { point[7] = point[0]; point[12] = point[9]; }
+  if (j == 0   ) { point[8] = point[0]; point[13] = point[9]; }
 
   PetscFunctionReturn(0);
 }

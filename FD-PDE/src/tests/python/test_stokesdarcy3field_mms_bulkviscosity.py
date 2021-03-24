@@ -116,9 +116,12 @@ for nx in n:
   imod._PETScBinaryLoadReportNames(data)
 
   ex   = data['X_cell']
-  phi  = ex[0::3]
-  K    = ex[1::3]
-  zeta = ex[2::3]
+  dof = 5
+  phi  = ex[0::dof]
+  K    = ex[1::dof]
+  zeta = ex[2::dof]
+  eta  = ex[3::dof]
+  xi   = ex[4::dof]
 
   # Plot data - mms, solution and errors for P, ux, uz
   fig = plt.figure(1,figsize=(16,16))
@@ -142,6 +145,11 @@ for nx in n:
   ax = plt.subplot(4,4,3)
   im = ax.imshow(zeta.reshape(mz,mx),extent=extentc,cmap=cmaps)
   ax.set_title(r'$\zeta$')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.75)
+
+  ax = plt.subplot(4,4,4)
+  im = ax.imshow(xi.reshape(mz,mx),extent=extentc,cmap=cmaps)
+  ax.set_title(r'$\xi$')
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
 
   # second row
@@ -246,6 +254,8 @@ for i in range(0,len(n)):
           hx[i] = float(line[18:36])
     f.close()
 
+print(nrm_pc3)
+
 # Print convergence orders:
 hx_log    = np.log10(n)
 nrm2v_log = np.log10(nrm_v2)
@@ -278,7 +288,7 @@ plt.plot(n,nrm_p2,'ko--',label='2F: P sl = '+str(round(sl2p,5)))
 
 plt.plot(n,nrm_v3,'b+-',label='3F: v sl = '+str(round(sl3v,5)))
 plt.plot(n,nrm_p3,'bo--',label='3F: P sl = '+str(round(sl3p,5)))
-plt.plot(n,nrm_pc3,'b*--',label='3F: Pc sl = '+str(round(sl3pc,5)))
+plt.plot(n,nrm_pc3,'r*--',label='3F: Pc sl = '+str(round(sl3pc,5)))
 
 plt.xscale("log")
 plt.yscale("log")
