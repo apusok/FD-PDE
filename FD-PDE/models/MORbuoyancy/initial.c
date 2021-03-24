@@ -21,6 +21,11 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdHC, void *ctx)
   // half-space cooling model - initialize H, C
   ierr = HalfSpaceCooling_MOR(usr);CHKERRQ(ierr);
 
+  // ierr = PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->par->istep);
+  // ierr = CreateDirectory(usr->par->fdir_out);CHKERRQ(ierr);
+  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHC_HS_ts%d",usr->par->fdir_out,usr->par->istep);
+  // ierr = DMStagViewBinaryPython(usr->dmHC,usr->xHC,fout);CHKERRQ(ierr);
+
   // Update lithostatic pressure
   ierr = FDPDEEnthalpyGetPressure(fdHC,&dmP,&xP);CHKERRQ(ierr);
   ierr = UpdateLithostaticPressure(dmP,xP,usr);CHKERRQ(ierr);
@@ -37,8 +42,14 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdHC, void *ctx)
   ierr = VecCopy(xEnth,usr->xEnth);CHKERRQ(ierr);
   ierr = VecDestroy(&xEnth);CHKERRQ(ierr);
 
+  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xEnth0_ts%d",usr->par->fdir_out,usr->par->istep);
+  // ierr = DMStagViewBinaryPython(usr->dmEnth,usr->xEnth,fout);CHKERRQ(ierr);
+
   // Correct H-S*phi and C=Cs to ensure phi=0
   ierr = CorrectInitialHCZeroPorosity(usr->dmEnth,usr->xEnth,usr);CHKERRQ(ierr);
+
+  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHC_HS2_ts%d",usr->par->fdir_out,usr->par->istep);
+  // ierr = DMStagViewBinaryPython(usr->dmHC,usr->xHC,fout);CHKERRQ(ierr);
 
   // Update Enthalpy again
   ierr = FDPDEEnthalpyUpdateDiagnostics(fdHC,usr->dmHC,usr->xHC,NULL,&xEnth); CHKERRQ(ierr);
@@ -184,7 +195,7 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, iH, iC, icenter;
-  PetscScalar    **coordx,**coordz, ***xx, Cs0, Tm;
+  PetscScalar    **coordx,**coordz, ***xx, Cs0, Tm, xsill;
   Vec            x, xlocal;
   DM             dm;
   PetscErrorCode ierr;
@@ -194,6 +205,7 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
   x   = usr->xHC;
   Cs0 = usr->par->C0;
   Tm  = (usr->par->Tp-T_KELVIN)*exp(-usr->nd->A*usr->nd->zmin)+T_KELVIN;
+  xsill = usr->nd->xsill/usr->par->xsill_extract;
 
   ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -211,7 +223,12 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
       PetscScalar T, nd_T, age, Ta;
 
       // half-space cooling temperature
-      age  = dim_param(coordx[i][icenter],usr->scal->x)/dim_param(usr->nd->U0,usr->scal->v);
+      if (usr->par->extract_mech==0) {
+        age  = dim_param(coordx[i][icenter],usr->scal->x)/dim_param(usr->nd->U0,usr->scal->v);
+      } else if ((usr->par->extract_mech==1) || (usr->par->extract_mech==2)) {
+        age  = dim_param(coordx[i][icenter]-xsill,usr->scal->x)/dim_param(usr->nd->U0,usr->scal->v);
+        if (age <= 0.0) age = dim_param(coordx[0][icenter],usr->scal->x)/dim_param(usr->nd->U0,usr->scal->v);
+      }
       T = HalfSpaceCoolingTemp(Tm,usr->par->Ts,-dim_param(coordz[j][icenter],usr->scal->x),usr->par->kappa,age); 
 
       // check adiabat in the mantle

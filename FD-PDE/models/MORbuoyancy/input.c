@@ -165,8 +165,9 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->Teta0, Teta0, "Teta0", "Temperature at which viscosity is equal to eta0 [K]"); CHKERRQ(ierr);
 
   // melt extraction
-  ierr = PetscBagRegisterInt(bag, &par->extract_mech,0, "extract_mech", "0-sill (dH/dz=0), 1-dike (dP/dx)"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->xsill, 6.0e3, "xsill", "Distance from mid-ocean ridge axis for melt extraction ~6km [m]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->xsill_extract, 1.0, "xsill_extract", "Factor to shorten xsill in the temperature correction xsill/xsill_extract "); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->extract_mech,0, "extract_mech", "0-outflow sill (dH/dz=0), 1-temperature sill (T_up), 2-combined sill (dH/dz=0, T_up), n-dike (dP/dx)"); CHKERRQ(ierr);
 
   // time stepping and advection parameters
   ierr = PetscBagRegisterInt(bag, &par->ts_scheme,2, "ts_scheme", "Time stepping scheme 0-forward euler, 1-backward euler, 2-crank-nicholson"); CHKERRQ(ierr);

@@ -192,36 +192,110 @@ PetscErrorCode FormBCList_HC(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  // DOWN: H = Hp, enthalpy corresponding to the potential temperature at zero porosity (HP)
-  ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    age = dim_param(x_bc[2*k],scalx)/dim_param(u0,scalv);
-    T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age); 
-    Hp = (T - usr->par->T0)/usr->par->DT;
-    value_bc[k] = Hp; 
-    type_bc[k] = BC_DIRICHLET;
-  }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-
-  // UP: H = Hc, xsill: dH/dz = 0, Hc is enthalpy corresponding to 0 deg C
-  ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    age = dim_param(x_bc[2*k],scalx)/dim_param(u0,scalv);
-    T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age); 
-    Hc = (T - usr->par->T0)/usr->par->DT;
-    value_bc[k] = Hc;
-    type_bc[k] = BC_DIRICHLET;
-  }
-
+  // SILL: dH/dz = 0 for x<=xsill, H (half-space) otherwise
   if (usr->par->extract_mech==0) {
+    // DOWN: H = Hp, enthalpy corresponding to the potential temperature at zero porosity (HP)
+    ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+    for (k=0; k<n_bc; k++) {
+      age = dim_param(x_bc[2*k],scalx)/dim_param(u0,scalv);
+      T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age); 
+      Hp = (T - usr->par->T0)/usr->par->DT;
+      value_bc[k] = Hp; 
+      type_bc[k] = BC_DIRICHLET;
+    }
+    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+
+    // UP: H = Hc, xsill: dH/dz = 0, Hc is enthalpy corresponding to 0 deg C
+    ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+    for (k=0; k<n_bc; k++) {
+      age = dim_param(x_bc[2*k],scalx)/dim_param(u0,scalv);
+      T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age); 
+      Hc = (T - usr->par->T0)/usr->par->DT;
+      value_bc[k] = Hc;
+      type_bc[k] = BC_DIRICHLET;
+    }
+
     for (k=0; k<n_bc; k++) {
       if (x_bc[2*k]<=usr->nd->xsill) {
         value_bc[k] = 0.0;
         type_bc[k] = BC_NEUMANN;
       } 
     }
+    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   }
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+
+  // SILL: H (half-space) corrected for xsill
+  if (usr->par->extract_mech==1) {
+    PetscScalar xsill;
+    xsill = usr->nd->xsill/usr->par->xsill_extract;
+
+    // DOWN: H = Hp, enthalpy corresponding to the potential temperature at zero porosity (HP)
+    ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+    for (k=0; k<n_bc; k++) {
+      age = dim_param(x_bc[2*k]-xsill,scalx)/dim_param(u0,scalv);
+      if (age <= 0.0) age = dim_param(x_bc[2*0],scalx)/dim_param(u0,scalv);
+
+      T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age); 
+      Hp = (T - usr->par->T0)/usr->par->DT;
+      value_bc[k] = Hp; 
+      type_bc[k] = BC_DIRICHLET;
+    }
+    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+
+    // UP: H = Hc, xsill: Hc is enthalpy corresponding to 0 deg C
+    ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+
+    for (k=0; k<n_bc; k++) {
+      age = dim_param(x_bc[2*k]-xsill,scalx)/dim_param(u0,scalv);
+      if (age <= 0.0) age = dim_param(x_bc[2*0],scalx)/dim_param(u0,scalv);
+
+      T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age); 
+      Hc = (T - usr->par->T0)/usr->par->DT;
+      value_bc[k] = Hc;
+      type_bc[k] = BC_DIRICHLET;
+    }
+    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  }
+
+  // SILL: dH/dz = 0 for x<=xsill, H (half-space) corrected for xsill otherwise
+  if (usr->par->extract_mech==2) {
+    PetscScalar xsill;
+    xsill = usr->nd->xsill/usr->par->xsill_extract;
+
+    // DOWN: H = Hp, enthalpy corresponding to the potential temperature at zero porosity (HP)
+    ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+    for (k=0; k<n_bc; k++) {
+      age = dim_param(x_bc[2*k]-xsill,scalx)/dim_param(u0,scalv);
+      if (age <= 0.0) age = dim_param(x_bc[2*0],scalx)/dim_param(u0,scalv);
+
+      T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age); 
+      Hp = (T - usr->par->T0)/usr->par->DT;
+      value_bc[k] = Hp; 
+      type_bc[k] = BC_DIRICHLET;
+    }
+    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+
+    // UP: H = Hc, xsill: dH/dz = 0, Hc is enthalpy corresponding to 0 deg C
+    ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+
+    for (k=0; k<n_bc; k++) {
+      age = dim_param(x_bc[2*k]-xsill,scalx)/dim_param(u0,scalv);
+      if (age <= 0.0) age = dim_param(x_bc[2*0],scalx)/dim_param(u0,scalv);
+
+      T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age); 
+      Hc = (T - usr->par->T0)/usr->par->DT;
+      value_bc[k] = Hc;
+      type_bc[k] = BC_DIRICHLET;
+    }
+
+    for (k=0; k<n_bc; k++) {
+      if (x_bc[2*k]<=usr->nd->xsill) {
+        value_bc[k] = 0.0;
+        type_bc[k] = BC_NEUMANN;
+      } 
+    }
+    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  }
 
   // COMPOSITION
   // LEFT: dC/dx = 0

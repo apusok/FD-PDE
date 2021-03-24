@@ -6,8 +6,8 @@
 -zmin -100e3
 -output_file out_model
 
--nx 200
--nz 100
+-nx 100
+-nz 50
 -U0 4
 -K0 1e-7
 -eta0 1e18
@@ -15,13 +15,14 @@
 -Tp 1648
 -potentialtemp 1
 
--tstep 10
--tout 10
+-tstep 1
+-tout 1
 -tmax 1e6
 -dtmax 1e2
 -ts_scheme 1
 
 -xsill 6e3
+-extract_mech 1
 -buoyancy 0
 
 -visc_shear 0

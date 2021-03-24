@@ -34,7 +34,7 @@ typedef struct {
   PetscScalar    k_hat, g, U0;
   PetscScalar    Tp, Ts, cp, La, rho0, drho, alpha, beta, kappa, D;
   PetscScalar    phi0, n, K0, phi_max, eta0, zeta0, mu, eta_min, eta_max, lambda, EoR, Teta0, zetaExp; 
-  PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT, phi_init, phi_cutoff;
+  PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT, phi_init, phi_cutoff, xsill_extract;
   PetscInt       ts_scheme, adv_scheme, tout, tstep, istep;
   PetscScalar    tmax, dtmax;
   PetscInt       out_count, buoyancy, visc_shear, visc_bulk, dim_out, extract_mech, potentialtemp;

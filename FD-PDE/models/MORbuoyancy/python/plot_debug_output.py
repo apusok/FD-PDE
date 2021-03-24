@@ -20,7 +20,7 @@ A = SimStruct()
 A.dim_output = 1
 A.H = 1.0
 A.tout  = 1
-A.tstep = 10
+A.tstep = 1
 A.istep = 0
 
 # # Run test
@@ -28,7 +28,7 @@ A.istep = 0
 # print(str1)
 # os.system(str1)
 
-A.input = 'modelB_00'
+A.input = 'modelA_00'
 A.output_path_dir = '../Figures'
 A.path_dir = '../'
 
@@ -72,7 +72,7 @@ A.nx = A.grid.nx
 A.nz = A.grid.nz
 
 # Get time data
-A.ts, A.sill, A.sol = vizB.parse_log_file(A.input_dir+'log_out.out')
+A.ts, A.sill, A.sol = vizB.parse_log_file(A.input_dir+'log_out_ext1.out')
 
 # Visualize data
 for istep in range(A.istep,A.tstep+1,A.tout):
