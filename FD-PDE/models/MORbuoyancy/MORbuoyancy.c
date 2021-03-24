@@ -191,12 +191,17 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = DMStagSetUniformCoordinatesProduct(usr->dmmatProp,xmin,xmax,zmin,zmax,0.0,0.0);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(usr->dmmatProp,&usr->xmatProp);CHKERRQ(ierr);
 
-  {
+  if (par->restart==0) {
     // Initial conditions - corner flow and half-space cooling model
     PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
     PetscPrintf(PETSC_COMM_WORLD,"# Set initial conditions \n");
     ierr = SetInitialConditions(fdPV,fdHC,usr);CHKERRQ(ierr);
-  } // or load from file
+  } else { 
+    // Restart from file
+    PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+    PetscPrintf(PETSC_COMM_WORLD,"# Restart from timestep %d \n",par->restart);
+    ierr = LoadRestartFromFile(fdPV,fdHC,usr);CHKERRQ(ierr);
+  } 
 
   par->istep++;
 
@@ -215,6 +220,7 @@ PetscErrorCode Numerical_solution(void *ctx)
 
     converged = PETSC_FALSE;
     while (!converged) {
+      PetscPrintf(PETSC_COMM_WORLD,"# Time-step (iteration): dt = %1.12e \n",nd->dt);
       ierr = FDPDESolve(fdHC,&converged);CHKERRQ(ierr);
       if (!converged) { // Reduce dt if not converged
         nd->dt *= 1e-1;
@@ -264,9 +270,9 @@ PetscErrorCode Numerical_solution(void *ctx)
 
     // Update lithostatic pressure 
     ierr = FDPDEEnthalpyGetPressure(fdHC,&dmP,&xP);CHKERRQ(ierr);
-    ierr = UpdateLithostaticPressure(dmP,xP,usr);CHKERRQ(ierr);
     ierr = FDPDEEnthalpyGetPrevPressure(fdHC,&xPprev);CHKERRQ(ierr);
     ierr = VecCopy(xP,xPprev);CHKERRQ(ierr);
+    ierr = UpdateLithostaticPressure(dmP,xP,usr);CHKERRQ(ierr);
     ierr = VecDestroy(&xP);CHKERRQ(ierr);
     ierr = VecDestroy(&xPprev);CHKERRQ(ierr);
     ierr = DMDestroy(&dmP);CHKERRQ(ierr);
@@ -274,13 +280,14 @@ PetscErrorCode Numerical_solution(void *ctx)
     // Compute fluxes out and crustal thickness
     ierr = ComputeSillOutflux(usr); CHKERRQ(ierr);
 
+    // Update time
+    nd->t += nd->dt;
+
     // Output solution
     if (par->istep % par->tout == 0 ) {
       ierr = DoOutput(fdPV,fdHC,usr);CHKERRQ(ierr);
     }
 
-    // Update time
-    nd->t += nd->dt;
     par->istep++;
 
     PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e [yr] dt = %1.12e [yr] \n\n",nd->t*usr->scal->t/SEC_YEAR,nd->dt*usr->scal->t/SEC_YEAR);

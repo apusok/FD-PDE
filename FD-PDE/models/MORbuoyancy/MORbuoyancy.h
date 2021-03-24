@@ -35,7 +35,7 @@ typedef struct {
   PetscScalar    Tp, Ts, cp, La, rho0, drho, alpha, beta, kappa, D;
   PetscScalar    phi0, n, K0, phi_max, eta0, zeta0, mu, eta_min, eta_max, lambda, EoR, Teta0, zetaExp; 
   PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT, phi_init, phi_cutoff, xsill_extract;
-  PetscInt       ts_scheme, adv_scheme, tout, tstep, istep;
+  PetscInt       ts_scheme, adv_scheme, tout, tstep, istep, restart;
   PetscScalar    tmax, dtmax;
   PetscInt       out_count, buoyancy, visc_shear, visc_bulk, visc_bulk1, D1_guard, dim_out, extract_mech, potentialtemp;
   char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH], fdir_out[FNAME_LENGTH]; 
@@ -89,6 +89,7 @@ PetscErrorCode FormBCList_HC(DM, Vec, DMStagBCList, void*);
 
 // initial conditions
 PetscErrorCode SetInitialConditions(FDPDE, FDPDE, void*);
+PetscErrorCode LoadRestartFromFile(FDPDE, FDPDE, void*);
 PetscErrorCode CornerFlow_MOR(void*);
 PetscErrorCode HalfSpaceCooling_MOR(void*);
 PetscErrorCode UpdateLithostaticPressure(DM,Vec,void*);
@@ -130,6 +131,12 @@ PetscErrorCode ScaleSolutionEnthalpy(DM,Vec,Vec*,void*);
 PetscErrorCode ScaleSolutionUniform(DM,Vec,Vec*,PetscScalar);
 PetscErrorCode ScaleSolutionMaterialProp(DM,Vec,Vec*,void*);
 PetscErrorCode ComputeSillOutflux(void*); 
+
+PetscErrorCode RescaleSolutionPV(DM,Vec,Vec*,void*);
+PetscErrorCode RescaleSolutionHC(DM,Vec,Vec*,void*);
+PetscErrorCode RescaleSolutionPorosityTemp(DM,Vec,Vec*,void*);
+PetscErrorCode RescaleSolutionEnthalpy(DM,Vec,Vec*,void*);
+PetscErrorCode RescaleSolutionUniform(DM,Vec,Vec*,PetscScalar);
 
 // ---------------------------------------
 // Useful functions

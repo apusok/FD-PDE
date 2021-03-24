@@ -180,6 +180,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterInt(bag, &par->tstep,1, "tstep", "Maximum no of time steps"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->tmax, 1.0e6, "tmax", "Maximum time [yr]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->dtmax, 1.0e3, "dtmax", "Maximum time step size [yr]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->restart,0, "restart", "Restart from #istep, 0-means start from beginning"); CHKERRQ(ierr);
   par->istep = 0;
 
   // input/output 
@@ -292,9 +293,9 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   par  = usr->par;
 
   // transform to SI units necessary params
-  par->U0    = par->U0*1.0e-2/SEC_YEAR; //[cm/yr] to [m/s]
-  par->tmax  = par->tmax*SEC_YEAR;      //[yr] to [s]
-  par->dtmax = par->dtmax*SEC_YEAR;     //[yr] to [s]
+  nd->U0    = par->U0*1.0e-2/SEC_YEAR; //[cm/yr] to [m/s]
+  nd->tmax  = par->tmax*SEC_YEAR;      //[yr] to [s]
+  nd->dtmax = par->dtmax*SEC_YEAR;     //[yr] to [s]
 
   // non-dimensionalize
   nd->xmin  = nd_param(par->xmin,scal->x);
@@ -302,12 +303,12 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   nd->H     = nd_param(par->H,scal->x);
   nd->L     = nd_param(par->L,scal->x);
   nd->xsill = nd_param(par->xsill,scal->x);
-  nd->U0    = nd_param(par->U0,scal->v);
+  nd->U0    = nd_param(nd->U0,scal->v);
   nd->visc_ratio = nd_param(par->zeta0,scal->eta);
   nd->eta_min = nd_param(par->eta_min,scal->eta);
   nd->eta_max = nd_param(par->eta_max,scal->eta);
-  nd->tmax  = nd_param(par->tmax,scal->t);
-  nd->dtmax = nd_param(par->dtmax,scal->t);
+  nd->tmax  = nd_param(nd->tmax,scal->t);
+  nd->dtmax = nd_param(nd->dtmax,scal->t);
 
   nd->dt    = 0.0;
   nd->t     = 0.0;
