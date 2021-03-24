@@ -94,7 +94,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   PetscInt      nx, nz; 
   PetscScalar   xmin, xmax, zmin, zmax, dt;
   FDPDE         fdPV, fdHC;
-  DM            dmPV, dmHC, dmHCcoeff, dmEnth, dmP;
+  DM            dmPV, dmHC, dmHCcoeff, dmP;
   Vec           xPV, xP, xPprev;
   Vec           xHC, xHCprev, xHCcoeff, xHCcoeffprev,  xEnth;
   PetscBool     converged;
@@ -229,9 +229,8 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = VecDestroy(&xHC);CHKERRQ(ierr);
 
     // Update fields
-    ierr = FDPDEEnthalpyUpdateDiagnostics(fdHC,usr->dmHC,usr->xHC,&dmEnth,&xEnth); CHKERRQ(ierr);
+    ierr = FDPDEEnthalpyUpdateDiagnostics(fdHC,usr->dmHC,usr->xHC,NULL,&xEnth); CHKERRQ(ierr);
     ierr = VecCopy(xEnth,usr->xEnth);CHKERRQ(ierr);
-    ierr = DMDestroy(&dmEnth);CHKERRQ(ierr);
     ierr = VecDestroy(&xEnth);CHKERRQ(ierr);
     
     // Extract porosity and temperature needed for PV

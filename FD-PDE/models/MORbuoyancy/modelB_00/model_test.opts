@@ -16,10 +16,9 @@
 -potentialtemp 1
 
 -tstep 10
--tout 10
+-tout 1
 -tmax 1e6
 -dtmax 1e2
--ts_scheme 2
 
 -xsill 6e3
 -buoyancy 0

@@ -8,8 +8,8 @@
 PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdHC, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
-  DM             dmP, dmHCcoeff;
-  Vec            xP, xPprev, xHCprev, xHCguess, xHCcoeffprev;
+  DM             dmP, dmHCcoeff, dmEnth;
+  Vec            xP, xPprev, xHCprev, xHCguess, xHCcoeffprev, xEnth;
   char           fout[FNAME_LENGTH];
   PetscErrorCode ierr;
   
@@ -31,13 +31,19 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdHC, void *ctx)
   ierr = DMDestroy(&dmP);CHKERRQ(ierr);
 
   // Update Enthalpy diagnostics
-  ierr = FDPDEEnthalpyUpdateDiagnostics(fdHC,usr->dmHC,usr->xHC,&usr->dmEnth,&usr->xEnth); CHKERRQ(ierr);
+  ierr = FDPDEEnthalpyUpdateDiagnostics(fdHC,usr->dmHC,usr->xHC,&dmEnth,&xEnth); CHKERRQ(ierr);
+  usr->dmEnth = dmEnth;
+  ierr = VecDuplicate(xEnth,&usr->xEnth);CHKERRQ(ierr);
+  ierr = VecCopy(xEnth,usr->xEnth);CHKERRQ(ierr);
+  ierr = VecDestroy(&xEnth);CHKERRQ(ierr);
 
   // Correct H-S*phi and C=Cs to ensure phi=0
   ierr = CorrectInitialHCZeroPorosity(usr->dmEnth,usr->xEnth,usr);CHKERRQ(ierr);
 
   // Update Enthalpy again
-  ierr = FDPDEEnthalpyUpdateDiagnostics(fdHC,usr->dmHC,usr->xHC,&usr->dmEnth,&usr->xEnth); CHKERRQ(ierr);
+  ierr = FDPDEEnthalpyUpdateDiagnostics(fdHC,usr->dmHC,usr->xHC,NULL,&xEnth); CHKERRQ(ierr);
+  ierr = VecCopy(xEnth,usr->xEnth);CHKERRQ(ierr);
+  ierr = VecDestroy(&xEnth);CHKERRQ(ierr);
 
   // Extract porosity and temperature and set phi=0.0
   ierr = ExtractTemperaturePorosity(usr->dmEnth,usr->xEnth,usr,PETSC_TRUE);CHKERRQ(ierr);
@@ -467,10 +473,10 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmHC, Vec xphiT,
       pointQ[3].i = i  ; pointQ[3].j = j-1; pointQ[3].loc = ELEMENT; pointQ[3].c = 0;
       pointQ[4].i = i  ; pointQ[4].j = j+1; pointQ[4].loc = ELEMENT; pointQ[4].c = 0;
 
-      if (i == 0   ) pointQ[1] = point[0];
-      if (i == Nx-1) pointQ[2] = point[0];
-      if (j == 0   ) pointQ[3] = point[0];
-      if (j == Nz-1) pointQ[4] = point[0];
+      if (i == 0   ) pointQ[1] = pointQ[0];
+      if (i == Nx-1) pointQ[2] = pointQ[0];
+      if (j == 0   ) pointQ[3] = pointQ[0];
+      if (j == Nz-1) pointQ[4] = pointQ[0];
 
       if (i == 0   ) { xp[0] = coordx[i][icenter];} else { xp[0] = coordx[i-1][icenter];}
       if (i == Nx-1) { xp[2] = coordx[i][icenter];} else { xp[2] = coordx[i+1][icenter];}

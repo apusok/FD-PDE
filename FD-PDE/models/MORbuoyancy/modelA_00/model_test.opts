@@ -19,13 +19,13 @@
 -tout 10
 -tmax 1e6
 -dtmax 1e2
--ts_scheme 2
+-ts_scheme 1
 
 -xsill 6e3
 -buoyancy 0
 
--visc_shear 1
--visc_bulk 2
+-visc_shear 0
+-visc_bulk 1
 
 -phi_init 0.0
 -dim_output 1

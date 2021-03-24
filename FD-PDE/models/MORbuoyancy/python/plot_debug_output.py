@@ -19,8 +19,8 @@ A = SimStruct()
 # Parameters
 A.dim_output = 1
 A.H = 1.0
-A.tout  = 100
-A.tstep = 5000
+A.tout  = 1
+A.tstep = 10
 A.istep = 0
 
 # # Run test
@@ -28,7 +28,7 @@ A.istep = 0
 # print(str1)
 # os.system(str1)
 
-A.input = 'modelA_02'
+A.input = 'modelB_00'
 A.output_path_dir = '../Figures'
 A.path_dir = '../'
 

@@ -224,8 +224,7 @@ PetscScalar BulkViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, Petsc
   } 
 
   zeta = visc_ratio*exp(EoR*(1.0/T-1.0/Teta0))*pow(phi,zetaExp); // T,phi-dep
-  return zeta;
-  // return 1.0/(1.0/zeta + eta0/eta_max) + eta_min/eta0; // harmonic averaging
+  return 1.0/(1.0/zeta + eta0/eta_max) + eta_min/eta0; // harmonic averaging
 }
 
 // ---------------------------------------

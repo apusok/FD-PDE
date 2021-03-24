@@ -200,10 +200,10 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
         pointQ[3].i = i  ; pointQ[3].j = j-1; pointQ[3].loc = ELEMENT; pointQ[3].c = 0;
         pointQ[4].i = i  ; pointQ[4].j = j+1; pointQ[4].loc = ELEMENT; pointQ[4].c = 0;
 
-        if (i == 0   ) pointQ[1] = point[0];
-        if (i == Nx-1) pointQ[2] = point[0];
-        if (j == 0   ) pointQ[3] = point[0];
-        if (j == Nz-1) pointQ[4] = point[0];
+        if (i == 0   ) pointQ[1] = pointQ[0];
+        if (i == Nx-1) pointQ[2] = pointQ[0];
+        if (j == 0   ) pointQ[3] = pointQ[0];
+        if (j == Nz-1) pointQ[4] = pointQ[0];
         ierr = DMStagVecGetValuesStencil(usr->dmHC,xphiTlocal,5,pointQ,Q); CHKERRQ(ierr);
 
         if (i == 0   ) { xp[0] = coordx[i][icenter];} else { xp[0] = coordx[i-1][icenter];}
