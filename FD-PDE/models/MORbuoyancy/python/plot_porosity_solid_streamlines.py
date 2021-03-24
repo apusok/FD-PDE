@@ -14,19 +14,18 @@ class SimStruct:
 # ---------------------------------------
 # Main
 # ---------------------------------------
-A = SimStruct()
-
-A.input = 'modelA_04'
-A.output_path_dir = '../Figures'
-A.path_dir = '../'
+A = SimStruct() # Do print(A.__dict__) to see structure of A
 
 # Parameters
-A.dim_output = 1
-A.H     = 1.0
-A.tout  = 100
-A.tstep = 5000
+A.tout  = 1
+A.tstep = 1
 A.istep = 0
+A.dimensional = 1 # 0-nd, 1-dim
 ext = 'pdf'
+
+A.input = 'modelA_D1guard_bulk1_1e-6'
+A.output_path_dir = '../bulk_viscosity/Figures'
+A.path_dir = '../bulk_viscosity/'
 
 # Create directories
 A.input_dir = A.path_dir+A.input+'/'
@@ -52,29 +51,34 @@ except OSError:
   pass
 
 # Read parameters file and get scaling params
-A.scal, A.lbl = vizB.get_scaling_labels(A,'parameters_file.out','Timestep0',A.dim_output)
+fdir = A.input_dir+'Timestep0'
+vizB.correct_path_load_data(fdir+'/parameters.py')
+A.scal, A.nd, A.geoscal = vizB.parse_parameters_file('parameters',fdir)
+
+# Create labels
+A.lbl = vizB.create_labels()
 
 # Read grid parameters - choose PV file timestep0
-fdir = A.input_dir+'Timestep0'
-fname = 'out_xPV_ts0'
-
-vizB.correct_path_load_data(fdir+'/'+fname+'.py')
+vizB.correct_path_load_data(fdir+'/out_xPV_ts0.py')
 A.grid = vizB.parse_grid_info('out_xPV_ts0',fdir)
+
+# For easy access
 A.dx = A.grid.xc[1]-A.grid.xc[0]
 A.dz = A.grid.zc[1]-A.grid.zc[0]
-# print(A.__dict__)
-
 A.nx = A.grid.nx
 A.nz = A.grid.nz
 
-# Plot sill outflux
-A.ts, A.sill, A.sol = vizB.parse_log_file(A.input_dir+'log_out.out')
+# Get time data
+A.ts, A.sol = vizB.parse_solver_log_file(A.input_dir+'log_out.out')
 
-# Visualize data
+# Loop over timesteps
 for istep in range(A.istep,A.tstep+1,A.tout):
   fdir  = A.input_dir+'Timestep'+str(istep)
 
-  # Correct data
+  vizB.correct_path_load_data(fdir+'/parameters.py')
+  A.nd.istep, A.nd.dt, A.nd.t = vizB.parse_time_info_parameters_file('parameters',fdir)
+
+  # Correct path for data
   vizB.correct_path_load_data(fdir+'/out_xPV_ts'+str(istep)+'.py')
   vizB.correct_path_load_data(fdir+'/out_xHC_ts'+str(istep)+'.py')
   vizB.correct_path_load_data(fdir+'/out_xphiT_ts'+str(istep)+'.py')
@@ -85,11 +89,14 @@ for istep in range(A.istep,A.tstep+1,A.tout):
   A.H, A.C = vizB.parse_HC_file('out_xHC_ts'+str(istep),fdir)
   A.phi, A.T = vizB.parse_HC_file('out_xphiT_ts'+str(istep),fdir)
   A.Vfx, A.Vfz, A.Vx, A.Vz = vizB.parse_Vel_file('out_xVel_ts'+str(istep),fdir)
+
+  # Center velocities and mass divergence
   A.Vscx, A.Vscz = vizB.calc_center_velocities(A.Vsx,A.Vsz,A.nx,A.nz)
   A.Vfcx, A.Vfcz = vizB.calc_center_velocities(A.Vfx,A.Vfz,A.nx,A.nz)
 
   # output
-  vizB.plot_porosity_solid_stream(A,A.output_dir_real+'/out_porosity_solid_stream'+str(istep),istep,ext)
+  if (A.dimensional):
+    vizB.plot_porosity_solid_stream(A,A.output_dir_real+'/out_porosity_solid_stream'+str(istep),istep,ext,A.dimensional)
 
   os.system('rm -r '+A.input_dir+'Timestep'+str(istep)+'/__pycache__')
 

@@ -16,8 +16,7 @@ class SimStruct:
 # ---------------------------------------
 A = SimStruct()
 
-# Plot sill outflux
-A.input = 'modelA_noD1guard_bulk1_1e-12'
+A.input = 'modelA_D1guard_bulk1_1e-6'
 A.output_path_dir = '../bulk_viscosity/Figures'
 A.path_dir = '../bulk_viscosity/'
 
@@ -37,12 +36,8 @@ try:
 except OSError:
   pass
 
-A.ts, A.sill, A.sol = vizB.parse_log_file(A.input_dir+'log_out.out')
-vizB.plot_sill_outflux(A,A.output_dir+'out_sill_flux')
+A.ts, A.sol = vizB.parse_solver_log_file(A.input_dir+'log_out.out')
 vizB.plot_solver_residuals(A,A.output_dir+'out_solver_residuals')
 
-# print(A.sol.PVres[4200:])
-# print(A.sol.dt[4200:])
-# print(A.sill.C[4200:])
-
-
+A.sill = vizB.parse_sillflux_log_file(A.input_dir+'log_out.out')
+vizB.plot_sill_outflux(A,A.output_dir+'out_sillflux')

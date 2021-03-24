@@ -287,9 +287,9 @@ PetscErrorCode DefineScalingParameters(UsrData *usr)
   scal->K = par->K0;
   scal->P = par->drho*par->g*scal->x;
   scal->eta = par->eta0;
-  scal->rho = par->rho0;
-  scal->Gamma = scal->v*scal->rho/scal->x;
-  scal->H = scal->rho*par->cp*par->DT;
+  scal->rho = par->drho;
+  scal->Gamma = scal->v*par->rho0/scal->x;
+  scal->H = par->rho0*par->cp*par->DT;
 
   usr->scal = scal;
 
