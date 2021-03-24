@@ -12,6 +12,7 @@ SRC := 	dmstagbclist.c \
 	fdpde.c \
 	fdpde_stokes_residual.c fdpde_stokes.c \
 	fdpde_stokesdarcy2field_residual.c fdpde_stokesdarcy2field.c \
+	fdpde_stokesdarcy3field_residual.c fdpde_stokesdarcy3field.c \
 	fdpde_advdiff_advect.c fdpde_advdiff_residual.c fdpde_advdiff.c \
 	fdpde_enthalpy_residual.c fdpde_enthalpy.c \
 	fdpde_composite.c composite_prealloc_utils.c \
@@ -40,6 +41,7 @@ TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_stokesdarcy2field_mms_katz_ch13.c \
 		tests/test_stokesdarcy2field_mms_compare_nd.c \
 		tests/test_stokesdarcy2field_mms_porosity.c \
+		tests/test_stokesdarcy3field_mms_bulkviscosity.c \
 		tests/test_advdiff_laplace.c \
 		tests/test_advdiff_elman.c \
 		tests/test_advdiff_advtime.c \
