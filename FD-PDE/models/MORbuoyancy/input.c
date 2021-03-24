@@ -158,7 +158,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   ierr = PetscBagRegisterInt(bag, &par->visc_shear,0, "visc_shear", "0-constant, 1-Temp,porosity dependent"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->visc_bulk,1, "visc_bulk", "0-constant, 1-porosity dependent, 2-Temp,porosity dependent"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->visc_bulk1,1, "visc_bulk1", "1-bulk1, 2-bulk2, 3-bulk3"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->visc_bulk1,1, "visc_bulk1", "0-constant, 1-bulk1, 2-bulk2, 3-bulk3"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->D1_guard,0, "D1_guard", "0-no guard, 1-guard"); CHKERRQ(ierr);
 
   ierr = PetscBagRegisterScalar(bag, &par->phi_init, 1.0e-4, "phi_init", "Extract initial porosity phi*phi_init"); CHKERRQ(ierr);
