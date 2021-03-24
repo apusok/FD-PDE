@@ -37,7 +37,7 @@ typedef struct {
   PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT, phi_init, phi_cutoff, xsill_extract;
   PetscInt       ts_scheme, adv_scheme, tout, tstep, istep;
   PetscScalar    tmax, dtmax;
-  PetscInt       out_count, buoyancy, visc_shear, visc_bulk, dim_out, extract_mech, potentialtemp;
+  PetscInt       out_count, buoyancy, visc_shear, visc_bulk, visc_bulk1, D1_guard, dim_out, extract_mech, potentialtemp;
   char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH], fdir_out[FNAME_LENGTH]; 
 } Params;
 
@@ -106,16 +106,19 @@ PetscScalar TotalEnthalpy(PetscScalar,PetscScalar,PetscScalar);
 PetscScalar PhiRes(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 PetscScalar FluidVelocity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar); 
 PetscScalar BulkVelocity(PetscScalar,PetscScalar,PetscScalar);
-PetscScalar Permeability(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
+PetscScalar Permeability(PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 PetscScalar FluidBuoyancy(PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 PetscScalar HalfSpaceCoolingTemp(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 PetscScalar ShearViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt);  
-PetscScalar BulkViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt);
-PetscScalar CompactionViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt,PetscInt);  
+PetscScalar BulkViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt); 
 PetscScalar Buoyancy(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt); 
 PetscScalar SolidDensity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt);
 PetscScalar FluidDensity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt); 
 PetscScalar BulkDensity(PetscScalar,PetscScalar,PetscScalar,PetscInt); 
+
+PetscScalar BulkViscosity1(PetscScalar,PetscScalar,PetscScalar,PetscScalar); 
+PetscScalar BulkViscosity2(PetscScalar,PetscScalar,PetscScalar); 
+PetscScalar BulkViscosity3(PetscScalar,PetscScalar); 
 
 // utils
 PetscErrorCode DoOutput(FDPDE,FDPDE,void*);

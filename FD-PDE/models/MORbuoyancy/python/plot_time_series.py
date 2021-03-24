@@ -17,9 +17,9 @@ class SimStruct:
 A = SimStruct()
 
 # Plot sill outflux
-A.input = 'modelA_04'
-A.output_path_dir = '../Figures'
-A.path_dir = '../'
+A.input = 'modelA_00_ext2_xsill3'
+A.output_path_dir = '../extraction_mechanism/Figures'
+A.path_dir = '../extraction_mechanism/'
 
 # Create directories
 A.input_dir = A.path_dir+A.input+'/'

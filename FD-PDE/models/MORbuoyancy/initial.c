@@ -517,7 +517,7 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmHC, Vec xphiT,
       
       for (ii = 0; ii < 4; ii++) {
         // permeability
-        K = Permeability(phi[ii],usr->par->phi0,usr->par->phi_max,usr->par->n,usr->par->phi_cutoff);
+        K = Permeability(phi[ii],usr->par->phi0,usr->par->phi_max,usr->par->n);
 
         // fluid buoyancy
         Bf = 0.0; //FluidBuoyancy(T,CF,usr->nd->alpha_s,usr->nd->beta_s);
@@ -595,8 +595,12 @@ PetscErrorCode UpdateMaterialProperties(DM dmHC, Vec xHC, Vec xphiT, DM dmEnth, 
       point.c = 9; ierr = DMStagVecGetValuesStencil(dmEnth,xEnthlocal,1,&point,&CF); CHKERRQ(ierr);
       
       eta  = ShearViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->lambda,scal->eta,nd->eta_min,nd->eta_max,par->visc_shear);
-      zeta = BulkViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,scal->eta,nd->visc_ratio,par->zetaExp,nd->eta_min,nd->eta_max,usr->par->phi_cutoff,par->visc_bulk);
-      K    = Permeability(phi,usr->par->phi0,usr->par->phi_max,usr->par->n,usr->par->phi_cutoff);
+      // zeta = BulkViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,scal->eta,nd->visc_ratio,par->zetaExp,nd->eta_min,nd->eta_max,par->visc_bulk);
+      if (par->visc_bulk1==1) zeta = BulkViscosity1(nd->visc_ratio,phi,par->phi_cutoff,par->zetaExp);
+      if (par->visc_bulk1==2) zeta = BulkViscosity2(nd->visc_ratio,phi,par->zetaExp);
+      if (par->visc_bulk1==3) zeta = BulkViscosity3(nd->visc_ratio,phi);
+      
+      K    = Permeability(phi,usr->par->phi0,usr->par->phi_max,usr->par->n);
        
       rhos = SolidDensity(par->rho0,par->drho,T,CS,nd->alpha_s,nd->beta_s,par->buoyancy);
       rhof = FluidDensity(par->rho0,par->drho,T,CF,nd->alpha_s,nd->beta_s,par->buoyancy);

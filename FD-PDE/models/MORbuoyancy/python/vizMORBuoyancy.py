@@ -195,7 +195,7 @@ def parse_log_file(fname):
       if '# TIMESTEP' in line:
         i0+=1
       
-      if (i0<=tstep):
+      if (i0<tstep):
         if 'SILL FLUXES:' in line:
           sill.t[i0+1] = float(line[19:37])
           sill.F[i0+1] = float(line[82:101])

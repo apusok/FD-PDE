@@ -19,8 +19,8 @@ A = SimStruct()
 # Parameters
 A.dim_output = 1
 A.H = 1.0
-A.tout  = 1
-A.tstep = 1
+A.tout  = 100
+A.tstep = 2000
 A.istep = 0
 
 # # Run test
@@ -28,9 +28,9 @@ A.istep = 0
 # print(str1)
 # os.system(str1)
 
-A.input = 'modelA_00'
-A.output_path_dir = '../Figures'
-A.path_dir = '../'
+A.input = 'modelA_00_ext2_xsill3'
+A.output_path_dir = '../extraction_mechanism/Figures'
+A.path_dir = '../extraction_mechanism/'
 
 # Create directories
 A.input_dir = A.path_dir+A.input+'/'
@@ -72,7 +72,7 @@ A.nx = A.grid.nx
 A.nz = A.grid.nz
 
 # Get time data
-A.ts, A.sill, A.sol = vizB.parse_log_file(A.input_dir+'log_out_ext1.out')
+A.ts, A.sill, A.sol = vizB.parse_log_file(A.input_dir+'log_out.out')
 
 # Visualize data
 for istep in range(A.istep,A.tstep+1,A.tout):

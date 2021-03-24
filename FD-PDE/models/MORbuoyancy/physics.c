@@ -169,14 +169,20 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
 
       { // D1 = delta^2*xi, xi=zeta-2/3eta (center, c=2)
         DMStagStencil point;
-        PetscScalar   T, phi, xi;
+        PetscScalar   T, phi, xi, eta, zeta;
 
         point.i = i; point.j = j; point.loc = ELEMENT;
         point.c = 0; ierr = DMStagVecGetValuesStencil(usr->dmHC,xphiTlocal,1,&point,&phi); CHKERRQ(ierr);
         point.c = 1; ierr = DMStagVecGetValuesStencil(usr->dmHC,xphiTlocal,1,&point,&T); CHKERRQ(ierr);
-        xi = CompactionViscosity(T*par->DT+par->T0, phi, par->EoR, par->Teta0, par->lambda, 
-                                  scal->eta, nd->visc_ratio,par->zetaExp, nd->eta_min, nd->eta_max, 
-                                  par->phi_cutoff, par->visc_shear, par->visc_bulk);
+
+        eta  = ShearViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->lambda,scal->eta,nd->eta_min,nd->eta_max,par->visc_shear);
+        // zeta = BulkViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,scal->eta,nd->visc_ratio,par->zetaExp,nd->eta_min,nd->eta_max,par->visc_bulk);
+        if (par->visc_bulk1==1) zeta = BulkViscosity1(nd->visc_ratio,phi,par->phi_cutoff,par->zetaExp);
+        if (par->visc_bulk1==2) zeta = BulkViscosity2(nd->visc_ratio,phi,par->zetaExp);
+        if (par->visc_bulk1==3) zeta = BulkViscosity3(nd->visc_ratio,phi);
+
+        if ((par->D1_guard) && (phi==0.0)) xi = 0.0; 
+        else  xi = zeta-2.0/3.0*eta;
 
         point.c = 2; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
         c[j][i][idx] = nd->delta*nd->delta*xi;
@@ -220,7 +226,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
         phi[3] = interp1DLin_3Points(coordz[j][inext],zp[0],Q[3],zp[1],Q[0],zp[2],Q[4]); 
 
         for (ii = 0; ii < 4; ii++) { 
-          K[ii]  = Permeability(phi[ii],usr->par->phi0,usr->par->phi_max,usr->par->n,usr->par->phi_cutoff);
+          K[ii]  = Permeability(phi[ii],usr->par->phi0,usr->par->phi_max,usr->par->n);
           Bf[ii] = 0.0; // FluidBuoyancy(T,CF,usr->nd->alpha_s,usr->nd->beta_s);
           D2[ii] = -K[ii];
           D3[ii] = -K[ii]*(1+Bf[ii])*k_hat[ii];

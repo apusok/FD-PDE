@@ -6,8 +6,8 @@
 -zmin -100e3
 -output_file out_model
 
--nx 100
--nz 50
+-nx 200
+-nz 100
 -U0 4
 -K0 1e-7
 -eta0 1e18
@@ -22,13 +22,14 @@
 -ts_scheme 1
 
 -xsill 6e3
--extract_mech 1
+-extract_mech 0
 -buoyancy 0
 
 -visc_shear 0
 -visc_bulk 1
 
 -phi_init 0.0
+-phi_cutoff 1e-6
 -dim_output 1
 
 # solver options
