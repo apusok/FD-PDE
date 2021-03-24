@@ -22,9 +22,8 @@ A = SimStruct()
 
 # Parameters
 A.modelopts    = 'model_test.opts'
-A.nx           = 20
-A.nz           = 10
-A.tstep        = 1
+A.nx           = 200
+A.nz           = 100
 A.K0           = 1.0e-9
 A.zeta0        = 1.0e20
 A.buoyancy     = 0 # 0=off, 1=phi, 2=phi-C, 3=phi-C-T
@@ -35,13 +34,20 @@ A.dim_output   = 1 # 0 - nondimensional, 1 - dimensional
 A.debug_output = 1 # 0 - no debug output, 1 - debug output
 A.xsill        = 6e3
 
+A.tmax  = 2.0e6 # yr
+A.tout  = 1
+A.tstep = 5
+
 A.Tp = 1648 #1573 #1623
+A.potentialtemp = 0
 
 # Run test
 str1 = '../MORbuoyancy.app'+ \
     ' -options_file '+A.modelopts+ \
     ' -nx '+str(A.nx)+' -nz '+str(A.nz)+ \
     ' -tstep '+str(A.tstep)+ \
+    ' -tout '+str(A.tout)+ \
+    ' -tmax '+str(A.tmax)+ \
     ' -K0 '+str(A.K0)+ \
     ' -zeta0 '+str(A.zeta0)+ \
     ' -xsill '+str(A.xsill)+ \
@@ -51,6 +57,7 @@ str1 = '../MORbuoyancy.app'+ \
     ' -Tp '+str(A.Tp)+ \
     ' -dim_output '+str(A.dim_output)+ \
     ' -k_hat '+str(A.k_hat)+ \
+    ' -potentialtemp '+str(A.potentialtemp)+ \
     ' -log_view > log_run.out'
 print(str1)
 os.system(str1)
@@ -101,7 +108,7 @@ for istep in range(0,A.tstep+1):
 
   # nice output
   vizB.plot_porosity_contours(A,'out_porosity_contours_ts'+str(istep),istep)
-  # vizB.plot_temperature_slices(A,'out_temp_slices_ts'+str(istep),istep)
+  vizB.plot_temperature_slices(A,'out_temp_slices_ts'+str(istep),istep)
 
   # debug output
   if (A.debug_output):

@@ -37,7 +37,7 @@ typedef struct {
   PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT, phi_init;
   PetscInt       ts_scheme, adv_scheme, tout, tstep, istep;
   PetscScalar    tmax, dtmax;
-  PetscInt       out_count, buoyancy, visc, dim_out, extract_mech;
+  PetscInt       out_count, buoyancy, visc, dim_out, extract_mech, potentialtemp;
   char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH], fdir_out[FNAME_LENGTH]; 
 } Params;
 
@@ -78,6 +78,7 @@ PetscErrorCode NondimensionalizeParameters(UsrData*);
 PetscErrorCode Numerical_solution(void*);
 PetscErrorCode FormCoefficient_PV(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormCoefficient_HC(FDPDE, DM, Vec, DM, Vec, void*);
+PetscErrorCode FormCoefficient_HC_RealTemp(FDPDE, DM, Vec, DM, Vec, void*);
 EnthEvalErrorCode Form_Enthalpy(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*); 
 PetscErrorCode Form_PotentialTemperature(PetscScalar,PetscScalar,PetscScalar*,void*); 
 PetscErrorCode ComputeGamma(DM,Vec,DM,Vec,DM,Vec,Vec,void*); 

@@ -86,7 +86,7 @@ PetscErrorCode Porosity(PetscScalar H, PetscScalar C, PetscScalar P, PetscScalar
       if      ((fm<0.0)==(fnew>0.0)) { xh = ans; fh = fnew; xl = xm; fl = fm; } 
       else if ((fl<0.0)==(fnew>0.0)) { xh = ans; fh = fnew; }
       else if ((fh<0.0)==(fnew>0.0)) { xl = ans; fl = fnew; }
-      else                           { SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_LIB, "COuld not calculate porosity"); }
+      else                           { SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_LIB, "Could not calculate porosity"); }
       if (fabs(xh-xl) <= XACC) {
         *phi = ans;
         break;

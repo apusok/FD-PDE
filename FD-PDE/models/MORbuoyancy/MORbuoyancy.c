@@ -29,7 +29,7 @@ const char bc_description_PV[] =
 
 const char coeff_description_HC[] =
 "  << Energy and Composition (Enthalpy-HC) Coefficients >> \n"
-"  A1 = e^Az, B1 = -S, C1 = -1/PeT*e^Az, D1 = 0  \n"
+"  A1 = e^(-Az), B1 = -S, C1 = -1/PeT*e^(-Az), D1 = 0  \n"
 "  A2 = 1, B2 = 1, C2 = -1/PeC, D2 = 0  \n"
 "  v, vs, vf - Stokes-Darcy velocity \n";
 
@@ -133,9 +133,15 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ENTHALPY,&fdHC);CHKERRQ(ierr);
   ierr = FDPDESetUp(fdHC);CHKERRQ(ierr);
   ierr = FDPDESetFunctionBCList(fdHC,FormBCList_HC,bc_description_HC,usr); CHKERRQ(ierr);
-  ierr = FDPDESetFunctionCoefficient(fdHC,FormCoefficient_HC,coeff_description_HC,usr); CHKERRQ(ierr);
+
+  if (usr->par->potentialtemp) {
+    ierr = FDPDESetFunctionCoefficient(fdHC,FormCoefficient_HC,coeff_description_HC,usr); CHKERRQ(ierr);
+    ierr = FDPDEEnthalpySetPotentialTemp(fdHC,Form_PotentialTemperature,usr);CHKERRQ(ierr);
+  } else {
+    ierr = FDPDESetFunctionCoefficient(fdHC,FormCoefficient_HC_RealTemp,coeff_description_HC,usr); CHKERRQ(ierr);
+  }
+
   ierr = FDPDEEnthalpySetEnthalpyMethod(fdHC,Form_Enthalpy,enthalpy_method_description,usr);CHKERRQ(ierr);
-  ierr = FDPDEEnthalpySetPotentialTemp(fdHC,Form_PotentialTemperature,usr);CHKERRQ(ierr);
   ierr = SNESSetFromOptions(fdHC->snes); CHKERRQ(ierr);
   ierr = FDPDEView(fdHC); CHKERRQ(ierr);
   ierr = SNESSetOptionsPrefix(fdHC->snes,"hc_"); CHKERRQ(ierr);
@@ -234,12 +240,6 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
     ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
     ierr = VecDestroy(&xPV);CHKERRQ(ierr);
-
-    // PetscPrintf(PETSC_COMM_WORLD,"# JACOBIAN \n");
-    // ierr = MatView(fdPV->J,PETSC_VIEWER_STDOUT_WORLD);
-
-    // PetscPrintf(PETSC_COMM_WORLD,"# RESIDUAL \n");
-    // ierr = VecView(fdPV->r,PETSC_VIEWER_STDOUT_WORLD);
 
     // Update material properties for output
     ierr = UpdateMaterialProperties(usr->dmHC,usr->xHC,usr->xphiT,usr->dmEnth,usr->xEnth,usr->dmmatProp,usr->xmatProp,usr);CHKERRQ(ierr);

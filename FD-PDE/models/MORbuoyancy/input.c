@@ -129,6 +129,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->alpha, 3.0e-5, "alpha", "Coefficient of thermal expansion [1/K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->beta, 0.0, "beta", "Coefficient of compositional expansion [1/wt. frac.]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->buoyancy, 0, "buoyancy", "Level of matrix buoyancy incorporation: 0=off, 1=phi, 2=phi-C, 3=phi-C-T"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->potentialtemp,1, "potentialtemp", "0-use real temperature, 1-use potential temp in energy equation"); CHKERRQ(ierr);
 
   // phase diagram
   ierr = PetscBagRegisterScalar(bag, &par->C0, 0.85, "C0", "Reference composition [wt. frac.]"); CHKERRQ(ierr);
