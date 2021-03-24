@@ -643,7 +643,7 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdHC, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
   DM             dm, dmEnth, dmP, dmHCcoeff;
-  Vec            x, xP, xPprev, xHCprev, xHCguess,xHCcoeff, xHCcoeffprev,xscal;
+  Vec            x, xP, xPprev, xHCprev, xHCguess,xHCcoeff, xHCcoeffprev;
   char           fout[FNAME_LENGTH];
   PetscViewer    viewer;
   PetscErrorCode ierr;
@@ -660,38 +660,19 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdHC, void *ctx)
   usr->par->restart = usr->nd->istep;
   ierr = InputPrintData(usr);CHKERRQ(ierr);
 
-  // // scaling parameters
-  // ierr = DefineScalingParameters(usr); CHKERRQ(ierr);
-  // ierr = NondimensionalizeParameters(usr); CHKERRQ(ierr);
-  // usr->nd->istep = usr->par->restart;
-
   // load PV data
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPV_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  if (usr->par->dim_out) { 
-    ierr = RescaleSolutionPV(dm,x,&xscal,usr);CHKERRQ(ierr); 
-    ierr = VecCopy(xscal,usr->xPV);CHKERRQ(ierr);
-    ierr = VecCopy(xscal,fdPV->xguess);CHKERRQ(ierr);
-    ierr = VecDestroy(&xscal); CHKERRQ(ierr);
-  } else {
-    ierr = VecCopy(x,usr->xPV);CHKERRQ(ierr);
-    ierr = VecCopy(x,fdPV->xguess);CHKERRQ(ierr);
-  }
+  ierr = VecCopy(x,usr->xPV);CHKERRQ(ierr);
+  ierr = VecCopy(x,fdPV->xguess);CHKERRQ(ierr);
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
   
   // load HC data
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHC_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  if (usr->par->dim_out) { 
-    ierr = RescaleSolutionHC(dm,x,&xscal,usr);CHKERRQ(ierr); 
-    ierr = VecCopy(xscal,usr->xHC);CHKERRQ(ierr);
-    ierr = VecCopy(xscal,fdHC->xguess);CHKERRQ(ierr);
-    ierr = VecDestroy(&xscal); CHKERRQ(ierr);
-  } else {
-    ierr = VecCopy(x,usr->xHC);CHKERRQ(ierr);
-    ierr = VecCopy(x,fdHC->xguess);CHKERRQ(ierr);
-  }
+  ierr = VecCopy(x,usr->xHC);CHKERRQ(ierr);
+  ierr = VecCopy(x,fdHC->xguess);CHKERRQ(ierr);
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
 
@@ -730,49 +711,28 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdHC, void *ctx)
   ierr = DMStagReadBinaryPython(&dmEnth,&x,fout);CHKERRQ(ierr);
   usr->dmEnth = dmEnth;
   ierr = VecDuplicate(x,&usr->xEnth);CHKERRQ(ierr);
-  if (usr->par->dim_out) { 
-    ierr = RescaleSolutionEnthalpy(dmEnth,x,&xscal,usr);CHKERRQ(ierr); 
-    ierr = VecCopy(xscal,usr->xEnth);CHKERRQ(ierr);
-    ierr = VecDestroy(&xscal); CHKERRQ(ierr);
-  } else {
-    ierr = VecCopy(x,usr->xEnth);CHKERRQ(ierr);
-  }
+  ierr = VecCopy(x,usr->xEnth);CHKERRQ(ierr);
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   
 
   // load porosity and temperature
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xphiT_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  if (usr->par->dim_out) { 
-    ierr = RescaleSolutionPorosityTemp(dm,x,&xscal,usr);CHKERRQ(ierr); 
-    ierr = VecCopy(xscal,usr->xphiT);CHKERRQ(ierr);
-    ierr = VecDestroy(&xscal); CHKERRQ(ierr);
-  } else {
-    ierr = VecCopy(x,usr->xphiT);CHKERRQ(ierr);
-  }
+  ierr = VecCopy(x,usr->xphiT);CHKERRQ(ierr);
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
 
   // load velocity
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xVel_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  if (usr->par->dim_out) { 
-    ierr = RescaleSolutionUniform(dm,x,&xscal,usr->scal->v);CHKERRQ(ierr); 
-    ierr = VecCopy(xscal,usr->xVel);CHKERRQ(ierr);
-    ierr = VecDestroy(&xscal); CHKERRQ(ierr);
-  } else {
-    ierr = VecCopy(x,usr->xVel);CHKERRQ(ierr);
-  }
+  ierr = VecCopy(x,usr->xVel);CHKERRQ(ierr);
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
 
   // initialize guess and previous solution in fdHC
   ierr = FDPDEEnthalpyGetPrevSolution(fdHC,&xHCprev);CHKERRQ(ierr);
   ierr = VecCopy(usr->xHC,xHCprev);CHKERRQ(ierr);
-  // ierr = FDPDEGetSolutionGuess(fdHC,&xHCguess);CHKERRQ(ierr);
-  // ierr = VecCopy(xHCprev,xHCguess);CHKERRQ(ierr);
   ierr = VecDestroy(&xHCprev);CHKERRQ(ierr);
-  // ierr = VecDestroy(&xHCguess);CHKERRQ(ierr);
 
   // load coefficient structure
   ierr = FDPDEGetCoefficient(fdHC,&dmHCcoeff,&xHCcoeff);CHKERRQ(ierr);

@@ -30,7 +30,6 @@
 
 -phi_init 0.0
 -phi_min 1e-6
--dim_output 1
 
 # solver options
 -hc_pc_type lu 

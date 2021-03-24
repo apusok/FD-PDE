@@ -37,7 +37,7 @@ typedef struct {
   PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT, phi_init, phi_min, xsill_extract;
   PetscInt       ts_scheme, adv_scheme, tout, tstep, restart;
   PetscScalar    tmax, dtmax;
-  PetscInt       buoyancy, visc_shear, visc_bulk, visc_bulk1, D1_guard, dim_out, extract_mech, potentialtemp;
+  PetscInt       buoyancy, visc_shear, visc_bulk, visc_bulk1, D1_guard, extract_mech, potentialtemp;
   char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH], fdir_out[FNAME_LENGTH]; 
   PetscBool      start_run;
 } Params;
@@ -128,19 +128,7 @@ PetscErrorCode DoOutput(FDPDE,FDPDE,void*);
 PetscErrorCode CreateDirectory(const char*);
 PetscErrorCode OutputParameters(void*); 
 PetscErrorCode LoadParametersFromFile(void*);
-PetscErrorCode ScaleSolutionPV(DM,Vec,Vec*,void*);
-PetscErrorCode ScaleSolutionHC(DM,Vec,Vec*,void*);
-PetscErrorCode ScaleSolutionPorosityTemp(DM,Vec,Vec*,void*);
-PetscErrorCode ScaleSolutionEnthalpy(DM,Vec,Vec*,void*);
-PetscErrorCode ScaleSolutionUniform(DM,Vec,Vec*,PetscScalar);
-PetscErrorCode ScaleSolutionMaterialProp(DM,Vec,Vec*,void*);
 PetscErrorCode ComputeSillOutflux(void*); 
-
-PetscErrorCode RescaleSolutionPV(DM,Vec,Vec*,void*);
-PetscErrorCode RescaleSolutionHC(DM,Vec,Vec*,void*);
-PetscErrorCode RescaleSolutionPorosityTemp(DM,Vec,Vec*,void*);
-PetscErrorCode RescaleSolutionEnthalpy(DM,Vec,Vec*,void*);
-PetscErrorCode RescaleSolutionUniform(DM,Vec,Vec*,PetscScalar);
 
 // ---------------------------------------
 // Useful functions

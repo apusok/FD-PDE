@@ -25,9 +25,7 @@
 
 -visc_shear 1
 -visc_bulk 2
-
 -phi_init 0.0
--dim_output 1
 
 # solver options
 -hc_pc_type lu 

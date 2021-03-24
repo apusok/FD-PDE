@@ -17,13 +17,13 @@ solver_opts = ' -hc_pc_type lu -hc_pc_factor_mat_solver_type umfpack -hc_pc_fact
               ' -hc_snes_monitor -hc_snes_converged_reason -hc_ksp_converged_reason -hc_ksp_monitor'
 
 # Non-dimensional
-str1 = '../MORbuoyancy.app '+model_opts+solver_opts+' -dim_output 0 > log_out_nd_orig.out'
+str1 = '../MORbuoyancy.app '+model_opts+solver_opts+' > log_out_nd_orig.out'
 print('nd_orig')
 os.system(str1)
-str1 = '../MORbuoyancy.app '+model_opts+solver_opts+' -dim_output 0 -restart 1 > log_out_nd_r1.out'
+str1 = '../MORbuoyancy.app '+model_opts+solver_opts+' -restart 1 > log_out_nd_r1.out'
 print('nd_r1')
 os.system(str1)
-str1 = '../MORbuoyancy.app '+model_opts+solver_opts+' -dim_output 0 -restart 5 > log_out_nd_r5.out'
+str1 = '../MORbuoyancy.app '+model_opts+solver_opts+' -restart 5 > log_out_nd_r5.out'
 print('nd_r5')
 os.system(str1)
 

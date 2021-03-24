@@ -57,7 +57,6 @@ str1 = '../MORbuoyancy.app'+ \
     ' -visc '+str(A.visc)+ \
     ' -phi_init '+str(A.phi_init)+ \
     ' -Tp '+str(A.Tp)+ \
-    ' -dim_output '+str(A.dim_output)+ \
     ' -k_hat '+str(A.k_hat)+ \
     ' -potentialtemp '+str(A.potentialtemp)+ \
     ' -log_view > log_run.out'
