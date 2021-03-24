@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rc
 import importlib
+import os
 
 # Some new font
 rc('font',**{'family':'serif','serif':['Times new roman']})
@@ -122,6 +123,39 @@ def get_scaling_labels(A,fname,fdir,dim):
     return 0.0
 
 # ---------------------------------------
+def correct_path_load_data(fname):
+  try: # try to open file .py file
+    fname_new = fname[:-3]+'_new.py'
+
+    # Copy new file
+    f = open(fname, 'r')
+    f_new = open(fname_new, 'w')
+    line_prev = ''
+
+    for line in f:
+      if 'def _PETScBinaryFilePrefix():' in line_prev:
+        line = '  return "'+fname[:-3]+'"\n'
+
+      if '  filename = ' in line:
+        line = '  filename = "'+fname[:-3]+'.pbin"\n'
+      
+      if '  print(\'Filename:' in line:
+        line = '  print(\'Filename: '+fname[:-3]+'.pbin\')\n'
+
+      f_new.write(line)
+      line_prev = line
+
+    f.close()
+    f_new.close()
+
+    # remove new file
+    os.system('cp '+fname_new+' '+fname)
+    os.system('rm '+fname_new)
+
+  except OSError:
+    print('Cannot open:', fname)
+
+# ---------------------------------------
 def parse_log_file(fname):
   tstep = 0
   try: # try to open directory
@@ -138,7 +172,7 @@ def parse_log_file(fname):
     f.close()
     tstep = i0
 
-    if (finished_sim): 
+    if (finished_sim==0): 
       tstep -= 1
 
     # variables - sill
@@ -182,8 +216,8 @@ def parse_log_file(fname):
 
     return tstep, sill, sol
   except OSError:
-    print('Cannot open:', fdir)
-    return tstep
+    print('Cannot open:', fname)
+    return 0, 0, 0
 
 # ---------------------------------
 def parse_grid_info(fname,fdir):
@@ -1252,21 +1286,21 @@ def plot_solver_residuals(A,fname):
 
   ax = plt.subplot(3,1,1)
   pl = ax.plot(np.arange(1,A.ts,1), np.log10(A.sol.HCres[1:-1]), linewidth=0.1)
-  pl1 = ax.plot(1420, np.log10(A.sol.HCres[1421]), 'r*')
+  # pl1 = ax.plot(1420, np.log10(A.sol.HCres[1421]), 'r*')
   plt.grid(True)
   ax.set_xlabel('Timestep')
   ax.set_ylabel('log10(HC residual)')
 
   ax = plt.subplot(3,1,2)
   pl = ax.plot(np.arange(1,A.ts,1), np.log10(A.sol.PVres[1:-1]), linewidth=0.1)
-  pl1 = ax.plot(1420, np.log10(A.sol.PVres[1421]), 'r*')
+  # pl1 = ax.plot(1420, np.log10(A.sol.PVres[1421]), 'r*')
   plt.grid(True)
   ax.set_xlabel('Timestep')
   ax.set_ylabel('log10(PV residual)')
 
   ax = plt.subplot(3,1,3)
   pl = ax.plot(np.arange(1,A.ts,1), np.log10(A.sol.dt[1:-1]), linewidth=0.1)
-  pl1 = ax.plot(1420, np.log10(A.sol.dt[1421]), 'r*')
+  # pl1 = ax.plot(1420, np.log10(A.sol.dt[1421]), 'r*')
   plt.grid(True)
   ax.set_xlabel('Timestep')
   ax.set_ylabel('log10(dt)')

@@ -20,8 +20,6 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdHC, void *ctx)
 
   // half-space cooling model - initialize H, C
   ierr = HalfSpaceCooling_MOR(usr);CHKERRQ(ierr);
-  // ierr = PetscSNPrintf(fout,sizeof(fout),"out_xHC_halfspace_ts%d",usr->par->istep);
-  // ierr = DMStagViewBinaryPython(usr->dmHC,usr->xHC,fout);CHKERRQ(ierr);
 
   // Update lithostatic pressure
   ierr = FDPDEEnthalpyGetPressure(fdHC,&dmP,&xP);CHKERRQ(ierr);
@@ -496,13 +494,13 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmHC, Vec xphiT,
       
       for (ii = 0; ii < 4; ii++) {
         // permeability
-        K = Permeability(phi[ii],usr->par->phi0,usr->par->phi_max,usr->par->n);
+        K = Permeability(phi[ii],usr->par->phi0,usr->par->phi_max,usr->par->n,usr->par->phi_cutoff);
 
         // fluid buoyancy
         Bf = 0.0; //FluidBuoyancy(T,CF,usr->nd->alpha_s,usr->nd->beta_s);
 
         // fluid velocity
-        vf = FluidVelocity(vs[ii],phi[ii],gradP[ii],Bf,K,k_hat[ii]);
+        vf = FluidVelocity(vs[ii],phi[ii],gradP[ii],Bf,K,k_hat[ii],usr->par->phi_cutoff);
         ierr = DMStagGetLocationSlot(dmVel, point[ii].loc,0, &idx); CHKERRQ(ierr);
 
         if ((i==0) && (point[ii].loc == LEFT)) vf = 0.0; // vfx on left boundary
@@ -573,9 +571,9 @@ PetscErrorCode UpdateMaterialProperties(DM dmHC, Vec xHC, Vec xphiT, DM dmEnth, 
       point.c = 7; ierr = DMStagVecGetValuesStencil(dmEnth,xEnthlocal,1,&point,&CS); CHKERRQ(ierr);
       point.c = 9; ierr = DMStagVecGetValuesStencil(dmEnth,xEnthlocal,1,&point,&CF); CHKERRQ(ierr);
       
-      eta  = ShearViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->lambda,scal->eta,par->eta_min,par->eta_max,par->visc_shear);
-      zeta = BulkViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,nd->visc_ratio,par->zetaExp,scal->eta,par->eta_min,par->eta_max,par->visc_bulk);
-      K    = Permeability(phi,usr->par->phi0,usr->par->phi_max,usr->par->n);
+      eta  = ShearViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->lambda,scal->eta,nd->eta_min,nd->eta_max,par->visc_shear);
+      zeta = BulkViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,scal->eta,nd->visc_ratio,par->zetaExp,nd->eta_min,nd->eta_max,usr->par->phi_cutoff,par->visc_bulk);
+      K    = Permeability(phi,usr->par->phi0,usr->par->phi_max,usr->par->n,usr->par->phi_cutoff);
        
       rhos = SolidDensity(par->rho0,par->drho,T,CS,nd->alpha_s,nd->beta_s,par->buoyancy);
       rhof = FluidDensity(par->rho0,par->drho,T,CF,nd->alpha_s,nd->beta_s,par->buoyancy);

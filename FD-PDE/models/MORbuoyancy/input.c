@@ -158,6 +158,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterInt(bag, &par->visc_shear,0, "visc_shear", "0-constant, 1-Temp,porosity dependent"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->visc_bulk,1, "visc_bulk", "0-constant, 1-porosity dependent, 2-Temp,porosity dependent"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->phi_init, 1.0e-4, "phi_init", "Extract initial porosity phi*phi_init"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->phi_cutoff, PHI_CUTOFF, "phi_cutoff", "Cutoff porosity"); CHKERRQ(ierr);
 
   dsol = par->cp*(par->Tp-par->T0)/par->gamma_inv*1e9/par->g/(par->rho0*par->cp - par->Tp*par->alpha/par->gamma_inv*1e9);
   Teta0 = par->Tp*exp(dsol*par->alpha*par->g/par->cp);
@@ -299,6 +300,8 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   nd->xsill = nd_param(par->xsill,scal->x);
   nd->U0    = nd_param(par->U0,scal->v);
   nd->visc_ratio = nd_param(par->zeta0,scal->eta);
+  nd->eta_min = nd_param(par->eta_min,scal->eta);
+  nd->eta_max = nd_param(par->eta_max,scal->eta);
   nd->tmax  = nd_param(par->tmax,scal->t);
   nd->dtmax = nd_param(par->dtmax,scal->t);
 

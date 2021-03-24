@@ -191,10 +191,12 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = DMStagSetUniformCoordinatesProduct(usr->dmmatProp,xmin,xmax,zmin,zmax,0.0,0.0);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(usr->dmmatProp,&usr->xmatProp);CHKERRQ(ierr);
 
-  // Initial conditions - corner flow and half-space cooling model
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-  PetscPrintf(PETSC_COMM_WORLD,"# Set initial conditions \n");
-  ierr = SetInitialConditions(fdPV,fdHC,usr);CHKERRQ(ierr);
+  {
+    // Initial conditions - corner flow and half-space cooling model
+    PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+    PetscPrintf(PETSC_COMM_WORLD,"# Set initial conditions \n");
+    ierr = SetInitialConditions(fdPV,fdHC,usr);CHKERRQ(ierr);
+  } // or load from file
 
   par->istep++;
 

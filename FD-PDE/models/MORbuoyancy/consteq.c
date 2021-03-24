@@ -121,9 +121,9 @@ PetscScalar PhiRes(PetscScalar phi, PetscScalar H, PetscScalar C, PetscScalar P,
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FluidVelocity"
-PetscScalar FluidVelocity(PetscScalar vs, PetscScalar phi, PetscScalar gradP, PetscScalar Bf, PetscScalar K, PetscScalar k_hat) 
+PetscScalar FluidVelocity(PetscScalar vs, PetscScalar phi, PetscScalar gradP, PetscScalar Bf, PetscScalar K, PetscScalar k_hat, PetscScalar phi_cutoff) 
 { 
-  if (phi < PHI_CUTOFF) return 0.0;
+  if (phi < phi_cutoff) return 0.0;
   else                  return vs-K/phi*(gradP+(1+Bf)*k_hat);
 }
 
@@ -142,9 +142,9 @@ PetscScalar BulkVelocity(PetscScalar vs, PetscScalar vf, PetscScalar phi)
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "Permeability"
-PetscScalar Permeability(PetscScalar phi, PetscScalar phi0, PetscScalar phi_max, PetscScalar n) 
+PetscScalar Permeability(PetscScalar phi, PetscScalar phi0, PetscScalar phi_max, PetscScalar n, PetscScalar phi_cutoff) 
 { 
-  if (phi < PHI_CUTOFF) return 0.0;
+  if (phi < phi_cutoff) return 0.0;
   // return pow(phi/phi0,n);
   return pow(pow(phi/phi0,-n)+pow(phi_max/phi0,-n),-1); // harmonic averaging
 }
@@ -189,7 +189,7 @@ PetscScalar HalfSpaceCoolingTemp(PetscScalar Tm, PetscScalar T0, PetscScalar z, 
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "ShearViscosity"
-PetscScalar ShearViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar lambda, PetscScalar eta0, PetscScalar eta_min, PetscScalar eta_max,PetscInt visc) 
+PetscScalar ShearViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar lambda, PetscScalar eta0, PetscScalar eta_min, PetscScalar eta_max, PetscInt visc) 
 { 
   PetscScalar eta;
   if (visc == 0) { // constant 
@@ -197,7 +197,6 @@ PetscScalar ShearViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, Pets
     return eta;
   } 
 
-  // eta = exp(EoR*(1.0/T-1.0/Teta0)); // T-dep
   eta = exp(EoR*(1.0/T-1.0/Teta0)-lambda*phi); // T,phi-dep
   return 1.0/(1.0/eta + eta0/eta_max) + eta_min/eta0; // harmonic averaging
 }
@@ -207,9 +206,12 @@ PetscScalar ShearViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, Pets
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "BulkViscosity"
-PetscScalar BulkViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar visc_ratio, PetscScalar zetaExp, PetscScalar eta0, PetscScalar eta_min, PetscScalar eta_max,PetscInt visc) 
+PetscScalar BulkViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar eta0, PetscScalar visc_ratio, PetscScalar zetaExp, PetscScalar eta_min, PetscScalar eta_max, PetscScalar phi_cutoff, PetscInt visc) 
 { 
   PetscScalar zeta;
+
+  // below this value, it is assumed div(vs) = curly(P)/(zeta-2/3eta) = 0
+  if (phi < phi_cutoff) phi = phi_cutoff; 
 
   if (visc == 0) { // constant 
     zeta = visc_ratio;
@@ -221,10 +223,26 @@ PetscScalar BulkViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, Petsc
     return zeta;
   } 
 
-  if (phi < PHI_CUTOFF) phi = PHI_CUTOFF;
-  // zeta = visc_ratio*exp(EoR*(1.0/T-1.0/Teta0)); // T-dep
   zeta = visc_ratio*exp(EoR*(1.0/T-1.0/Teta0))*pow(phi,zetaExp); // T,phi-dep
-  return 1.0/(1.0/zeta + eta0/eta_max) + eta_min/eta0; // harmonic averaging
+  return zeta;
+  // return 1.0/(1.0/zeta + eta0/eta_max) + eta_min/eta0; // harmonic averaging
+}
+
+// ---------------------------------------
+// CompactionViscosity
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "CompactionViscosity"
+PetscScalar CompactionViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar lambda, PetscScalar eta0, PetscScalar visc_ratio, PetscScalar zetaExp, PetscScalar eta_min, PetscScalar eta_max, PetscScalar phi_cutoff, PetscInt visc_shear, PetscInt visc_bulk) 
+{ 
+  PetscScalar eta, zeta, xi;
+  if (phi < phi_cutoff) xi = 0.0;
+  else {
+    eta  = ShearViscosity(T,phi,EoR,Teta0,lambda,eta0,eta_min,eta_max,visc_shear);
+    zeta = BulkViscosity(T,phi,EoR,Teta0,eta0,visc_ratio,zetaExp,eta_min,eta_max,phi_cutoff,visc_bulk);
+    xi = zeta-2.0/3.0*eta;
+  }
+  return xi;
 }
 
 // ---------------------------------------
