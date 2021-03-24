@@ -10,6 +10,7 @@ const char *FDPDETypeNames[] = {
   "stokes",
   "advdiff",
   "stokesdarcy2field",
+  "stokesdarcy3field",
   "composite",
   "enthalpy"
 };
@@ -19,6 +20,7 @@ const char *FDPDETypeNames[] = {
 // ---------------------------------------
 PetscErrorCode FDPDECreate_Stokes(FDPDE fd);
 PetscErrorCode FDPDECreate_StokesDarcy2Field(FDPDE fd);
+PetscErrorCode FDPDECreate_StokesDarcy3Field(FDPDE fd);
 PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd);
 PetscErrorCode FDPDECreate_Composite(FDPDE fd);
 PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd);
@@ -143,6 +145,9 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
       break;
     case FDPDE_STOKESDARCY2FIELD:
       fd->ops->create = FDPDECreate_StokesDarcy2Field;
+      break;
+    case FDPDE_STOKESDARCY3FIELD:
+      fd->ops->create = FDPDECreate_StokesDarcy3Field;
       break;
     case FDPDE_ADVDIFF:
       fd->ops->create = FDPDECreate_AdvDiff;

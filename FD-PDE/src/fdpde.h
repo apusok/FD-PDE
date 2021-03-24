@@ -12,7 +12,7 @@
 // Enum definitions
 // ---------------------------------------
 // FD-PDE type
-typedef enum { FDPDE_UNINIT = 0, FDPDE_STOKES, FDPDE_ADVDIFF, FDPDE_STOKESDARCY2FIELD, FDPDE_COMPOSITE, FDPDE_ENTHALPY } FDPDEType;
+typedef enum { FDPDE_UNINIT = 0, FDPDE_STOKES, FDPDE_ADVDIFF, FDPDE_STOKESDARCY2FIELD, FDPDE_STOKESDARCY3FIELD, FDPDE_COMPOSITE, FDPDE_ENTHALPY } FDPDEType;
 
 // ---------------------------------------
 // Struct definitions
