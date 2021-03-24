@@ -92,7 +92,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   NdParams      *nd;
   Params        *par;
   PetscInt      nx, nz; 
-  PetscScalar   xmin, xmax, zmin, zmax;
+  PetscScalar   xmin, xmax, zmin, zmax, dt;
   FDPDE         fdPV, fdHC;
   DM            dmPV, dmHC, dmHCcoeff, dmEnth, dmP;
   Vec           xPV, xP, xPprev;
@@ -207,18 +207,19 @@ PetscErrorCode Numerical_solution(void *ctx)
     PetscPrintf(PETSC_COMM_WORLD,"# HC Solver \n");
 
     // Set time step size
-    nd->dt = nd->dtmax;
-    ierr = FDPDEEnthalpySetTimestep(fdHC,nd->dt); CHKERRQ(ierr);
+    ierr   = FDPDEEnthalpyComputeExplicitTimestep(fdHC,&dt);CHKERRQ(ierr);
+    nd->dt = PetscMin(dt,nd->dtmax);
+    ierr   = FDPDEEnthalpySetTimestep(fdHC,nd->dt); CHKERRQ(ierr);
 
     converged = PETSC_FALSE;
     while (!converged) {
       ierr = FDPDESolve(fdHC,&converged);CHKERRQ(ierr);
       if (!converged) { // Reduce dt if not converged
-        ierr = FDPDEEnthalpyComputeExplicitTimestep(fdHC,&nd->dt);CHKERRQ(ierr);
+        nd->dt *= 1e-1;
         ierr = FDPDEEnthalpySetTimestep(fdHC,nd->dt); CHKERRQ(ierr);
       }
     }
-    PetscPrintf(PETSC_COMM_WORLD,"# Time-step (non-dimensional): dt = %1.12e dtmax = %1.12e \n",nd->dt,nd->dtmax);
+    PetscPrintf(PETSC_COMM_WORLD,"# Time-step (non-dimensional): dt = %1.12e dtmax = %1.12e dtmax_grid = %1.12e\n",nd->dt,nd->dtmax,dt);
 
     // Get solution
     ierr = FDPDEGetSolution(fdHC,&xHC);CHKERRQ(ierr);
@@ -281,7 +282,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     nd->t += nd->dt;
     par->istep++;
 
-    PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e [Myr] dt = %1.12e [Myr] \n\n",nd->t*usr->scal->t/SEC_YEAR*1e-6,nd->dt*usr->scal->t/SEC_YEAR*1e-6);
+    PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e [yr] dt = %1.12e [yr] \n\n",nd->t*usr->scal->t/SEC_YEAR,nd->dt*usr->scal->t/SEC_YEAR);
   }
 
   // // Destroy objects

@@ -31,12 +31,13 @@ A.visc         = 0 # 0-constant, 1-Temp,porosity dependent
 A.k_hat        = -1.0 # 0.0 or -1.0
 A.phi_init     = 0.0  # 0=full extraction, 1e-4-some porosity left
 A.dim_output   = 1 # 0 - nondimensional, 1 - dimensional
-A.debug_output = 1 # 0 - no debug output, 1 - debug output
+A.debug_output = 0 # 0 - no debug output, 1 - debug output
 A.xsill        = 6e3
 
 A.tmax  = 2.0e6 # yr
+A.dtmax = 1.0e1 # yr
 A.tout  = 1
-A.tstep = 5
+A.tstep = 1
 
 A.Tp = 1648 #1573 #1623
 A.potentialtemp = 0
@@ -48,6 +49,7 @@ str1 = '../MORbuoyancy.app'+ \
     ' -tstep '+str(A.tstep)+ \
     ' -tout '+str(A.tout)+ \
     ' -tmax '+str(A.tmax)+ \
+    ' -dtmax '+str(A.dtmax)+ \
     ' -K0 '+str(A.K0)+ \
     ' -zeta0 '+str(A.zeta0)+ \
     ' -xsill '+str(A.xsill)+ \

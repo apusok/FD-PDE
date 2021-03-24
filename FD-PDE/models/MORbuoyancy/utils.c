@@ -597,15 +597,18 @@ PetscErrorCode ComputeSillOutflux(void *ctx)
   ierr = MPI_Allreduce(&sill_C,&gsill_C,1,MPI_REAL,MPI_SUM,usr->comm);CHKERRQ(ierr);
 
   PetscScalar C, F, h_crust, t;
-  t = (usr->nd->t+usr->nd->dt)*usr->scal->t/SEC_YEAR*1e-6; 
+  t = (usr->nd->t+usr->nd->dt)*usr->scal->t/SEC_YEAR; 
   if (gsill_F==0.0) C = usr->par->C0;
   else C = gsill_C/gsill_F*usr->par->DC+usr->par->C0;
   F = gsill_F*usr->par->rho0*usr->scal->v*usr->scal->x*SEC_YEAR; // kg/m/year
   h_crust = F/(usr->par->rho0*usr->par->U0)*1.0e2; // m
 
+  if (F < 1e-20) F = 1e-20;
+  if (h_crust<1e-20) h_crust = 1e-20;
+
   // Output
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-  PetscPrintf(PETSC_COMM_WORLD,"# SILL FLUXES: t = %1.12e [Myr] C = %1.12e [wt. frac.] F = %1.12e [kg/m/yr] h_crust = %1.12e [m]\n",t,C,F,h_crust);
+  PetscPrintf(PETSC_COMM_WORLD,"# SILL FLUXES: t = %1.12e [yr] C = %1.12e [wt. frac.] F = %1.12e [kg/m/yr] h_crust = %1.12e [m]\n",t,C,F,h_crust);
 
   // Restore arrays
   ierr = DMStagRestoreProductCoordinateArraysRead(dmVel,&coordx,&coordz,NULL);CHKERRQ(ierr);
