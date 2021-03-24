@@ -484,21 +484,28 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmHC, Vec xphiT,
       ierr = DMStagVecGetValuesStencil(dmHC,xphiTlocal,5,pointQ,Q); CHKERRQ(ierr);
 
       // porosity on edges
-      phi[0] = interp1DLin_3Points(coordx[i][iprev],xp[0],Q[1],xp[1],Q[0],xp[2],Q[2]); 
-      phi[1] = interp1DLin_3Points(coordx[i][inext],xp[0],Q[1],xp[1],Q[0],xp[2],Q[2]); 
-      phi[2] = interp1DLin_3Points(coordz[j][iprev],zp[0],Q[3],zp[1],Q[0],zp[2],Q[4]); 
-      phi[3] = interp1DLin_3Points(coordz[j][inext],zp[0],Q[3],zp[1],Q[0],zp[2],Q[4]); 
+      // phi[0] = interp1DLin_3Points(coordx[i][iprev],xp[0],Q[1],xp[1],Q[0],xp[2],Q[2]); 
+      // phi[1] = interp1DLin_3Points(coordx[i][inext],xp[0],Q[1],xp[1],Q[0],xp[2],Q[2]); 
+      // phi[2] = interp1DLin_3Points(coordz[j][iprev],zp[0],Q[3],zp[1],Q[0],zp[2],Q[4]); 
+      // phi[3] = interp1DLin_3Points(coordz[j][inext],zp[0],Q[3],zp[1],Q[0],zp[2],Q[4]); 
+
+      phi[0] = (Q[1]+Q[0])*0.5; 
+      phi[1] = (Q[2]+Q[0])*0.5; 
+      phi[2] = (Q[3]+Q[0])*0.5; 
+      phi[3] = (Q[4]+Q[0])*0.5; 
       
       for (ii = 0; ii < 4; ii++) {
         // permeability
         K = Permeability(phi[ii],usr->par->phi0,usr->par->phi_max,usr->par->n);
 
         // fluid buoyancy
-        Bf = 0.0; // FluidBuoyancy(T,CF,usr->nd->alpha_s,usr->nd->beta_s);
+        Bf = 0.0; //FluidBuoyancy(T,CF,usr->nd->alpha_s,usr->nd->beta_s);
 
         // fluid velocity
         vf = FluidVelocity(vs[ii],phi[ii],gradP[ii],Bf,K,k_hat[ii]);
         ierr = DMStagGetLocationSlot(dmVel, point[ii].loc,0, &idx); CHKERRQ(ierr);
+
+        if ((i==0) && (point[ii].loc == LEFT)) vf = 0.0; // vfx on left boundary
         xx[j][i][idx] = vf;
 
         // bulk velocity
@@ -566,8 +573,8 @@ PetscErrorCode UpdateMaterialProperties(DM dmHC, Vec xHC, Vec xphiT, DM dmEnth, 
       point.c = 7; ierr = DMStagVecGetValuesStencil(dmEnth,xEnthlocal,1,&point,&CS); CHKERRQ(ierr);
       point.c = 9; ierr = DMStagVecGetValuesStencil(dmEnth,xEnthlocal,1,&point,&CF); CHKERRQ(ierr);
       
-      eta  = ShearViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->lambda,scal->eta,par->eta_min,par->eta_max,par->visc);
-      zeta = BulkViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,nd->visc_ratio,par->zetaExp,scal->eta,par->eta_min,par->eta_max,par->visc);
+      eta  = ShearViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->lambda,scal->eta,par->eta_min,par->eta_max,par->visc_shear);
+      zeta = BulkViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,nd->visc_ratio,par->zetaExp,scal->eta,par->eta_min,par->eta_max,par->visc_bulk);
       K    = Permeability(phi,usr->par->phi0,usr->par->phi_max,usr->par->n);
        
       rhos = SolidDensity(par->rho0,par->drho,T,CS,nd->alpha_s,nd->beta_s,par->buoyancy);

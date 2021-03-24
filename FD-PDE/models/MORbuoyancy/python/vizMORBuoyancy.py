@@ -16,7 +16,7 @@ class EmptyStruct:
 # ---------------------------------
 # Definitions
 # ---------------------------------
-def get_scaling_labels(fname,fdir,dim):
+def get_scaling_labels(A,fname,fdir,dim):
   try: 
     # Load parameters file
 
@@ -74,7 +74,7 @@ def get_scaling_labels(fname,fdir,dim):
     lbl.divmass = r'$\nabla\cdot(v)$ [-]'
 
     if (dim == 1):
-      scal.x  = 1e2 # h0/1e3 km
+      scal.x  = A.H*1e2 # h0/1e3 km
       scal.P  = 1e-6 # MPa
       scal.v  = 1.0e2*SEC_YEAR # cm/yr
       scal.T  = 273.15 # deg C
@@ -122,40 +122,65 @@ def get_scaling_labels(fname,fdir,dim):
     return 0.0
 
 # ---------------------------------------
-def parse_log_file_sill(fname):
+def parse_log_file(fname):
   tstep = 0
   try: # try to open directory
+
+    finished_sim = 0
     # parse number of timesteps
     f = open(fname, 'r')
     i0=0
     for line in f:
       if '# TIMESTEP' in line:
         i0+=1
+      if '# Runtime:' in line: 
+        finished_sim = 1
     f.close()
     tstep = i0
 
-    # variables
+    if (finished_sim): 
+      tstep -= 1
+
+    # variables - sill
     sill = EmptyStruct()
-    sill.t = np.zeros(tstep)
-    sill.F = np.zeros(tstep)
-    sill.C = np.zeros(tstep)
-    sill.h = np.zeros(tstep)
+    sill.t = np.zeros(tstep+1)
+    sill.F = np.zeros(tstep+1)
+    sill.C = np.zeros(tstep+1)
+    sill.h = np.zeros(tstep+1)
+
+    # Convergence 
+    sol = EmptyStruct()
+    sol.HCres = np.zeros(tstep+1)
+    sol.PVres = np.zeros(tstep+1)
+    sol.dt = np.zeros(tstep+1)
 
     # Parse output and save norm info
     f = open(fname, 'r')
     i0=-1
     for line in f:
       if '# TIMESTEP' in line:
-          i0+=1
-      if 'SILL FLUXES:' in line:
-          sill.t[i0] = float(line[19:37])
-          sill.F[i0] = float(line[82:101])
-          sill.C[i0] = float(line[47:66])
-          sill.h[i0] = float(line[121:140])
+        i0+=1
+      
+      if (i0<=tstep):
+        if 'SILL FLUXES:' in line:
+          sill.t[i0+1] = float(line[19:37])
+          sill.F[i0+1] = float(line[82:101])
+          sill.C[i0+1] = float(line[47:66])
+          sill.h[i0+1] = float(line[121:140])
+        
+        if 'Nonlinear hc_ solve' in line:
+          sol.HCres[i0+1] = float(line_prev[23:41])
+        if 'Nonlinear pv_ solve' in line:
+          sol.PVres[i0+1] = float(line_prev[23:41])
+
+        if '# TIME:' in line:
+          sol.dt[i0+1] = float(line[44:62])
+
+        line_prev = line
 
     f.close()
 
-    return tstep, sill
+    return tstep, sill, sol
   except OSError:
     print('Cannot open:', fdir)
     return tstep
@@ -1141,10 +1166,14 @@ def plot_porosity_contours(A,fname,istep):
   if (istep>0):
     cs = ax.contour(A.grid.xc*A.scal.x, A.grid.zc*A.scal.x, A.phi, levels=[1e-8,], colors = ('k',),linewidths=(0.8,), extend='both')
 
+  if (istep == 0):
+    t = 0.0
+  else:
+    t = A.sill.t[istep-1]
   ax.axis('image')
   ax.set_xlabel(A.lbl.x)
   ax.set_ylabel(A.lbl.z)
-  ax.set_title(A.lbl.phi+' tstep = '+str(istep))
+  ax.set_title(A.lbl.phi+' tstep = '+str(istep)+' time = '+str(t)+' [yr]')
 
   # 2. Vertical solid velocity
   ax = plt.subplot(1,2,2)
@@ -1193,25 +1222,119 @@ def plot_temperature_slices(A,fname,istep):
 # ---------------------------------
 def plot_sill_outflux(A,fname):
 
-  fig = plt.figure(1,figsize=(4,10))
+  fig = plt.figure(1,figsize=(10,10))
 
   ax = plt.subplot(3,1,1)
-  pl = ax.plot(A.sill.t, A.sill.h/1000)
+  pl = ax.plot(A.sill.t[:-1], A.sill.h[:-1]/1000)
   plt.grid(True)
   ax.set_xlabel('Time [yr]')
   ax.set_ylabel('Crustal thickness [km]')
 
   ax = plt.subplot(3,1,2)
-  pl = ax.plot(A.sill.t, A.sill.F)
+  pl = ax.plot(A.sill.t[:-1], A.sill.F[:-1])
   plt.grid(True)
   ax.set_xlabel('Time [yr]')
   ax.set_ylabel('Flux out - sill [kg/m/yr]')
 
   ax = plt.subplot(3,1,3)
-  pl = ax.plot(A.sill.t, A.sill.C)
+  pl = ax.plot(A.sill.t[:-1], A.sill.C[:-1])
   plt.grid(True)
   ax.set_xlabel('Time [yr]')
   ax.set_ylabel('C out - sill [wt. frac.]')
 
   plt.savefig(fname+'.pdf', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_solver_residuals(A,fname):
+
+  fig = plt.figure(1,figsize=(10,10))
+
+  ax = plt.subplot(3,1,1)
+  pl = ax.plot(np.arange(1,A.ts,1), np.log10(A.sol.HCres[1:-1]), linewidth=0.1)
+  pl1 = ax.plot(1420, np.log10(A.sol.HCres[1421]), 'r*')
+  plt.grid(True)
+  ax.set_xlabel('Timestep')
+  ax.set_ylabel('log10(HC residual)')
+
+  ax = plt.subplot(3,1,2)
+  pl = ax.plot(np.arange(1,A.ts,1), np.log10(A.sol.PVres[1:-1]), linewidth=0.1)
+  pl1 = ax.plot(1420, np.log10(A.sol.PVres[1421]), 'r*')
+  plt.grid(True)
+  ax.set_xlabel('Timestep')
+  ax.set_ylabel('log10(PV residual)')
+
+  ax = plt.subplot(3,1,3)
+  pl = ax.plot(np.arange(1,A.ts,1), np.log10(A.sol.dt[1:-1]), linewidth=0.1)
+  pl1 = ax.plot(1420, np.log10(A.sol.dt[1421]), 'r*')
+  plt.grid(True)
+  ax.set_xlabel('Timestep')
+  ax.set_ylabel('log10(dt)')
+
+  plt.savefig(fname+'.pdf', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_porosity_solid_stream(A,fname,istep,ext):
+
+  fig = plt.figure(1,figsize=(14,5))
+  extentE =[min(A.grid.xc)*A.scal.x, max(A.grid.xc)*A.scal.x, min(A.grid.zc)*A.scal.x, max(A.grid.zc)*A.scal.x]
+  extentVz=[min(A.grid.xc)*A.scal.x, max(A.grid.xc)*A.scal.x, min(A.grid.zv)*A.scal.x, max(A.grid.zv)*A.scal.x]
+
+  # 1. porosity
+  ax = plt.subplot(1,2,1)
+  im = ax.imshow(A.phi,extent=extentE,cmap='ocean_r',origin='lower',label=A.lbl.phi)
+  im.set_clim(0,0.002)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.50)
+
+  xa = A.grid.xc[::4]*A.scal.x
+  stream_points = []
+  for xi in xa:
+    stream_points.append([xi,A.grid.zc[0]*A.scal.x])
+
+  # solid streamlines
+  # stream = ax.streamplot(A.grid.xc*A.scal.x,A.grid.zc*A.scal.x, A.Vscx*A.scal.v, A.Vscz*A.scal.v,
+  #       color='grey',linewidth=0.5, start_points=stream_points, density=2.0, minlength=0.5, arrowstyle='-')
+
+  # fluid streamlines
+  mask = np.zeros(A.Vfcx.shape, dtype=bool)
+  mask[np.where(A.phi<1e-8)] = True
+  Vfx = np.ma.array(A.Vfcx, mask=mask)
+  Vfz = np.ma.array(A.Vfcz, mask=mask)
+  nind = 4
+  # if (istep>0):
+  #   Q  = ax.quiver(A.grid.xc[::nind]*A.scal.x, A.grid.zc[::nind]*A.scal.x, Vfx[::nind,::nind]*A.scal.v, Vfz[::nind,::nind]*A.scal.v, 
+  #     color='orange', units='width', pivot='mid', width=0.002, headaxislength=3, minlength=0)
+
+  #   stream_fluid = ax.streamplot(A.grid.xc*A.scal.x,A.grid.zc*A.scal.x, Vfx*A.scal.v, Vfz*A.scal.v,
+  #       color='r', linewidth=0.5, density=2.0, minlength=0.5, arrowstyle='-')
+
+  # solid streamlines
+  stream = ax.streamplot(A.grid.xc*A.scal.x,A.grid.zc*A.scal.x, A.Vscx*A.scal.v, A.Vscz*A.scal.v,
+        color='lightgrey',linewidth=0.5, start_points=stream_points, density=2.0, minlength=0.5, arrowstyle='-')
+
+  # temperature contour
+  if (A.dim_output):
+    levels = [250, 500, 750, 1000, 1200, 1300,]
+    fmt = r'%0.0f $^o$C'
+  else:
+    levels = [-30, -25, -20, -10, -5, -2.5,]
+    fmt = r'%0.1f'
+  ts = ax.contour(A.grid.xc*A.scal.x, A.grid.zc*A.scal.x, A.T-A.scal.T, levels=levels,linewidths=(0.8,), extend='both')
+  ax.clabel(ts, fmt=fmt, fontsize=8)
+
+  # solidus contour
+  if (istep>0):
+    cs = ax.contour(A.grid.xc*A.scal.x, A.grid.zc*A.scal.x, A.phi, levels=[1e-8,], colors = ('k',),linewidths=(0.7,), extend='both')
+
+  if (istep == 0):
+    t = 0.0
+  else:
+    t = A.sill.t[istep-1]
+  ax.axis('image')
+  ax.set_xlabel(A.lbl.x)
+  ax.set_ylabel(A.lbl.z)
+  ax.set_title(' time = %0.1f [yr]' % t)
+
+  plt.savefig(fname+'.'+ext, bbox_inches = 'tight')
   plt.close()

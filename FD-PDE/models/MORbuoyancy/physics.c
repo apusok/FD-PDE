@@ -60,7 +60,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
         
         point.c = 0; ierr = DMStagVecGetValuesStencil(usr->dmHC,xphiTlocal,1,&point,&phi); CHKERRQ(ierr);
         point.c = 1; ierr = DMStagVecGetValuesStencil(usr->dmHC,xphiTlocal,1,&point,&T); CHKERRQ(ierr);
-        eta = ShearViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->lambda,scal->eta,par->eta_min,par->eta_max,par->visc);
+        eta = ShearViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->lambda,scal->eta,par->eta_min,par->eta_max,par->visc_shear);
         
         ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
         c[j][i][idx] = nd->delta*nd->delta*eta;
@@ -109,7 +109,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
 
         for (ii = 0; ii < 4; ii++) {
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
-          eta = ShearViscosity(T[ii]*par->DT+par->T0,phi[ii],par->EoR,par->Teta0,par->lambda,scal->eta,par->eta_min,par->eta_max,par->visc);
+          eta = ShearViscosity(T[ii]*par->DT+par->T0,phi[ii],par->EoR,par->Teta0,par->lambda,scal->eta,par->eta_min,par->eta_max,par->visc_shear);
           c[j][i][idx] = nd->delta*nd->delta*eta;
         }
       }
@@ -174,12 +174,11 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
         point.i = i; point.j = j; point.loc = ELEMENT;
         point.c = 0; ierr = DMStagVecGetValuesStencil(usr->dmHC,xphiTlocal,1,&point,&phi); CHKERRQ(ierr);
         point.c = 1; ierr = DMStagVecGetValuesStencil(usr->dmHC,xphiTlocal,1,&point,&T); CHKERRQ(ierr);
-        eta  = ShearViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->lambda,scal->eta,par->eta_min,par->eta_max,par->visc);
-        zeta = BulkViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,nd->visc_ratio,par->zetaExp,scal->eta,par->eta_min,par->eta_max,par->visc);
+        eta  = ShearViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->lambda,scal->eta,par->eta_min,par->eta_max,par->visc_shear);
+        zeta = BulkViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,nd->visc_ratio,par->zetaExp,scal->eta,par->eta_min,par->eta_max,par->visc_bulk);
         // PetscPrintf(PETSC_COMM_WORLD,"[%d %d] Bulk viscosity zeta = %f \n",i,j,zeta);
-        // if (phi < 1e-12) xi = 0.0;
-        // else             xi = zeta-2.0/3.0*eta;
-        xi = zeta-2.0/3.0*eta;
+        if (phi < PHI_CUTOFF) xi = 0.0;
+        else xi = zeta-2.0/3.0*eta;
 
         point.c = 2; ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
         c[j][i][idx] = nd->delta*nd->delta*xi;

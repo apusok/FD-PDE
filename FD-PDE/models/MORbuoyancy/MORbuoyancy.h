@@ -12,7 +12,7 @@
 #define FNAME_LENGTH  200
 #define SEC_YEAR      31536000 //3600.00*24.00*365.00
 #define T_KELVIN      273.15
-#define PHI_CUTOFF    1e-10
+#define PHI_CUTOFF    1e-12
 
 // define convenient names for DMStagStencilLocation
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
@@ -37,7 +37,7 @@ typedef struct {
   PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT, phi_init;
   PetscInt       ts_scheme, adv_scheme, tout, tstep, istep;
   PetscScalar    tmax, dtmax;
-  PetscInt       out_count, buoyancy, visc, dim_out, extract_mech, potentialtemp;
+  PetscInt       out_count, buoyancy, visc_shear, visc_bulk, dim_out, extract_mech, potentialtemp;
   char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH], fdir_out[FNAME_LENGTH]; 
 } Params;
 

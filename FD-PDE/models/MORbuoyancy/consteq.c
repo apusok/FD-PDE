@@ -123,8 +123,8 @@ PetscScalar PhiRes(PetscScalar phi, PetscScalar H, PetscScalar C, PetscScalar P,
 #define __FUNCT__ "FluidVelocity"
 PetscScalar FluidVelocity(PetscScalar vs, PetscScalar phi, PetscScalar gradP, PetscScalar Bf, PetscScalar K, PetscScalar k_hat) 
 { 
-  if (phi < 1e-12) return 0.0;
-  else             return vs-K/phi*(gradP+(1+Bf)*k_hat);
+  if (phi < PHI_CUTOFF) return 0.0;
+  else                  return vs-K/phi*(gradP+(1+Bf)*k_hat);
 }
 
 // ---------------------------------------
@@ -144,8 +144,9 @@ PetscScalar BulkVelocity(PetscScalar vs, PetscScalar vf, PetscScalar phi)
 #define __FUNCT__ "Permeability"
 PetscScalar Permeability(PetscScalar phi, PetscScalar phi0, PetscScalar phi_max, PetscScalar n) 
 { 
-  return pow(phi/phi0,n);
-  // return pow(pow(phi/phi0,-n)+pow(phi_max/phi0,-n),-1); // harmonic averaging
+  if (phi < PHI_CUTOFF) return 0.0;
+  // return pow(phi/phi0,n);
+  return pow(pow(phi/phi0,-n)+pow(phi_max/phi0,-n),-1); // harmonic averaging
 }
 
 // ---------------------------------------
@@ -212,6 +213,11 @@ PetscScalar BulkViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, Petsc
 
   if (visc == 0) { // constant 
     zeta = visc_ratio;
+    return zeta;
+  } 
+
+  if (visc == 1) { // porosity dependent
+    zeta = visc_ratio*pow(phi,zetaExp);;
     return zeta;
   } 
 
