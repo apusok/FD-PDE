@@ -29,7 +29,7 @@
 -visc_bulk 1
 
 -phi_init 0.0
--phi_cutoff 1e-6
+-phi_min 1e-6
 -dim_output 1
 
 # solver options

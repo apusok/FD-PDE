@@ -21,9 +21,9 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdHC, void *ctx)
   // half-space cooling model - initialize H, C
   ierr = HalfSpaceCooling_MOR(usr);CHKERRQ(ierr);
 
-  // ierr = PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->par->istep);
+  // ierr = PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->nd->istep);
   // ierr = CreateDirectory(usr->par->fdir_out);CHKERRQ(ierr);
-  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHC_HS_ts%d",usr->par->fdir_out,usr->par->istep);
+  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHC_HS_ts%d",usr->par->fdir_out,usr->nd->istep);
   // ierr = DMStagViewBinaryPython(usr->dmHC,usr->xHC,fout);CHKERRQ(ierr);
 
   // Update lithostatic pressure
@@ -42,14 +42,8 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdHC, void *ctx)
   ierr = VecCopy(xEnth,usr->xEnth);CHKERRQ(ierr);
   ierr = VecDestroy(&xEnth);CHKERRQ(ierr);
 
-  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xEnth0_ts%d",usr->par->fdir_out,usr->par->istep);
-  // ierr = DMStagViewBinaryPython(usr->dmEnth,usr->xEnth,fout);CHKERRQ(ierr);
-
   // Correct H-S*phi and C=Cs to ensure phi=0
   ierr = CorrectInitialHCZeroPorosity(usr->dmEnth,usr->xEnth,usr);CHKERRQ(ierr);
-
-  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHC_HS2_ts%d",usr->par->fdir_out,usr->par->istep);
-  // ierr = DMStagViewBinaryPython(usr->dmHC,usr->xHC,fout);CHKERRQ(ierr);
 
   // Update Enthalpy again
   ierr = FDPDEEnthalpyUpdateDiagnostics(fdHC,usr->dmHC,usr->xHC,NULL,&xEnth); CHKERRQ(ierr);
@@ -78,9 +72,9 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdHC, void *ctx)
   ierr = VecCopy(xHCcoeffprev,xHCcoeff);CHKERRQ(ierr);
 
   // Output prev coefficient
-  ierr = PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->par->istep);
+  ierr = PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->nd->istep);
   ierr = CreateDirectory(usr->par->fdir_out);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHCcoeff_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHCcoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(dmHCcoeff,xHCcoeffprev,fout);CHKERRQ(ierr);
   ierr = VecDestroy(&xHCcoeffprev);CHKERRQ(ierr);
 
@@ -524,7 +518,7 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmHC, Vec xphiT,
         Bf = 0.0; //FluidBuoyancy(T,CF,usr->nd->alpha_s,usr->nd->beta_s);
 
         // fluid velocity
-        vf = FluidVelocity(vs[ii],phi[ii],gradP[ii],Bf,K,k_hat[ii],usr->par->phi_cutoff);
+        vf = FluidVelocity(vs[ii],phi[ii],gradP[ii],Bf,K,k_hat[ii]);
         ierr = DMStagGetLocationSlot(dmVel, point[ii].loc,0, &idx); CHKERRQ(ierr);
 
         if ((i==0) && (point[ii].loc == LEFT)) vf = 0.0; // vfx on left boundary
@@ -597,8 +591,8 @@ PetscErrorCode UpdateMaterialProperties(DM dmHC, Vec xHC, Vec xphiT, DM dmEnth, 
       
       eta  = ShearViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->lambda,scal->eta,nd->eta_min,nd->eta_max,par->visc_shear);
       // zeta = BulkViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,scal->eta,nd->visc_ratio,par->zetaExp,nd->eta_min,nd->eta_max,par->visc_bulk);
-      if (par->visc_bulk1==1) zeta = BulkViscosity1(nd->visc_ratio,phi,par->phi_cutoff,par->zetaExp);
-      if (par->visc_bulk1==2) zeta = BulkViscosity2(nd->visc_ratio,phi,par->zetaExp);
+      if (par->visc_bulk1==1) zeta = BulkViscosity1(nd->visc_ratio,phi,par->phi_min,par->zetaExp);
+      if (par->visc_bulk1==2) zeta = BulkViscosity2(nd->visc_ratio,phi,par->phi_min,par->zetaExp);
       if (par->visc_bulk1==3) zeta = BulkViscosity3(nd->visc_ratio,phi);
 
       K    = Permeability(phi,usr->par->phi0,usr->par->phi_max,usr->par->n);
@@ -656,8 +650,8 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdHC, void *ctx)
   
   PetscFunctionBeginUser;
 
-  usr->par->istep = usr->par->restart;
-  ierr = PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->par->istep);
+  usr->nd->istep = usr->par->restart;
+  ierr = PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->nd->istep);
 
   // load time data
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/parameters_file.out",usr->par->fdir_out);
@@ -665,18 +659,19 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdHC, void *ctx)
   ierr = PetscBagLoad(viewer,usr->bag);CHKERRQ(ierr);
   ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->t,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
   ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->dt,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->par->istep,1,NULL,PETSC_INT);CHKERRQ(ierr);
+  // ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->istep,1,NULL,PETSC_INT);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   // correct restart variable from bag
-  usr->par->restart = usr->par->istep;
+  usr->par->restart = usr->nd->istep;
 
   // scaling parameters
   ierr = DefineScalingParameters(usr); CHKERRQ(ierr);
   ierr = NondimensionalizeParameters(usr); CHKERRQ(ierr);
+  usr->nd->istep = usr->par->restart;
 
   // load PV data
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPV_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPV_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
   if (usr->par->dim_out) { 
     ierr = RescaleSolutionPV(dm,x,&xscal,usr);CHKERRQ(ierr); 
@@ -691,7 +686,7 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdHC, void *ctx)
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
   
   // load HC data
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHC_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHC_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
   if (usr->par->dim_out) { 
     ierr = RescaleSolutionHC(dm,x,&xscal,usr);CHKERRQ(ierr); 
@@ -705,20 +700,20 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdHC, void *ctx)
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_resPV_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_resPV_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
   ierr = VecCopy(x,fdPV->r);CHKERRQ(ierr);
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_resHC_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_resHC_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
   ierr = VecCopy(x,fdHC->r);CHKERRQ(ierr);
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
   
   // load lithostatic pressure
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPressure_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPressure_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
   ierr = FDPDEEnthalpyGetPressure(fdHC,&dmP,&xP);CHKERRQ(ierr);
   ierr = VecCopy(x,xP);CHKERRQ(ierr);
@@ -726,7 +721,7 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdHC, void *ctx)
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPressurePrev_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPressurePrev_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
   ierr = FDPDEEnthalpyGetPrevPressure(fdHC,&xPprev);CHKERRQ(ierr);
   ierr = VecCopy(x,xPprev);CHKERRQ(ierr);
@@ -736,7 +731,7 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdHC, void *ctx)
   ierr = DMDestroy(&dmP);CHKERRQ(ierr);
 
   // load Enthalpy diagnostics
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xEnth_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xEnth_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dmEnth,&x,fout);CHKERRQ(ierr);
   usr->dmEnth = dmEnth;
   ierr = VecDuplicate(x,&usr->xEnth);CHKERRQ(ierr);
@@ -751,7 +746,7 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdHC, void *ctx)
   
 
   // load porosity and temperature
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xphiT_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xphiT_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
   if (usr->par->dim_out) { 
     ierr = RescaleSolutionPorosityTemp(dm,x,&xscal,usr);CHKERRQ(ierr); 
@@ -764,7 +759,7 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdHC, void *ctx)
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
 
   // load velocity
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xVel_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xVel_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
   if (usr->par->dim_out) { 
     ierr = RescaleSolutionUniform(dm,x,&xscal,usr->scal->v);CHKERRQ(ierr); 
@@ -788,7 +783,7 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdHC, void *ctx)
   ierr = FDPDEGetCoefficient(fdHC,&dmHCcoeff,&xHCcoeff);CHKERRQ(ierr);
   ierr = FDPDEEnthalpyGetPrevCoefficient(fdHC,&xHCcoeffprev);CHKERRQ(ierr);
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHCcoeff_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHCcoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
   ierr = VecCopy(x,xHCcoeffprev);CHKERRQ(ierr);
   ierr = VecCopy(x,xHCcoeff);CHKERRQ(ierr);

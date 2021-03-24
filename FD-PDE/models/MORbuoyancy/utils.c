@@ -12,44 +12,24 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdHC, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
   char           fout[FNAME_LENGTH];
-  PetscViewer    viewer;
   DM             dmPVcoeff, dmHCcoeff,dmP;
   Vec            xPVcoeff, xHCcoeff, xscal, xP, xPprev;
   PetscErrorCode ierr;
   
   PetscFunctionBeginUser;
 
-  if ((usr->par->restart) && (usr->par->istep==usr->par->restart)) {
-    ierr = PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d_r",usr->par->istep);
+  if ((usr->par->restart) && (usr->nd->istep==usr->par->restart)) {
+    ierr = PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d_r",usr->nd->istep);
   } else {
-    ierr = PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->par->istep);
+    ierr = PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->nd->istep);
   }
   ierr = CreateDirectory(usr->par->fdir_out);CHKERRQ(ierr);
 
   // Output bag and parameters
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/parameters_file.out",usr->par->fdir_out);
-  ierr = PetscViewerBinaryOpen(usr->comm,fout,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = PetscBagView(usr->bag,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->t,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->dt,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->par->istep,1,PETSC_INT);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  // { // ascii
-  //   ierr = PetscViewerASCIIOpen(PETSC_COMM_SELF,fout,&viewer);CHKERRQ(ierr);
-  //   ierr = PetscViewerASCIIPrintf(viewer,"PARAMETERS BAG:\n");CHKERRQ(ierr);
-  //   ierr = PetscViewerASCIIPushTab(viewer); CHKERRQ(ierr);
-  //   ierr = PetscBagView(usr->bag,viewer);CHKERRQ(ierr);
-  //   ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
-  //   ierr = PetscViewerASCIIPrintf(viewer,"Time:\n");CHKERRQ(ierr);
-  //   ierr = PetscViewerASCIIPrintf(viewer,"%1.6e \n",usr->nd->t);CHKERRQ(ierr);
-  //   ierr = PetscViewerASCIIPrintf(viewer,"%1.6e \n",usr->nd->dt);CHKERRQ(ierr);
-  //   ierr = PetscViewerASCIIPrintf(viewer,"%d \n",usr->par->istep);CHKERRQ(ierr);
-  //   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-  // }
+  ierr = OutputParameters(usr);CHKERRQ(ierr); 
 
   // Output solution vectors
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPV_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPV_ts%d",usr->par->fdir_out,usr->nd->istep);
   if (usr->par->dim_out) { 
     ierr = ScaleSolutionPV(usr->dmPV,usr->xPV,&xscal,usr);CHKERRQ(ierr); 
     ierr = DMStagViewBinaryPython(usr->dmPV,xscal,fout);CHKERRQ(ierr);
@@ -58,7 +38,7 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdHC, void *ctx)
     ierr = DMStagViewBinaryPython(usr->dmPV,usr->xPV,fout);CHKERRQ(ierr);
   }
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHC_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHC_ts%d",usr->par->fdir_out,usr->nd->istep);
   if (usr->par->dim_out) { 
     ierr = ScaleSolutionHC(usr->dmHC,usr->xHC,&xscal,usr);CHKERRQ(ierr); 
     ierr = DMStagViewBinaryPython(usr->dmHC,xscal,fout);CHKERRQ(ierr);
@@ -67,7 +47,7 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdHC, void *ctx)
     ierr = DMStagViewBinaryPython(usr->dmHC,usr->xHC,fout);CHKERRQ(ierr);
   }
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xEnth_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xEnth_ts%d",usr->par->fdir_out,usr->nd->istep);
   if (usr->par->dim_out) { 
     ierr = ScaleSolutionEnthalpy(usr->dmEnth,usr->xEnth,&xscal,usr);CHKERRQ(ierr); 
     ierr = DMStagViewBinaryPython(usr->dmEnth,xscal,fout);CHKERRQ(ierr);
@@ -76,7 +56,7 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdHC, void *ctx)
     ierr = DMStagViewBinaryPython(usr->dmEnth,usr->xEnth,fout);CHKERRQ(ierr);
   }
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xphiT_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xphiT_ts%d",usr->par->fdir_out,usr->nd->istep);
   if (usr->par->dim_out) { 
     ierr = ScaleSolutionPorosityTemp(usr->dmHC,usr->xphiT,&xscal,usr);CHKERRQ(ierr); 
     ierr = DMStagViewBinaryPython(usr->dmHC,xscal,fout);CHKERRQ(ierr);
@@ -85,7 +65,7 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdHC, void *ctx)
     ierr = DMStagViewBinaryPython(usr->dmHC,usr->xphiT,fout);CHKERRQ(ierr);
   }
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xVel_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xVel_ts%d",usr->par->fdir_out,usr->nd->istep);
   if (usr->par->dim_out) { 
     ierr = ScaleSolutionUniform(usr->dmVel,usr->xVel,&xscal,usr->scal->v); CHKERRQ(ierr); 
     ierr = DMStagViewBinaryPython(usr->dmVel,xscal,fout);CHKERRQ(ierr);
@@ -94,18 +74,18 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdHC, void *ctx)
     ierr = DMStagViewBinaryPython(usr->dmVel,usr->xVel,fout);CHKERRQ(ierr);
   }
 
-  if (usr->par->istep > 0) {
+  if (usr->nd->istep > 0) {
     // coefficients
     ierr = FDPDEGetCoefficient(fdHC,&dmHCcoeff,&xHCcoeff);CHKERRQ(ierr);
-    ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHCcoeff_ts%d",usr->par->fdir_out,usr->par->istep);
+    ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHCcoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
     ierr = DMStagViewBinaryPython(dmHCcoeff,xHCcoeff,fout);CHKERRQ(ierr);
 
     ierr = FDPDEGetCoefficient(fdPV,&dmPVcoeff,&xPVcoeff);CHKERRQ(ierr);
-    ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPVcoeff_ts%d",usr->par->fdir_out,usr->par->istep);
+    ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPVcoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
     ierr = DMStagViewBinaryPython(dmPVcoeff,xPVcoeff,fout);CHKERRQ(ierr);
 
     // material properties eta, permeability, density
-    ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_matProp_ts%d",usr->par->fdir_out,usr->par->istep);
+    ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_matProp_ts%d",usr->par->fdir_out,usr->nd->istep);
     if (usr->par->dim_out) { 
       ierr = ScaleSolutionMaterialProp(usr->dmmatProp,usr->xmatProp,&xscal,usr);CHKERRQ(ierr); 
       ierr = DMStagViewBinaryPython(usr->dmmatProp,xscal,fout);CHKERRQ(ierr);
@@ -116,28 +96,25 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdHC, void *ctx)
   }
 
   // residuals
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_resPV_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_resPV_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(usr->dmPV,fdPV->r,fout);CHKERRQ(ierr);
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_resHC_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_resHC_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(usr->dmHC,fdHC->r,fout);CHKERRQ(ierr);
 
   // lithostatic pressure
   ierr = FDPDEEnthalpyGetPressure(fdHC,&dmP,&xP);CHKERRQ(ierr);
   ierr = FDPDEEnthalpyGetPrevPressure(fdHC,&xPprev);CHKERRQ(ierr);
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPressure_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPressure_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(dmP,xP,fout);CHKERRQ(ierr);
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPressurePrev_ts%d",usr->par->fdir_out,usr->par->istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPressurePrev_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(dmP,xPprev,fout);CHKERRQ(ierr);
 
   ierr = VecDestroy(&xP);CHKERRQ(ierr);
   ierr = VecDestroy(&xPprev);CHKERRQ(ierr);
   ierr = DMDestroy(&dmP);CHKERRQ(ierr);
-
-  // increment out_count
-  usr->par->out_count += 1;
 
   PetscFunctionReturn(0);
 }
@@ -158,8 +135,8 @@ PetscErrorCode CreateDirectory(const char *name)
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
   if(rank==0) {
     status = mkdir(name,0777);
-    if(!status) PetscPrintf(PETSC_COMM_WORLD,"# Directory created: %s \n",name);
-    else        PetscPrintf(PETSC_COMM_WORLD,"# Could not create directory: %s \n",name);
+    if(!status) PetscPrintf(PETSC_COMM_WORLD,"# New directory created: %s \n",name);
+    else        PetscPrintf(PETSC_COMM_WORLD,"# Did not create new directory: %s \n",name);
   }
   ierr = MPI_Barrier(PETSC_COMM_WORLD); CHKERRQ(ierr);
 
@@ -962,6 +939,48 @@ PetscErrorCode ComputeSillOutflux(void *ctx)
   ierr = DMRestoreLocalVector(dmHC, &xphiTlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmVel, &xVellocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmEnth,&xEnthlocal); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// Output Parameters
+// ---------------------------------------
+PetscErrorCode OutputParameters(void *ctx) 
+{
+  UsrData        *usr = (UsrData*)ctx;
+  char           fout[FNAME_LENGTH];
+  PetscViewer    viewer;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+    // Output bag and parameters
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/parameters_file.out",usr->par->fdir_out);
+  ierr = PetscViewerBinaryOpen(usr->comm,fout,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = PetscBagView(usr->bag,viewer);CHKERRQ(ierr);
+
+  // parameters - nd
+  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->t,1,PETSC_DOUBLE);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->dt,1,PETSC_DOUBLE);CHKERRQ(ierr);
+  // ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->istep,1,PETSC_INT);CHKERRQ(ierr);
+
+  // parameters - scal
+
+
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  // { // ascii
+  //   ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,fout,&viewer);CHKERRQ(ierr);
+  //   ierr = PetscViewerASCIIPrintf(viewer,"PARAMETERS BAG:\n");CHKERRQ(ierr);
+  //   ierr = PetscViewerASCIIPushTab(viewer); CHKERRQ(ierr);
+  //   ierr = PetscBagView(usr->bag,viewer);CHKERRQ(ierr);
+  //   ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
+  //   ierr = PetscViewerASCIIPrintf(viewer,"Time:\n");CHKERRQ(ierr);
+  //   ierr = PetscViewerASCIIPrintf(viewer,"%1.6e \n",usr->nd->t);CHKERRQ(ierr);
+  //   ierr = PetscViewerASCIIPrintf(viewer,"%1.6e \n",usr->nd->dt);CHKERRQ(ierr);
+  //   ierr = PetscViewerASCIIPrintf(viewer,"%d \n",usr->nd->istep);CHKERRQ(ierr);
+  //   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  // }
 
   PetscFunctionReturn(0);
 }

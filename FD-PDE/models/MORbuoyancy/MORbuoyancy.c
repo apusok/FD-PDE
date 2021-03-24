@@ -203,12 +203,12 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = LoadRestartFromFile(fdPV,fdHC,usr);CHKERRQ(ierr);
   } 
 
-  par->istep++;
+  nd->istep++;
 
   // Time loop
-  while ((nd->t <= nd->tmax) && (par->istep <= par->tstep)) {
+  while ((nd->t <= nd->tmax) && (nd->istep <= par->tstep)) {
     PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-    PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",par->istep);
+    PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",nd->istep);
     
     // Solve energy and composition
     PetscPrintf(PETSC_COMM_WORLD,"# HC Solver \n");
@@ -284,11 +284,11 @@ PetscErrorCode Numerical_solution(void *ctx)
     nd->t += nd->dt;
 
     // Output solution
-    if (par->istep % par->tout == 0 ) {
+    if (nd->istep % par->tout == 0 ) {
       ierr = DoOutput(fdPV,fdHC,usr);CHKERRQ(ierr);
     }
 
-    par->istep++;
+    nd->istep++;
 
     PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e [yr] dt = %1.12e [yr] \n\n",nd->t*usr->scal->t/SEC_YEAR,nd->dt*usr->scal->t/SEC_YEAR);
   }

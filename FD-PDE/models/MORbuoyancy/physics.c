@@ -177,8 +177,8 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
 
         eta  = ShearViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->lambda,scal->eta,nd->eta_min,nd->eta_max,par->visc_shear);
         // zeta = BulkViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,scal->eta,nd->visc_ratio,par->zetaExp,nd->eta_min,nd->eta_max,par->visc_bulk);
-        if (par->visc_bulk1==1) zeta = BulkViscosity1(nd->visc_ratio,phi,par->phi_cutoff,par->zetaExp);
-        if (par->visc_bulk1==2) zeta = BulkViscosity2(nd->visc_ratio,phi,par->zetaExp);
+        if (par->visc_bulk1==1) zeta = BulkViscosity1(nd->visc_ratio,phi,par->phi_min,par->zetaExp);
+        if (par->visc_bulk1==2) zeta = BulkViscosity2(nd->visc_ratio,phi,par->phi_min,par->zetaExp);
         if (par->visc_bulk1==3) zeta = BulkViscosity3(nd->visc_ratio,phi);
 
         if ((par->D1_guard) && (phi==0.0)) xi = 0.0; 

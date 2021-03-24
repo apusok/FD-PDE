@@ -121,7 +121,7 @@ PetscScalar PhiRes(PetscScalar phi, PetscScalar H, PetscScalar C, PetscScalar P,
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FluidVelocity"
-PetscScalar FluidVelocity(PetscScalar vs, PetscScalar phi, PetscScalar gradP, PetscScalar Bf, PetscScalar K, PetscScalar k_hat, PetscScalar phi_cutoff) 
+PetscScalar FluidVelocity(PetscScalar vs, PetscScalar phi, PetscScalar gradP, PetscScalar Bf, PetscScalar K, PetscScalar k_hat) 
 { 
   if (K == 0.0) return 0.0;
   else          return vs-K/phi*(gradP+(1+Bf)*k_hat);
@@ -223,11 +223,11 @@ PetscScalar BulkViscosity(PetscScalar T, PetscScalar phi, PetscScalar EoR, Petsc
   return 1.0/(1.0/zeta + eta0/eta_max) + eta_min/eta0; // harmonic averaging
 }
 
-PetscScalar BulkViscosity1(PetscScalar visc_ratio, PetscScalar phi, PetscScalar phi_cutoff, PetscScalar zetaExp) 
-{ return visc_ratio*pow(PetscMax(phi,phi_cutoff),zetaExp); }
+PetscScalar BulkViscosity1(PetscScalar visc_ratio, PetscScalar phi, PetscScalar phi_min, PetscScalar zetaExp) 
+{ return visc_ratio*pow(PetscMax(phi,phi_min),zetaExp); }
 
-PetscScalar BulkViscosity2(PetscScalar visc_ratio, PetscScalar phi, PetscScalar zetaExp) 
-{ return visc_ratio*pow(phi+0.01,zetaExp); } // Simpson et al. 2010
+PetscScalar BulkViscosity2(PetscScalar visc_ratio, PetscScalar phi, PetscScalar phi_min, PetscScalar zetaExp) 
+{ return visc_ratio*pow(phi+phi_min,zetaExp); } // Simpson et al. 2010
 
 PetscScalar BulkViscosity3(PetscScalar visc_ratio, PetscScalar phi) 
 { return -visc_ratio*visc_ratio*160*sqrt(2)/139/PETSC_PI*log(phi); } // Rudge 2018

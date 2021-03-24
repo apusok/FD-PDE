@@ -161,7 +161,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterInt(bag, &par->D1_guard,0, "D1_guard", "0-no guard, 1-guard"); CHKERRQ(ierr);
 
   ierr = PetscBagRegisterScalar(bag, &par->phi_init, 1.0e-4, "phi_init", "Extract initial porosity phi*phi_init"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->phi_cutoff, PHI_CUTOFF, "phi_cutoff", "Cutoff porosity"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->phi_min, PHI_CUTOFF, "phi_min", "Cutoff minimum porosity"); CHKERRQ(ierr);
 
   dsol = par->cp*(par->Tp-par->T0)/par->gamma_inv*1e9/par->g/(par->rho0*par->cp - par->Tp*par->alpha/par->gamma_inv*1e9);
   Teta0 = par->Tp*exp(dsol*par->alpha*par->g/par->cp);
@@ -181,13 +181,11 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->tmax, 1.0e6, "tmax", "Maximum time [yr]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->dtmax, 1.0e3, "dtmax", "Maximum time step size [yr]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->restart,0, "restart", "Restart from #istep, 0-means start from beginning"); CHKERRQ(ierr);
-  par->istep = 0;
 
   // input/output 
   par->fname_in[0] = '\0';
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_solution","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->dim_out, 0, "dim_output", "Output dimensional parameters: 0-nondim, 1-dimensional"); CHKERRQ(ierr);
-  par->out_count = 0; 
 
   // return pointer
   *_usr = usr;
@@ -244,22 +242,25 @@ PetscErrorCode InputPrintData(UsrData *usr)
 PetscErrorCode DefineScalingParameters(UsrData *usr)
 {
   ScalParams     *scal;
+  Params         *par;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
 
-  // Allocate memory
+  par  = usr->par;
+
+  // allocate memory
   ierr = PetscMalloc1(1, &scal); CHKERRQ(ierr);
 
-  scal->x = usr->par->H;
-  scal->v = usr->par->K0*usr->par->drho*usr->par->g/usr->par->mu;
+  scal->x = par->H;
+  scal->v = par->K0*par->drho*par->g/par->mu;
   scal->t = scal->x/scal->v;
-  scal->K = usr->par->K0;
-  scal->P = usr->par->drho*usr->par->g*scal->x;
-  scal->eta = usr->par->eta0;
-  scal->rho = usr->par->rho0;
+  scal->K = par->K0;
+  scal->P = par->drho*par->g*scal->x;
+  scal->eta = par->eta0;
+  scal->rho = par->rho0;
   scal->Gamma = scal->v*scal->rho/scal->x;
-  scal->H = scal->rho*usr->par->cp*usr->par->DT;
+  scal->H = scal->rho*par->cp*par->DT;
 
   PetscPrintf(usr->comm,"# --------------------------------------- #\n"); 
   PetscPrintf(usr->comm,"# Characteristic scales:\n");
@@ -286,11 +287,12 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
 
   PetscFunctionBegin;
 
-  // allocate memory
-  ierr = PetscMalloc1(1, &nd); CHKERRQ(ierr);
-
   scal = usr->scal;
   par  = usr->par;
+
+  // allocate memory
+  ierr = PetscMalloc1(1, &nd); CHKERRQ(ierr);
+  nd->istep = 0;
 
   // transform to SI units necessary params
   nd->U0    = par->U0*1.0e-2/SEC_YEAR; //[cm/yr] to [m/s]
