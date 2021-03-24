@@ -39,6 +39,7 @@ typedef struct {
   PetscScalar    tmax, dtmax;
   PetscInt       buoyancy, visc_shear, visc_bulk, visc_bulk1, D1_guard, dim_out, extract_mech, potentialtemp;
   char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH], fdir_out[FNAME_LENGTH]; 
+  PetscBool      start_run;
 } Params;
 
 typedef struct {
@@ -126,6 +127,7 @@ PetscScalar BulkViscosity3(PetscScalar,PetscScalar);
 PetscErrorCode DoOutput(FDPDE,FDPDE,void*);
 PetscErrorCode CreateDirectory(const char*);
 PetscErrorCode OutputParameters(void*); 
+PetscErrorCode LoadParametersFromFile(void*);
 PetscErrorCode ScaleSolutionPV(DM,Vec,Vec*,void*);
 PetscErrorCode ScaleSolutionHC(DM,Vec,Vec*,void*);
 PetscErrorCode ScaleSolutionPorosityTemp(DM,Vec,Vec*,void*);

@@ -654,21 +654,16 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdHC, void *ctx)
   ierr = PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->nd->istep);
 
   // load time data
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/parameters_file.out",usr->par->fdir_out);
-  ierr = PetscViewerBinaryOpen(usr->comm,fout,FILE_MODE_READ,&viewer);CHKERRQ(ierr);
-  ierr = PetscBagLoad(viewer,usr->bag);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->t,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->dt,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  // ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->istep,1,NULL,PETSC_INT);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  ierr = LoadParametersFromFile(usr);CHKERRQ(ierr);
 
   // correct restart variable from bag
   usr->par->restart = usr->nd->istep;
+  ierr = InputPrintData(usr);CHKERRQ(ierr);
 
-  // scaling parameters
-  ierr = DefineScalingParameters(usr); CHKERRQ(ierr);
-  ierr = NondimensionalizeParameters(usr); CHKERRQ(ierr);
-  usr->nd->istep = usr->par->restart;
+  // // scaling parameters
+  // ierr = DefineScalingParameters(usr); CHKERRQ(ierr);
+  // ierr = NondimensionalizeParameters(usr); CHKERRQ(ierr);
+  // usr->nd->istep = usr->par->restart;
 
   // load PV data
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPV_ts%d",usr->par->fdir_out,usr->nd->istep);

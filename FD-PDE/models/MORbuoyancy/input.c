@@ -23,14 +23,15 @@ PetscErrorCode UserParamsCreate(UsrData **_usr,int argc,char **argv)
     if (flg) { ierr = PetscStrcpy(usr->par->fname_in, argv[i+1]); CHKERRQ(ierr); }
   }
 
-  // print user parameters
-  ierr = InputPrintData(usr); CHKERRQ(ierr);
-
   // scaling parameters
   ierr = DefineScalingParameters(usr); CHKERRQ(ierr);
 
   // non-dimensionalize parameters
   ierr = NondimensionalizeParameters(usr); CHKERRQ(ierr);
+
+  // print user parameters
+  ierr = InputPrintData(usr); CHKERRQ(ierr);
+  usr->par->start_run = PETSC_FALSE;
 
   // return pointer
   *_usr = usr;
@@ -181,6 +182,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->tmax, 1.0e6, "tmax", "Maximum time [yr]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->dtmax, 1.0e3, "dtmax", "Maximum time step size [yr]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->restart,0, "restart", "Restart from #istep, 0-means start from beginning"); CHKERRQ(ierr);
+  par->start_run = PETSC_TRUE;
 
   // input/output 
   par->fname_in[0] = '\0';
@@ -201,35 +203,62 @@ PetscErrorCode InputParameters(UsrData **_usr)
 PetscErrorCode InputPrintData(UsrData *usr)
 {
   char           date[30], *opts;
+  NdParams       *nd;
+  ScalParams     *scal;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
 
-  // Get date
-  ierr = PetscGetDate(date,30); CHKERRQ(ierr);
-  ierr = PetscOptionsGetAll(NULL, &opts); CHKERRQ(ierr);
+  scal = usr->scal;
+  nd   = usr->nd;
 
-  // Print header and petsc options
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# MID-OCEAN RIDGE BUOYANCY: %s \n",&(date[0]));
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  // print new simulation info
+  if (usr->par->start_run) {
+    // Get date
+    ierr = PetscGetDate(date,30); CHKERRQ(ierr);
+    ierr = PetscOptionsGetAll(NULL, &opts); CHKERRQ(ierr);
 
-  // Input file info
-  if (usr->par->fname_in[0] == '\0') { // string is empty
-    PetscPrintf(usr->comm,"# Input options file: NONE (using default options)\n");
+    // Print header and petsc options
+    PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+    PetscPrintf(usr->comm,"# MID-OCEAN RIDGE BUOYANCY: %s \n",&(date[0]));
+    PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+    PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
+    PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+
+    // Free memory
+    ierr = PetscFree(opts); CHKERRQ(ierr);
+
+    // Input file info
+    if (usr->par->fname_in[0] == '\0') { // string is empty
+      PetscPrintf(usr->comm,"# Input options file: NONE (using default options)\n");
+    }
+    else {
+      PetscPrintf(usr->comm,"# Input options file: %s \n",usr->par->fname_in);
+    }
   }
-  else {
-    PetscPrintf(usr->comm,"# Input options file: %s \n",usr->par->fname_in);
-  }
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
 
   // Print usr bag
+  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
   ierr = PetscBagView(usr->bag,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
 
-  // Free memory
-  ierr = PetscFree(opts); CHKERRQ(ierr);
+  // Print scal and nd params
+  PetscPrintf(usr->comm,"# --------------------------------------- #\n"); 
+  PetscPrintf(usr->comm,"# Characteristic scales:\n");
+  PetscPrintf(usr->comm,"#     [x]   = %1.12e (m    ) [v]     = %1.12e (m/s    ) [t]   = %1.12e (s   )\n",scal->x,scal->v,scal->t);
+  PetscPrintf(usr->comm,"#     [K]   = %1.12e (m2   ) [P]     = %1.12e (Pa     ) [eta] = %1.12e (Pa.s)\n",scal->K,scal->P,scal->eta);
+  PetscPrintf(usr->comm,"#     [rho] = %1.12e (kg/m3) [Gamma] = %1.12e (kg/m3/s) [H]   = %1.12e (J/m3)\n",scal->rho,scal->Gamma,scal->H);
+ 
+  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscPrintf(usr->comm,"# Nondimensional parameters:\n");
+  PetscPrintf(usr->comm,"#     delta   = %1.12e \n",nd->delta);
+  PetscPrintf(usr->comm,"#     alpha_s = %1.12e \n",nd->alpha_s);
+  PetscPrintf(usr->comm,"#     beta_s  = %1.12e \n",nd->beta_s);
+  PetscPrintf(usr->comm,"#     A       = %1.12e \n",nd->A);
+  PetscPrintf(usr->comm,"#     S       = %1.12e \n",nd->S);
+  PetscPrintf(usr->comm,"#     PeT     = %1.12e \n",nd->PeT);
+  PetscPrintf(usr->comm,"#     PeC     = %1.12e \n",nd->PeC);
+  PetscPrintf(usr->comm,"#     G       = %1.12e \n",nd->G);
+  PetscPrintf(usr->comm,"#     RM      = %1.12e \n",nd->RM);
 
   PetscFunctionReturn(0);
 }
@@ -262,12 +291,6 @@ PetscErrorCode DefineScalingParameters(UsrData *usr)
   scal->Gamma = scal->v*scal->rho/scal->x;
   scal->H = scal->rho*par->cp*par->DT;
 
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n"); 
-  PetscPrintf(usr->comm,"# Characteristic scales:\n");
-  PetscPrintf(usr->comm,"#     [x]   = %1.12e (m    ) [v]     = %1.12e (m/s    ) [t]   = %1.12e (s   )\n",scal->x,scal->v,scal->t);
-  PetscPrintf(usr->comm,"#     [K]   = %1.12e (m2   ) [P]     = %1.12e (Pa     ) [eta] = %1.12e (Pa.s)\n",scal->K,scal->P,scal->eta);
-  PetscPrintf(usr->comm,"#     [rho] = %1.12e (kg/m3) [Gamma] = %1.12e (kg/m3/s) [H]   = %1.12e (J/m3)\n",scal->rho,scal->Gamma,scal->H);
- 
   usr->scal = scal;
 
   PetscFunctionReturn(0);
@@ -326,18 +349,6 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   nd->thetaS  = par->T0/par->DT;
   nd->G       = scal->x*par->drho*par->g*par->gamma_inv/par->DT*1e-9; // GPa from gamma_inv
   nd->RM      = par->Ms/par->Mf;
-
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# Nondimensional parameters:\n");
-  PetscPrintf(usr->comm,"#     delta   = %1.12e \n",nd->delta);
-  PetscPrintf(usr->comm,"#     alpha_s = %1.12e \n",nd->alpha_s);
-  PetscPrintf(usr->comm,"#     beta_s  = %1.12e \n",nd->beta_s);
-  PetscPrintf(usr->comm,"#     A       = %1.12e \n",nd->A);
-  PetscPrintf(usr->comm,"#     S       = %1.12e \n",nd->S);
-  PetscPrintf(usr->comm,"#     PeT     = %1.12e \n",nd->PeT);
-  PetscPrintf(usr->comm,"#     PeC     = %1.12e \n",nd->PeC);
-  PetscPrintf(usr->comm,"#     G       = %1.12e \n",nd->G);
-  PetscPrintf(usr->comm,"#     RM      = %1.12e \n",nd->RM);
 
   usr->nd = nd;
 
