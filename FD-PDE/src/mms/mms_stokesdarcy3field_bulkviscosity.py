@@ -1,6 +1,6 @@
 def write_c_method(var,varname):
   code  = 'static PetscScalar get_'+ varname + \
-    '(PetscScalar x, PetscScalar z, PetscScalar delta, PetscScalar phi0, PetscScalar phi_min, PetscScalar tau2, PetscScalar vzeta, '+ \
+    '(PetscScalar x, PetscScalar z, PetscScalar delta, PetscScalar phi0, PetscScalar phia, PetscScalar phi_min, PetscScalar vzeta, '+ \
     'PetscScalar p_s,PetscScalar psi_s, PetscScalar U_s, PetscScalar m, PetscScalar n, PetscScalar k_hat)\n'
   code += '{ PetscScalar result;\n'
   code += '  result = ' + ccode(var) + ';\n'
@@ -20,8 +20,8 @@ z = Symbol('z')
 
 delta = Symbol('delta')
 phi0  = Symbol('phi0')
+phia  = Symbol('phia')
 phi_min = Symbol('phi_min')
-tau2  = Symbol('tau2')
 vzeta = Symbol('vzeta')
 
 p_s   = Symbol('p_s')
@@ -33,15 +33,14 @@ k_hat = Symbol('k_hat') # unit vector of gravity
 
 # Chosen solutions and coefficients
 # porosity
-# phi = phi0*exp(-(x*x+z*z)/tau2)
-phi = phi0*(1.0+phi0*cos(m*pi*x)*cos(m*pi*z))
+phi = phi0*(1.0+phia*cos(m*pi*x)*cos(m*pi*z))
 
 # pressure
 p  = p_s*cos(m*pi*x)*cos(m*pi*z)
 
 # compaction pressure
-# pc = p_s*sin(m*pi*x)*sin(m*pi*z)
-pc = 1.0
+pc = p_s*sin(m*pi*x)*sin(m*pi*z)
+# pc = 1.0
 
 psi = psi_s*(1.0-cos(m*pi*x))*(1.0-cos(m*pi*z))
 U   = -U_s*cos(m*pi*x)*cos(m*pi*z)
@@ -62,12 +61,12 @@ K = (phi/phi0)**n
 eta = 1.0
 
 # bulk viscosity
-# zeta = vzeta*1.0/(phi+phi_min)
-zeta = vzeta
+zeta = vzeta*1.0/(phi+phi_min)
+# zeta = vzeta*5.0/3.0
 
 # compaction vicosity
-# xi = (zeta-2.0/3.0*eta)
-xi = 1.0
+# xi = 1.0
+xi = (zeta-2.0/3.0*eta)
 
 # Compute equations
 dvxdx = diff(ux,x)

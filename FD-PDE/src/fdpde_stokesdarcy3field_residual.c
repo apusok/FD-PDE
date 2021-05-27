@@ -532,7 +532,9 @@ PetscErrorCode DMStagBCListApplyElement_StokesDarcy3Field(DM dm, Vec xlocal,DM d
       }
 
       if (bclist[ibc].point.c == SD3_DOF_PC) {
-        SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"BC type NEUMANN for FDPDE_STOKESDARCY3FIELD [PC-ELEMENT] is not yet implemented.");
+        if (bclist[ibc].val != 0.0) {
+          SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Non-zero BC type NEUMANN for FDPDE_STOKESDARCY3FIELD [PC-ELEMENT] is not yet implemented.");
+        }
       } 
     }
   }

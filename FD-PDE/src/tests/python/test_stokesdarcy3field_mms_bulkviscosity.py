@@ -32,10 +32,10 @@ except OSError:
 n = [20, 40, 80, 100]#, 200, 300, 400]
 
 delta = 1.0 # 1-10
-tau2  = 0.1
-vzeta = 10 # 1e1-1e3
+vzeta = 10.0 # 1e1-1e3
 phi0  = 0.1 
-phi_min= 1.0e0
+phia  = 0.1 # [0.1, 0.5, 0.75, 0.95]
+phi_min= 1.0e-6
 p_s   = 1.0
 psi_s = 1.0
 U_s   = 1.0
@@ -53,9 +53,8 @@ for nx in n:
 
   # Run with different resolutions
   str1 = '../test_stokesdarcy3field_mms_bulkviscosity.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -delta '+str(delta)+ \
-    ' -phi0 '+str(phi0)+' -phi_min '+str(phi_min)+' -p_s '+str(p_s)+' -psi_s '+str(psi_s)+ solver +\
-    ' -tau2 '+str(tau2)+' -vzeta '+str(vzeta)+ \
-    ' -U_s '+str(U_s)+' -m '+str(m)+' -n '+str(nexp)+' -k_hat '+str(k_hat)+ \
+    ' -phi0 '+str(phi0)+' -phia '+str(phia)+' -phi_min '+str(phi_min)+' -p_s '+str(p_s)+' -psi_s '+str(psi_s)+ solver +\
+    ' -vzeta '+str(vzeta)+' -U_s '+str(U_s)+' -m '+str(m)+' -n '+str(nexp)+' -k_hat '+str(k_hat)+ \
     ' -output_dir '+fname_data+' -output_file '+fname+'_'+str(nx)+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
   print(str1)
   os.system(str1)
