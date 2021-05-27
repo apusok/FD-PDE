@@ -130,6 +130,8 @@ int main (int argc,char **argv)
   DM             dm;
   Vec            x;
   PetscInt       nx, ny, dof0, dof1, dof2, stencil_width = 1;
+  char           fname[200];
+  PetscMPIInt    size;
   PetscErrorCode ierr;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return(ierr);
@@ -141,8 +143,11 @@ int main (int argc,char **argv)
   ierr = PetscOptionsGetInt(NULL, NULL, "-dof2", &dof2, NULL); CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL, NULL, "-stencil_width", &stencil_width, NULL); CHKERRQ(ierr);
 
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size); CHKERRQ(ierr);
+
   // create dummy data and output
-  ierr = test_write(nx,ny,dof0,dof1,dof2,"out_test_dmstagoutput_read");CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fname,sizeof(fname),"out_test_dmstagoutput_read_%d",size);
+  ierr = test_write(nx,ny,dof0,dof1,dof2,fname);CHKERRQ(ierr);
 
   // internally there is a dm/x created like this (used in this test for comparison)
   ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE,nx,ny,PETSC_DECIDE,PETSC_DECIDE, 
@@ -152,12 +157,14 @@ int main (int argc,char **argv)
   ierr = DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(dm,&x);CHKERRQ(ierr);
 
-  ierr = DMStagViewBinaryPython(dm,x,"out_test_dmstagoutput_read_create");CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fname,sizeof(fname),"out_test_dmstagoutput_read_create_%d",size);
+  ierr = DMStagViewBinaryPython(dm,x,fname);CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
   ierr = VecDestroy(&x); CHKERRQ(ierr);
 
   // read and output again
-  ierr = test_read("out_test_dmstagoutput_read");CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fname,sizeof(fname),"out_test_dmstagoutput_read_%d",size);
+  ierr = test_read(fname);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
   return(ierr);

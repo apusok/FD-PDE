@@ -9,13 +9,17 @@ import matplotlib.pyplot as plt
 import importlib
 import numpy as np
 
+class EmptyStruct:
+  pass
+
 # Run test
 n = 5
 nx = n+1
 ny = n
 dof0 = 3 # vertex
-dof1 = 1 # face
+dof1 = 2 # face
 dof2 = 5 # cell
+ncpu = 4
 
 create_plot = 0
 
@@ -25,119 +29,177 @@ if (create_plot):
   dof2 = 1 # cell
 
 # options = ' -log_view -viewer_binary_skip_info'
-options = ''
+options = ' -log_view'
 str1 = 'mpiexec -n 1 ../test_dmstagoutput_read.app '+ \
       ' -nx '+str(nx)+' -ny '+str(ny)+' -dof0 '+str(dof0)+' -dof1 '+str(dof1)+' -dof2 '+str(dof2)+ \
       options
 os.system(str1)
 
-fname = 'out_test_dmstagoutput_read'
+str4 = 'mpiexec -n '+str(ncpu)+' ../test_dmstagoutput_read.app '+ \
+      ' -nx '+str(nx)+' -ny '+str(ny)+' -dof0 '+str(dof0)+' -dof1 '+str(dof1)+' -dof2 '+str(dof2)+ \
+      options
+os.system(str4)
 
-# Load data
-fout = fname
-spec = importlib.util.spec_from_file_location(fout,fout+'.py')
-imod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(imod)
-data = imod._PETScBinaryLoad()
-imod._PETScBinaryLoadReportNames(data)
+fname1 = 'out_test_dmstagoutput_read_1'
+fname2 = 'out_test_dmstagoutput_read_4'
 
-fout = fname+'_create'
-spec = importlib.util.spec_from_file_location(fout,fout+'.py')
-imod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(imod)
-data_create = imod._PETScBinaryLoad()
-imod._PETScBinaryLoadReportNames(data_create)
+# -----------------------------------
+# Function definitions - same routine for mpi1,4
+# -----------------------------------
+def load_data(fname):
+  # Load data
+  fout = fname
+  spec = importlib.util.spec_from_file_location(fout,fout+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
+  data = imod._PETScBinaryLoad()
+  imod._PETScBinaryLoadReportNames(data)
 
-fout = fname+'_new'
-spec = importlib.util.spec_from_file_location(fout,fout+'.py')
-imod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(imod)
-data_new = imod._PETScBinaryLoad()
-imod._PETScBinaryLoadReportNames(data_new)
+  fout = fname[:-2]+'_create'+fname[-2:]
+  spec = importlib.util.spec_from_file_location(fout,fout+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
+  data_create = imod._PETScBinaryLoad()
+  imod._PETScBinaryLoadReportNames(data_create)
 
-mx = data['Nx'][0]
-my = data['Ny'][0]
-mz = data['Nz'][0]
+  fout = fname+'_new'
+  spec = importlib.util.spec_from_file_location(fout,fout+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
+  data_new = imod._PETScBinaryLoad()
+  imod._PETScBinaryLoadReportNames(data_new)
+  
+  A = EmptyStruct()
+  A.mx = data['Nx'][0]
+  A.my = data['Ny'][0]
+  A.mz = data['Nz'][0]
 
-dim = data['dim'][0]
+  A.dim = data['dim'][0]
 
-dof0 = data['dof0'][0]
-dof1 = data['dof1'][0]
-dof2 = data['dof2'][0]
-dof3 = data['dof3'][0]
+  A.dof0 = data['dof0'][0]
+  A.dof1 = data['dof1'][0]
+  A.dof2 = data['dof2'][0]
+  A.dof3 = data['dof3'][0]
 
-print('# Data info: M = %d, N = %d, P = %d, dim = %d, dof0 = %d, dof1 = %d, dof2 = %d, dof3 = %d' %(mx,my,mz,dim,dof0,dof1,dof2,dof3))
+  A.x1d = data['x1d']
+  A.y1d = data['y1d']
+  A.xc = data['x1d_cell']
+  A.yc = data['y1d_cell']
+  A.xv = data['x1d_vertex']
+  A.yv = data['y1d_vertex']
 
-x1d = data['x1d']
-y1d = data['y1d']
+  A.x1d_c = data_create['x1d']
+  A.y1d_c = data_create['y1d']
+  A.x1d_n = data_new['x1d']
+  A.y1d_n = data_new['y1d']
 
-# print(x1d)
-# print(y1d)
+  A.xc_c = data_create['x1d_cell']
+  A.yc_c = data_create['y1d_cell']
+  A.xv_c = data_create['x1d_vertex']
+  A.yv_c = data_create['y1d_vertex']
 
-xc = data['x1d_cell']
-yc = data['y1d_cell']
-xv = data['x1d_vertex']
-yv = data['y1d_vertex']
+  A.xc_n = data_new['x1d_cell']
+  A.yc_n = data_new['y1d_cell']
+  A.xv_n = data_new['x1d_vertex']
+  A.yv_n = data_new['y1d_vertex']
 
-x1d_c = data_create['x1d']
-y1d_c = data_create['y1d']
-x1d_n = data_new['x1d']
-y1d_n = data_new['y1d']
+  if (A.dof0):
+    A.Xvertex = data['X_vertex']
+    A.Xvertex_c = data_create['X_vertex']
+    A.Xvertex_n = data_new['X_vertex']
 
-xc_c = data_create['x1d_cell']
-yc_c = data_create['y1d_cell']
-xv_c = data_create['x1d_vertex']
-yv_c = data_create['y1d_vertex']
+  if (A.dof2):
+    A.Xcell = data['X_cell']
+    A.Xcell_c = data_create['X_cell']
+    A.Xcell_n = data_new['X_cell']
 
-xc_n = data_new['x1d_cell']
-yc_n = data_new['y1d_cell']
-xv_n = data_new['x1d_vertex']
-yv_n = data_new['y1d_vertex']
+  if (A.dof1):
+    A.Xfacex = data['X_face_x']
+    A.Xfacex_c = data_create['X_face_x']
+    A.Xfacex_n = data_new['X_face_x']
 
-if (dof0):
-  Xvertex = data['X_vertex']
-  Xvertex_c = data_create['X_vertex']
-  Xvertex_n = data_new['X_vertex']
+    A.Xfacey = data['X_face_y']
+    A.Xfacey_c = data_create['X_face_y']
+    A.Xfacey_n = data_new['X_face_y']
 
-if (dof2):
-  Xcell = data['X_cell']
-  Xcell_c = data_create['X_cell']
-  Xcell_n = data_new['X_cell']
+  os.system('rm -r __pycache__')
+  return A
 
-if (dof1):
-  Xfacex = data['X_face_x']
-  Xfacex_c = data_create['X_face_x']
-  Xfacex_n = data_new['X_face_x']
+# -----------------------------------
+# norms:
+# -----------------------------------
+def calculate_norms(A):
+  norms = EmptyStruct()
+  print('# Data info: M = %d, N = %d, P = %d, dim = %d, dof0 = %d, dof1 = %d, dof2 = %d, dof3 = %d' %(A.mx,A.my,A.mz,A.dim,A.dof0,A.dof1,A.dof2,A.dof3))
+  if (A.dof0):
+    print('# NORMs Vertex:')
+    for i in range(0,A.dof0):
+      Xvertexi   = A.Xvertex[i::A.dof0]
+      Xvertexi_c = A.Xvertex_c[i::A.dof0]
+      Xvertexi_n = A.Xvertex_n[i::A.dof0]
+      print('#    dof = %d norm_create = %f norm_new = %f' %(i,np.linalg.norm(Xvertexi-Xvertexi_c),np.linalg.norm(Xvertexi-Xvertexi_n)))
 
-  Xfacey = data['X_face_y']
-  Xfacey_c = data_create['X_face_y']
-  Xfacey_n = data_new['X_face_y']
+  if (A.dof1):
+    print('# NORMs Face:')
+    for i in range(0,A.dof1):
+      Xfacexi   = A.Xfacex[i::A.dof1]
+      Xfacexi_c = A.Xfacex_c[i::A.dof1]
+      Xfacexi_n = A.Xfacex_n[i::A.dof1]
 
-# print(Xcell)
-if (create_plot):
-  Xvertex0 = Xvertex[0::dof0]
-  Xvertex0_c = Xvertex_c[0::dof0]
-  Xvertex0_n = Xvertex_n[0::dof0]
+      Xfaceyi   = A.Xfacey[i::A.dof1]
+      Xfaceyi_c = A.Xfacey_c[i::A.dof1]
+      Xfaceyi_n = A.Xfacey_n[i::A.dof1]
+      print('#    X dof = %d norm_create = %f norm_new = %f' %(i,np.linalg.norm(Xfacexi-Xfacexi_c),np.linalg.norm(Xfacexi-Xfacexi_n)))
+      print('#    Y dof = %d norm_create = %f norm_new = %f' %(i,np.linalg.norm(Xfaceyi-Xfaceyi_c),np.linalg.norm(Xfaceyi-Xfaceyi_n)))
 
-  Xfacex0 = Xfacex[0::dof1]
-  Xfacex0_c = Xfacex_c[0::dof1]
-  Xfacex0_n = Xfacex_n[0::dof1]
+  if (A.dof2):
+    print('# NORMs Cell:')
+    for i in range(0,A.dof2):
+      Xcelli   = A.Xcell[i::A.dof2]
+      Xcelli_c = A.Xcell_c[i::A.dof2]
+      Xcelli_n = A.Xcell_n[i::A.dof2]
+      print('#    dof = %d norm_create = %f norm_new = %f' %(i,np.linalg.norm(Xcelli-Xcelli_c),np.linalg.norm(Xcelli-Xcelli_n)))
 
-  Xfacex1 = Xfacex[1::dof1]
-  Xfacex1_c = Xfacex_c[1::dof1]
-  Xfacex1_n = Xfacex_n[1::dof1]
+  # coordinates:
+  print('# NORMs Coordinates:')
+  print('#    x1d: norm_create = %f norm_new = %f' %(np.linalg.norm(A.x1d-A.x1d_c),np.linalg.norm(A.x1d-A.x1d_n)))
+  print('#    y1d: norm_create = %f norm_new = %f' %(np.linalg.norm(A.y1d-A.y1d_c),np.linalg.norm(A.y1d-A.y1d_n)))
 
-  Xfacey0 = Xfacey[0::dof1]
-  Xfacey0_c = Xfacey_c[0::dof1]
-  Xfacey0_n = Xfacey_n[0::dof1]
+  if ((A.dof0) | (A.dof1)):
+    print('#    xvertex: norm_create = %f norm_new = %f' %(np.linalg.norm(A.xv-A.xv_c),np.linalg.norm(A.xv-A.xv_n)))
+    print('#    yvertex: norm_create = %f norm_new = %f' %(np.linalg.norm(A.yv-A.yv_c),np.linalg.norm(A.yv-A.yv_n)))
 
-  Xfacey1 = Xfacey[1::dof1]
-  Xfacey1_c = Xfacey_c[1::dof1]
-  Xfacey1_n = Xfacey_n[1::dof1]
+  if ((A.dof1) | (A.dof2)):
+    print('#    xcenter: norm_create = %f norm_new = %f' %(np.linalg.norm(A.xc-A.xc_c),np.linalg.norm(A.xc-A.xc_n)))
+    print('#    ycenter: norm_create = %f norm_new = %f' %(np.linalg.norm(A.yc-A.yc_c),np.linalg.norm(A.yc-A.yc_n)))
 
-  Xcell0 = Xcell[0::dof2]
-  Xcell0_c = Xcell_c[0::dof2]
-  Xcell0_n = Xcell_n[0::dof2]
+# -----------------------------------
+# plot
+# -----------------------------------
+def create_comparison_plot(A,fname):
+  Xvertex0 = A.Xvertex[0::A.dof0]
+  Xvertex0_c = A.Xvertex_c[0::A.dof0]
+  Xvertex0_n = A.Xvertex_n[0::A.dof0]
+
+  Xfacex0 = A.Xfacex[0::A.dof1]
+  Xfacex0_c = A.Xfacex_c[0::A.dof1]
+  Xfacex0_n = A.Xfacex_n[0::A.dof1]
+
+  Xfacex1 = A.Xfacex[1::A.dof1]
+  Xfacex1_c = A.Xfacex_c[1::A.dof1]
+  Xfacex1_n = A.Xfacex_n[1::A.dof1]
+
+  Xfacey0 = A.Xfacey[0::A.dof1]
+  Xfacey0_c = A.Xfacey_c[0::A.dof1]
+  Xfacey0_n = A.Xfacey_n[0::A.dof1]
+
+  Xfacey1 = A.Xfacey[1::A.dof1]
+  Xfacey1_c = A.Xfacey_c[1::A.dof1]
+  Xfacey1_n = A.Xfacey_n[1::A.dof1]
+
+  Xcell0 = A.Xcell[0::A.dof2]
+  Xcell0_c = A.Xcell_c[0::A.dof2]
+  Xcell0_n = A.Xcell_n[0::A.dof2]
 
   # Plot 
   fig, axs = plt.subplots(6,3,figsize=(15,20))
@@ -160,6 +222,21 @@ if (create_plot):
   ax16 = plt.subplot(6,3,16)
   ax17 = plt.subplot(6,3,17)
   ax18 = plt.subplot(6,3,18)
+
+  mx = A.mx
+  my = A.my
+  xv = A.xv
+  yv = A.yv
+  xv_c = A.xv_c
+  yv_c = A.yv_c
+  xv_n = A.xv_n
+  yv_n = A.yv_n
+  xc = A.xc
+  yc = A.yc
+  xc_c = A.xc_c
+  yc_c = A.yc_c
+  xc_n = A.xc_n
+  yc_n = A.yc_n
 
   ax1.set_title('Xvertex0')
   im1 = ax1.imshow(Xvertex0.reshape(my+1,mx+1),origin='lower',extent=[min(xv),max(xv),min(yv),max(yv)],interpolation='none')
@@ -212,48 +289,19 @@ if (create_plot):
 
   plt.savefig(fname+'.pdf', bbox_inches = 'tight')
 
-# norms:
-if (dof0):
-  print('# NORMs Vertex:')
-  for i in range(0,dof0):
-    Xvertexi   = Xvertex[i::dof0]
-    Xvertexi_c = Xvertex_c[i::dof0]
-    Xvertexi_n = Xvertex_n[i::dof0]
-    print('#    dof = %d norm_create = %f norm_new = %f' %(i,np.linalg.norm(Xvertexi-Xvertexi_c),np.linalg.norm(Xvertexi-Xvertexi_n)))
+# -----------------------------------
+# MAIN
+# -----------------------------------
+A1 = load_data(fname1)
+A2 = load_data(fname2)
 
-if (dof1):
-  print('# NORMs Face:')
-  for i in range(0,dof1):
-    Xfacexi   = Xfacex[i::dof1]
-    Xfacexi_c = Xfacex_c[i::dof1]
-    Xfacexi_n = Xfacex_n[i::dof1]
+print('\n# [ SEQUENTIAL 1 CPU]')
+calculate_norms(A1)
 
-    Xfaceyi   = Xfacey[i::dof1]
-    Xfaceyi_c = Xfacey_c[i::dof1]
-    Xfaceyi_n = Xfacey_n[i::dof1]
-    print('#    X dof = %d norm_create = %f norm_new = %f' %(i,np.linalg.norm(Xfacexi-Xfacexi_c),np.linalg.norm(Xfacexi-Xfacexi_n)))
-    print('#    Y dof = %d norm_create = %f norm_new = %f' %(i,np.linalg.norm(Xfaceyi-Xfaceyi_c),np.linalg.norm(Xfaceyi-Xfaceyi_n)))
+print('\n# [ PARALLEL '+str(ncpu)+' CPU]')
+calculate_norms(A2)
+print('<<< ALL norm_new SHOULD BE ZERO >>>')
 
-if (dof2):
-  print('# NORMs Cell:')
-  for i in range(0,dof2):
-    Xcelli   = Xcell[i::dof2]
-    Xcelli_c = Xcell_c[i::dof2]
-    Xcelli_n = Xcell_n[i::dof2]
-    print('#    dof = %d norm_create = %f norm_new = %f' %(i,np.linalg.norm(Xcelli-Xcelli_c),np.linalg.norm(Xcelli-Xcelli_n)))
-
-
-# coordinates:
-print('# NORMs Coordinates:')
-print('#    x1d: norm_create = %f norm_new = %f' %(np.linalg.norm(x1d-x1d_c),np.linalg.norm(x1d-x1d_n)))
-print('#    y1d: norm_create = %f norm_new = %f' %(np.linalg.norm(y1d-y1d_c),np.linalg.norm(y1d-y1d_n)))
-
-if ((dof0) | (dof1)):
-  print('#    xvertex: norm_create = %f norm_new = %f' %(np.linalg.norm(xv-xv_c),np.linalg.norm(xv-xv_n)))
-  print('#    yvertex: norm_create = %f norm_new = %f' %(np.linalg.norm(yv-yv_c),np.linalg.norm(yv-yv_n)))
-
-if ((dof1) | (dof2)):
-  print('#    xcenter: norm_create = %f norm_new = %f' %(np.linalg.norm(xc-xc_c),np.linalg.norm(xc-xc_n)))
-  print('#    ycenter: norm_create = %f norm_new = %f' %(np.linalg.norm(yc-yc_c),np.linalg.norm(yc-yc_n)))
-
-os.system('rm -r __pycache__')
+if (create_plot):
+  create_comparison_plot(A1,fname1)
+  create_comparison_plot(A2,fname2)
