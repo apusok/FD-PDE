@@ -140,8 +140,9 @@ PetscErrorCode EnthalpyNonzeroStencil(PetscInt,PetscInt,PetscInt,PetscInt,PetscI
 PetscErrorCode FormFunction_Enthalpy(SNES,Vec,Vec,void*);
 PetscErrorCode DMStagBCListApply_Enthalpy(DM,Vec,DMStagBC*,PetscInt,PetscScalar***);
 
-PetscErrorCode ApplyEnthalpyMethod(FDPDE,DM,Vec,DM,Vec,DM,Vec,EnthalpyData*,ThermoState*,CoeffState*,const char[]);
-PetscErrorCode ApplyEnthalpyReport_Failure(FDPDE,PetscViewer,EnthalpyData*,ThermoState*,CoeffState*);
+PetscErrorCode ApplyEnthalpyMethod(FDPDE,DM,Vec,DM,Vec,EnthalpyData*,ThermoState*,const char[]);
+PetscErrorCode UpdateCoeffStructure(FDPDE,DM,Vec,CoeffState*);
+PetscErrorCode ApplyEnthalpyReport_Failure(FDPDE,PetscViewer,EnthalpyData*,ThermoState*);
 PetscErrorCode CoeffCellData(DM,Vec,PetscInt,PetscInt,CoeffState*);
 PetscErrorCode SolutionCellData(DM,Vec,PetscInt,PetscInt,PetscScalar*,PetscScalar*);
 PetscErrorCode EnthalpyResidual(DM,ThermoState*,CoeffState*,ThermoState*,CoeffState*,PetscScalar**,PetscScalar**,EnthalpyData*,PetscInt,PetscInt, PetscScalar*);

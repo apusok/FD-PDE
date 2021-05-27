@@ -501,8 +501,8 @@ PetscErrorCode FDPDEEnthalpyComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
       vx_max = PetscMax(PetscMax(PetscAbsScalar(xx_vs[0]),PetscAbsScalar(xx_vs[1])), PetscMax(PetscAbsScalar(xx_vf[0]),PetscAbsScalar(xx_vf[1])));
       vz_max = PetscMax(PetscMax(PetscAbsScalar(xx_vs[2]),PetscAbsScalar(xx_vs[3])), PetscMax(PetscAbsScalar(xx_vf[2]),PetscAbsScalar(xx_vf[3])));
 
-      dx = coordx[0][inext]-coordx[0][iprev];
-      dz = coordz[0][inext]-coordz[0][iprev];
+      dx = coordx[i][inext]-coordx[i][iprev];
+      dz = coordz[j][inext]-coordz[j][iprev];
 
       // compute dx, dy for this cell
       cell_dt_x = dx / PetscMax(vx_max, eps);

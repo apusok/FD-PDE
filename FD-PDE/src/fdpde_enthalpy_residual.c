@@ -94,15 +94,6 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   Nx = fd->Nx;
   Nz = fd->Nz;
 
-  // Update BC list
-  bclist = fd->bclist;
-  if (fd->bclist->evaluate) {
-    ierr = fd->bclist->evaluate(dm,x,bclist,bclist->data);CHKERRQ(ierr);
-  }
-
-  // Update coefficients
-  ierr = fd->ops->form_coefficient(fd,dm,x,dmcoeff,fd->coeff,fd->user_context);CHKERRQ(ierr);
-
   // Get local domain
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -114,8 +105,6 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   // Map global vectors to local domain
   ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
-  ierr = DMGetLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
   ierr = DMGetLocalVector(dmP, &Plocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dmP, en->xP, INSERT_VALUES, Plocal); CHKERRQ(ierr);
 
@@ -137,13 +126,26 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   if (en->timesteptype != TS_NONE) {
     ierr = PetscCalloc1((size_t)((nx+4)*(nz+4))*sizeof(ThermoState),&thm_prev);CHKERRQ(ierr);
     ierr = PetscCalloc1((size_t)((nx+4)*(nz+4))*sizeof(CoeffState),&cff_prev);CHKERRQ(ierr);
-    ierr = ApplyEnthalpyMethod(fd,dm,xprevlocal,dmcoeff,coeffprevlocal,dmP,Pprevlocal,en,thm_prev,cff_prev,"prev"); CHKERRQ(ierr);
+    ierr = ApplyEnthalpyMethod(fd,dm,xprevlocal,dmP,Pprevlocal,en,thm_prev,"prev"); CHKERRQ(ierr);
+    ierr = UpdateCoeffStructure(fd,dmcoeff,coeffprevlocal,cff_prev);CHKERRQ(ierr);
   }
 
   // update enthalpy and coeff cell data
   ierr = PetscCalloc1((size_t)((nx+4)*(nz+4))*sizeof(ThermoState),&thm);CHKERRQ(ierr); 
   ierr = PetscCalloc1((size_t)((nx+4)*(nz+4))*sizeof(CoeffState),&cff);CHKERRQ(ierr);
-  ierr = ApplyEnthalpyMethod(fd,dm,xlocal,dmcoeff,coefflocal,dmP,Plocal,en,thm,cff,NULL); CHKERRQ(ierr);
+  ierr = ApplyEnthalpyMethod(fd,dm,xlocal,dmP,Plocal,en,thm,NULL); CHKERRQ(ierr);
+
+  // Update coefficients after enthalpy (for dependency of coeff on porosity)
+  ierr = fd->ops->form_coefficient(fd,dm,x,dmcoeff,fd->coeff,fd->user_context);CHKERRQ(ierr);
+  ierr = DMGetLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
+  ierr = UpdateCoeffStructure(fd,dmcoeff,coefflocal,cff);CHKERRQ(ierr);
+
+  // Update BC list
+  bclist = fd->bclist;
+  if (fd->bclist->evaluate) {
+    ierr = fd->bclist->evaluate(dm,x,bclist,bclist->data);CHKERRQ(ierr);
+  }
 
   // Residual evaluation
   for (j = sz; j<sz+nz; j++) {
@@ -196,11 +198,33 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
 
 // ---------------------------------------
 /*@
-ApplyEnthalpyMethod - apply enthalpy method during each solver iteration; it collects the coefficients and enthalpy variables for the entire domain
+UpdateCoeffStructure - collects the coefficients variables for the entire domain
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coefflocal,DM dmP, Vec Plocal,EnthalpyData *en,ThermoState *thm,CoeffState *cff, const char prefix[])
+PetscErrorCode UpdateCoeffStructure(FDPDE fd, DM dmcoeff,Vec coefflocal,CoeffState *cff)
+{
+  PetscInt       i,j,sx,sz,nx,nz,idx;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  for (j = sz; j<sz+nz; j++) {
+    for (i = sx; i<sx+nx; i++) {
+      idx = SingleDimIndex(i-sx+2,j-sz+2,nz+4);
+      ierr = CoeffCellData(dmcoeff,coefflocal,i,j,&cff[idx]);CHKERRQ(ierr);
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+ApplyEnthalpyMethod - apply enthalpy method during each solver iteration; it collects enthalpy variables for the entire domain
+Use: internal
+@*/
+// ---------------------------------------
+PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmP, Vec Plocal,EnthalpyData *en,ThermoState *thm, const char prefix[])
 {
   PetscInt       ii,i,j,sx,sz,nx,nz,idx,nreports, gnreports;
   PetscInt       Nx, Nz;
@@ -215,16 +239,7 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coe
   Nz = fd->Nz;
 
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-  
-  // get coefficient data
-  for (j = sz; j<sz+nz; j++) {
-    for (i = sx; i<sx+nx; i++) {
-      idx = SingleDimIndex(i-sx+2,j-sz+2,nz+4);
-      ierr = CoeffCellData(dmcoeff,coefflocal,i,j,&cff[idx]);CHKERRQ(ierr);
-    }
-  }
 
   // compute ghosted enthalpy data
   for (j = sz-2; j<sz+nz+2; j++) {
@@ -273,7 +288,7 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmcoeff,Vec coe
     if (prefix) PetscSNPrintf(fname,PETSC_MAX_PATH_LEN-1,"enthalpy_failure_%s_%D.rank%D.report",prefix,en->nreports,rank);
     else PetscSNPrintf(fname,PETSC_MAX_PATH_LEN-1,"enthalpy_failure_%D.rank%D.report",en->nreports,rank);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_SELF,fname,&viewer);CHKERRQ(ierr);
-    ierr = ApplyEnthalpyReport_Failure(fd,viewer,en,thm,cff);CHKERRQ(ierr);
+    ierr = ApplyEnthalpyReport_Failure(fd,viewer,en,thm);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
     en->nreports++;
 
@@ -292,7 +307,7 @@ ApplyEnthalpyReport_Failure - report failure of enthalpy data to file
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode ApplyEnthalpyReport_Failure(FDPDE fd,PetscViewer viewer, EnthalpyData *en,ThermoState *thm,CoeffState *cff)
+PetscErrorCode ApplyEnthalpyReport_Failure(FDPDE fd,PetscViewer viewer, EnthalpyData *en,ThermoState *thm)
 {
   PetscInt   ii,i,j,sx,sz,nx,nz,idx, its;
   const char *vname;
