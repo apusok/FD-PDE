@@ -22,8 +22,10 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
   PetscScalar    **coordx,**coordz;
   DMStagBCList   bclist;
   PetscErrorCode ierr;
-
+  PetscLogDouble tlog[10];
+  
   PetscFunctionBegin;
+  PetscTime(&tlog[0]);
   if (!fd->ops->form_coefficient) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Form coefficient function pointer is NULL. Must call FDPDESetFunctionCoefficient() and provide a non-NULL function pointer.");
   
   // Assign pointers and other variables
@@ -37,9 +39,11 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
   if (fd->bclist->evaluate) {
     ierr = fd->bclist->evaluate(dmPV,x,bclist,bclist->data);CHKERRQ(ierr);
   }
+  PetscTime(&tlog[1]);
 
   // Update coefficients
   ierr = fd->ops->form_coefficient(fd,dmPV,x,dmCoeff,fd->coeff,fd->user_context);CHKERRQ(ierr);
+  PetscTime(&tlog[2]);
 
   // Get local domain
   ierr = DMStagGetCorners(dmPV, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -63,6 +67,7 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
   // Create residual local vector
   ierr = DMCreateLocalVector(dmPV, &flocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArray(dmPV, flocal, &ff); CHKERRQ(ierr);
+  PetscTime(&tlog[3]);
 
   // Loop over elements
   for (j = sz; j<sz+nz; j++) {
@@ -95,10 +100,12 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
       }
     }
   }
+  PetscTime(&tlog[4]);
 
   // Boundary conditions - edges and element
   ierr = DMStagBCListApplyFace_StokesDarcy3Field(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,ff);CHKERRQ(ierr);
   ierr = DMStagBCListApplyElement_StokesDarcy3Field(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,n,ff);CHKERRQ(ierr);
+  PetscTime(&tlog[5]);
 
   // Restore arrays, local vectors
   ierr = DMStagRestoreProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -111,6 +118,16 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
   ierr = DMLocalToGlobalEnd  (dmPV,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
 
   ierr = VecDestroy(&flocal); CHKERRQ(ierr);
+  PetscTime(&tlog[6]);
+  
+  printf("  FormFunction_StokesDarcy3Field: total            %1.2e\n",tlog[6]-tlog[0]);
+  printf("  FormFunction_StokesDarcy3Field: bclist->evaluate %1.2e\n",tlog[1]-tlog[0]);
+  printf("  FormFunction_StokesDarcy3Field: form_coefficient %1.2e\n",tlog[2]-tlog[1]);
+  printf("  FormFunction_StokesDarcy3Field: g2l(input)       %1.2e\n",tlog[3]-tlog[2]);
+  printf("  FormFunction_StokesDarcy3Field: cell-loop        %1.2e\n",tlog[4]-tlog[3]);
+  printf("  FormFunction_StokesDarcy3Field: bclist_set       %1.2e\n",tlog[5]-tlog[4]);
+  printf("  FormFunction_StokesDarcy3Field: g2l(output)      %1.2e\n",tlog[6]-tlog[5]);
+  printf("----------------------------------------------------------------------\n");
   
   PetscFunctionReturn(0);
 }
