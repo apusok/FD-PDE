@@ -80,11 +80,11 @@ tests: $(OBJ) $(TEST_APP)
 models: $(OBJ) $(MODEL_APP)
 
 %.o: %.c $(HDR)
-	-$(PCC) $(CFLAGS) -o $@ -c $< $(PETSC_CC_INCLUDES)
+	-$(PCC) $(CFLAGS) -O2 -o $@ -c $< $(PETSC_CC_INCLUDES)
 
 
 %.app: %.c $(OBJ) $(HDR)
-	-$(CLINKER) -o $@ $< $(OBJ) $(PETSC_SNES_LIB) $(PETSC_CONTRIB) $(PETSC_CC_INCLUDES)
+	-$(CLINKER) -O2 -o $@ $< $(OBJ) $(PETSC_SNES_LIB) $(PETSC_CONTRIB) $(PETSC_CC_INCLUDES)
 
 clean_tests:
 	@rm -rf $(TEST_OBJ)

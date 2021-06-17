@@ -42,11 +42,11 @@ all:
 	${RM} mbuoy3.o $(FDPDE_OBJ) ${MODEL_OBJ}
 
 %.o: %.c $(FDPDE_HDR)
-	-$(PCC) $(CFLAGS) -o $@ -c $< $(PETSC_CC_INCLUDES)
+	-$(PCC) $(CFLAGS) -O2 -o $@ -c $< $(PETSC_CC_INCLUDES)
 
 mbuoy3: mbuoy3.o $(FDPDE_OBJ) ${MODEL_OBJ}
 	${RM} mbuoy3.app
-	-${CLINKER} -o mbuoy3.app mbuoy3.o $(FDPDE_OBJ) ${MODEL_OBJ} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
+	-${CLINKER} -O2 -o mbuoy3.app mbuoy3.o $(FDPDE_OBJ) ${MODEL_OBJ} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
 
 clean_all:
 	@echo "# -------------------------------- #"
