@@ -115,7 +115,7 @@ PetscErrorCode DMStagGetLocalElementGlobalIndices(DM dm,PetscInt eidx,PetscInt *
  
  .seealso: DMSTAG, DMStagVecGetArrayRead(), DMStagGetLocationSlot(), DMGetLocalVector(), DMCreateLocalVector(), DMGetGlobalVector(), DMCreateGlobalVector(), DMDAVecGetArray(), DMDAVecGetArrayDOF()
  @*/
-PetscErrorCode DMStagVecGetArray(DM dm,Vec vec,void *array)
+PetscErrorCode _DMStagVecGetArray(DM dm,Vec vec,void *array)
 {
   PetscErrorCode  ierr;
   DM_Stag * const stag = (DM_Stag*)dm->data;
@@ -159,7 +159,7 @@ PetscErrorCode DMStagVecGetArray(DM dm,Vec vec,void *array)
  
  .seealso: DMSTAG, DMStagVecGetArray(), DMDAVecRestoreArray(), DMDAVecRestoreArrayDOF()
  @*/
-PetscErrorCode DMStagVecRestoreArray(DM dm,Vec vec,void *array)
+PetscErrorCode _DMStagVecRestoreArray(DM dm,Vec vec,void *array)
 {
   PetscErrorCode  ierr;
   DM_Stag * const stag = (DM_Stag*)dm->data;
@@ -208,7 +208,7 @@ PetscErrorCode DMStagVecRestoreArray(DM dm,Vec vec,void *array)
  
  .seealso: DMSTAG, DMStagVecGetArrayRead(), DMStagGetLocationSlot(), DMGetLocalVector(), DMCreateLocalVector(), DMGetGlobalVector(), DMCreateGlobalVector(), DMDAVecGetArrayRead(), DMDAVecGetArrayDOFRead()
  @*/
-PetscErrorCode DMStagVecGetArrayRead(DM dm,Vec vec,void *array)
+PetscErrorCode _DMStagVecGetArrayRead(DM dm,Vec vec,void *array)
 {
   PetscErrorCode  ierr;
   DM_Stag * const stag = (DM_Stag*)dm->data;
@@ -252,7 +252,7 @@ PetscErrorCode DMStagVecGetArrayRead(DM dm,Vec vec,void *array)
  
  .seealso: DMSTAG, DMStagVecGetArrayRead(), DMDAVecRestoreArrayRead(), DMDAVecRestoreArrayDOFRead()
  @*/
-PetscErrorCode DMStagVecRestoreArrayRead(DM dm,Vec vec,void *array)
+PetscErrorCode _DMStagVecRestoreArrayRead(DM dm,Vec vec,void *array)
 {
   PetscErrorCode  ierr;
   DM_Stag * const stag = (DM_Stag*)dm->data;
@@ -357,7 +357,7 @@ static PetscErrorCode DMStagGetProductCoordinateArrays_Private(DM dm,void* arrX,
  
  .seealso: DMSTAG, DMPRODUCT, DMStagGetProductCoordinateArrays(), DMStagSetUniformCoordinates(), DMStagSetUniformCoordinatesProduct(), DMStagGetProductCoordinateLocationSlot()
  @*/
-PetscErrorCode DMStagGetProductCoordinateArraysRead(DM dm,void* arrX,void* arrY,void* arrZ)
+PetscErrorCode _DMStagGetProductCoordinateArraysRead(DM dm,void* arrX,void* arrY,void* arrZ)
 {
   PetscErrorCode ierr;
   
@@ -412,7 +412,7 @@ static PetscErrorCode DMStagRestoreProductCoordinateArrays_Private(DM dm,void *a
  
  .seealso: DMSTAG, DMStagGetProductCoordinateArrays(), DMStagGetProductCoordinateArraysRead()
  @*/
-PetscErrorCode DMStagRestoreProductCoordinateArraysRead(DM dm,void *arrX,void *arrY,void *arrZ)
+PetscErrorCode _DMStagRestoreProductCoordinateArraysRead(DM dm,void *arrX,void *arrY,void *arrZ)
 {
   PetscErrorCode  ierr;
   
@@ -444,7 +444,7 @@ PetscErrorCode DMStagRestoreProductCoordinateArraysRead(DM dm,void *arrX,void *a
  
  .seealso: DMSTAG, DMPRODUCT, DMStagGetProductCoordinateArrays(), DMStagGetProductCoordinateArraysRead(), DMStagSetUniformCoordinates()
  @*/
-PetscErrorCode DMStagGetProductCoordinateLocationSlot(DM dm,DMStagStencilLocation loc,PetscInt *slot)
+PetscErrorCode _DMStagGetProductCoordinateLocationSlot(DM dm,DMStagStencilLocation loc,PetscInt *slot)
 {
   PetscErrorCode ierr;
   DM             dmCoord;

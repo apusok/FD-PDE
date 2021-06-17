@@ -1555,7 +1555,7 @@ PetscErrorCode MPoint_AdvectRK2(DM dmswarm,DM dmstag,Vec X,PetscReal dt)
 
 
 /* copy x into y */
-PetscErrorCode DMSwarmDataFieldCopyPoint(const PetscInt pid_x,const DMSwarmDataField field_x,
+PetscErrorCode _DMSwarmDataFieldCopyPoint(const PetscInt pid_x,const DMSwarmDataField field_x,
                         const PetscInt pid_y,const DMSwarmDataField field_y )
 {
   PetscErrorCode ierr;
@@ -1573,7 +1573,7 @@ PetscErrorCode DMSwarmDataFieldCopyPoint(const PetscInt pid_x,const DMSwarmDataF
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMSwarmDataFieldStringFindInList(const char name[],const PetscInt N,const DMSwarmDataField gfield[],PetscInt *index)
+PetscErrorCode _DMSwarmDataFieldStringFindInList(const char name[],const PetscInt N,const DMSwarmDataField gfield[],PetscInt *index)
 {
   PetscInt       i;
   PetscErrorCode ierr;
@@ -1605,7 +1605,7 @@ PetscErrorCode DMSwarmQueryField(DM dm,const char fieldname[],PetscBool *found)
   
   PetscFunctionBeginUser;
   *found = PETSC_FALSE;
-  DMSwarmDataFieldStringFindInList(fieldname,s->db->nfields,s->db->field,&index);
+  _DMSwarmDataFieldStringFindInList(fieldname,s->db->nfields,s->db->field,&index);
   if (index >= 0) *found = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
@@ -1692,7 +1692,7 @@ PetscErrorCode DMSwarmCopyFieldValues(DM dmA,DM dmB,PetscBool *copy_occurred)
 
   for (f=0; f<nfA; f++) {
     PetscInt index = -1;
-    DMSwarmDataFieldStringFindInList(dbA->field[f]->name, dbB->nfields,dbB->field,&index);
+    _DMSwarmDataFieldStringFindInList(dbA->field[f]->name, dbB->nfields,dbB->field,&index);
     if (index >= 0) {
       fieldfrom[f] = f;
       fieldto[f] = index;
@@ -1768,7 +1768,7 @@ PetscErrorCode DMSwarmCopySubsetFieldValues(DM dmA,PetscInt np,PetscInt list[],D
   
   for (f=0; f<nfA; f++) {
     PetscInt index = -1;
-    DMSwarmDataFieldStringFindInList(dbA->field[f]->name, dbB->nfields,dbB->field,&index);
+    _DMSwarmDataFieldStringFindInList(dbA->field[f]->name, dbB->nfields,dbB->field,&index);
     if (index >= 0) {
       fieldfrom[f] = f;
       fieldto[f] = index;
