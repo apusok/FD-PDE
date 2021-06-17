@@ -405,7 +405,7 @@ PetscErrorCode FormCoefficient_HC_VF_nonlinear(FDPDE fd, DM dm, Vec x, DM dmcoef
   const PetscReal ***_xPVlocal;
   const PetscReal ***_xEnthlocal;
   PetscInt pv_slot[14];
-  PetscInt coeff_element_slot[20];
+  PetscInt coeff_element_slot[6];
   PetscInt coeff_face_slot_C1[4],coeff_face_slot_C2[4],coeff_face_slot_V[4],coeff_face_slot_VF[4],coeff_face_slot_VS[4];
   PetscInt enth_cell_slot_phi;
   
