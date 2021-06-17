@@ -838,11 +838,11 @@ PetscErrorCode CreateDirectory(const char *name)
 PetscErrorCode ComputeMeltExtractOutflux(void *ctx) 
 {
   UsrData       *usr = (UsrData*) ctx;
-  PetscInt       i, j, imor, sx, sz, nx, nz, Nx, Nz, iprev,inext;
+  PetscInt       i, j, imor_s, imor_e, sx, sz, nx, nz, Nx, Nz, iprev,inext;
   PetscScalar    **coordx,**coordz;
   PetscScalar    out_F, out_C, gout_F, gout_C, phi_max, vfz_max, gphi_max, gvfz_max, full_ridge;
   DM             dmHC, dmVel, dmEnth;
-  Vec            xphiTlocal, xVellocal, xEnthlocal;
+  Vec            xVellocal, xEnthlocal;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
@@ -867,10 +867,15 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
   ierr = DMGlobalToLocal (dmEnth, usr->xEnth, INSERT_VALUES, xEnthlocal); CHKERRQ(ierr);
 
   // check indices for xMOR
+  imor_s = Nx;
+  imor_e = 0;
   for (i = sx; i <sx+nx; i++) {
     PetscScalar xc;
     xc = (coordx[i][inext]+coordx[i][iprev])*0.5;
-    if (fabs(xc) <= usr->nd->xmor) imor = i;
+    if (fabs(xc) <= usr->nd->xmor) {
+      imor_s = PetscMin(i,imor_s);
+      imor_e = PetscMax(i,imor_e);
+    }
   }
 
   gout_F   = 0.0;
@@ -884,8 +889,8 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
   vfz_max = 0.0;
 
   // Loop over local domain for xMOR
-  if ((imor>=sx) && (imor<sx+nx) && (sz+nz==Nz)) { // check if MOR axis is on processor
-    for (i = sx; i < imor+1; i++) {
+  if ((imor_s>=sx) && (imor_e<sx+nx) && (sz+nz==Nz)) { // check if MOR axis is on processor
+    for (i = imor_s; i < imor_e+1; i++) {
       DMStagStencil point[2], pointT;
       PetscScalar v[2], vf, dz, phi, Cf, flux_ij;
 
@@ -926,7 +931,7 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
   else C = gout_C/gout_F*usr->par->DC+usr->par->C0;
   // C = gout_C/gout_F*usr->par->DC+usr->par->C0;
   F = gout_F*usr->par->rho0*usr->scal->v*usr->scal->x*SEC_YEAR/full_ridge; // kg/m/year
-  h_crust = F/(usr->par->rho0*usr->par->U0)*1.0e2/full_ridge; // m
+  h_crust = F/(usr->par->rho0*usr->par->U0)*1.0e2; // m
 
   // Output
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
@@ -940,6 +945,74 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
 
   PetscFunctionReturn(0);
 }
+
+// ---------------------------------------
+// Calculate asymmetry in full ridge models
+// ---------------------------------------
+PetscErrorCode ComputeAsymmetryFullRidge(void *ctx) 
+{
+  UsrData       *usr = (UsrData*) ctx;
+  PetscInt       i, j, sx, sz, nx, nz, icenter;
+  PetscScalar    **coordx,**coordz;
+  PetscScalar    A = 0.0, A_left, A_right, gA_left, gA_right, dx, dz, xmor;
+  DM             dmEnth;
+  Vec            xEnthlocal;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  if (!usr->par->full_ridge) PetscFunctionReturn(0);
+  dmEnth=usr->dmEnth;
+
+  // get coordinates
+  ierr = DMStagGetCorners(dmEnth,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL); CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dmEnth,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmEnth,ELEMENT,&icenter);CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(dmEnth, &xEnthlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmEnth, usr->xEnth, INSERT_VALUES, xEnthlocal); CHKERRQ(ierr);
+
+  xmor    = 0.0;
+  A_left  = 0.0;
+  A_right = 0.0;
+  gA_left = 0.0;
+  gA_right= 0.0;
+  
+  dx = coordx[sx+1][icenter]-coordx[sx][icenter];
+  dz = coordz[sz+1][icenter]-coordz[sz][icenter];
+  
+  // Loop over local domain
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      DMStagStencil point;
+      PetscScalar   phi, xc, F = 0.0;
+
+      // get porosity and CF
+      point.i = i; point.j = j; point.loc = ELEMENT; point.c = ENTH_ELEMENT_PHI; 
+      ierr = DMStagVecGetValuesStencil(dmEnth,xEnthlocal,1,&point,&phi); CHKERRQ(ierr);
+
+      if (phi>0.0) F = 1.0;
+      if (coordx[i][icenter]<= xmor) A_left  +=F*dx*dz;
+      if (coordx[i][icenter]>= xmor) A_right +=F*dx*dz;
+    }
+  }
+
+  // Parallel
+  ierr = MPI_Allreduce(&A_left ,&gA_left ,1,MPI_DOUBLE,MPI_SUM,usr->comm);CHKERRQ(ierr);
+  ierr = MPI_Allreduce(&A_right,&gA_right,1,MPI_DOUBLE,MPI_SUM,usr->comm);CHKERRQ(ierr);
+
+  if (gA_left+gA_right>0.0) A = 2.0*gA_right/(gA_left+gA_right)-1.0;
+
+  // Output
+  PetscPrintf(PETSC_COMM_WORLD,"# Asymmetry (full ridge): A = %1.12e A_left = %1.12e A_right = %1.12e \n",A,gA_left,gA_right);
+  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+
+  // Restore arrays
+  ierr = DMStagRestoreProductCoordinateArraysRead(dmEnth,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmEnth,&xEnthlocal); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
 
 // ---------------------------------------
 // Output Parameters
@@ -1132,9 +1205,14 @@ PetscErrorCode LoadParametersFromFile(void *ctx)
   ierr = PetscViewerBinaryRead(viewer,(void*)&usr->par->DT,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
 
   // save timestep
-  PetscInt tstep, tout;
+  PetscInt    tstep, tout, hc_cycles;
+  PetscScalar tmax, dtmax;
+
   tstep = usr->par->tstep;
   tout  = usr->par->tout;
+  hc_cycles = usr->par->hc_cycles;
+  tmax  = usr->par->tmax;
+  dtmax = usr->par->dtmax;
 
   // read bag
   ierr = PetscBagLoad(viewer,usr->bag);CHKERRQ(ierr);
@@ -1142,6 +1220,13 @@ PetscErrorCode LoadParametersFromFile(void *ctx)
 
   usr->par->tstep = tstep;
   usr->par->tout  = tout;
+  usr->par->hc_cycles = hc_cycles;
+  usr->par->tmax = tmax;
+  usr->par->dtmax= dtmax;
+
+  // non-dimensionalize necessary params
+  usr->nd->tmax  = nd_param(usr->par->tmax*SEC_YEAR,usr->scal->t);
+  usr->nd->dtmax = nd_param(usr->par->dtmax*SEC_YEAR,usr->scal->t);
 
   PetscFunctionReturn(0);
 }

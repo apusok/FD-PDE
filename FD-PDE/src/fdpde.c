@@ -101,6 +101,7 @@ PetscErrorCode FDPDECreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   fd->user_context = NULL;
   fd->setupcalled = PETSC_FALSE;
   fd->linearsolve = PETSC_FALSE;
+  fd->output_solver_failure_report = PETSC_TRUE;
 
   fd->description_bc = NULL;
   fd->description_coeff = NULL;
@@ -780,7 +781,7 @@ PetscErrorCode FDPDESolve(FDPDE fd, PetscBool *converged)
   ierr = SNESSolve(fd->snes,0,fd->x);             CHKERRQ(ierr);
   ierr = SNESGetConvergedReason(fd->snes,&reason); CHKERRQ(ierr);
 
-  if (reason < 0) {
+  if ((reason < 0) && (fd->output_solver_failure_report)) {
     const char  *prefix;
     char        filename[PETSC_MAX_PATH_LEN];
     PetscViewer viewer;

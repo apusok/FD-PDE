@@ -132,6 +132,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = SNESSetFromOptions(fdPV->snes); CHKERRQ(ierr);
   ierr = FDPDEView(fdPV); CHKERRQ(ierr);
   ierr = SNESSetOptionsPrefix(fdPV->snes,"pv_"); CHKERRQ(ierr);
+  fdPV->output_solver_failure_report = PETSC_FALSE;
 
   // Set up Enthalpy system (HC)
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
@@ -152,6 +153,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = SNESSetFromOptions(fdHC->snes); CHKERRQ(ierr);
   ierr = FDPDEView(fdHC); CHKERRQ(ierr);
   ierr = SNESSetOptionsPrefix(fdHC->snes,"hc_"); CHKERRQ(ierr);
+  fdHC->output_solver_failure_report = PETSC_FALSE;
 
   // Set up advection and time-stepping
   AdvectSchemeType advtype;
@@ -165,7 +167,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   if (par->ts_scheme ==  1) timesteptype = TS_BACKWARD_EULER;
   if (par->ts_scheme ==  2) timesteptype = TS_CRANK_NICHOLSON;
   ierr = FDPDEEnthalpySetTimeStepSchemeType(fdHC,timesteptype);CHKERRQ(ierr);
-
+  
   // Prepare data for coupling HC-PV
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
   PetscPrintf(PETSC_COMM_WORLD,"# Preparing data for PV-HC coupling \n");
@@ -175,6 +177,14 @@ PetscErrorCode Numerical_solution(void *ctx)
 
   ierr = FDPDEGetDM(fdHC,&dmHC); CHKERRQ(ierr);
   usr->dmHC = dmHC;
+
+  {
+    PetscInt nRanks0, nRanks1, nRanks2, nRanks3, size;
+    ierr = MPI_Comm_size(usr->comm,&size);CHKERRQ(ierr);
+    ierr = DMStagGetNumRanks(dmPV,&nRanks0,&nRanks1,NULL); CHKERRQ(ierr);
+    ierr = DMStagGetNumRanks(dmHC,&nRanks2,&nRanks3,NULL); CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD,"# Processor partitioning [%d cpus]: PV [%d,%d] HC [%d,%d]\n",size,nRanks0,nRanks1,nRanks2,nRanks3);
+  }
 
   ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
   ierr = VecDuplicate(xPV,&usr->xPV);CHKERRQ(ierr);
@@ -284,6 +294,7 @@ PetscErrorCode Numerical_solution(void *ctx)
 
     // Compute fluxes out and crustal thickness
     ierr = ComputeMeltExtractOutflux(usr); CHKERRQ(ierr);
+    ierr = ComputeAsymmetryFullRidge(usr); CHKERRQ(ierr);
 
     // Update time
     nd->t += nd->dt;

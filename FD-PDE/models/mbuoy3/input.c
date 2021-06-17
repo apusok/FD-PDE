@@ -16,7 +16,7 @@ PetscErrorCode UserParamsCreate(UsrData **_usr,int argc,char **argv)
   ierr = InputParameters(&usr); CHKERRQ(ierr);
 
   // file input
-  for (int i = 1; i < argc; i++) {
+  for (i = 1; i < argc; i++) {
     PetscBool flg;
     
     ierr = PetscStrcmp(argv[i],"-options_file",&flg); CHKERRQ(ierr);

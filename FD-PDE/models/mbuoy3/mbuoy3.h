@@ -171,6 +171,7 @@ PetscErrorCode CreateDirectory(const char*);
 PetscErrorCode OutputParameters(void*); 
 PetscErrorCode LoadParametersFromFile(void*);
 PetscErrorCode ComputeMeltExtractOutflux(void*); 
+PetscErrorCode ComputeAsymmetryFullRidge(void*); 
 PetscErrorCode ComputeGamma(DM,Vec,DM,Vec,DM,Vec,Vec,void*); 
 
 // ---------------------------------------
