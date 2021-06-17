@@ -215,19 +215,25 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
+      
       ierr = EnthalpyPackCtx_Init_IJ(i,j,-1,&pack);CHKERRQ(ierr);
       ierr = EnthalpyResidual_pack(&pack,&fval); CHKERRQ(ierr);
-     
-      //ierr = EnthalpyResidual(dm,thm,cff,thm_prev,cff_prev,coordx,coordz,en,i,j,&fval); CHKERRQ(ierr);
-      //ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,0,&idx); CHKERRQ(ierr);
+      
+      /*
+      ierr = EnthalpyResidual(dm,thm,cff,thm_prev,cff_prev,coordx,coordz,en,i,j,&fval); CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,0,&idx); CHKERRQ(ierr);
+      */
       ff[j][i][slot_h] = fval;
 
       for (ii = 0; ii<en->ncomponents-1; ii++) { // solve only for the first N-1 components
+        
         ierr = EnthalpyPackCtx_Init_IJ(i,j,ii,&pack);CHKERRQ(ierr);
         ierr = BulkCompositionResidual_pack(&pack,&fval); CHKERRQ(ierr);
         
-        //ierr = BulkCompositionResidual(dm,thm,cff,thm_prev,cff_prev,coordx,coordz,en,i,j,ii,&fval); CHKERRQ(ierr);
-        //ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,ii+1,&idx); CHKERRQ(ierr);
+        /*
+        ierr = BulkCompositionResidual(dm,thm,cff,thm_prev,cff_prev,coordx,coordz,en,i,j,ii,&fval); CHKERRQ(ierr);
+        ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,ii+1,&idx); CHKERRQ(ierr);
+        */
         ff[j][i][slot_c[ii]] = fval;
       }
     }
@@ -290,7 +296,7 @@ UpdateCoeffStructure - collects the coefficients variables for the entire domain
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode slow_UpdateCoeffStructure(FDPDE fd, DM dmcoeff,Vec coefflocal,CoeffState *cff)
+PetscErrorCode AP_UpdateCoeffStructure(FDPDE fd, DM dmcoeff,Vec coefflocal,CoeffState *cff)
 {
   PetscInt       i,j,sx,sz,nx,nz,idx;
   PetscErrorCode ierr;
@@ -925,7 +931,7 @@ PetscErrorCode BulkCompositionSteadyStateOperator(DM dm, ThermoState *thm, Coeff
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode EnthalpySteadyStateOperator_pack(EnthalpyPackCtx *pack,AdvectSchemeType advtype,PetscScalar *ff)
+PetscErrorCode EnthalpySteadyStateOperator_pack(EnthalpyPackCtx *pack,AdvectSchemeType advtype,PetscInt state,PetscScalar *ff)
 {
   PetscScalar    ffi;
   PetscInt       ii, Nx, Nz, nx,nz,sx,sz,icenter, idx[9];
@@ -945,6 +951,10 @@ PetscErrorCode EnthalpySteadyStateOperator_pack(EnthalpyPackCtx *pack,AdvectSche
   
   PetscFunctionBegin;
   
+  if (state == 0) {
+    thm = pack->thm_prev;
+    cff = pack->cff_prev;
+  }
   sx = pack->sx;
   sz = pack->sz;
   nx = pack->nx;
@@ -1043,11 +1053,11 @@ PetscErrorCode EnthalpyResidual_pack(EnthalpyPackCtx *pack, PetscScalar *_fval)
   PetscFunctionBegin;
   if (pack->en->timesteptype == TS_NONE) {
     // steady-state operator
-    ierr = EnthalpySteadyStateOperator_pack(pack,pack->en->advtype,&fval); CHKERRQ(ierr);
+    ierr = EnthalpySteadyStateOperator_pack(pack,pack->en->advtype,1,&fval); CHKERRQ(ierr);
   } else {
     // time-dependent solution
-    ierr = EnthalpySteadyStateOperator_pack(pack,pack->en->advtype,&fval0); CHKERRQ(ierr);
-    ierr = EnthalpySteadyStateOperator_pack(pack,pack->en->advtype,&fval1); CHKERRQ(ierr);
+    ierr = EnthalpySteadyStateOperator_pack(pack,pack->en->advtype,0,&fval0); CHKERRQ(ierr);
+    ierr = EnthalpySteadyStateOperator_pack(pack,pack->en->advtype,1,&fval1); CHKERRQ(ierr);
     
     idx = SingleDimIndex(pack->i-pack->sx+2,pack->j-pack->sz+2,pack->nz+4);
     xx     = pack->thm[idx].H;
@@ -1061,7 +1071,7 @@ PetscErrorCode EnthalpyResidual_pack(EnthalpyPackCtx *pack, PetscScalar *_fval)
 }
 
 
-PetscErrorCode BulkCompositionSteadyStateOperator_pack(EnthalpyPackCtx *pack,AdvectSchemeType advtype,PetscScalar *ff)
+PetscErrorCode BulkCompositionSteadyStateOperator_pack(EnthalpyPackCtx *pack,AdvectSchemeType advtype,PetscInt state,PetscScalar *ff)
 {
   PetscScalar    ffi;
   PetscInt       ii, Nx, Nz, icenter, sx,sz,nx,nz,idx[9];
@@ -1084,6 +1094,10 @@ PetscErrorCode BulkCompositionSteadyStateOperator_pack(EnthalpyPackCtx *pack,Adv
   
   PetscFunctionBegin;
 
+  if (state == 0) {
+    thm = pack->thm_prev;
+    cff = pack->cff_prev;
+  }
   sx = pack->sx;
   sz = pack->sz;
   nx = pack->nx;
@@ -1197,11 +1211,11 @@ PetscErrorCode BulkCompositionResidual_pack(EnthalpyPackCtx *pack, PetscScalar *
   ii = pack->icomp;
   if (pack->en->timesteptype == TS_NONE) {
     // steady-state operator
-    ierr = BulkCompositionSteadyStateOperator_pack(pack,pack->en->advtype,&fval); CHKERRQ(ierr);
+    ierr = BulkCompositionSteadyStateOperator_pack(pack,pack->en->advtype,1,&fval); CHKERRQ(ierr);
   } else {
     // time-dependent solution
-    ierr = BulkCompositionSteadyStateOperator_pack(pack,pack->en->advtype,&fval0); CHKERRQ(ierr);
-    ierr = BulkCompositionSteadyStateOperator_pack(pack,pack->en->advtype,&fval1); CHKERRQ(ierr);
+    ierr = BulkCompositionSteadyStateOperator_pack(pack,pack->en->advtype,0,&fval0); CHKERRQ(ierr);
+    ierr = BulkCompositionSteadyStateOperator_pack(pack,pack->en->advtype,1,&fval1); CHKERRQ(ierr);
     
     idx = SingleDimIndex(pack->i-pack->sx+2,pack->j-pack->sz+2,pack->nz+4);
     xx     = pack->thm[idx].C[ii];
