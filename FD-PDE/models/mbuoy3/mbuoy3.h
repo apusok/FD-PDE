@@ -140,8 +140,12 @@ PetscScalar TotalEnthalpy(PetscScalar,PetscScalar,PetscScalar);
 PetscScalar PhiRes(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 PetscScalar FluidVelocity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar); 
 PetscScalar BulkVelocity(PetscScalar,PetscScalar,PetscScalar);
+//#define BulkVelocity(vs,vf,phi) (vf)*(phi) + (vs)*(1.0-(phi))
 PetscScalar Permeability(PetscScalar,PetscScalar,PetscScalar,PetscScalar);
+//#define Permeability(phi,phi0,phi_max,n)  pow(pow((phi)/(phi0),-(n))+pow((phi_max)/(phi0),-(n)),-1)
+//#define Permeability(phi,phi0,phi_max,n)  1.0/(pow((phi)/(phi0),-(n))+pow((phi_max)/(phi0),-(n)))
 PetscScalar FluidBuoyancy(PetscScalar,PetscScalar,PetscScalar,PetscScalar);
+//#define FluidBuoyancy(T,CF,alpha_s,beta_s) 0.0
 PetscScalar HalfSpaceCoolingTemp(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 PetscScalar SolidDensity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt);
 PetscScalar FluidDensity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt); 
