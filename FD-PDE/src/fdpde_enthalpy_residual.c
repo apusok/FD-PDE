@@ -400,7 +400,7 @@ ApplyEnthalpyMethod - apply enthalpy method during each solver iteration; it col
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmP, Vec Plocal,EnthalpyData *en,ThermoState *thm, const char prefix[])
+PetscErrorCode AP_ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmP, Vec Plocal,EnthalpyData *en,ThermoState *thm, const char prefix[])
 {
   PetscInt       ii,i,j,sx,sz,nx,nz,idx,nreports, gnreports;
   PetscInt       Nx, Nz;
@@ -474,6 +474,112 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmP, Vec Plocal
   ierr = MPI_Allreduce(&en->nreports,&gnreports,1,MPI_INT,MPI_MAX,fd->comm);CHKERRQ(ierr);
   en->nreports = gnreports;
 
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmP, Vec Plocal,EnthalpyData *en,ThermoState *thm, const char prefix[])
+{
+  PetscInt       ii,i,j,sx,sz,nx,nz,idx,nreports, gnreports;
+  PetscInt       Nx, Nz;
+  PetscScalar    H,C[MAX_COMPONENTS],P,phi,T,TP,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
+  PetscBool      passed = PETSC_TRUE;
+  PetscMPIInt    rank;
+  PetscErrorCode ierr;
+  
+  PetscInt       dof0,dof1,dof2,*dm_slot,dmP_slot;
+  const PetscScalar ***_xlocal,***_Plocal;
+  
+  PetscFunctionBegin;
+  
+  Nx = fd->Nx;
+  Nz = fd->Nz;
+  
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  
+  ierr = DMStagVecGetArrayRead(dm,xlocal,&_xlocal);CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayRead(dmP,Plocal,&_Plocal);CHKERRQ(ierr);
+
+  ierr = DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL);CHKERRQ(ierr);
+  ierr = PetscCalloc1(dof2,&dm_slot); CHKERRQ(ierr);
+  for (ii = 0; ii<dof2; ii++) {
+    ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,ii,&dm_slot[ii]); CHKERRQ(ierr);
+  }
+  ierr = DMStagGetLocationSlot(dmP,DMSTAG_ELEMENT,0,&dmP_slot); CHKERRQ(ierr);
+  
+  
+  // compute ghosted enthalpy data
+  for (j = sz-2; j<sz+nz+2; j++) {
+    for (i = sx-2; i<sx+nx+2; i++) {
+      if ((i>=0) && (j>=0) && (i<Nx) && (j<Nz)) {
+        EnthEvalErrorCode thermo_dyn_error_code = 0;
+        
+        H = 0.0; phi = 0.0; T = 0.0; P = 0.0; TP = 0.0;
+        for (ii = 0; ii<en->ncomponents; ii++) { C[ii] = 0.0; CF[ii] = 0.0; CS[ii] = 0.0;}
+        
+        idx = SingleDimIndex(i-sx+2,j-sz+2,nz+4);
+        //ierr = SolutionCellData(dm,xlocal,i,j,&H,C);CHKERRQ(ierr);
+        {
+          PetscScalar sum_C = 0.0;
+          
+          // assign values H, C
+          H = _xlocal[j][i][dm_slot[0]];
+          for (ii = 1; ii<dof2; ii++) {
+            sum_C  += _xlocal[j][i][dm_slot[ii]];
+            C[ii-1] = _xlocal[j][i][dm_slot[ii]];
+          }
+          C[dof2-1] = 1.0 - sum_C;
+        }
+        
+        P = _Plocal[j][i][dmP_slot];
+        
+        thermo_dyn_error_code = en->form_enthalpy_method(H,C,P,&T,&phi,CF,CS,en->ncomponents,en->user_context);
+        if (thermo_dyn_error_code != 0) passed = PETSC_FALSE;
+        
+        if (en->form_TP) { ierr = en->form_TP(T,P,&TP,en->user_context_tp);CHKERRQ(ierr); }
+        else TP = T;
+        
+        thm[idx].P  = P;
+        thm[idx].TP = TP;
+        thm[idx].T  = T;
+        thm[idx].H  = H;
+        thm[idx].phi = phi;
+        for (ii = 0; ii<en->ncomponents; ii++) {
+          thm[idx].C[ii]  = C[ii];
+          thm[idx].CS[ii] = CS[ii];
+          thm[idx].CF[ii] = CF[ii];
+        }
+        thm[idx].err = thermo_dyn_error_code;
+      }
+    }
+  }
+  
+  ierr = PetscFree(dm_slot);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArrayRead(dm,xlocal,&_xlocal);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArrayRead(dmP,Plocal,&_Plocal);CHKERRQ(ierr);
+
+  // output failure report to file per rank
+  // nreports = en->nreports;
+  if (!passed) {
+    char        fname[PETSC_MAX_PATH_LEN];
+    PetscBool   stop_failed = PETSC_FALSE;
+    PetscViewer viewer;
+    PetscMPIInt rank;
+    
+    ierr = MPI_Comm_rank(fd->comm,&rank);CHKERRQ(ierr);
+    if (prefix) PetscSNPrintf(fname,PETSC_MAX_PATH_LEN-1,"enthalpy_failure_%s_%D.rank%D.report",prefix,en->nreports,rank);
+    else PetscSNPrintf(fname,PETSC_MAX_PATH_LEN-1,"enthalpy_failure_%D.rank%D.report",en->nreports,rank);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_SELF,fname,&viewer);CHKERRQ(ierr);
+    ierr = ApplyEnthalpyReport_Failure(fd,viewer,en,thm);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+    en->nreports++;
+    
+    ierr = PetscOptionsGetBool(NULL,NULL,"-stop_enthalpy_failed",&stop_failed,NULL);CHKERRQ(ierr);
+    if (stop_failed) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SIG,"The Enthalpy Method has failed! Investigate the enthalpy failure reports for detailed information.");
+  }
+  ierr = MPI_Allreduce(&en->nreports,&gnreports,1,MPI_INT,MPI_MAX,fd->comm);CHKERRQ(ierr);
+  en->nreports = gnreports;
+  
   PetscFunctionReturn(0);
 }
 
