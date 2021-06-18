@@ -174,16 +174,16 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   PetscTime(&tlog[1]);
 
   if (en->timesteptype != TS_NONE) {
-    ierr = PetscCalloc1((size_t)((nx+4)*(nz+4))*sizeof(ThermoState),&thm_prev);CHKERRQ(ierr);
-    ierr = PetscCalloc1((size_t)((nx+4)*(nz+4))*sizeof(CoeffState),&cff_prev);CHKERRQ(ierr);
+    ierr = PetscCalloc1((size_t)((nx+4)*(nz+4)),&thm_prev);CHKERRQ(ierr);
+    ierr = PetscCalloc1((size_t)((nx+4)*(nz+4)),&cff_prev);CHKERRQ(ierr);
     ierr = ApplyEnthalpyMethod(fd,dm,xprevlocal,dmP,Pprevlocal,en,thm_prev,"prev"); CHKERRQ(ierr);
     ierr = UpdateCoeffStructure(fd,dmcoeff,coeffprevlocal,cff_prev);CHKERRQ(ierr);
   }
   PetscTime(&tlog[2]);
 
   // update enthalpy and coeff cell data
-  ierr = PetscCalloc1((size_t)((nx+4)*(nz+4))*sizeof(ThermoState),&thm);CHKERRQ(ierr); 
-  ierr = PetscCalloc1((size_t)((nx+4)*(nz+4))*sizeof(CoeffState),&cff);CHKERRQ(ierr);
+  ierr = PetscCalloc1((size_t)((nx+4)*(nz+4)),&thm);CHKERRQ(ierr);
+  ierr = PetscCalloc1((size_t)((nx+4)*(nz+4)),&cff);CHKERRQ(ierr);
   ierr = ApplyEnthalpyMethod(fd,dm,xlocal,dmP,Plocal,en,thm,NULL); CHKERRQ(ierr);
   PetscTime(&tlog[3]);
 
