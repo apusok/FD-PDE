@@ -9,11 +9,11 @@ PetscErrorCode FormBCList_PV(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       k,n_bc,*idx_bc;
-  PetscInt       i, sx, sz, nx, nz, Nx, Nz, iprev, icenter;
+  PetscInt       i, sx, sz, nx, nz, Nx, Nz, iprev, icenter, dm_slot;
   PetscScalar    *value_bc,*x_bc,*x_bc_stag, xx[2], dx;
   BCType         *type_bc;
-  DMStagStencil  point[2];
-  PetscScalar    **coordx,**coordz;
+  // DMStagStencil  point[2];
+  PetscScalar    **coordx,**coordz, ***_xlocal;
   Vec            xlocal;
   PetscErrorCode ierr;
   
@@ -29,6 +29,7 @@ PetscErrorCode FormBCList_PV(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   // Map global vectors to local domain
   ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayRead(dm,xlocal,&_xlocal);CHKERRQ(ierr);
 
   // RIGHT dVx/dx = 0 (point on true boundary)
   ierr = DMStagBCListGetValues(bclist,'e','-',PV_FACE_VS,&n_bc,&idx_bc,&x_bc,&x_bc_stag,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -40,12 +41,15 @@ PetscErrorCode FormBCList_PV(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   // DOWN tau_xz = 0, dVx/dz=-dVz/dx (point not on true boundary)
   ierr = DMStagBCListGetValues(bclist,'s','-',PV_FACE_VS,&n_bc,&idx_bc,&x_bc,&x_bc_stag,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm,DMSTAG_DOWN,PV_FACE_VS,&dm_slot); CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     for (i = sx; i < sx+nx; i++) {
       if (x_bc[2*k]==coordx[i][iprev]) {
-        point[0].i = i-1; point[0].j = 0; point[0].loc = DOWN; point[0].c = PV_FACE_VS;
-        point[1].i = i  ; point[1].j = 0; point[1].loc = DOWN; point[1].c = PV_FACE_VS;
-        ierr = DMStagVecGetValuesStencil(dm,xlocal,2,point,xx); CHKERRQ(ierr);
+        // point[0].i = i-1; point[0].j = 0; point[0].loc = DOWN; point[0].c = PV_FACE_VS;
+        // point[1].i = i  ; point[1].j = 0; point[1].loc = DOWN; point[1].c = PV_FACE_VS;
+        // ierr = DMStagVecGetValuesStencil(dm,xlocal,2,point,xx); CHKERRQ(ierr);
+        xx[0] =  _xlocal[0][i-1][dm_slot]; // this is allowed without a parallel check because n_bc can be zero
+        xx[1] =  _xlocal[0][i  ][dm_slot];
         dx = coordx[i][icenter] - coordx[i-1][icenter];
         value_bc[k] = -(xx[1]-xx[0])/dx;
         type_bc[k] = BC_NEUMANN;
@@ -170,6 +174,7 @@ PetscErrorCode FormBCList_PV(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   // restore
   ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArrayRead(dm,xlocal,&_xlocal);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
@@ -184,11 +189,11 @@ PetscErrorCode FormBCList_PV_FullRidge(DM dm, Vec x, DMStagBCList bclist, void *
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       k,n_bc,*idx_bc;
-  PetscInt       i, sx, sz, nx, nz, Nx, Nz, iprev, icenter;
+  PetscInt       i, sx, sz, nx, nz, Nx, Nz, iprev, icenter,dm_slot;
   PetscScalar    *value_bc,*x_bc,*x_bc_stag, xx[2], dx;
   BCType         *type_bc;
-  DMStagStencil  point[2];
-  PetscScalar    **coordx,**coordz;
+  // DMStagStencil  point[2];
+  PetscScalar    **coordx,**coordz, ***_xlocal;
   Vec            xlocal;
   PetscErrorCode ierr;
   
@@ -204,6 +209,7 @@ PetscErrorCode FormBCList_PV_FullRidge(DM dm, Vec x, DMStagBCList bclist, void *
   // Map global vectors to local domain
   ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayRead(dm,xlocal,&_xlocal);CHKERRQ(ierr);
 
   // RIGHT dVx/dx = 0 (point on true boundary)
   ierr = DMStagBCListGetValues(bclist,'e','-',PV_FACE_VS,&n_bc,&idx_bc,&x_bc,&x_bc_stag,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -215,12 +221,15 @@ PetscErrorCode FormBCList_PV_FullRidge(DM dm, Vec x, DMStagBCList bclist, void *
 
   // DOWN tau_xz = 0, dVx/dz=-dVz/dx (point not on true boundary)
   ierr = DMStagBCListGetValues(bclist,'s','-',PV_FACE_VS,&n_bc,&idx_bc,&x_bc,&x_bc_stag,&value_bc,&type_bc);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm,DMSTAG_DOWN,PV_FACE_VS,&dm_slot); CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     for (i = sx; i < sx+nx; i++) {
       if (x_bc[2*k]==coordx[i][iprev]) {
-        point[0].i = i-1; point[0].j = 0; point[0].loc = DOWN; point[0].c = PV_FACE_VS;
-        point[1].i = i  ; point[1].j = 0; point[1].loc = DOWN; point[1].c = PV_FACE_VS;
-        ierr = DMStagVecGetValuesStencil(dm,xlocal,2,point,xx); CHKERRQ(ierr);
+        // point[0].i = i-1; point[0].j = 0; point[0].loc = DOWN; point[0].c = PV_FACE_VS;
+        // point[1].i = i  ; point[1].j = 0; point[1].loc = DOWN; point[1].c = PV_FACE_VS;
+        // ierr = DMStagVecGetValuesStencil(dm,xlocal,2,point,xx); CHKERRQ(ierr);
+        xx[0] =  _xlocal[0][i-1][dm_slot]; // this is allowed without a parallel check because n_bc can be zero
+        xx[1] =  _xlocal[0][i  ][dm_slot];
         dx = coordx[i][icenter] - coordx[i-1][icenter];
         value_bc[k] = -(xx[1]-xx[0])/dx;
         type_bc[k] = BC_NEUMANN;
@@ -345,6 +354,7 @@ PetscErrorCode FormBCList_PV_FullRidge(DM dm, Vec x, DMStagBCList bclist, void *
 
   // restore
   ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArrayRead(dm,xlocal,&_xlocal);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);

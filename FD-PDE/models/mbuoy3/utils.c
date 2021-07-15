@@ -305,13 +305,15 @@ PetscErrorCode UpdateLithostaticPressure(DM dm, Vec x, void *ctx)
 PetscErrorCode CorrectInitialHCZeroPorosity(DM dmEnth, Vec xEnth, void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
-  PetscInt       i, j, sx, sz, nx, nz, iH, iC;
-  PetscScalar    ***xx;
+  PetscInt       i, j, sx, sz, nx, nz, iH, iC, dm_slot[3];
+  PetscScalar    ***xx, ***enth;
   Vec            x, xlocal, xnewlocal;
   DM             dm;
+  PetscLogDouble tlog[2];
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
+  PetscTime(&tlog[0]);
   dm  = usr->dmHC;
   x   = usr->xHC;
 
@@ -325,16 +327,25 @@ PetscErrorCode CorrectInitialHCZeroPorosity(DM dmEnth, Vec xEnth, void *ctx)
 
   ierr = DMGetLocalVector(dmEnth, &xnewlocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dmEnth, xEnth, INSERT_VALUES, xnewlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayRead(dmEnth,xnewlocal,&enth);CHKERRQ(ierr);
+
+  ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&dm_slot[0]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,ENTH_ELEMENT_CS ,&dm_slot[1]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,ENTH_ELEMENT_CF ,&dm_slot[2]); CHKERRQ(ierr);
 
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
-      DMStagStencil point[3];
+      // DMStagStencil point[3];
       PetscScalar   xs[3],phi;
-      point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = ENTH_ELEMENT_PHI; 
-      point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_ELEMENT; point[1].c = ENTH_ELEMENT_CS;
-      point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_ELEMENT; point[2].c = ENTH_ELEMENT_CF;
-      ierr = DMStagVecGetValuesStencil(dmEnth,xnewlocal,3,point,xs); CHKERRQ(ierr);
+      // point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = ENTH_ELEMENT_PHI; 
+      // point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_ELEMENT; point[1].c = ENTH_ELEMENT_CS;
+      // point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_ELEMENT; point[2].c = ENTH_ELEMENT_CF;
+      // ierr = DMStagVecGetValuesStencil(dmEnth,xnewlocal,3,point,xs); CHKERRQ(ierr);
+      xs[0] = enth[j][i][dm_slot[0]];
+      xs[1] = enth[j][i][dm_slot[1]];
+      xs[2] = enth[j][i][dm_slot[2]];
+
       phi = xs[0]*usr->par->phi_init;
 
       // H + S*(phi-phi0)
@@ -349,9 +360,13 @@ PetscErrorCode CorrectInitialHCZeroPorosity(DM dmEnth, Vec xEnth, void *ctx)
   ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
-
   ierr = DMRestoreLocalVector(dm, &xlocal); CHKERRQ(ierr);
+
+  ierr = DMStagVecRestoreArrayRead(dmEnth,xnewlocal,&enth);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmEnth, &xnewlocal); CHKERRQ(ierr);
+
+  PetscTime(&tlog[1]);
+  printf("  CorrectInitialHCZeroPorosity: total                %1.2e\n",tlog[1]-tlog[0]);
 
   PetscFunctionReturn(0);
 }
@@ -406,9 +421,11 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmEnth, Vec xEnt
   PetscScalar    ***xx, dx, dz, k_hat[4];
   PetscScalar    **coordx,**coordz;
   Vec            xVellocal,xPVlocal,xEnthlocal;
+  PetscLogDouble tlog[2];
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
+  PetscTime(&tlog[0]);
   k_hat[0] = 0.0;
   k_hat[1] = 0.0;
   k_hat[2] = usr->par->k_hat;
@@ -541,6 +558,9 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmEnth, Vec xEnt
   ierr = DMRestoreLocalVector(dmPV, &xPVlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmEnth, &xEnthlocal); CHKERRQ(ierr);
 
+  PetscTime(&tlog[1]);
+  printf("  ComputeFluidAndBulkVelocity: total                 %1.2e\n",tlog[1]-tlog[0]);
+
   PetscFunctionReturn(0);
 }
 
@@ -556,9 +576,11 @@ PetscErrorCode UpdateMaterialProperties(DM dmEnth, Vec xEnth, DM dmmatProp, Vec 
   PetscInt       i, j, sx, sz, nx, nz, idx;
   PetscScalar    ***xx;
   Vec            xmatProplocal,xEnthlocal;
+  PetscLogDouble tlog[2];
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
+  PetscTime(&tlog[0]);
   nd  = usr->nd;
   par = usr->par;
   scal= usr->scal;
@@ -615,6 +637,9 @@ PetscErrorCode UpdateMaterialProperties(DM dmEnth, Vec xEnth, DM dmmatProp, Vec 
   ierr = DMLocalToGlobalEnd  (dmmatProp,xmatProplocal,INSERT_VALUES,xmatProp); CHKERRQ(ierr);
   ierr = VecDestroy(&xmatProplocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmEnth,&xEnthlocal); CHKERRQ(ierr);
+
+  PetscTime(&tlog[1]);
+  printf("  UpdateMaterialProperties: total                    %1.2e\n",tlog[1]-tlog[0]);
 
   PetscFunctionReturn(0);
 }
@@ -843,9 +868,11 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
   PetscScalar    out_F, out_C, gout_F, gout_C, phi_max, vfz_max, gphi_max, gvfz_max, full_ridge;
   DM             dmHC, dmVel, dmEnth;
   Vec            xVellocal, xEnthlocal;
+  PetscLogDouble tlog[2];
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
+  PetscTime(&tlog[0]);
   dmHC = usr->dmHC;
   dmVel= usr->dmVel;
   dmEnth=usr->dmEnth;
@@ -943,6 +970,9 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
   ierr = DMRestoreLocalVector(dmVel, &xVellocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmEnth,&xEnthlocal); CHKERRQ(ierr);
 
+  PetscTime(&tlog[1]);
+  printf("  ComputeMeltExtractOutflux: total                   %1.2e\n",tlog[1]-tlog[0]);
+
   PetscFunctionReturn(0);
 }
 
@@ -957,10 +987,13 @@ PetscErrorCode ComputeAsymmetryFullRidge(void *ctx)
   PetscScalar    A = 0.0, A_left, A_right, gA_left, gA_right, dx, dz, xmor;
   DM             dmEnth;
   Vec            xEnthlocal;
+  PetscLogDouble tlog[2];
   PetscErrorCode ierr;
   PetscFunctionBegin;
-
+  
   if (!usr->par->full_ridge) PetscFunctionReturn(0);
+
+  PetscTime(&tlog[0]);
   dmEnth=usr->dmEnth;
 
   // get coordinates
@@ -1009,6 +1042,9 @@ PetscErrorCode ComputeAsymmetryFullRidge(void *ctx)
   // Restore arrays
   ierr = DMStagRestoreProductCoordinateArraysRead(dmEnth,&coordx,&coordz,NULL);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmEnth,&xEnthlocal); CHKERRQ(ierr);
+
+  PetscTime(&tlog[1]);
+  printf("  ComputeAsymmetryFullRidge: total                   %1.2e\n",tlog[1]-tlog[0]);
 
   PetscFunctionReturn(0);
 }
@@ -1240,9 +1276,11 @@ PetscErrorCode ComputeGamma(DM dmmatProp, Vec xmatProp, DM dmPV, Vec xPV, DM dmE
   PetscInt       i, j, ii, sx, sz, nx, nz, Nx, Nz,idx,iprev,inext,icenter;
   PetscScalar    **coordx,**coordz,***xx;
   Vec            xmatProplocal,xPVlocal,xEnthlocal,xEntholdlocal;
+  PetscLogDouble tlog[2];
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
+  PetscTime(&tlog[0]);
   ierr = DMStagGetGlobalSizes(dmPV,&Nx,&Nz,NULL);CHKERRQ(ierr);
   ierr = DMStagGetCorners(dmPV,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL); CHKERRQ(ierr);
 
@@ -1341,6 +1379,9 @@ PetscErrorCode ComputeGamma(DM dmmatProp, Vec xmatProp, DM dmPV, Vec xPV, DM dmE
   ierr = DMRestoreLocalVector(dmPV, &xPVlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmEnth, &xEnthlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmEnth, &xEntholdlocal); CHKERRQ(ierr);
+
+  PetscTime(&tlog[1]);
+  printf("  ComputeGamma: total                                %1.2e\n",tlog[1]-tlog[0]);
 
   PetscFunctionReturn(0);
 }
