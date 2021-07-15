@@ -66,6 +66,9 @@
 #define ENTH_ELEMENT_CS  7
 #define ENTH_ELEMENT_CF  9
 
+#define VEL_FACE_VF     0
+#define VEL_FACE_V      1
+
 // ---------------------------------------
 // Application Context
 // ---------------------------------------
@@ -127,8 +130,8 @@ PetscErrorCode Form_PotentialTemperature(PetscScalar,PetscScalar,PetscScalar*,vo
 
 // boundary conditions
 PetscErrorCode FormBCList_PV(DM, Vec, DMStagBCList, void*);
-PetscErrorCode FormBCList_PV_FullRidge(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_HC(DM, Vec, DMStagBCList, void*);
+PetscErrorCode FormBCList_PV_FullRidge(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_HC_FullRidge(DM, Vec, DMStagBCList, void*);
 
 // constitutive equations
@@ -140,16 +143,12 @@ PetscScalar TotalEnthalpy(PetscScalar,PetscScalar,PetscScalar);
 PetscScalar PhiRes(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 PetscScalar FluidVelocity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar); 
 PetscScalar BulkVelocity(PetscScalar,PetscScalar,PetscScalar);
-//#define BulkVelocity(vs,vf,phi) (vf)*(phi) + (vs)*(1.0-(phi))
 PetscScalar Permeability(PetscScalar,PetscScalar,PetscScalar);
-//#define Permeability(phi,phi_max,n)  pow(pow((phi),-(n))+pow((phi_max),-(n)),-1)
-//#define Permeability(phi,phi_max,n)  1.0/(pow((phi),-(n))+pow((phi_max),-(n)))
 PetscScalar FluidBuoyancy(PetscScalar,PetscScalar,PetscScalar,PetscScalar);
-//#define FluidBuoyancy(T,CF,alpha_s,beta_s) 0.0
 PetscScalar HalfSpaceCoolingTemp(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 PetscScalar SolidDensity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt);
 PetscScalar FluidDensity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt); 
-PetscScalar BulkDensity(PetscScalar,PetscScalar,PetscScalar,PetscInt); 
+PetscScalar BulkDensity(PetscScalar,PetscScalar,PetscScalar); 
 
 PetscScalar Buoyancy_phi(PetscScalar,PetscInt);
 PetscScalar Buoyancy_Composition(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt);

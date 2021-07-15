@@ -144,9 +144,8 @@ PetscScalar BulkVelocity(PetscScalar vs, PetscScalar vf, PetscScalar phi)
 #define __FUNCT__ "Permeability"
 PetscScalar Permeability(PetscScalar phi, PetscScalar phi_max, PetscScalar n) 
 { 
-  return pow(pow(phi,-n)+pow(phi_max,-n),-1); // harmonic averaging
-  // return 1.0/(pow(phi,-n)+pow(phi_max,-n));
-  // return pow(phi,n);
+  // return pow(pow(phi,-n)+pow(phi_max,-n),-1); // harmonic averaging
+  return 1.0/(pow(phi,-n)+pow(phi_max,-n));
 }
 
 // ---------------------------------------
@@ -275,8 +274,7 @@ PetscScalar FluidDensity(PetscScalar rho0, PetscScalar drho, PetscScalar T, Pets
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "BulkDensity"
-PetscScalar BulkDensity(PetscScalar rhos, PetscScalar rhof, PetscScalar phi, PetscInt buoy) 
+PetscScalar BulkDensity(PetscScalar rhos, PetscScalar rhof, PetscScalar phi) 
 { 
-  if (buoy == 0) return rhos;
-  else           return rhof*phi + rhos*(1.0-phi);
+  return rhof*phi + rhos*(1.0-phi);
 }

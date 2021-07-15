@@ -12,7 +12,6 @@ PetscErrorCode FormBCList_PV(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   PetscInt       i, sx, sz, nx, nz, Nx, Nz, iprev, icenter, dm_slot;
   PetscScalar    *value_bc,*x_bc,*x_bc_stag, xx[2], dx;
   BCType         *type_bc;
-  // DMStagStencil  point[2];
   PetscScalar    **coordx,**coordz, ***_xlocal;
   Vec            xlocal;
   PetscErrorCode ierr;
@@ -45,9 +44,6 @@ PetscErrorCode FormBCList_PV(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   for (k=0; k<n_bc; k++) {
     for (i = sx; i < sx+nx; i++) {
       if (x_bc[2*k]==coordx[i][iprev]) {
-        // point[0].i = i-1; point[0].j = 0; point[0].loc = DOWN; point[0].c = PV_FACE_VS;
-        // point[1].i = i  ; point[1].j = 0; point[1].loc = DOWN; point[1].c = PV_FACE_VS;
-        // ierr = DMStagVecGetValuesStencil(dm,xlocal,2,point,xx); CHKERRQ(ierr);
         xx[0] =  _xlocal[0][i-1][dm_slot]; // this is allowed without a parallel check because n_bc can be zero
         xx[1] =  _xlocal[0][i  ][dm_slot];
         dx = coordx[i][icenter] - coordx[i-1][icenter];
@@ -192,7 +188,6 @@ PetscErrorCode FormBCList_PV_FullRidge(DM dm, Vec x, DMStagBCList bclist, void *
   PetscInt       i, sx, sz, nx, nz, Nx, Nz, iprev, icenter,dm_slot;
   PetscScalar    *value_bc,*x_bc,*x_bc_stag, xx[2], dx;
   BCType         *type_bc;
-  // DMStagStencil  point[2];
   PetscScalar    **coordx,**coordz, ***_xlocal;
   Vec            xlocal;
   PetscErrorCode ierr;
@@ -225,9 +220,6 @@ PetscErrorCode FormBCList_PV_FullRidge(DM dm, Vec x, DMStagBCList bclist, void *
   for (k=0; k<n_bc; k++) {
     for (i = sx; i < sx+nx; i++) {
       if (x_bc[2*k]==coordx[i][iprev]) {
-        // point[0].i = i-1; point[0].j = 0; point[0].loc = DOWN; point[0].c = PV_FACE_VS;
-        // point[1].i = i  ; point[1].j = 0; point[1].loc = DOWN; point[1].c = PV_FACE_VS;
-        // ierr = DMStagVecGetValuesStencil(dm,xlocal,2,point,xx); CHKERRQ(ierr);
         xx[0] =  _xlocal[0][i-1][dm_slot]; // this is allowed without a parallel check because n_bc can be zero
         xx[1] =  _xlocal[0][i  ][dm_slot];
         dx = coordx[i][icenter] - coordx[i-1][icenter];

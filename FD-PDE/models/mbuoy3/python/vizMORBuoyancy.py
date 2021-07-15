@@ -1138,7 +1138,7 @@ def plot_matProp(A,istart,iend,jstart,jend,fname,istep,dim):
   scal = get_scaling(A,'rho',dim,0)
   lbl  = get_label(A,'rho',dim)
   im = plot_standard(fig,ax,A.matProp.rho[jstart:jend  ,istart:iend  ]*scal,extentE,lbl,lblx,lblz)
-  im.set_clim(2750,3000)
+  # im.set_clim(2750,3000)
 
   ax = plt.subplot(4,2,5)
   scal = get_scaling(A,'rho',dim,0)
@@ -1167,7 +1167,7 @@ def plot_matProp(A,istart,iend,jstart,jend,fname,istep,dim):
 # ---------------------------------
 def plot_porosity_contours(A,istart,iend,jstart,jend,fname,istep,dim):
 
-  fig = plt.figure(1,figsize=(14,5))
+  fig = plt.figure(1,figsize=(14,5))  #14,5
   scalx = get_scaling(A,'x',dim,1)
   scalv = get_scaling(A,'v',dim,1)
   scalt = get_scaling(A,'t',dim,1)
@@ -1179,7 +1179,9 @@ def plot_porosity_contours(A,istart,iend,jstart,jend,fname,istep,dim):
 
   # 1. porosity
   ax = plt.subplot(1,2,1)
-  im = ax.imshow(np.log10(A.Enth.phi[jstart:jend  ,istart:iend  ]),extent=extentE,cmap='ocean_r',origin='lower')
+  # cmap1='ocean_r'
+  cmap1 = plt.cm.get_cmap('twilight', 20)
+  im = ax.imshow(np.log10(A.Enth.phi[jstart:jend  ,istart:iend  ]),extent=extentE,cmap=cmap1,origin='lower')
   # im.set_clim(0,0.002)
   im.set_clim(-4,-1)
   cbar = fig.colorbar(im,ax=ax, shrink=0.50)
@@ -1243,8 +1245,11 @@ def plot_porosity_contours(A,istart,iend,jstart,jend,fname,istep,dim):
 
   # 2. Vertical solid velocity
   ax = plt.subplot(1,2,2)
-  im = ax.imshow(A.Vsz[jstart:jend+1,istart:iend  ]*scalv,extent=extentVz,cmap='viridis',origin='lower')
-  im.set_clim(-2.0,4.0)
+  #  cmap1 = 'viridis'
+  # cmap1 = 'binary'
+  cmap1 = 'RdBu'
+  im = ax.imshow(A.Vsz[jstart:jend+1,istart:iend  ]*scalv,extent=extentVz,cmap=cmap1,origin='lower')
+  im.set_clim(-6.0,6.0)
   cbar = fig.colorbar(im,ax=ax, shrink=0.50)
 
   # solid streamlines
