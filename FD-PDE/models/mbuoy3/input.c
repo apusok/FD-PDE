@@ -199,6 +199,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   ierr = PetscBagRegisterInt(bag, &par->full_ridge,0, "full_ridge", "0-half ridge, 1-full ridge"); CHKERRQ(ierr);
   par->start_run = PETSC_TRUE;
+  ierr = PetscBagRegisterBool(bag, &par->log_info,PETSC_FALSE, "model_log_info", "Output profiling data (T/F)"); CHKERRQ(ierr);
 
   if (par->full_ridge) {
     par->nx   = 2*par->nx;

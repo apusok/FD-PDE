@@ -16,11 +16,12 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
   DM             dmPV, dmCoeff;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
   Vec            xlocal, flocal, coefflocal;
-  PetscInt       idx, n[5];
+  PetscInt       n[5]; //, idx;
   PetscInt       iprev, inext, icenter;
   PetscScalar    ***ff;
   PetscScalar    **coordx,**coordz;
   DMStagBCList   bclist;
+  PetscInt       slot_dof[4];
   PetscErrorCode ierr;
   PetscLogDouble tlog[10];
   
@@ -69,6 +70,12 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
   ierr = DMStagVecGetArray(dmPV, flocal, &ff); CHKERRQ(ierr);
   PetscTime(&tlog[3]);
 
+  // get index slots
+  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_ELEMENT,SD3_DOF_P, &slot_dof[0]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_ELEMENT,SD3_DOF_PC,&slot_dof[1]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_LEFT,   SD3_DOF_V, &slot_dof[2]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_DOWN,   SD3_DOF_V, &slot_dof[3]); CHKERRQ(ierr);
+
   // Loop over elements
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
@@ -77,26 +84,26 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
       // Continuity equation
       ierr = ContinuityResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
       ierr = ContinuityResidual_Darcy3Field(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval1);CHKERRQ(ierr);
-      ierr = DMStagGetLocationSlot(dmPV, DMSTAG_ELEMENT, SD3_DOF_P, &idx); CHKERRQ(ierr);
-      ff[j][i][idx] = fval + fval1;
+      // ierr = DMStagGetLocationSlot(dmPV, DMSTAG_ELEMENT, SD3_DOF_P, &idx); CHKERRQ(ierr);
+      ff[j][i][slot_dof[0]] = fval + fval1;
 
       // Compaction pressure equation
       ierr = CompactionResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
-      ierr = DMStagGetLocationSlot(dmPV, DMSTAG_ELEMENT, SD3_DOF_PC, &idx); CHKERRQ(ierr);
-      ff[j][i][idx] = fval;
+      // ierr = DMStagGetLocationSlot(dmPV, DMSTAG_ELEMENT, SD3_DOF_PC, &idx); CHKERRQ(ierr);
+      ff[j][i][slot_dof[1]] = fval;
 
       // X-Momentum equation - same as for Stokes
       if (i > 0) {
         ierr = XMomentumResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
-        ierr = DMStagGetLocationSlot(dmPV, DMSTAG_LEFT, SD3_DOF_V, &idx); CHKERRQ(ierr);
-        ff[j][i][idx] = fval;
+        // ierr = DMStagGetLocationSlot(dmPV, DMSTAG_LEFT, SD3_DOF_V, &idx); CHKERRQ(ierr);
+        ff[j][i][slot_dof[2]] = fval;
       }
 
       // Z-Momentum equation - same as for Stokes
       if (j > 0) {
         ierr = ZMomentumResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
-        ierr = DMStagGetLocationSlot(dmPV, DMSTAG_DOWN, SD3_DOF_V, &idx); CHKERRQ(ierr);
-        ff[j][i][idx] = fval;
+        // ierr = DMStagGetLocationSlot(dmPV, DMSTAG_DOWN, SD3_DOF_V, &idx); CHKERRQ(ierr);
+        ff[j][i][slot_dof[3]] = fval;
       }
     }
   }
@@ -120,14 +127,16 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
   ierr = VecDestroy(&flocal); CHKERRQ(ierr);
   PetscTime(&tlog[6]);
   
-  printf("  FormFunction_StokesDarcy3Field: total            %1.2e\n",tlog[6]-tlog[0]);
-  printf("  FormFunction_StokesDarcy3Field: bclist->evaluate %1.2e\n",tlog[1]-tlog[0]);
-  printf("  FormFunction_StokesDarcy3Field: form_coefficient %1.2e\n",tlog[2]-tlog[1]);
-  printf("  FormFunction_StokesDarcy3Field: g2l(input)       %1.2e\n",tlog[3]-tlog[2]);
-  printf("  FormFunction_StokesDarcy3Field: cell-loop        %1.2e\n",tlog[4]-tlog[3]);
-  printf("  FormFunction_StokesDarcy3Field: bclist_set       %1.2e\n",tlog[5]-tlog[4]);
-  printf("  FormFunction_StokesDarcy3Field: g2l(output)      %1.2e\n",tlog[6]-tlog[5]);
-  printf("----------------------------------------------------------------------\n");
+  if (fd->log_info) {
+    printf("  FormFunction_StokesDarcy3Field: total            %1.2e\n",tlog[6]-tlog[0]);
+    printf("  FormFunction_StokesDarcy3Field: bclist->evaluate %1.2e\n",tlog[1]-tlog[0]);
+    printf("  FormFunction_StokesDarcy3Field: form_coefficient %1.2e\n",tlog[2]-tlog[1]);
+    printf("  FormFunction_StokesDarcy3Field: g2l(input)       %1.2e\n",tlog[3]-tlog[2]);
+    printf("  FormFunction_StokesDarcy3Field: cell-loop        %1.2e\n",tlog[4]-tlog[3]);
+    printf("  FormFunction_StokesDarcy3Field: bclist_set       %1.2e\n",tlog[5]-tlog[4]);
+    printf("  FormFunction_StokesDarcy3Field: g2l(output)      %1.2e\n",tlog[6]-tlog[5]);
+    printf("----------------------------------------------------------------------\n");
+  }
   
   PetscFunctionReturn(0);
 }

@@ -278,18 +278,20 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   ierr = VecDestroy(&flocal); CHKERRQ(ierr);
   PetscTime(&tlog[10]);
 
-  printf("  FormFunction_Enthalpy: total                       %1.2e\n",tlog[9]-tlog[0]);
-  printf("  FormFunction_Enthalpy: g2l(input)                  %1.2e\n",tlog[1]-tlog[0]);
-  printf("  FormFunction_Enthalpy: en->timesteptype != TS_NONE %1.2e\n",tlog[2]-tlog[1]);
-  printf("  FormFunction_Enthalpy: ApplyEnthalpyMethod         %1.2e\n",tlog[3]-tlog[2]);
-  printf("  FormFunction_Enthalpy: form_coefficient            %1.2e\n",tlog[4]-tlog[3]);
-  printf("  FormFunction_Enthalpy: g2l+UpdateCoeffStructure    %1.2e\n",tlog[5]-tlog[4]);
-  printf("  FormFunction_Enthalpy: bclist->eval                %1.2e\n",tlog[6]-tlog[5]);
-  printf("  FormFunction_Enthalpy: cell-loop                   %1.2e\n",tlog[7]-tlog[6]);
-  printf("  FormFunction_Enthalpy: form_user_bc                %1.2e\n",tlog[8]-tlog[7]);
-  printf("  FormFunction_Enthalpy: DMStagBCListApply_Enthalpy  %1.2e\n",tlog[9]-tlog[8]);
-  printf("  FormFunction_Enthalpy: g2l(output)                 %1.2e\n",tlog[10]-tlog[9]);
-  printf("----------------------------------------------------------------------\n");
+  if (fd->log_info) {
+    printf("  FormFunction_Enthalpy: total                       %1.2e\n",tlog[9]-tlog[0]);
+    printf("  FormFunction_Enthalpy: g2l(input)                  %1.2e\n",tlog[1]-tlog[0]);
+    printf("  FormFunction_Enthalpy: en->timesteptype != TS_NONE %1.2e\n",tlog[2]-tlog[1]);
+    printf("  FormFunction_Enthalpy: ApplyEnthalpyMethod         %1.2e\n",tlog[3]-tlog[2]);
+    printf("  FormFunction_Enthalpy: form_coefficient            %1.2e\n",tlog[4]-tlog[3]);
+    printf("  FormFunction_Enthalpy: g2l+UpdateCoeffStructure    %1.2e\n",tlog[5]-tlog[4]);
+    printf("  FormFunction_Enthalpy: bclist->eval                %1.2e\n",tlog[6]-tlog[5]);
+    printf("  FormFunction_Enthalpy: cell-loop                   %1.2e\n",tlog[7]-tlog[6]);
+    printf("  FormFunction_Enthalpy: form_user_bc                %1.2e\n",tlog[8]-tlog[7]);
+    printf("  FormFunction_Enthalpy: DMStagBCListApply_Enthalpy  %1.2e\n",tlog[9]-tlog[8]);
+    printf("  FormFunction_Enthalpy: g2l(output)                 %1.2e\n",tlog[10]-tlog[9]);
+    printf("----------------------------------------------------------------------\n");
+  }
   
   PetscFunctionReturn(0);
 }

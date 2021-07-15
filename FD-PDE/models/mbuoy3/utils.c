@@ -366,7 +366,9 @@ PetscErrorCode CorrectInitialHCZeroPorosity(DM dmEnth, Vec xEnth, void *ctx)
   ierr = DMRestoreLocalVector(dmEnth, &xnewlocal); CHKERRQ(ierr);
 
   PetscTime(&tlog[1]);
-  printf("  CorrectInitialHCZeroPorosity: total                %1.2e\n",tlog[1]-tlog[0]);
+  if (usr->par->log_info) {
+    printf("  CorrectInitialHCZeroPorosity: total                %1.2e\n",tlog[1]-tlog[0]);
+  }
 
   PetscFunctionReturn(0);
 }
@@ -612,7 +614,9 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmEnth, Vec xEnt
   ierr = DMRestoreLocalVector(dmEnth, &xEnthlocal); CHKERRQ(ierr);
 
   PetscTime(&tlog[1]);
-  printf("  ComputeFluidAndBulkVelocity: total                 %1.2e\n",tlog[1]-tlog[0]);
+  if (usr->par->log_info) {
+    printf("  ComputeFluidAndBulkVelocity: total                 %1.2e\n",tlog[1]-tlog[0]);
+  }
 
   PetscFunctionReturn(0);
 }
@@ -692,7 +696,9 @@ PetscErrorCode UpdateMaterialProperties(DM dmEnth, Vec xEnth, DM dmmatProp, Vec 
   ierr = DMRestoreLocalVector(dmEnth,&xEnthlocal); CHKERRQ(ierr);
 
   PetscTime(&tlog[1]);
-  printf("  UpdateMaterialProperties: total                    %1.2e\n",tlog[1]-tlog[0]);
+  if (usr->par->log_info) {
+    printf("  UpdateMaterialProperties: total                    %1.2e\n",tlog[1]-tlog[0]);
+  }
 
   PetscFunctionReturn(0);
 }
@@ -1024,7 +1030,9 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
   ierr = DMRestoreLocalVector(dmEnth,&xEnthlocal); CHKERRQ(ierr);
 
   PetscTime(&tlog[1]);
-  printf("  ComputeMeltExtractOutflux: total                   %1.2e\n",tlog[1]-tlog[0]);
+  if (usr->par->log_info) {
+    printf("  ComputeMeltExtractOutflux: total                   %1.2e\n",tlog[1]-tlog[0]);
+  }
 
   PetscFunctionReturn(0);
 }
@@ -1097,7 +1105,9 @@ PetscErrorCode ComputeAsymmetryFullRidge(void *ctx)
   ierr = DMRestoreLocalVector(dmEnth,&xEnthlocal); CHKERRQ(ierr);
 
   PetscTime(&tlog[1]);
-  printf("  ComputeAsymmetryFullRidge: total                   %1.2e\n",tlog[1]-tlog[0]);
+  if (usr->par->log_info) {
+    printf("  ComputeAsymmetryFullRidge: total                   %1.2e\n",tlog[1]-tlog[0]);
+  }
 
   PetscFunctionReturn(0);
 }
@@ -1434,7 +1444,9 @@ PetscErrorCode ComputeGamma(DM dmmatProp, Vec xmatProp, DM dmPV, Vec xPV, DM dmE
   ierr = DMRestoreLocalVector(dmEnth, &xEntholdlocal); CHKERRQ(ierr);
 
   PetscTime(&tlog[1]);
-  printf("  ComputeGamma: total                                %1.2e\n",tlog[1]-tlog[0]);
+  if (usr->par->log_info) {
+    printf("  ComputeGamma: total                                %1.2e\n",tlog[1]-tlog[0]);
+  }
 
   PetscFunctionReturn(0);
 }

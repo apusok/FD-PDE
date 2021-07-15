@@ -51,7 +51,7 @@ struct _p_FDPDE {
   PetscInt        dof0,dof1,dof2;
   PetscInt        dofc0,dofc1,dofc2;
   PetscScalar     x0,x1,z0,z1;
-  PetscBool       setupcalled,linearsolve,output_solver_failure_report;
+  PetscBool       setupcalled,linearsolve,output_solver_failure_report,log_info;
   PetscInt        naux_global_vectors;
   Vec            *aux_global_vectors;
   PetscInt        refcount,solves_performed;

@@ -251,7 +251,9 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
   ierr = DMRestoreLocalVector(dmEnth, &xEnthlocal); CHKERRQ(ierr);
 
   PetscTime(&tlog[1]);
-  printf("  FormCoefficient_PV: total                          %1.2e\n",tlog[1]-tlog[0]);
+  if (usr->par->log_info) {
+    printf("  FormCoefficient_PV: total                        %1.2e\n",tlog[1]-tlog[0]);
+  }
 
   PetscFunctionReturn(0);
 }
@@ -387,7 +389,9 @@ PetscErrorCode FormCoefficient_HC(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
   ierr = DMRestoreLocalVector(usr->dmVel, &xVellocal); CHKERRQ(ierr);
 
   PetscTime(&tlog[1]);
-  printf("  FormCoefficient_HC: total                          %1.2e\n",tlog[1]-tlog[0]);
+  if (usr->par->log_info) {
+    printf("  FormCoefficient_HC: total                          %1.2e\n",tlog[1]-tlog[0]);
+  }
 
   PetscFunctionReturn(0);
 }
@@ -988,7 +992,9 @@ PetscErrorCode FormCoefficient_HC_VF_nonlinear(FDPDE fd, DM dm, Vec x, DM dmcoef
   ierr = DMDestroy(&dmEnth);CHKERRQ(ierr);
 
   PetscTime(&tlog[1]);
-  printf("  FormCoefficient_HC_VF_nonlinear: total             %1.2e\n",tlog[1]-tlog[0]);
+  if (usr->par->log_info) {
+    printf("  FormCoefficient_HC_VF_nonlinear: total             %1.2e\n",tlog[1]-tlog[0]);
+  }
 
   PetscFunctionReturn(0);
 }
@@ -1685,13 +1691,15 @@ PetscErrorCode DM2_FormCoefficient_HC_VF_nonlinear(FDPDE fd, DM dm, Vec x, DM dm
   
   PetscTime(&tlog[6]);
 
-  printf("total            %1.4e\n",tlog[6]-tlog[0]);
-  printf("setup            %1.4e\n",tlog[1]-tlog[0]);
-  printf("update diagnos.  %1.4e\n",tlog[2]-tlog[1]);
-  printf("elements         %1.4e\n",tlog[3]-tlog[2]);
-  printf("faces:left/right %1.4e\n",tlog[4]-tlog[3]);
-  printf("faces:up/down    %1.4e\n",tlog[5]-tlog[4]);
-  printf("g2l              %1.4e\n",tlog[6]-tlog[5]);
+  if (usr->par->log_info) {
+    printf("total            %1.4e\n",tlog[6]-tlog[0]);
+    printf("setup            %1.4e\n",tlog[1]-tlog[0]);
+    printf("update diagnos.  %1.4e\n",tlog[2]-tlog[1]);
+    printf("elements         %1.4e\n",tlog[3]-tlog[2]);
+    printf("faces:left/right %1.4e\n",tlog[4]-tlog[3]);
+    printf("faces:up/down    %1.4e\n",tlog[5]-tlog[4]);
+    printf("g2l              %1.4e\n",tlog[6]-tlog[5]);
+  }
   
   PetscFunctionReturn(0);
 }

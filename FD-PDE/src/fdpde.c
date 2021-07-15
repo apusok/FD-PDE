@@ -102,6 +102,7 @@ PetscErrorCode FDPDECreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   fd->setupcalled = PETSC_FALSE;
   fd->linearsolve = PETSC_FALSE;
   fd->output_solver_failure_report = PETSC_TRUE;
+  fd->log_info = PETSC_FALSE;
 
   fd->description_bc = NULL;
   fd->description_coeff = NULL;

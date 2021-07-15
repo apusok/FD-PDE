@@ -80,7 +80,7 @@ typedef struct {
   PetscScalar    tmax, dtmax, dt_out;
   PetscInt       visc_shear, visc_bulk, buoyancy, buoy_phi, buoy_C, buoy_T, extract_mech, initial_bulk_comp, hc_cycles, vf_nonlinear;
   char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH], fdir_out[FNAME_LENGTH]; 
-  PetscBool      start_run;
+  PetscBool      start_run, log_info;
 } Params;
 
 typedef struct {

@@ -167,6 +167,12 @@ PetscErrorCode Numerical_solution(void *ctx)
   if (par->ts_scheme ==  1) timesteptype = TS_BACKWARD_EULER;
   if (par->ts_scheme ==  2) timesteptype = TS_CRANK_NICHOLSON;
   ierr = FDPDEEnthalpySetTimeStepSchemeType(fdHC,timesteptype);CHKERRQ(ierr);
+
+  // Log info
+  if (usr->par->log_info) {
+    fdPV->log_info = PETSC_TRUE;
+    fdHC->log_info = PETSC_TRUE;
+  }
   
   // Prepare data for coupling HC-PV
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");

@@ -1062,7 +1062,9 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
   else { ierr = VecDestroy(&xnew);CHKERRQ(ierr); }
 
   PetscTime(&tlog[1]);
-  printf("  FDPDEEnthalpyUpdateDiagnostics: total              %1.2e\n",tlog[1]-tlog[0]);
+  if (fd->log_info) {
+    printf("  FDPDEEnthalpyUpdateDiagnostics: total              %1.2e\n",tlog[1]-tlog[0]);
+  }
   
   PetscFunctionReturn(0);
 }
