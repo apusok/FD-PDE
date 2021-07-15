@@ -213,7 +213,7 @@ PetscErrorCode FormFunctionSplit_Stokes(SNES snes, Vec x, Vec x2, Vec f, void *c
 
 // ---------------------------------------
 /*@
-GetLocationSlots - (STOKES) calculates the continuity residual per dof
+GetLocationSlots - (STOKES) get dmstag location slots
 Use: internal
 @*/
 // ---------------------------------------
@@ -509,7 +509,6 @@ PetscErrorCode DMStagBCListApplyFace_Stokes(PetscScalar ***_xlocal,PetscScalar *
       else {
         ff[j][i][idx] = xx - bclist[ibc].val;
       }
-      
     }
 
     if (bclist[ibc].type == BC_NEUMANN) {
