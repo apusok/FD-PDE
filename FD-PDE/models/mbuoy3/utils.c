@@ -381,12 +381,14 @@ PetscErrorCode CorrectInitialHCBulkComposition(void *ctx)
   PetscScalar    ***xx;
   Vec            x, xlocal;
   DM             dm;
+  PetscMPIInt    size;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
   dm  = usr->dmHC;
   x   = usr->xHC;
 
+  ierr = MPI_Comm_size(usr->comm,&size);CHKERRQ(ierr);
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   ierr = DMStagGetLocationSlot(dm, ELEMENT, 1, &iC); CHKERRQ(ierr);
 
@@ -394,13 +396,64 @@ PetscErrorCode CorrectInitialHCBulkComposition(void *ctx)
   ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
 
-  // Loop over local domain
-  for (j = sz; j < sz+nz; j++) {
-    for (i = sx+1; i <sx+nx; i++) {
-      // bulk composition
-      xx[j][i][iC] = xx[j][i-1][iC]; 
+  PetscScalar *xmor;
+  PetscInt *_send, *_recv, irank, s_rank[2], s_neigh[2];
+  
+  // create data 
+  ierr = PetscCalloc1(nz,&xmor); CHKERRQ(ierr);
+  ierr = PetscCalloc1(size,&_send); CHKERRQ(ierr);
+  ierr = PetscCalloc1(size,&_recv); CHKERRQ(ierr);
+  
+  for (irank = 0; irank < size; irank++) {
+    _send[irank] = -1;
+    _recv[irank] = -1;
+  }
+
+  s_rank[0] = sx; s_rank[1] = sz;
+
+  // first all procs send/recv start coord to each other
+  for (irank = 0; irank < size; irank++) {
+    if (irank!=usr->rank) {
+      ierr = MPI_Send(&s_rank,2,MPI_INT,irank,0,usr->comm);
+      ierr = MPI_Recv(&s_neigh,2,MPI_INT,irank,0,usr->comm,MPI_STATUS_IGNORE);
+
+      if (s_rank[1]==s_neigh[1]) {
+        if (s_rank[0] ==0) _send[irank] = 1;
+        if (s_neigh[0]==0) _recv[irank] = 1;
+      }
     }
   }
+
+  // save xmor data
+  if (sx==0) {
+    for (j = sz; j < sz+nz; j++) {
+      xmor[j-sz] = xx[j][0][iC]; 
+    }
+  }
+
+  // send/receiv xmor data
+  for (irank = 0; irank < size; irank++) {
+    if (irank!=usr->rank) {
+      if (_send[irank] == 1) {
+        ierr = MPI_Send(xmor,nz,MPI_DOUBLE,irank,0,usr->comm);
+      }
+      if (_recv[irank] == 1) {
+        ierr = MPI_Recv(xmor,nz,MPI_DOUBLE,irank,0,usr->comm,MPI_STATUS_IGNORE);
+      }
+    }
+  }
+
+  // correct bulk composition as beneath MOR
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      xx[j][i][iC] = xmor[j-sz]; 
+    }
+  }
+
+  // free data 
+  ierr = PetscFree(xmor);CHKERRQ(ierr);
+  ierr = PetscFree(_send);CHKERRQ(ierr);
+  ierr = PetscFree(_recv);CHKERRQ(ierr);
 
   // Restore arrays
   ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
