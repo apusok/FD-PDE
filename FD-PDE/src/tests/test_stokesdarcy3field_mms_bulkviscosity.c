@@ -243,7 +243,7 @@ PetscErrorCode FormCoefficient2Field(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coe
   Vec            coefflocal;
   PetscScalar    **coordx,**coordz;
   PetscInt       iprev, inext, icenter;
-  PetscScalar    delta,phi0,phia,phi_min,vzeta,eta,p_s,psi_s,U_s,m,n,k_hat;
+  PetscScalar    delta,phi0,phia,phi_min,vzeta,p_s,psi_s,U_s,m,n,k_hat;
   PetscScalar    ***c;
   PetscErrorCode ierr;
 
@@ -254,7 +254,6 @@ PetscErrorCode FormCoefficient2Field(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coe
   phia = usr->par->phia;
   phi_min = usr->par->phi_min;
   vzeta = usr->par->vzeta;
-  eta  = usr->par->eta;
   p_s = usr->par->p_s;
   psi_s = usr->par->psi_s;
   U_s = usr->par->U_s;
@@ -430,7 +429,7 @@ PetscErrorCode FormBCList2Field(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       k,n_bc,*idx_bc;
   PetscScalar    *value_bc,*x_bc;
-  PetscScalar    delta,phi0,phia,phi_min,vzeta,eta,p_s,psi_s,U_s,m,n,k_hat;
+  PetscScalar    delta,phi0,phia,phi_min,vzeta,p_s,psi_s,U_s,m,n,k_hat;
   BCType         *type_bc;
   PetscErrorCode ierr;
   PetscFunctionBegin;
@@ -440,7 +439,6 @@ PetscErrorCode FormBCList2Field(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   phia = usr->par->phia;
   phi_min = usr->par->phi_min;
   vzeta = usr->par->vzeta;
-  eta  = usr->par->eta;
   p_s = usr->par->p_s;
   psi_s = usr->par->psi_s;
   U_s = usr->par->U_s;
@@ -556,7 +554,7 @@ PetscErrorCode ComputeManufacturedSolution2Field(DM dm,Vec *_xMMS, void *ctx)
   PetscScalar    ***xxMMS;
   PetscScalar    **coordx,**coordz;
   Vec            xMMS, xMMSlocal;
-  PetscScalar    delta,phi0,phia,phi_min,vzeta,eta,p_s,psi_s,U_s,m,n,k_hat;
+  PetscScalar    delta,phi0,phia,phi_min,vzeta,p_s,psi_s,U_s,m,n,k_hat;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
@@ -565,7 +563,6 @@ PetscErrorCode ComputeManufacturedSolution2Field(DM dm,Vec *_xMMS, void *ctx)
   phia = usr->par->phia;
   phi_min = usr->par->phi_min;
   vzeta = usr->par->vzeta;
-  eta  = usr->par->eta;
   p_s = usr->par->p_s;
   psi_s = usr->par->psi_s;
   U_s = usr->par->U_s;
@@ -812,7 +809,7 @@ PetscErrorCode FormCoefficient3Field(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coe
   Vec            coefflocal;
   PetscScalar    **coordx,**coordz;
   PetscInt       iprev, inext, icenter;
-  PetscScalar    delta,phi0,phia,phi_min,vzeta,eta,p_s,psi_s,U_s,m,n,k_hat;
+  PetscScalar    delta,phi0,phia,phi_min,vzeta,p_s,psi_s,U_s,m,n,k_hat;
   PetscScalar    ***c;
   PetscErrorCode ierr;
 
@@ -823,7 +820,6 @@ PetscErrorCode FormCoefficient3Field(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coe
   phia = usr->par->phia;
   phi_min = usr->par->phi_min;
   vzeta = usr->par->vzeta;
-  eta  = usr->par->eta;
   p_s = usr->par->p_s;
   psi_s = usr->par->psi_s;
   U_s = usr->par->U_s;
@@ -1032,7 +1028,7 @@ PetscErrorCode FormBCList3Field(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       k,n_bc,*idx_bc;
   PetscScalar    *value_bc,*x_bc;
-  PetscScalar    delta,phi0,phia,phi_min,vzeta,eta,p_s,psi_s,U_s,m,n,k_hat;
+  PetscScalar    delta,phi0,phia,phi_min,vzeta,p_s,psi_s,U_s,m,n,k_hat;
   BCType         *type_bc;
   PetscErrorCode ierr;
   PetscFunctionBegin;
@@ -1042,7 +1038,6 @@ PetscErrorCode FormBCList3Field(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   phia = usr->par->phia;
   phi_min = usr->par->phi_min;
   vzeta = usr->par->vzeta;
-  eta  = usr->par->eta;
   p_s = usr->par->p_s;
   psi_s = usr->par->psi_s;
   U_s = usr->par->U_s;
@@ -1191,7 +1186,7 @@ PetscErrorCode ComputeManufacturedSolution3Field(DM dm,Vec *_xMMS, void *ctx)
   PetscScalar    ***xxMMS;
   PetscScalar    **coordx,**coordz;
   Vec            xMMS, xMMSlocal;
-  PetscScalar    delta,phi0,phia,phi_min,vzeta,eta,p_s,psi_s,U_s,m,n,k_hat;
+  PetscScalar    delta,phi0,phia,phi_min,vzeta,p_s,psi_s,U_s,m,n,k_hat;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
@@ -1200,7 +1195,6 @@ PetscErrorCode ComputeManufacturedSolution3Field(DM dm,Vec *_xMMS, void *ctx)
   phia = usr->par->phia;
   phi_min = usr->par->phi_min;
   vzeta = usr->par->vzeta;
-  eta  = usr->par->eta;
   p_s = usr->par->p_s;
   psi_s = usr->par->psi_s;
   U_s = usr->par->U_s;
@@ -1399,7 +1393,7 @@ PetscErrorCode ComputeExtraParameters(DM dm, void *ctx)
   PetscScalar    **coordx,**coordz;
   DM             dmextra;
   Vec            x, xlocal;
-  PetscScalar    delta,phi0,phia,phi_min,vzeta,eta,p_s,psi_s,U_s,m,n,k_hat;
+  PetscScalar    delta,phi0,phia,phi_min,vzeta,p_s,psi_s,U_s,m,n,k_hat;
   char           fout[FNAME_LENGTH];
   PetscErrorCode ierr;
   PetscFunctionBegin;
@@ -1409,7 +1403,6 @@ PetscErrorCode ComputeExtraParameters(DM dm, void *ctx)
   phia = usr->par->phia;
   phi_min = usr->par->phi_min;
   vzeta = usr->par->vzeta;
-  eta  = usr->par->eta;
   p_s = usr->par->p_s;
   psi_s = usr->par->psi_s;
   U_s = usr->par->U_s;

@@ -310,15 +310,12 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
-  Params         *par;
   PetscInt       i, j, sx, sz, nx, nz;
   Vec            coefflocal;
   PetscScalar    ***c;
   PetscErrorCode ierr;
-
   PetscFunctionBeginUser;
 
-  par = usr->par;
   // Get domain corners
   ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);

@@ -523,7 +523,7 @@ PetscErrorCode Analytical_solution(DM dm,Vec *_x, void *ctx)
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
       DMStagStencil  point;
-      PetscScalar    zp, th, phi, th_a, th_b, th_c, res_a, res_b, res_c, res;
+      PetscScalar    zp, th=0.0, phi, th_a, th_b, th_c, res_a, res_b, res_c, res;
 
       point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0; 
       zp = coordz[j][icenter];
@@ -671,7 +671,7 @@ PetscErrorCode Initial_solution2(DM dm,Vec x, void *ctx)
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
       DMStagStencil  point;
-      PetscScalar    zp, th, phi, th_a, th_b, th_c, res_a, res_b, res_c, res;
+      PetscScalar    zp, th=0.0, phi, th_a, th_b, th_c, res_a, res_b, res_c, res;
 
       point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0; 
       zp = coordz[j][icenter];

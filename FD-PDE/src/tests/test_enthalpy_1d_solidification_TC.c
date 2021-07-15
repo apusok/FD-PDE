@@ -329,16 +329,13 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 #define __FUNCT__ "FormCoefficient"
 PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
-  UsrData        *usr = (UsrData*)ctx;
-  Params         *par;
+  // UsrData        *usr = (UsrData*)ctx;
   PetscInt       i, j, sx, sz, nx, nz;
   Vec            coefflocal;
   PetscScalar    ***c;
   PetscErrorCode ierr;
-
   PetscFunctionBeginUser;
 
-  par = usr->par;
   // Get domain corners
   ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
@@ -437,10 +434,9 @@ PetscErrorCode Initial_solution(DM dm,Vec x, void *ctx)
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
       DMStagStencil  point;
-      PetscScalar    xp, th, phi;
+      PetscScalar    th, phi;
 
       point.i = i; point.j = j; point.loc = ELEMENT; point.c = 0; 
-      xp = coordx[i][icenter];
       th = usr->par->nd_T0;
       phi = 1.0;
 
