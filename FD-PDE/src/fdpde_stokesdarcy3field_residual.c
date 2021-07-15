@@ -71,14 +71,9 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
   PetscTime(&tlog[3]);
 
   // Get location slots
-  PetscInt pv_slot[5],coeff_e[2],coeff_f[4],coeff_v[4],slot_dof[4];
-  ierr = GetLocationSlots(dmPV,dmCoeff,pv_slot,coeff_e,coeff_v,coeff_f); CHKERRQ(ierr);
-
-  // get index slots
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_ELEMENT,SD3_DOF_P, &slot_dof[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_ELEMENT,SD3_DOF_PC,&slot_dof[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_LEFT,   SD3_DOF_V, &slot_dof[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_DOWN,   SD3_DOF_V, &slot_dof[3]); CHKERRQ(ierr);
+  PetscInt pv_slot[6],coeff_e[4],coeff_v[4],coeff_B[4],coeff_D2[4],coeff_D3[4],coeff_D4[4];
+  ierr = GetLocationSlots(dmPV,dmCoeff,pv_slot,coeff_e,coeff_v,coeff_B); CHKERRQ(ierr);
+  ierr = GetLocationSlots_Darcy3Field(dmPV,dmCoeff,pv_slot,coeff_e,coeff_D2,coeff_D3,coeff_D4);CHKERRQ(ierr);
 
   // Loop over elements
   for (j = sz; j<sz+nz; j++) {
@@ -87,31 +82,31 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
 
       // Continuity equation
       ierr = ContinuityResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,&fval);CHKERRQ(ierr);
-      ierr = ContinuityResidual_Darcy3Field(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval1);CHKERRQ(ierr);
-      ff[j][i][slot_dof[0]] = fval + fval1; // ELEMENT 0
+      ierr = ContinuityResidual_Darcy3Field(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_D2,coeff_D3,coeff_D4,&fval1);CHKERRQ(ierr);
+      ff[j][i][pv_slot[4]] = fval + fval1; // ELEMENT 0
 
       // Compaction pressure equation
-      ierr = CompactionResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
-      ff[j][i][slot_dof[1]] = fval; // ELEMENT 1
+      ierr = CompactionResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,&fval);CHKERRQ(ierr);
+      ff[j][i][pv_slot[5]] = fval; // ELEMENT 1
 
       // X-Momentum equation - same as for Stokes
       if (i > 0) {
-        ierr = XMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,&fval);CHKERRQ(ierr);
-        ff[j][i][slot_dof[2]] = fval; // LEFT
+        ierr = XMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_B,coeff_v,&fval);CHKERRQ(ierr);
+        ff[j][i][pv_slot[0]] = fval; // LEFT
       }
 
       // Z-Momentum equation - same as for Stokes
       if (j > 0) {
-        ierr = ZMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,&fval);CHKERRQ(ierr);
-        ff[j][i][slot_dof[3]] = fval; // RIGHT
+        ierr = ZMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_B,coeff_v,&fval);CHKERRQ(ierr);
+        ff[j][i][pv_slot[2]] = fval; // DOWN
       }
     }
   }
   PetscTime(&tlog[4]);
 
   // Boundary conditions - edges and element
-  ierr = DMStagBCListApplyFace_StokesDarcy3Field(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,ff);CHKERRQ(ierr);
-  ierr = DMStagBCListApplyElement_StokesDarcy3Field(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,n,ff);CHKERRQ(ierr);
+  ierr = DMStagBCListApplyFace_StokesDarcy3Field(_xlocal,_coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,pv_slot,coeff_v,ff);CHKERRQ(ierr);
+  ierr = DMStagBCListApplyElement_StokesDarcy3Field(_xlocal,_coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,n,pv_slot,coeff_D2,ff);CHKERRQ(ierr);
   PetscTime(&tlog[5]);
 
   // Restore arrays, local vectors
@@ -143,53 +138,86 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
 
 // ---------------------------------------
 /*@
+GetLocationSlots_Darcy3Field - (STOKESDARCY3FIELD) get dmstag location slots
+Use: internal
+@*/
+// ---------------------------------------
+PetscErrorCode GetLocationSlots_Darcy3Field(DM dmPV, DM dmCoeff, PetscInt *pv_slot, PetscInt *coeff_e, PetscInt *coeff_D2, PetscInt *coeff_D3, PetscInt *coeff_D4)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_LEFT,   SD3_DOF_V, &pv_slot[0]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_RIGHT,  SD3_DOF_V, &pv_slot[1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_DOWN,   SD3_DOF_V, &pv_slot[2]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_UP,     SD3_DOF_V, &pv_slot[3]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_ELEMENT,SD3_DOF_P, &pv_slot[4]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_ELEMENT,SD3_DOF_PC,&pv_slot[5]); CHKERRQ(ierr);
+
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_ELEMENT,SD3_COEFF_ELEMENT_C, &coeff_e[SD3_COEFF_ELEMENT_C]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_ELEMENT,SD3_COEFF_ELEMENT_A, &coeff_e[SD3_COEFF_ELEMENT_A]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_ELEMENT,SD3_COEFF_ELEMENT_D1,&coeff_e[SD3_COEFF_ELEMENT_D1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_ELEMENT,SD3_COEFF_ELEMENT_DC,&coeff_e[SD3_COEFF_ELEMENT_DC]);CHKERRQ(ierr);
+
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_LEFT,  SD3_COEFF_FACE_D2, &coeff_D2[0]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_RIGHT, SD3_COEFF_FACE_D2, &coeff_D2[1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_DOWN,  SD3_COEFF_FACE_D2, &coeff_D2[2]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_UP,    SD3_COEFF_FACE_D2, &coeff_D2[3]);CHKERRQ(ierr);
+
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_LEFT,  SD3_COEFF_FACE_D3, &coeff_D3[0]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_RIGHT, SD3_COEFF_FACE_D3, &coeff_D3[1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_DOWN,  SD3_COEFF_FACE_D3, &coeff_D3[2]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_UP,    SD3_COEFF_FACE_D3, &coeff_D3[3]);CHKERRQ(ierr);
+
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_LEFT,  SD3_COEFF_FACE_D4, &coeff_D4[0]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_RIGHT, SD3_COEFF_FACE_D4, &coeff_D4[1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_DOWN,  SD3_COEFF_FACE_D4, &coeff_D4[2]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_UP,    SD3_COEFF_FACE_D4, &coeff_D4[3]);CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
 ContinuityResidual_Darcy3Field - (STOKESDARCY3FIELD) calculates the div(Darcy flux) per cell
 
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode ContinuityResidual_Darcy3Field(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, PetscInt n[],PetscScalar *ff)
+PetscErrorCode ContinuityResidual_Darcy3Field(PetscInt i, PetscInt j,PetscScalar ***_xlocal,PetscScalar ***_coefflocal,PetscScalar **coordx, PetscScalar **coordz, PetscInt n[],PetscInt pv_slot[], PetscInt coeff_D2[],PetscInt coeff_D3[],PetscInt coeff_D4[],PetscScalar *ff)
 {
   PetscScalar    ffi, xx[10], D2[4], D3[4], D4[4], dPdx[4], dPCdx[4], qD[4], dx, dx1, dx2, dz, dz1, dz2;
-  PetscInt       ii, iprev, inext, icenter, Nx, Nz;
-  DMStagStencil  point[10];
+  PetscInt       ii, iprev, inext, icenter, Nx, Nz, im, jm, ip, jp, P_slot,Pc_slot;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
   Nx = n[0]; Nz = n[1]; icenter = n[2]; iprev = n[3]; inext = n[4];
 
+  P_slot = 4; Pc_slot = 5;
+  if (i == 0   ) im = i; else im = i-1;
+  if (i == Nx-1) ip = i; else ip = i+1;
+  if (j == 0   ) jm = j; else jm = j-1;
+  if (j == Nz-1) jp = j; else jp = j+1;
+
   // Get stencil values
-  point[0].i = i  ; point[0].j = j  ; point[0].loc = DMSTAG_ELEMENT; point[0].c = SD3_DOF_P;
-  point[1].i = i+1; point[1].j = j  ; point[1].loc = DMSTAG_ELEMENT; point[1].c = SD3_DOF_P;
-  point[2].i = i-1; point[2].j = j  ; point[2].loc = DMSTAG_ELEMENT; point[2].c = SD3_DOF_P;
-  point[3].i = i  ; point[3].j = j+1; point[3].loc = DMSTAG_ELEMENT; point[3].c = SD3_DOF_P;
-  point[4].i = i  ; point[4].j = j-1; point[4].loc = DMSTAG_ELEMENT; point[4].c = SD3_DOF_P;
+  xx[0] = _xlocal[j ][i ][pv_slot[P_slot]];
+  xx[1] = _xlocal[j ][ip][pv_slot[P_slot]];
+  xx[2] = _xlocal[j ][im][pv_slot[P_slot]];
+  xx[3] = _xlocal[jp][i ][pv_slot[P_slot]];
+  xx[4] = _xlocal[jm][i ][pv_slot[P_slot]];
 
-  point[5].i = i  ; point[5].j = j  ; point[5].loc = DMSTAG_ELEMENT; point[5].c = SD3_DOF_PC;
-  point[6].i = i+1; point[6].j = j  ; point[6].loc = DMSTAG_ELEMENT; point[6].c = SD3_DOF_PC;
-  point[7].i = i-1; point[7].j = j  ; point[7].loc = DMSTAG_ELEMENT; point[7].c = SD3_DOF_PC;
-  point[8].i = i  ; point[8].j = j+1; point[8].loc = DMSTAG_ELEMENT; point[8].c = SD3_DOF_PC;
-  point[9].i = i  ; point[9].j = j-1; point[9].loc = DMSTAG_ELEMENT; point[9].c = SD3_DOF_PC;
-
-  // For boundaries remove the flux terms
-  if (i == Nx-1) { point[1] = point[0]; point[6] = point[5]; }
-  if (i == 0   ) { point[2] = point[0]; point[7] = point[5]; }
-  if (j == Nz-1) { point[3] = point[0]; point[8] = point[5]; }
-  if (j == 0   ) { point[4] = point[0]; point[9] = point[5]; }
-  ierr = DMStagVecGetValuesStencil(dm, xlocal, 10, point, xx); CHKERRQ(ierr);
+  xx[5] = _xlocal[j ][i ][pv_slot[Pc_slot]];
+  xx[6] = _xlocal[j ][ip][pv_slot[Pc_slot]];
+  xx[7] = _xlocal[j ][im][pv_slot[Pc_slot]];
+  xx[8] = _xlocal[jp][i ][pv_slot[Pc_slot]];
+  xx[9] = _xlocal[jm][i ][pv_slot[Pc_slot]];
   
   // Coefficients - D2, D3, D4
-  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_LEFT;  point[0].c = SD3_COEFF_FACE_D2;
-  point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_RIGHT; point[1].c = SD3_COEFF_FACE_D2;
-  point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_DOWN;  point[2].c = SD3_COEFF_FACE_D2;
-  point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_UP;    point[3].c = SD3_COEFF_FACE_D2;
-  ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 4, point, D2); CHKERRQ(ierr);
-
-  for (ii = 0; ii < 4; ii++) { point[ii].c = SD3_COEFF_FACE_D3; }
-  ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 4, point, D3); CHKERRQ(ierr);
-
-  for (ii = 0; ii < 4; ii++) { point[ii].c = SD3_COEFF_FACE_D4; }
-  ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 4, point, D4); CHKERRQ(ierr);
+  for (ii = 0; ii < 4; ii++) {
+    D2[ii] = _coefflocal[j][i][coeff_D2[ii]];
+    D3[ii] = _coefflocal[j][i][coeff_D3[ii]];
+    D4[ii] = _coefflocal[j][i][coeff_D4[ii]];
+  }
 
   // Grid spacings - Correct for boundaries
   dx  = coordx[i  ][inext  ]-coordx[i  ][iprev  ];
@@ -233,31 +261,27 @@ CompactionResidual - calculates the compaction pressure residual per dof
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode CompactionResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, PetscInt n[],PetscScalar *ff)
+PetscErrorCode CompactionResidual(PetscInt i, PetscInt j,PetscScalar ***_xlocal,PetscScalar ***_coefflocal,PetscScalar **coordx, PetscScalar **coordz, PetscInt n[],PetscInt pv_slot[], PetscInt coeff_e[],PetscScalar *ff)
 {
   PetscScalar    ffi, xx[5], DC, D1, dx, dz;
-  PetscInt       iprev, inext, nEntries = 5;
-  DMStagStencil  point[5];
+  PetscInt       iprev, inext,iL,iR,iU,iD,Pc_slot;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
   iprev = n[3]; 
   inext = n[4];
+  iL = 0; iR  = 1; iD = 2; iU  = 3; Pc_slot = 5;
 
   // Get stencil values
-  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = SD3_DOF_PC;
-  point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_LEFT;    point[1].c = SD3_DOF_V;
-  point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_RIGHT;   point[2].c = SD3_DOF_V;
-  point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_DOWN;    point[3].c = SD3_DOF_V;
-  point[4].i = i; point[4].j = j; point[4].loc = DMSTAG_UP;      point[4].c = SD3_DOF_V;
-  ierr = DMStagVecGetValuesStencil(dm, xlocal, nEntries, point, xx); CHKERRQ(ierr);
+  xx[0] = _xlocal[j][i][pv_slot[Pc_slot]];
+  xx[1] = _xlocal[j][i][pv_slot[iL]];
+  xx[2] = _xlocal[j][i][pv_slot[iR]];
+  xx[3] = _xlocal[j][i][pv_slot[iD]];
+  xx[4] = _xlocal[j][i][pv_slot[iU]];
   
   // Coefficients
-  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT;  point[0].c = SD3_COEFF_ELEMENT_D1;
-  ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, point, &D1); CHKERRQ(ierr);
-
-  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT;  point[0].c = SD3_COEFF_ELEMENT_DC;
-  ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, point, &DC); CHKERRQ(ierr);
+  D1 = _coefflocal[j][i][coeff_e[SD3_COEFF_ELEMENT_D1]];
+  DC = _coefflocal[j][i][coeff_e[SD3_COEFF_ELEMENT_DC]];
 
   // Calculate residual
   dx = coordx[i][inext]-coordx[i][iprev];
@@ -277,17 +301,17 @@ Use: internal
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "DMStagBCListApplyFace_StokesDarcy3Field"
-PetscErrorCode DMStagBCListApplyFace_StokesDarcy3Field(DM dm, Vec xlocal,DM dmcoeff, Vec coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscScalar ***ff)
+PetscErrorCode DMStagBCListApplyFace_StokesDarcy3Field(PetscScalar ***_xlocal,PetscScalar ***_coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscInt pv_slot[], PetscInt coeff_v[], PetscScalar ***ff)
 {
   PetscScalar    xx, xxT[2],dx, dz;
   PetscScalar    A_Left, A_Right, A_Up, A_Down;
-  PetscInt       i, j, ibc, idx, iprev, inext, Nx, Nz;
-  DMStagStencil  point, pointT[2];
+  PetscInt       i, j, ibc, idx, iprev, inext, Nx, Nz,iL,iR,iD,iU;
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
 
   // dm domain info
   Nx = n[0]; Nz = n[1]; iprev = n[3]; inext = n[4];
+  iL = 0; iR  = 1; iD = 2; iU  = 3;
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
@@ -298,7 +322,7 @@ PetscErrorCode DMStagBCListApplyFace_StokesDarcy3Field(DM dm, Vec xlocal,DM dmco
       idx = bclist[ibc].idx;
 
       // Get residual value
-      ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
+      xx = _xlocal[j][i][idx];
       ff[j][i][idx] = xx - bclist[ibc].val;
     }
     
@@ -308,47 +332,41 @@ PetscErrorCode DMStagBCListApplyFace_StokesDarcy3Field(DM dm, Vec xlocal,DM dmco
       idx = bclist[ibc].idx;
 
       // Get residual value
-      ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
+      xx = _xlocal[j][i][idx];
 
       // Stokes flow - add flux terms
       if ((j == 0) && (i > 0) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx down - only interior points
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_LEFT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Down); CHKERRQ(ierr);
+        A_Down = _coefflocal[j][i][coeff_v[0]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += -2.0 * A_Down*( xx - bclist[ibc].val)/dz/dz;
       }
 
       else if ((j == 0) && (i < Nx-1) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx down-special case
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_RIGHT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Down); CHKERRQ(ierr);
+        A_Down = _coefflocal[j][i][coeff_v[1]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += -2.0 * A_Down*( xx - bclist[ibc].val)/dz/dz;
       }
 
       else if ((j == Nz-1) && (i > 0) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx up - only interior points
-        point.i = i; point.j = j; point.loc = DMSTAG_UP_LEFT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Up); CHKERRQ(ierr);
+        A_Up = _coefflocal[j][i][coeff_v[2]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += 2.0 * A_Up*( bclist[ibc].val - xx)/dz/dz;
       }
 
       else if ((j == Nz-1) && (i < Nx-1) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx up - special case
-        point.i = i; point.j = j; point.loc = DMSTAG_UP_RIGHT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Up); CHKERRQ(ierr);
+        A_Up = _coefflocal[j][i][coeff_v[3]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += 2.0 * A_Up*( bclist[ibc].val - xx)/dz/dz;
       }
 
       else if ((i == 0) && (j > 0) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz left
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_LEFT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Left); CHKERRQ(ierr);
+        A_Left = _coefflocal[j][i][coeff_v[0]];
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] += -2.0 * A_Left*( xx - bclist[ibc].val)/dx/dx;
       }
 
       else if ((i == Nx-1) && (j > 0) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz right
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_RIGHT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Right); CHKERRQ(ierr);
+        A_Right = _coefflocal[j][i][coeff_v[1]];
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] += 2.0 * A_Right*( bclist[ibc].val - xx)/dx/dx;
       }
@@ -356,7 +374,6 @@ PetscErrorCode DMStagBCListApplyFace_StokesDarcy3Field(DM dm, Vec xlocal,DM dmco
       else {
         ff[j][i][idx] = xx - bclist[ibc].val;
       }
-          
     }
 
     if (bclist[ibc].type == BC_NEUMANN) {
@@ -366,43 +383,37 @@ PetscErrorCode DMStagBCListApplyFace_StokesDarcy3Field(DM dm, Vec xlocal,DM dmco
 
       // Stokes flow - add flux terms
       if ((j == 0) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx down
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_LEFT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Down); CHKERRQ(ierr);
+        A_Down = _coefflocal[j][i][coeff_v[0]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += -A_Down*bclist[ibc].val/dz;
       }
 
       if ((j == 0) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx down-special case
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_RIGHT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Down); CHKERRQ(ierr);
+        A_Down = _coefflocal[j][i][coeff_v[1]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += -A_Down*bclist[ibc].val/dz;
       }
 
       if ((j == Nz-1) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx up
-        point.i = i; point.j = j; point.loc = DMSTAG_UP_LEFT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Up); CHKERRQ(ierr);
+        A_Up = _coefflocal[j][i][coeff_v[2]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += A_Up*bclist[ibc].val/dz;
       }
 
       if ((j == Nz-1) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx up - special case
-        point.i = i; point.j = j; point.loc = DMSTAG_UP_RIGHT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Up); CHKERRQ(ierr);
+        A_Up = _coefflocal[j][i][coeff_v[3]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += A_Up*bclist[ibc].val/dz;
       }
 
       if ((i == 0) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz left
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_LEFT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Left); CHKERRQ(ierr);
+        A_Left = _coefflocal[j][i][coeff_v[0]];
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] += -A_Left*bclist[ibc].val/dx;
       }
 
       if ((i == Nx-1) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz right
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_RIGHT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Right); CHKERRQ(ierr);
+        A_Right = _coefflocal[j][i][coeff_v[1]];
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] += A_Right*bclist[ibc].val/dx;
       }
@@ -415,30 +426,26 @@ PetscErrorCode DMStagBCListApplyFace_StokesDarcy3Field(DM dm, Vec xlocal,DM dmco
       idx = bclist[ibc].idx;
 
       if ((i == 0) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // left dVx/dx = a
-        pointT[0].i = i  ; pointT[0].j = j; pointT[0].loc = DMSTAG_LEFT; pointT[0].c = 0;
-        pointT[1].i = i+1; pointT[1].j = j; pointT[1].loc = DMSTAG_LEFT; pointT[1].c = 0;
-        ierr = DMStagVecGetValuesStencil(dm,xlocal,2,pointT,xxT); CHKERRQ(ierr);
+        xxT[0] = _xlocal[j][i  ][pv_slot[iL]];
+        xxT[1] = _xlocal[j][i+1][pv_slot[iL]];
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dx;
       }
       if ((i == Nx-1) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // right dVx/dx = a
-        pointT[0].i = i  ; pointT[0].j = j; pointT[0].loc = DMSTAG_LEFT ; pointT[0].c = 0;
-        pointT[1].i = i  ; pointT[1].j = j; pointT[1].loc = DMSTAG_RIGHT; pointT[1].c = 0;
-        ierr = DMStagVecGetValuesStencil(dm,xlocal,2,pointT,xxT); CHKERRQ(ierr);
+        xxT[0] = _xlocal[j][i][pv_slot[iL]];
+        xxT[1] = _xlocal[j][i][pv_slot[iR]];
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dx;
       }
       if ((j == 0) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // down dVz/dz = a
-        pointT[0].i = i; pointT[0].j = j  ; pointT[0].loc = DMSTAG_DOWN; pointT[0].c = 0;
-        pointT[1].i = i; pointT[1].j = j+1; pointT[1].loc = DMSTAG_DOWN; pointT[1].c = 0;
-        ierr = DMStagVecGetValuesStencil(dm,xlocal,2,pointT,xxT); CHKERRQ(ierr);
+        xxT[0] = _xlocal[j  ][i][pv_slot[iD]];
+        xxT[1] = _xlocal[j+1][i][pv_slot[iD]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dz;
       }
       if ((j == Nz-1) && (bclist[ibc].point.loc == DMSTAG_UP)) { // up dVz/dz = a
-        pointT[0].i = i; pointT[0].j = j-1; pointT[0].loc = DMSTAG_UP; pointT[0].c = 0;
-        pointT[1].i = i; pointT[1].j = j  ; pointT[1].loc = DMSTAG_UP; pointT[1].c = 0;
-        ierr = DMStagVecGetValuesStencil(dm,xlocal,2,pointT,xxT); CHKERRQ(ierr);
+        xxT[0] = _xlocal[j-1][i][pv_slot[iU]];
+        xxT[1] = _xlocal[j  ][i][pv_slot[iU]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dz;
       }
@@ -456,17 +463,17 @@ Use: internal
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "DMStagBCListApplyElement_StokesDarcy3Field"
-PetscErrorCode DMStagBCListApplyElement_StokesDarcy3Field(DM dm, Vec xlocal,DM dmcoeff, Vec coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscScalar ***ff)
+PetscErrorCode DMStagBCListApplyElement_StokesDarcy3Field(PetscScalar ***_xlocal,PetscScalar ***_coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscInt pv_slot[], PetscInt coeff_D2[], PetscScalar ***ff)
 {
   PetscScalar    xx, dx, dz;
   PetscScalar    D2_Left, D2_Right, D2_Up, D2_Down;
-  PetscInt       i, j, ibc, idx, iprev, inext, Nx, Nz;
-  DMStagStencil  point;
+  PetscInt       i, j, ibc, idx, iprev, inext, Nx, Nz,iL,iR,iD,iU;
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
 
   // dm domain info
   Nx = n[0]; Nz = n[1]; iprev = n[3]; inext = n[4];
+  iL = 0; iR  = 1; iD = 2; iU  = 3;
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
@@ -477,7 +484,7 @@ PetscErrorCode DMStagBCListApplyElement_StokesDarcy3Field(DM dm, Vec xlocal,DM d
       idx = bclist[ibc].idx;
 
       // Get residual value
-      ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
+      xx = _xlocal[j][i][idx];
       ff[j][i][idx] = xx - bclist[ibc].val;
     }
 
@@ -487,33 +494,29 @@ PetscErrorCode DMStagBCListApplyElement_StokesDarcy3Field(DM dm, Vec xlocal,DM d
       idx = bclist[ibc].idx;
 
       // Get residual value
-      ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
+      xx = _xlocal[j][i][idx];
 
       // Pressure
       if ((i == 0) && (bclist[ibc].point.c == SD3_DOF_P)) { 
-        point.i = i; point.j = j; point.loc = DMSTAG_LEFT; point.c = 1;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &D2_Left); CHKERRQ(ierr);
+        D2_Left = _coefflocal[j][i][coeff_D2[iL]];
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] += -2.0 * D2_Left* (xx -bclist[ibc].val)/dx/dx;
       }
 
       if ((i == Nx-1) && (bclist[ibc].point.c == SD3_DOF_P)) { 
-        point.i = i; point.j = j; point.loc = DMSTAG_RIGHT; point.c = 1;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &D2_Right); CHKERRQ(ierr);
+        D2_Right = _coefflocal[j][i][coeff_D2[iR]];
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] += 2.0 * D2_Right* (bclist[ibc].val - xx)/dx/dx;
       }
 
       if ((j == 0) && (bclist[ibc].point.c == SD3_DOF_P)) { 
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN; point.c = 1;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &D2_Down); CHKERRQ(ierr);
+        D2_Down = _coefflocal[j][i][coeff_D2[iD]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += -2.0 * D2_Down* (xx - bclist[ibc].val)/dz/dz;
       }
 
       if ((j == Nz-1) && (bclist[ibc].point.c == SD3_DOF_P)) { 
-        point.i = i; point.j = j; point.loc = DMSTAG_UP; point.c = 1;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &D2_Up); CHKERRQ(ierr);
+        D2_Up = _coefflocal[j][i][coeff_D2[iU]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += 2.0 * D2_Up* (bclist[ibc].val - xx)/dz/dz;
       }
@@ -530,29 +533,25 @@ PetscErrorCode DMStagBCListApplyElement_StokesDarcy3Field(DM dm, Vec xlocal,DM d
 
       // Pressure
       if ((i == 0) && (bclist[ibc].point.c == SD3_DOF_P)) { 
-        point.i = i; point.j = j; point.loc = DMSTAG_LEFT; point.c = 1;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &D2_Left); CHKERRQ(ierr);
+        D2_Left = _coefflocal[j][i][coeff_D2[iL]];
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] += -D2_Left*bclist[ibc].val/dx;
       }
 
       if ((i == Nx-1) && (bclist[ibc].point.c == SD3_DOF_P)) { 
-        point.i = i; point.j = j; point.loc = DMSTAG_RIGHT; point.c = 1;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &D2_Right); CHKERRQ(ierr);
+        D2_Right = _coefflocal[j][i][coeff_D2[iR]];
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] += D2_Right*bclist[ibc].val/dx;
       }
 
       if ((j == 0) && (bclist[ibc].point.c == SD3_DOF_P)) { 
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN; point.c = 1;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &D2_Down); CHKERRQ(ierr);
+        D2_Down = _coefflocal[j][i][coeff_D2[iD]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += -D2_Down*bclist[ibc].val/dz;
       }
 
       if ((j == Nz-1) && (bclist[ibc].point.c == SD3_DOF_P)) { 
-        point.i = i; point.j = j; point.loc = DMSTAG_UP; point.c = 1;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &D2_Up); CHKERRQ(ierr);
+        D2_Up = _coefflocal[j][i][coeff_D2[iU]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += D2_Up*bclist[ibc].val/dz;
       }

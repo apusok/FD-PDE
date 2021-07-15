@@ -33,14 +33,15 @@ PetscErrorCode JacobianPreallocator_StokesDarcy3Field(FDPDE,Mat);
 PetscErrorCode JacobianCreate_StokesDarcy3Field(FDPDE,Mat*);
 
 // RESIDUAL STENCILS
+PetscErrorCode GetLocationSlots_Darcy3Field(DM,DM,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*);
 PetscErrorCode ContinuityStencil_StokesDarcy3Field(PetscInt,PetscInt,PetscInt,PetscInt,DMStagStencil*);
 PetscErrorCode CompactionStencil_StokesDarcy3Field(PetscInt,PetscInt,PetscInt,PetscInt,DMStagStencil*);
-PetscErrorCode ContinuityResidual_Darcy3Field(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
-PetscErrorCode CompactionResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
+PetscErrorCode ContinuityResidual_Darcy3Field(PetscInt,PetscInt,PetscScalar***,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscScalar*);
+PetscErrorCode CompactionResidual(PetscInt,PetscInt,PetscScalar***,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscScalar*);
 
-// // RESIDUAL
+// RESIDUAL
 PetscErrorCode FormFunction_StokesDarcy3Field(SNES, Vec, Vec, void*);
-PetscErrorCode DMStagBCListApplyFace_StokesDarcy3Field(DM, Vec,DM, Vec, DMStagBC*, PetscInt, PetscScalar**, PetscScalar**,PetscInt[], PetscScalar***);
-PetscErrorCode DMStagBCListApplyElement_StokesDarcy3Field(DM, Vec,DM, Vec, DMStagBC*, PetscInt, PetscScalar**, PetscScalar**,PetscInt[], PetscScalar***);
+PetscErrorCode DMStagBCListApplyFace_StokesDarcy3Field(PetscScalar***,PetscScalar***,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscScalar***);
+PetscErrorCode DMStagBCListApplyElement_StokesDarcy3Field(PetscScalar***,PetscScalar***,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscScalar***);
 
 #endif
