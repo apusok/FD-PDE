@@ -212,7 +212,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
         point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 1;
 
         for (ii = 0; ii < 4; ii++) { 
-          K[ii]  = Permeability(phi[ii],usr->par->phi0,usr->par->phi_max,usr->par->n);
+          K[ii]  = Permeability(phi[ii],usr->par->phi_max,usr->par->n);
           Bf[ii] = FluidBuoyancy(0.0,0.0,usr->nd->alpha_s,usr->nd->beta_s);
           D2[ii] = -K[ii];
           D3[ii] = -K[ii]*(1+Bf[ii])*k_hat[ii];
@@ -559,7 +559,7 @@ PetscErrorCode FormCoefficient_HC(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
         
 //         // fluid and bulk velocities
 //         for (ii = 0; ii < 4; ii++) {
-//           K      = Permeability(phi[ii],usr->par->phi0,usr->par->phi_max,usr->par->n);
+//           K      = Permeability(phi[ii],usr->par->phi_max,usr->par->n);
 //           Bf     = FluidBuoyancy(0.0,0.0,usr->nd->alpha_s,usr->nd->beta_s);
 //           vf[ii] = FluidVelocity(vs[ii],phi[ii],gradP[ii],gradPc[ii],Bf,K,k_hat[ii]);
 //           v [ii] = BulkVelocity(vs[ii],vf[ii],phi[ii]);
@@ -927,7 +927,7 @@ PetscErrorCode FormCoefficient_HC_VF_nonlinear(FDPDE fd, DM dm, Vec x, DM dmcoef
 
         // fluid and bulk velocities
         for (ii = 0; ii < 4; ii++) {
-          K      = Permeability(phi[ii],usr->par->phi0,usr->par->phi_max,usr->par->n);
+          K      = Permeability(phi[ii],usr->par->phi_max,usr->par->n);
           Bf     = FluidBuoyancy(0.0,0.0,usr->nd->alpha_s,usr->nd->beta_s);
           vf[ii] = FluidVelocity(vs[ii],phi[ii],gradP[ii],gradPc[ii],Bf,K,k_hat[ii]); 
           v [ii] = BulkVelocity(vs[ii],vf[ii],phi[ii]);
@@ -1294,7 +1294,7 @@ PetscErrorCode DM2_FormCoefficient_HC_VF_nonlinear(FDPDE fd, DM dm, Vec x, DM dm
 
       // fluid and bulk velocities
       ii = 0;
-      K      = Permeability(phi[ii],usr->par->phi0,usr->par->phi_max,usr->par->n);
+      K      = Permeability(phi[ii],usr->par->phi_max,usr->par->n);
       Bf     = FluidBuoyancy(0.0,0.0,usr->nd->alpha_s,usr->nd->beta_s);
       vf[ii] = FluidVelocity(vs[ii],phi[ii],gradP[ii],gradPc[ii],Bf,K,k_hat[ii]);
       v [ii] = BulkVelocity(vs[ii],vf[ii],phi[ii]);
@@ -1329,7 +1329,7 @@ PetscErrorCode DM2_FormCoefficient_HC_VF_nonlinear(FDPDE fd, DM dm, Vec x, DM dm
         
         ii = 1;
         
-        K      = Permeability(phi[ii],usr->par->phi0,usr->par->phi_max,usr->par->n);
+        K      = Permeability(phi[ii],usr->par->phi_max,usr->par->n);
         Bf     = FluidBuoyancy(0.0,0.0,usr->nd->alpha_s,usr->nd->beta_s);
         vf[ii] = FluidVelocity(vs[ii],phi[ii],gradP[ii],gradPc[ii],Bf,K,k_hat[ii]);
         v [ii] = BulkVelocity(vs[ii],vf[ii],phi[ii]);
@@ -1449,7 +1449,7 @@ PetscErrorCode DM2_FormCoefficient_HC_VF_nonlinear(FDPDE fd, DM dm, Vec x, DM dm
       
       // fluid and bulk velocities
       ii = 2;
-      K      = Permeability(phi[ii],usr->par->phi0,usr->par->phi_max,usr->par->n);
+      K      = Permeability(phi[ii],usr->par->phi_max,usr->par->n);
       Bf     = FluidBuoyancy(0.0,0.0,usr->nd->alpha_s,usr->nd->beta_s);
       vf[ii] = FluidVelocity(vs[ii],phi[ii],gradP[ii],gradPc[ii],Bf,K,k_hat[ii]);
       v [ii] = BulkVelocity(vs[ii],vf[ii],phi[ii]);
@@ -1474,7 +1474,7 @@ PetscErrorCode DM2_FormCoefficient_HC_VF_nonlinear(FDPDE fd, DM dm, Vec x, DM dm
       if (j == Nz-1) {
         ii = 3;
         
-        K      = Permeability(phi[ii],usr->par->phi0,usr->par->phi_max,usr->par->n);
+        K      = Permeability(phi[ii],usr->par->phi_max,usr->par->n);
         Bf     = FluidBuoyancy(0.0,0.0,usr->nd->alpha_s,usr->nd->beta_s);
         vf[ii] = FluidVelocity(vs[ii],phi[ii],gradP[ii],gradPc[ii],Bf,K,k_hat[ii]);
         v [ii] = BulkVelocity(vs[ii],vf[ii],phi[ii]);
@@ -1615,7 +1615,7 @@ PetscErrorCode DM2_FormCoefficient_HC_VF_nonlinear(FDPDE fd, DM dm, Vec x, DM dm
         
         // fluid and bulk velocities
         for (ii = 0; ii < 4; ii++) {
-          K      = Permeability(phi[ii],usr->par->phi0,usr->par->phi_max,usr->par->n);
+          K      = Permeability(phi[ii],usr->par->phi_max,usr->par->n);
           Bf     = FluidBuoyancy(0.0,0.0,usr->nd->alpha_s,usr->nd->beta_s);
           vf[ii] = FluidVelocity(vs[ii],phi[ii],gradP[ii],gradPc[ii],Bf,K,k_hat[ii]);
           v [ii] = BulkVelocity(vs[ii],vf[ii],phi[ii]);

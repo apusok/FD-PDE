@@ -142,9 +142,11 @@ PetscScalar BulkVelocity(PetscScalar vs, PetscScalar vf, PetscScalar phi)
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "Permeability"
-PetscScalar Permeability(PetscScalar phi, PetscScalar phi0, PetscScalar phi_max, PetscScalar n) 
+PetscScalar Permeability(PetscScalar phi, PetscScalar phi_max, PetscScalar n) 
 { 
-  return pow(pow(phi/phi0,-n)+pow(phi_max/phi0,-n),-1); // harmonic averaging
+  return pow(pow(phi,-n)+pow(phi_max,-n),-1); // harmonic averaging
+  // return 1.0/(pow(phi,-n)+pow(phi_max,-n));
+  // return pow(phi,n);
 }
 
 // ---------------------------------------

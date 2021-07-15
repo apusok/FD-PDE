@@ -158,7 +158,6 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->DT, DT, "DT", "Reference temperature difference [K]"); CHKERRQ(ierr);
 
   // two-phase flow parameters
-  ierr = PetscBagRegisterScalar(bag, &par->phi0, 0.01, "phi0", "Reference porosityat which permeability equals reference permeability [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->n, 3.0, "n", "Exponent in porosity-permeability relationship [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->K0, 1.0e-13, "K0", "Reference permeability [m^2]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->phi_max, 0.1, "phi_max", "Porosity at which permeability reaches maximum [-]"); CHKERRQ(ierr);

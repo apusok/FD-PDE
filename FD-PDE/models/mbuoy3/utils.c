@@ -238,7 +238,7 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
 
       // check adiabat in the mantle
       Ta  = (usr->par->Tp-T_KELVIN)*exp(-usr->nd->A*coordz[j][icenter])+T_KELVIN;
-      if (T>Ta) T = Ta;
+      if (T>Ta) T = (3.0*Ta+T)*0.25;
       nd_T = (T - usr->par->T0)/usr->par->DT;
 
       // enthalpy H = S*phi+T (phi=0)
@@ -579,7 +579,7 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmEnth, Vec xEnt
       
       for (ii = 0; ii < 4; ii++) {
         // permeability
-        K = Permeability(phi[ii],usr->par->phi0,usr->par->phi_max,usr->par->n);
+        K = Permeability(phi[ii],usr->par->phi_max,usr->par->n);
 
         // fluid buoyancy
         Bf = FluidBuoyancy(0.0,0.0,usr->nd->alpha_s,usr->nd->beta_s);
@@ -659,7 +659,7 @@ PetscErrorCode UpdateMaterialProperties(DM dmEnth, Vec xEnth, DM dmmatProp, Vec 
       
       eta  = ShearViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->lambda,nd->eta_min,nd->eta_max,par->visc_shear);
       zeta = BulkViscosity(nd->visc_ratio,T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->phi_min,par->zetaExp,nd->eta_min,nd->eta_max,par->visc_bulk); 
-      K    = Permeability(phi,usr->par->phi0,usr->par->phi_max,usr->par->n);
+      K    = Permeability(phi,usr->par->phi_max,usr->par->n);
       rhos = SolidDensity(par->rho0,par->drho,T,CS,nd->alpha_s,nd->beta_s,par->buoyancy);
       rhof = FluidDensity(par->rho0,par->drho,T,CF,nd->alpha_s,nd->beta_s,par->buoyancy);
       rho  = BulkDensity(rhos,rhof,phi,par->buoyancy);

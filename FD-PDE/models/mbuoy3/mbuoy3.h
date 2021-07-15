@@ -74,7 +74,7 @@ typedef struct {
   PetscScalar    L, H, xmin, zmin, xmor;
   PetscScalar    k_hat, g, U0;
   PetscScalar    Tp, Ts, cp, La, rho0, drho, alpha, beta, kappa, D;
-  PetscScalar    phi0, n, K0, phi_max, eta0, zeta0, mu, eta_min, eta_max, lambda, EoR, Teta0, zetaExp; 
+  PetscScalar    n, K0, phi_max, eta0, zeta0, mu, eta_min, eta_max, lambda, EoR, Teta0, zetaExp; 
   PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT, phi_init, phi_min, fextract;
   PetscInt       ts_scheme, adv_scheme, tout, tstep, restart, full_ridge;
   PetscScalar    tmax, dtmax, dt_out;
@@ -141,9 +141,9 @@ PetscScalar PhiRes(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,P
 PetscScalar FluidVelocity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar); 
 PetscScalar BulkVelocity(PetscScalar,PetscScalar,PetscScalar);
 //#define BulkVelocity(vs,vf,phi) (vf)*(phi) + (vs)*(1.0-(phi))
-PetscScalar Permeability(PetscScalar,PetscScalar,PetscScalar,PetscScalar);
-//#define Permeability(phi,phi0,phi_max,n)  pow(pow((phi)/(phi0),-(n))+pow((phi_max)/(phi0),-(n)),-1)
-//#define Permeability(phi,phi0,phi_max,n)  1.0/(pow((phi)/(phi0),-(n))+pow((phi_max)/(phi0),-(n)))
+PetscScalar Permeability(PetscScalar,PetscScalar,PetscScalar);
+//#define Permeability(phi,phi_max,n)  pow(pow((phi),-(n))+pow((phi_max),-(n)),-1)
+//#define Permeability(phi,phi_max,n)  1.0/(pow((phi),-(n))+pow((phi_max),-(n)))
 PetscScalar FluidBuoyancy(PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 //#define FluidBuoyancy(T,CF,alpha_s,beta_s) 0.0
 PetscScalar HalfSpaceCoolingTemp(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
