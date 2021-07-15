@@ -1555,7 +1555,7 @@ PetscErrorCode MPoint_AdvectRK2(DM dmswarm,DM dmstag,Vec X,PetscReal dt)
 
 
 /* copy x into y */
-PetscErrorCode _DMSwarmDataFieldCopyPoint(const PetscInt pid_x,const DMSwarmDataField field_x,
+PetscErrorCode DMSwarmDataFieldCopyPoint(const PetscInt pid_x,const DMSwarmDataField field_x,
                         const PetscInt pid_y,const DMSwarmDataField field_y )
 {
   PetscErrorCode ierr;
