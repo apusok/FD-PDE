@@ -495,7 +495,6 @@ PetscErrorCode FDPDEEnthalpyComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
   // Loop over elements - max velocity(vs,vf)
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
-      // DMStagStencil point[4];
       PetscInt      ii;
       PetscScalar   xx_vs[4], xx_vf[4], vx_max, vz_max;
 
@@ -503,17 +502,6 @@ PetscErrorCode FDPDEEnthalpyComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
         xx_vs[ii] = _coeff[j][i][vs_slot[ii]];
         xx_vf[ii] = _coeff[j][i][vf_slot[ii]];
       }
-      // point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_LEFT;  point[0].c = COEFF_vs;
-      // point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_RIGHT; point[1].c = COEFF_vs;
-      // point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_DOWN;  point[2].c = COEFF_vs;
-      // point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_UP;    point[3].c = COEFF_vs;
-      // ierr = DMStagVecGetValuesStencil(dmcoeff,coefflocal,4,point,xx_vs); CHKERRQ(ierr);
-
-      // point[0].c = COEFF_vf;
-      // point[1].c = COEFF_vf;
-      // point[2].c = COEFF_vf;
-      // point[3].c = COEFF_vf;
-      // ierr = DMStagVecGetValuesStencil(dmcoeff,coefflocal,4,point,xx_vf); CHKERRQ(ierr);
 
       // check max velocities
       vx_max = PetscMax(PetscMax(PetscAbsScalar(xx_vs[0]),PetscAbsScalar(xx_vs[1])), PetscMax(PetscAbsScalar(xx_vf[0]),PetscAbsScalar(xx_vf[1])));
@@ -542,7 +530,9 @@ PetscErrorCode FDPDEEnthalpyComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
   *dt = global_dt;
 
   PetscTime(&tlog[1]);
-  printf("  FDPDEEnthalpyComputeExplicitTimestep: total        %1.2e\n",tlog[1]-tlog[0]);
+  if (fd->log_info) {
+    printf("  FDPDEEnthalpyComputeExplicitTimestep: total        %1.2e\n",tlog[1]-tlog[0]);
+  }
 
   PetscFunctionReturn(0);
 }
@@ -762,133 +752,6 @@ Enthalpy variables - should create labels for output
 Use: user
 @*/
 // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDPDEEnthalpyUpdateDiagnostics"
-// PetscErrorCode AP_FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew, Vec *_xnew)
-// {
-//   PetscInt       i, j, ii, sx,sz,nx,nz,idx;
-//   PetscInt       dof_new, dof_sol;
-//   DM             dmnew;
-//   Vec            xnew, xlocal,xnewlocal,Plocal;
-//   PetscScalar    H,C[MAX_COMPONENTS],P,phi,T,TP,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
-//   PetscScalar    ***xx, *xE; 
-//   DMStagStencil  *pointE;
-//   EnthalpyData   *en;
-//   PetscErrorCode ierr;
-//   PetscFunctionBegin;
-
-//   if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
-//   if (!fd->data) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"The FD-PDE context data has not been set up. Call FDPDESetUp() first.");
-//   en = fd->data;
-//   if (!en->form_enthalpy_method) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"This routine requires a valid form_enthalpy_method() funtion pointer. Call FDPDEEnthalpySetEnthalpyMethod() first.");
-
-//   dof_sol = en->ncomponents;
-//   dof_new = 5 + 3*en->ncomponents;
-
-//   // create new dm with all variables in center
-//   ierr = DMStagCreateCompatibleDMStag(dm,0,0,dof_new,0,&dmnew); CHKERRQ(ierr);
-//   ierr = DMSetUp(dmnew); CHKERRQ(ierr);
-//   ierr = DMStagSetUniformCoordinatesProduct(dmnew,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
-//   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-
-//   // create global vector
-//   ierr = DMCreateGlobalVector(dmnew,&xnew);CHKERRQ(ierr);
-//   ierr = DMCreateLocalVector(dmnew, &xnewlocal); CHKERRQ(ierr);
-//   ierr = DMStagVecGetArray(dmnew, xnewlocal, &xx); CHKERRQ(ierr);
-  
-//   ierr = DMGetLocalVector(dm,&xlocal); CHKERRQ(ierr);
-//   ierr = DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal); CHKERRQ(ierr);
-
-//   ierr = DMGetLocalVector(en->dmP, &Plocal); CHKERRQ(ierr);
-//   ierr = DMGlobalToLocal (en->dmP, en->xP, INSERT_VALUES, Plocal); CHKERRQ(ierr);
-
-//   ierr = PetscCalloc1(dof_sol,&xE); CHKERRQ(ierr);
-//   ierr = PetscCalloc1(dof_sol,&pointE); CHKERRQ(ierr);
-
-//   // loop 
-//   for (j = sz; j<sz+nz; j++) {
-//     for (i = sx; i<sx+nx; i++) {
-//       DMStagStencil point;
-//       PetscInt      iX, ind;
-//       PetscScalar   sum_C = 0.0;
-//       EnthEvalErrorCode thermo_dyn_error_code;
-
-//       H = 0.0; phi = 0.0; T = 0.0; TP = 0.0; P = 0.0;
-//       for (ii = 0; ii<en->ncomponents; ii++) { C[ii] = 0.0; CF[ii] = 0.0; CS[ii] = 0.0;}
-
-//       for (ii = 0; ii<dof_sol; ii++) {
-//         pointE[ii].i = i; pointE[ii].j = j; pointE[ii].loc = DMSTAG_ELEMENT; pointE[ii].c = ii;
-//       }
-//       ierr = DMStagVecGetValuesStencil(dm,xlocal,dof_sol,pointE,xE); CHKERRQ(ierr);
-      
-//       // assign variables
-//       H = xE[0];
-//       for (ii = 1; ii<en->ncomponents; ii++) {
-//         sum_C  += xE[ii];
-//         C[ii-1] = xE[ii];
-//       }
-//       C[en->ncomponents-1] = 1.0 - sum_C;
-
-//       point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
-//       ierr = DMStagVecGetValuesStencil(en->dmP,Plocal,1,&point,&P); CHKERRQ(ierr);
-
-//       // calculate enthalpy method
-//       thermo_dyn_error_code = en->form_enthalpy_method(H,C,P,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
-//       if (thermo_dyn_error_code != 0) {
-//         SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SIG,"A successful Enthalpy Method is required but has failed! Investigate the enthalpy failure reports for detailed information.");
-//       }
-
-//       // update TP
-//       if (en->form_TP) { ierr = en->form_TP(T,P,&TP,en->user_context_tp);CHKERRQ(ierr); }
-//       else TP = T;
-
-//       point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; ind = -1;
-//       ind++; point.c = ind; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr); xx[j][i][iX] = H; //0
-//       ind++; point.c = ind; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr); xx[j][i][iX] = T; //1
-//       ind++; point.c = ind; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr); xx[j][i][iX] = TP; //2
-//       ind++; point.c = ind; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr); xx[j][i][iX] = phi; //3
-//       ind++; point.c = ind; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr); xx[j][i][iX] = P; //4
-
-//       // composition
-//       ind++;
-//       for (ii = 0; ii<en->ncomponents; ii++) {
-//         point.c = ind+ii; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr);
-//         xx[j][i][iX] = C[ii]; //5+ncomponents
-//       }
-
-//       ind += en->ncomponents;
-//       for (ii = 0; ii<en->ncomponents; ii++) {
-//         point.c = ind+ii; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr);
-//         xx[j][i][iX] = CS[ii];
-//       }
-
-//       ind += en->ncomponents;
-//       for (ii = 0; ii<en->ncomponents; ii++) {
-//         point.c = ind+ii; ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &iX); CHKERRQ(ierr);
-//         xx[j][i][iX] = CF[ii];
-//       }
-//     }
-//   }
-
-//   ierr = PetscFree(xE);CHKERRQ(ierr);
-//   ierr = PetscFree(pointE);CHKERRQ(ierr);
-
-//   ierr = DMStagVecRestoreArray(dmnew,xnewlocal,&xx);CHKERRQ(ierr);
-//   ierr = DMLocalToGlobalBegin(dmnew,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
-//   ierr = DMLocalToGlobalEnd  (dmnew,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
-//   ierr = VecDestroy(&xnewlocal); CHKERRQ(ierr);
-//   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
-//   ierr = DMRestoreLocalVector(en->dmP, &Plocal); CHKERRQ(ierr);
-
-//   if (_dmnew) *_dmnew = dmnew;
-//   else { ierr = DMDestroy(&dmnew);CHKERRQ(ierr); }
-
-//   if (_xnew) *_xnew  = xnew;
-//   else { ierr = VecDestroy(&xnew);CHKERRQ(ierr); }
-
-//   PetscFunctionReturn(0);
-// }
-
 #undef __FUNCT__
 #define __FUNCT__ "FDPDEEnthalpyUpdateDiagnostics"
 PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew, Vec *_xnew)
@@ -933,8 +796,6 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
   ierr = DMStagVecGetArrayRead(en->dmP,Plocal,&_Plocal);CHKERRQ(ierr);
   
   ierr = PetscCalloc1(dof_sol,&xE); CHKERRQ(ierr);
-  // ierr = PetscCalloc1(dof_sol,&pointE); CHKERRQ(ierr);
-  
   ierr = PetscCalloc1(dof_sol,&dm_slot);CHKERRQ(ierr);
   ierr = PetscCalloc1(dof_new,&dmnew_slot);CHKERRQ(ierr);
   
@@ -949,39 +810,10 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
     ierr = DMStagGetLocationSlot(dmnew,DMSTAG_ELEMENT,c,&dmnew_slot[c]);CHKERRQ(ierr);
   }
 
-  // {
-  //   DMStagStencil point;
-    
-  //   point.i = 0; point.j = 0;
-  //   point.loc = DMSTAG_ELEMENT;
-  //   point.c = 5;
-    
-  //   // composition
-  //   for (ii = 0; ii<en->ncomponents; ii++) {
-  //     point.c = c;
-  //     ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &dmnew_slot[c]);CHKERRQ(ierr);
-  //     c++;
-  //   }
-    
-  //   for (ii = 0; ii<en->ncomponents; ii++) {
-  //     point.c = c;
-  //     ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &dmnew_slot[c]);CHKERRQ(ierr);
-  //     c++;
-  //   }
-    
-  //   for (ii = 0; ii<en->ncomponents; ii++) {
-  //     point.c = c;
-  //     ierr = DMStagGetLocationSlot(dmnew, point.loc, point.c, &dmnew_slot[c]);CHKERRQ(ierr);
-  //     c++;
-  //   }
-  // }
-  
-  
   // loop
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
-      // DMStagStencil point;
-      PetscInt      iX, ind;
+      PetscInt      ind;
       PetscScalar   sum_C = 0.0;
       EnthEvalErrorCode thermo_dyn_error_code;
       
@@ -1000,8 +832,6 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
       }
       C[en->ncomponents-1] = 1.0 - sum_C;
       
-      // point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
-      // ierr = DMStagVecGetValuesStencil(en->dmP,Plocal,1,&point,&P); CHKERRQ(ierr);
       P = _Plocal[j][i][dmP_slot];
       
       // calculate enthalpy method
@@ -1014,7 +844,6 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
       if (en->form_TP) { ierr = en->form_TP(T,P,&TP,en->user_context_tp);CHKERRQ(ierr); }
       else TP = T;
       
-      // point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; ind = -1;
       {
         PetscScalar _field[] = {H,T,TP,phi,P};
         for (c=0; c<nvars; c++) {
@@ -1043,7 +872,6 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
   ierr = PetscFree(dm_slot);CHKERRQ(ierr);
   ierr = PetscFree(dmnew_slot);CHKERRQ(ierr);
   ierr = PetscFree(xE);CHKERRQ(ierr);
-  // ierr = PetscFree(pointE);CHKERRQ(ierr);
   
   ierr = DMStagVecRestoreArray(dm,xlocal,&_xlocal); CHKERRQ(ierr);
   ierr = DMStagVecRestoreArray(dmnew,xnewlocal,&xx);CHKERRQ(ierr);
