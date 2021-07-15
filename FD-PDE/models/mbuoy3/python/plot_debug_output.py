@@ -16,15 +16,42 @@ class SimStruct:
 # ---------------------------------------
 A = SimStruct() # Do print(A.__dict__) to see structure of A
 
-# Parameters
-A.tout  = 1
-A.tstep = 200
-A.istep = 0
-A.dimensional = 1 # 0-nd, 1-dim
+def sortTimesteps(tdir):
+  return int(tdir[8:])
 
-A.input = 'debug_extract'
-A.output_path_dir = '../'
+# Parameters
+A.tout  = 1000
+A.tstep = 200000
+A.istep = 14741
+A.dimensional = 1 # 0-nd, 1-dim
+check_entire_dir = 1 
+
+A.input = 'b000-hr000_xmor4_fextract0.1'
+A.output_path_dir = '../Figures/'
 A.path_dir = '../'
+
+# search timesteps in folder
+tdir = os.listdir(A.path_dir+A.input)
+if '.DS_Store' in tdir:
+  tdir.remove('.DS_Store')
+if 'log_out.out' in tdir:
+  tdir.remove('log_out.out')
+if 'model_half_ridge.opts' in tdir:
+  tdir.remove('model_half_ridge.opts')
+if 'submit_job.run' in tdir:
+  tdir.remove('submit_job.run')
+nt = len(tdir)
+
+# sort list in increasing tstep
+tdir.sort(key=sortTimesteps)
+
+if (check_entire_dir):
+  time_list_v0 = np.zeros(nt)
+  time_list = time_list_v0.astype(int)
+  for ii in range(0,nt):
+    time_list[ii] = int(tdir[ii][8:])
+else:
+  time_list = range(A.istep,A.tstep+1,A.tout)
 
 # Create directories
 A.input_dir = A.path_dir+A.input+'/'
@@ -79,13 +106,18 @@ iend   = A.nx
 jstart = 0
 jend   = A.nz
 
-istart = 0
-iend   = 20 #A.nx
-jstart = A.nz-20 #0
-jend   = A.nz
+# istart = 0
+# iend   = 20 #A.nx
+# jstart = A.nz-20 #0
+# jend   = A.nz
+
+# istart = 199-20
+# iend   = 200+20 #A.nx
+# jstart = A.nz-20 #0
+# jend   = A.nz
 
 # Loop over timesteps
-for istep in range(A.istep,A.tstep+1,A.tout):
+for istep in time_list: #range(A.istep,A.tstep+1,A.tout):
   fdir  = A.input_dir+'Timestep'+str(istep)
 
   vizB.correct_path_load_data(fdir+'/parameters.py')
@@ -136,11 +168,11 @@ for istep in range(A.istep,A.tstep+1,A.tout):
   vizB.plot_Vel(A,istart,iend,jstart,jend,A.output_dir_real+'out_xVel_ts'+str(istep),istep,A.dimensional)
   # vizB.plot_HCcoeff(A,istart,iend,jstart,jend,A.output_dir_real+'out_xHCcoeff_ts'+str(istep),istep,A.dimensional)
 
-  # if (istep > 0):
+  if (istep > 0):
     # vizB.plot_PVcoeff3(A,istart,iend,jstart,jend,A.output_dir_real+'out_xPVcoeff_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_PV3(1,A,istart,iend,jstart,jend,A.output_dir_real+'out_resPV_ts'+str(istep),istep,A.dimensional) # res PV
     # vizB.plot_HC(1,A,istart,iend,jstart,jend,A.output_dir_real+'out_resHC_ts'+str(istep),istep,A.dimensional) # res HC
-    # vizB.plot_matProp(A,istart,iend,jstart,jend,A.output_dir_real+'out_matProp_ts'+str(istep),istep,A.dimensional)
+    vizB.plot_matProp(A,istart,iend,jstart,jend,A.output_dir_real+'out_matProp_ts'+str(istep),istep,A.dimensional)
 
   os.system('rm -r '+A.input_dir+'Timestep'+str(istep)+'/__pycache__')
 

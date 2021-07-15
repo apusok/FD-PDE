@@ -16,10 +16,10 @@ class SimStruct:
 # ---------------------------------------
 A = SimStruct()
 
-A.input = 'debug'
-A.output_path_dir = '../debug/Figures'
-A.path_dir = '../'
-log_file ='log_out_xmor4_u06.out'
+A.input = 'half_ridge_f0005_hc_cycles1'
+A.output_path_dir = '../sims_full_ridge/Figures/'
+A.path_dir = '../sims_full_ridge/'
+log_file ='log_out_'+A.input+'.out'
 
 # Create directories
 A.input_dir = A.path_dir+A.input+'/'
