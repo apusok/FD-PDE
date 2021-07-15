@@ -14,11 +14,10 @@ PetscErrorCode FormFunction_StokesDarcy2Field(SNES snes, Vec x, Vec f, void *ctx
 {
   FDPDE          fd = (FDPDE)ctx;
   DM             dmPV, dmCoeff;
-  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
+  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, n[5];
   Vec            xlocal, flocal, coefflocal;
-  PetscInt       idx, n[5];
   PetscInt       iprev, inext, icenter;
-  PetscScalar    ***ff;
+  PetscScalar    ***ff,***_xlocal,***_coefflocal;;
   PetscScalar    **coordx,**coordz;
   DMStagBCList   bclist;
   PetscErrorCode ierr;
@@ -53,9 +52,11 @@ PetscErrorCode FormFunction_StokesDarcy2Field(SNES snes, Vec x, Vec f, void *ctx
   // Map global vectors to local domain
   ierr = DMGetLocalVector(dmPV, &xlocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dmPV, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayRead(dmPV,xlocal,&_xlocal);CHKERRQ(ierr);
 
   ierr = DMGetLocalVector(dmCoeff, &coefflocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dmCoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayRead(dmCoeff,coefflocal,&_coefflocal);CHKERRQ(ierr);
 
   // Get dm coordinates array
   ierr = DMStagGetProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -64,31 +65,32 @@ PetscErrorCode FormFunction_StokesDarcy2Field(SNES snes, Vec x, Vec f, void *ctx
   ierr = DMCreateLocalVector(dmPV, &flocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArray(dmPV, flocal, &ff); CHKERRQ(ierr);
 
+  // Get location slots
+  PetscInt pv_slot[5],coeff_e[2],coeff_f[4],coeff_v[4];
+  ierr = GetLocationSlots(dmPV,dmCoeff,pv_slot,coeff_e,coeff_v,coeff_f); CHKERRQ(ierr);
+
   // Loop over elements
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
       PetscScalar fval, fval1;
 
       // 1) Stokes Continuity equation + div(v_D)
-      ierr = ContinuityResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
+      ierr = ContinuityResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,&fval);CHKERRQ(ierr);
       ierr = ContinuityResidual_Darcy2Field(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval1);CHKERRQ(ierr);
-      ierr = DMStagGetLocationSlot(dmPV, DMSTAG_ELEMENT, 0, &idx); CHKERRQ(ierr);
-      ff[j][i][idx] = fval + fval1;
+      ff[j][i][pv_slot[4]] = fval + fval1;
 
       // 2) Stokes X-Momentum equation + grad (P_D)
       if (i > 0) {
-        ierr = XMomentumResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
+        ierr = XMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,&fval);CHKERRQ(ierr);
         ierr = XMomentumResidual_Darcy2Field(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval1);CHKERRQ(ierr);
-        ierr = DMStagGetLocationSlot(dmPV, DMSTAG_LEFT, 0, &idx); CHKERRQ(ierr);
-        ff[j][i][idx] = fval + fval1;
+        ff[j][i][pv_slot[0]] = fval + fval1; // LEFT
       }
 
       // 3) Stokes Z-Momentum equation + grad (P_D)
       if (j > 0) {
-        ierr = ZMomentumResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
+        ierr = ZMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,&fval);CHKERRQ(ierr);
         ierr = ZMomentumResidual_Darcy2Field(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval1);CHKERRQ(ierr);
-        ierr = DMStagGetLocationSlot(dmPV, DMSTAG_DOWN, 0, &idx); CHKERRQ(ierr);
-        ff[j][i][idx] = fval + fval1;
+        ff[j][i][pv_slot[2]] = fval + fval1; // DOWN
       }
     }
   }
@@ -100,15 +102,15 @@ PetscErrorCode FormFunction_StokesDarcy2Field(SNES snes, Vec x, Vec f, void *ctx
   // Restore arrays, local vectors
   ierr = DMStagRestoreProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
   ierr = DMStagVecRestoreArray(dmPV,flocal,&ff); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmPV,&xlocal); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmCoeff,&coefflocal); CHKERRQ(ierr);
-
-  // Map local to global
   ierr = DMLocalToGlobalBegin(dmPV,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dmPV,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
-
   ierr = VecDestroy(&flocal); CHKERRQ(ierr);
-  
+
+  ierr = DMStagVecRestoreArrayRead(dmPV,xlocal,&_xlocal);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmPV,&xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArrayRead(dmCoeff,coefflocal,&_coefflocal);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmCoeff,&coefflocal); CHKERRQ(ierr);
+
   PetscFunctionReturn(0);
 }
 

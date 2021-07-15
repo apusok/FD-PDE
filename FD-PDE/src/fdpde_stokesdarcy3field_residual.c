@@ -14,14 +14,12 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
 {
   FDPDE          fd = (FDPDE)ctx;
   DM             dmPV, dmCoeff;
-  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
+  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, n[5];
   Vec            xlocal, flocal, coefflocal;
-  PetscInt       n[5]; //, idx;
   PetscInt       iprev, inext, icenter;
-  PetscScalar    ***ff;
+  PetscScalar    ***ff, ***_xlocal, ***_coefflocal;
   PetscScalar    **coordx,**coordz;
   DMStagBCList   bclist;
-  PetscInt       slot_dof[4];
   PetscErrorCode ierr;
   PetscLogDouble tlog[10];
   
@@ -58,9 +56,11 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
   // Map global vectors to local domain
   ierr = DMGetLocalVector(dmPV, &xlocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dmPV, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayRead(dmPV,xlocal,&_xlocal);CHKERRQ(ierr);
 
   ierr = DMGetLocalVector(dmCoeff, &coefflocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dmCoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayRead(dmCoeff,coefflocal,&_coefflocal);CHKERRQ(ierr);
 
   // Get dm coordinates array
   ierr = DMStagGetProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -69,6 +69,10 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
   ierr = DMCreateLocalVector(dmPV, &flocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArray(dmPV, flocal, &ff); CHKERRQ(ierr);
   PetscTime(&tlog[3]);
+
+  // Get location slots
+  PetscInt pv_slot[5],coeff_e[2],coeff_f[4],coeff_v[4],slot_dof[4];
+  ierr = GetLocationSlots(dmPV,dmCoeff,pv_slot,coeff_e,coeff_v,coeff_f); CHKERRQ(ierr);
 
   // get index slots
   ierr = DMStagGetLocationSlot(dmPV,DMSTAG_ELEMENT,SD3_DOF_P, &slot_dof[0]); CHKERRQ(ierr);
@@ -82,28 +86,24 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
       PetscScalar fval, fval1;
 
       // Continuity equation
-      ierr = ContinuityResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
+      ierr = ContinuityResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,&fval);CHKERRQ(ierr);
       ierr = ContinuityResidual_Darcy3Field(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval1);CHKERRQ(ierr);
-      // ierr = DMStagGetLocationSlot(dmPV, DMSTAG_ELEMENT, SD3_DOF_P, &idx); CHKERRQ(ierr);
-      ff[j][i][slot_dof[0]] = fval + fval1;
+      ff[j][i][slot_dof[0]] = fval + fval1; // ELEMENT 0
 
       // Compaction pressure equation
       ierr = CompactionResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
-      // ierr = DMStagGetLocationSlot(dmPV, DMSTAG_ELEMENT, SD3_DOF_PC, &idx); CHKERRQ(ierr);
-      ff[j][i][slot_dof[1]] = fval;
+      ff[j][i][slot_dof[1]] = fval; // ELEMENT 1
 
       // X-Momentum equation - same as for Stokes
       if (i > 0) {
-        ierr = XMomentumResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
-        // ierr = DMStagGetLocationSlot(dmPV, DMSTAG_LEFT, SD3_DOF_V, &idx); CHKERRQ(ierr);
-        ff[j][i][slot_dof[2]] = fval;
+        ierr = XMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,&fval);CHKERRQ(ierr);
+        ff[j][i][slot_dof[2]] = fval; // LEFT
       }
 
       // Z-Momentum equation - same as for Stokes
       if (j > 0) {
-        ierr = ZMomentumResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
-        // ierr = DMStagGetLocationSlot(dmPV, DMSTAG_DOWN, SD3_DOF_V, &idx); CHKERRQ(ierr);
-        ff[j][i][slot_dof[3]] = fval;
+        ierr = ZMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,&fval);CHKERRQ(ierr);
+        ff[j][i][slot_dof[3]] = fval; // RIGHT
       }
     }
   }

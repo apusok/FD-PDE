@@ -9,6 +9,15 @@
 #define STENCIL_STOKES_MOMENTUM_LIN    11
 #define STENCIL_STOKES_MOMENTUM_NONLIN 27
 
+// dof ids
+#define S_DOF_P   0
+#define S_DOF_V   0
+
+#define S_COEFF_VERTEX_A    0 
+#define S_COEFF_ELEMENT_C   0
+#define S_COEFF_ELEMENT_A   1 
+#define S_COEFF_FACE_B      0 
+
 // ---------------------------------------
 // Function definitions
 // ---------------------------------------
@@ -22,14 +31,15 @@ PetscErrorCode XMomentumStencil(PetscInt,PetscInt,PetscInt,PetscInt,DMStagStenci
 PetscErrorCode ZMomentumStencil(PetscInt,PetscInt,PetscInt,PetscInt,DMStagStencil*,PetscInt);
 
 // RESIDUAL STENCILS
-PetscErrorCode ContinuityResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
-PetscErrorCode XMomentumResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
-PetscErrorCode ZMomentumResidual(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
+PetscErrorCode GetLocationSlots(DM,DM,PetscInt*,PetscInt*,PetscInt*,PetscInt*);
+PetscErrorCode ContinuityResidual(PetscInt,PetscInt,PetscScalar***,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscScalar*);
+PetscErrorCode XMomentumResidual(PetscInt,PetscInt,PetscScalar***,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscScalar*);
+PetscErrorCode ZMomentumResidual(PetscInt,PetscInt,PetscScalar***,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscScalar*);
 
 // RESIDUAL
 PetscErrorCode FormFunction_Stokes(SNES, Vec, Vec, void*);
 PetscErrorCode FormFunctionSplit_Stokes(SNES snes, Vec x, Vec x2, Vec f, void *ctx);
-PetscErrorCode DMStagBCListApplyFace_Stokes(DM, Vec,DM, Vec, DMStagBC*, PetscInt, PetscScalar**, PetscScalar**,PetscInt[], PetscScalar***);
-PetscErrorCode DMStagBCListApplyElement_Stokes(DM, Vec,DM, Vec, DMStagBC*, PetscInt, PetscScalar**, PetscScalar**,PetscInt[], PetscScalar***);
+PetscErrorCode DMStagBCListApplyFace_Stokes(PetscScalar***,PetscScalar***,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscScalar***);
+PetscErrorCode DMStagBCListApplyElement_Stokes(PetscScalar***,PetscScalar***,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscScalar***);
 
 #endif

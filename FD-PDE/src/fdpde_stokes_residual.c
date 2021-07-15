@@ -13,11 +13,10 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
 {
   FDPDE          fd = (FDPDE)ctx;
   DM             dmPV, dmCoeff;
-  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
+  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, n[5];
   Vec            xlocal, flocal, coefflocal;
-  PetscInt       idx, n[5];
   PetscInt       iprev, inext, icenter;
-  PetscScalar    ***ff;
+  PetscScalar    ***ff,***_xlocal,***_coefflocal;
   PetscScalar    **coordx,**coordz;
   DMStagBCList   bclist;
   PetscErrorCode ierr;
@@ -52,9 +51,11 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   // Map global vectors to local domain
   ierr = DMGetLocalVector(dmPV, &xlocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dmPV, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayRead(dmPV,xlocal,&_xlocal);CHKERRQ(ierr);
 
   ierr = DMGetLocalVector(dmCoeff, &coefflocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dmCoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayRead(dmCoeff,coefflocal,&_coefflocal);CHKERRQ(ierr);
 
   // Get dm coordinates array
   ierr = DMStagGetProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -63,47 +64,48 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   ierr = DMCreateLocalVector(dmPV, &flocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArray(dmPV, flocal, &ff); CHKERRQ(ierr);
 
+  // Get location slots
+  PetscInt pv_slot[5],coeff_e[2],coeff_f[4],coeff_v[4];
+  ierr = GetLocationSlots(dmPV,dmCoeff,pv_slot,coeff_e,coeff_v,coeff_f); CHKERRQ(ierr);
+
   // Loop over elements
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
       PetscScalar fval;
 
       // 1) Continuity equation
-      ierr = ContinuityResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
-      ierr = DMStagGetLocationSlot(dmPV, DMSTAG_ELEMENT, 0, &idx); CHKERRQ(ierr);
-      ff[j][i][idx] = fval;
+      ierr = ContinuityResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,&fval);CHKERRQ(ierr);
+      ff[j][i][pv_slot[4]] = fval;
 
       // 2) X-Momentum equation
       if (i > 0) {
-        ierr = XMomentumResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
-        ierr = DMStagGetLocationSlot(dmPV, DMSTAG_LEFT, 0, &idx); CHKERRQ(ierr);
-        ff[j][i][idx] = fval;
+        ierr = XMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,&fval);CHKERRQ(ierr);
+        ff[j][i][pv_slot[0]] = fval; // LEFT
       }
 
       // 3) Z-Momentum equation
       if (j > 0) {
-        ierr = ZMomentumResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
-        ierr = DMStagGetLocationSlot(dmPV, DMSTAG_DOWN, 0, &idx); CHKERRQ(ierr);
-        ff[j][i][idx] = fval;
+        ierr = ZMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,&fval);CHKERRQ(ierr);
+        ff[j][i][pv_slot[2]] = fval; // DOWN
       }
     }
   }
 
   // Boundary conditions - edges and element
-  ierr = DMStagBCListApplyFace_Stokes(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,ff);CHKERRQ(ierr);
-  ierr = DMStagBCListApplyElement_Stokes(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,n,ff);CHKERRQ(ierr);
+  ierr = DMStagBCListApplyFace_Stokes(_xlocal,_coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,ff);CHKERRQ(ierr);
+  ierr = DMStagBCListApplyElement_Stokes(_xlocal,_coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,ff);CHKERRQ(ierr);
 
   // Restore arrays, local vectors
   ierr = DMStagRestoreProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
   ierr = DMStagVecRestoreArray(dmPV,flocal,&ff); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmPV,&xlocal); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmCoeff,&coefflocal); CHKERRQ(ierr);
-
-  // Map local to global
   ierr = DMLocalToGlobalBegin(dmPV,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dmPV,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
-
   ierr = VecDestroy(&flocal); CHKERRQ(ierr);
+
+  ierr = DMStagVecRestoreArrayRead(dmPV,xlocal,&_xlocal);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmPV,&xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArrayRead(dmCoeff,coefflocal,&_coefflocal);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmCoeff,&coefflocal); CHKERRQ(ierr);
   
   PetscFunctionReturn(0);
 }
@@ -112,11 +114,10 @@ PetscErrorCode FormFunctionSplit_Stokes(SNES snes, Vec x, Vec x2, Vec f, void *c
 {
   FDPDE          fd = (FDPDE)ctx;
   DM             dmPV, dmCoeff;
-  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
+  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, n[5];
   Vec            xlocal, flocal, coefflocal;
-  PetscInt       idx, n[5];
   PetscInt       iprev, inext, icenter;
-  PetscScalar    ***ff;
+  PetscScalar    ***ff, ***_xlocal, ***_coefflocal;
   PetscScalar    **coordx,**coordz;
   DMStagBCList   bclist;
   PetscErrorCode ierr;
@@ -151,9 +152,11 @@ PetscErrorCode FormFunctionSplit_Stokes(SNES snes, Vec x, Vec x2, Vec f, void *c
   // Map global vectors to local domain
   ierr = DMGetLocalVector(dmPV, &xlocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dmPV, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayRead(dmPV,xlocal,&_xlocal);CHKERRQ(ierr);
   
   ierr = DMGetLocalVector(dmCoeff, &coefflocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dmCoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayRead(dmCoeff,coefflocal,&_coefflocal);CHKERRQ(ierr);
   
   // Get dm coordinates array
   ierr = DMStagGetProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -161,49 +164,83 @@ PetscErrorCode FormFunctionSplit_Stokes(SNES snes, Vec x, Vec x2, Vec f, void *c
   // Create residual local vector
   ierr = DMCreateLocalVector(dmPV, &flocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArray(dmPV, flocal, &ff); CHKERRQ(ierr);
-  
+
+  // Get location slots
+  PetscInt pv_slot[5],coeff_e[2],coeff_f[4],coeff_v[4];
+  ierr = GetLocationSlots(dmPV,dmCoeff,pv_slot,coeff_e,coeff_v,coeff_f); CHKERRQ(ierr);
+
   // Loop over elements
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
       PetscScalar fval;
       
       // 1) Continuity equation
-      ierr = ContinuityResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
-      ierr = DMStagGetLocationSlot(dmPV, DMSTAG_ELEMENT, 0, &idx); CHKERRQ(ierr);
-      ff[j][i][idx] = fval;
+      ierr = ContinuityResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,&fval);CHKERRQ(ierr);
+      ff[j][i][pv_slot[4]] = fval;
       
       // 2) X-Momentum equation
       if (i > 0) {
-        ierr = XMomentumResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
-        ierr = DMStagGetLocationSlot(dmPV, DMSTAG_LEFT, 0, &idx); CHKERRQ(ierr);
-        ff[j][i][idx] = fval;
+        ierr = XMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,&fval);CHKERRQ(ierr);
+        ff[j][i][pv_slot[0]] = fval; // LEFT
       }
       
       // 3) Z-Momentum equation
       if (j > 0) {
-        ierr = ZMomentumResidual(dmPV,xlocal,dmCoeff,coefflocal,coordx,coordz,i,j,n,&fval);CHKERRQ(ierr);
-        ierr = DMStagGetLocationSlot(dmPV, DMSTAG_DOWN, 0, &idx); CHKERRQ(ierr);
-        ff[j][i][idx] = fval;
+        ierr = ZMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,&fval);CHKERRQ(ierr);
+        ff[j][i][pv_slot[2]] = fval; // DOWN
       }
     }
   }
   
   // Boundary conditions - edges and element
-  ierr = DMStagBCListApplyFace_Stokes(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,ff);CHKERRQ(ierr);
-  ierr = DMStagBCListApplyElement_Stokes(dmPV,xlocal,dmCoeff,coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,n,ff);CHKERRQ(ierr);
+  ierr = DMStagBCListApplyFace_Stokes(_xlocal,_coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,ff);CHKERRQ(ierr);
+  ierr = DMStagBCListApplyElement_Stokes(_xlocal,_coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,ff);CHKERRQ(ierr);
   
   // Restore arrays, local vectors
   ierr = DMStagRestoreProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
   ierr = DMStagVecRestoreArray(dmPV,flocal,&ff); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmPV,&xlocal); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmCoeff,&coefflocal); CHKERRQ(ierr);
-  
-  // Map local to global
   ierr = DMLocalToGlobalBegin(dmPV,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dmPV,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
-  
   ierr = VecDestroy(&flocal); CHKERRQ(ierr);
+
+  ierr = DMStagVecRestoreArrayRead(dmPV,xlocal,&_xlocal);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmPV,&xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArrayRead(dmCoeff,coefflocal,&_coefflocal);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmCoeff,&coefflocal); CHKERRQ(ierr);
   
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+GetLocationSlots - (STOKES) calculates the continuity residual per dof
+Use: internal
+@*/
+// ---------------------------------------
+PetscErrorCode GetLocationSlots(DM dmPV, DM dmCoeff, PetscInt *pv_slot, PetscInt *coeff_e, PetscInt *coeff_v, PetscInt *coeff_f)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_LEFT,   S_DOF_V, &pv_slot[0]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_RIGHT,  S_DOF_V, &pv_slot[1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_DOWN,   S_DOF_V, &pv_slot[2]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_UP,     S_DOF_V, &pv_slot[3]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_ELEMENT,S_DOF_P, &pv_slot[4]); CHKERRQ(ierr);
+
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_ELEMENT,S_COEFF_ELEMENT_C,&coeff_e[S_COEFF_ELEMENT_C]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_ELEMENT,S_COEFF_ELEMENT_A,&coeff_e[S_COEFF_ELEMENT_A]); CHKERRQ(ierr);
+
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_DOWN_LEFT, S_COEFF_VERTEX_A,&coeff_v[0]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_DOWN_RIGHT,S_COEFF_VERTEX_A,&coeff_v[1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_UP_LEFT,   S_COEFF_VERTEX_A,&coeff_v[2]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_UP_RIGHT,  S_COEFF_VERTEX_A,&coeff_v[3]);CHKERRQ(ierr);
+
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_LEFT,  S_COEFF_FACE_B, &coeff_f[0]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_RIGHT, S_COEFF_FACE_B, &coeff_f[1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_DOWN,  S_COEFF_FACE_B, &coeff_f[2]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmCoeff,DMSTAG_UP,    S_COEFF_FACE_B, &coeff_f[3]);CHKERRQ(ierr);
+
   PetscFunctionReturn(0);
 }
 
@@ -214,11 +251,10 @@ ContinuityResidual - (STOKES) calculates the continuity residual per dof
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode ContinuityResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, PetscInt n[],PetscScalar *ff)
+PetscErrorCode ContinuityResidual(PetscInt i, PetscInt j,PetscScalar ***_xlocal,PetscScalar ***_coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt n[], PetscInt pv_slot[], PetscInt coeff_e[], PetscScalar *ff)
 {
   PetscScalar    ffi, xx[4], C, dx, dz;
-  PetscInt       iprev, inext, nEntries = 4;
-  DMStagStencil  point[4];
+  PetscInt       iprev, inext;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
@@ -226,15 +262,13 @@ PetscErrorCode ContinuityResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, 
   inext = n[4];
 
   // Get stencil values
-  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_LEFT;  point[0].c = 0;
-  point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_RIGHT; point[1].c = 0;
-  point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_DOWN;  point[2].c = 0;
-  point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_UP;    point[3].c = 0;
-  ierr = DMStagVecGetValuesStencil(dm, xlocal, nEntries, point, xx); CHKERRQ(ierr);
-  
+  xx[0] = _xlocal[j][i][pv_slot[0]]; // v_left
+  xx[1] = _xlocal[j][i][pv_slot[1]]; // v_right
+  xx[2] = _xlocal[j][i][pv_slot[2]]; // v_down
+  xx[3] = _xlocal[j][i][pv_slot[3]]; // v_up
+
   // Coefficients
-  point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT;  point[0].c = 0;
-  ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, point, &C); CHKERRQ(ierr);
+  C = _coefflocal[j][i][coeff_e[S_COEFF_ELEMENT_C]];
 
   // Calculate residual
   dx = coordx[i][inext]-coordx[i][iprev];
@@ -252,54 +286,41 @@ XMomentumResidual - (STOKES) calculates the Vx momentum residual per dof
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode XMomentumResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx,PetscScalar **coordz,PetscInt i, PetscInt j,PetscInt n[],PetscScalar *ff)
+PetscErrorCode XMomentumResidual(PetscInt i, PetscInt j,PetscScalar ***_xlocal,PetscScalar ***_coefflocal, PetscScalar **coordx,PetscScalar **coordz,PetscInt n[], PetscInt pv_slot[], PetscInt coeff_e[],PetscInt coeff_f[],PetscInt coeff_v[],PetscScalar *ff)
 {
   PetscScalar    dVx2dz, dVz2dx, dPdx, dVx2dx, ffi;
-  PetscInt       nEntries = 11, Nz, iprev, inext, icenter;
+  PetscInt       Nz, iprev, inext, icenter,iL,iR,iU,iD,iP, jm, jp;
   PetscScalar    xx[11], dx, dx1, dx2, dz, dz1, dz2;
   PetscScalar    A_Left, A_Right, A_Up, A_Down, Bx;
-  DMStagStencil  point[11];
   PetscErrorCode ierr;
-
   PetscFunctionBegin;
 
   Nz = n[1]; icenter = n[2]; iprev = n[3]; inext = n[4];
 
+  iL = 0; iR  = 1; iD = 2; iU  = 3; iP = 4;
+  if (j == 0   ) jm = j; else jm = j-1;
+  if (j == Nz-1) jp = j; else jp = j+1;
+
   // Get stencil values
-  point[0].i  = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_LEFT;    point[0].c   = 0; // Vx(i  ,j  )
-  point[1].i  = i  ; point[1].j  = j-1; point[1].loc  = DMSTAG_LEFT;    point[1].c   = 0; // Vx(i  ,j-1)
-  point[2].i  = i  ; point[2].j  = j+1; point[2].loc  = DMSTAG_LEFT;    point[2].c   = 0; // Vx(i  ,j+1)
-  point[3].i  = i-1; point[3].j  = j  ; point[3].loc  = DMSTAG_LEFT;    point[3].c   = 0; // Vx(i-1,j  )
-  point[4].i  = i  ; point[4].j  = j  ; point[4].loc  = DMSTAG_RIGHT;   point[4].c   = 0; // Vx(i+1,j  )
-  point[5].i  = i-1; point[5].j  = j  ; point[5].loc  = DMSTAG_DOWN;    point[5].c   = 0; // Vz(i-1,j-1)
-  point[6].i  = i  ; point[6].j  = j  ; point[6].loc  = DMSTAG_DOWN;    point[6].c   = 0; // Vz(i  ,j-1)
-  point[7].i  = i-1; point[7].j  = j  ; point[7].loc  = DMSTAG_UP;      point[7].c   = 0; // Vz(i-1,j  )
-  point[8].i  = i  ; point[8].j  = j  ; point[8].loc  = DMSTAG_UP;      point[8].c   = 0; // Vz(i  ,j  )
-  point[9].i  = i-1; point[9].j  = j  ; point[9].loc  = DMSTAG_ELEMENT; point[9].c   = 0; // P (i-1,j  )
-  point[10].i = i  ; point[10].j = j  ; point[10].loc = DMSTAG_ELEMENT; point[10].c  = 0; // P (i  ,j  )
+  xx[0] = _xlocal[j ][i  ][pv_slot[iL]]; // Vx(i  ,j  )
+  xx[1] = _xlocal[jm][i  ][pv_slot[iL]]; // Vx(i  ,j-1)
+  xx[2] = _xlocal[jp][i  ][pv_slot[iL]]; // Vx(i  ,j+1)
+  xx[3] = _xlocal[j ][i-1][pv_slot[iL]]; // Vx(i-1,j  )
+  xx[4] = _xlocal[j ][i  ][pv_slot[iR]]; // Vx(i+1,j  )
 
-  // For boundaries remove the flux term
-  if (j == Nz-1) point[2] = point[0];
-  if (j == 0   ) point[1] = point[0];
-
-  // Residual values
-  ierr = DMStagVecGetValuesStencil(dm, xlocal, nEntries, point, xx); CHKERRQ(ierr);
+  xx[5] = _xlocal[j ][i-1][pv_slot[iD]]; // Vz(i-1,j-1)
+  xx[6] = _xlocal[j ][i  ][pv_slot[iD]]; // Vz(i  ,j-1)
+  xx[7] = _xlocal[j ][i-1][pv_slot[iU]]; // Vz(i-1,j  )
+  xx[8] = _xlocal[j ][i  ][pv_slot[iU]]; // Vz(i  ,j  )
+  xx[9] = _xlocal[j ][i-1][pv_slot[iP]]; // P (i-1,j  )
+  xx[10]= _xlocal[j ][i  ][pv_slot[iP]]; // P (i  ,j  )
 
   // Coefficients
-  PetscScalar  cx[5];
-  point[0].i = i  ; point[0].j = j; point[0].loc = DMSTAG_LEFT;      point[0].c = 0; // rhs
-  point[1].i = i-1; point[1].j = j; point[1].loc = DMSTAG_ELEMENT;   point[1].c = 1; // etc_c - left
-  point[2].i = i  ; point[2].j = j; point[2].loc = DMSTAG_ELEMENT;   point[2].c = 1; // etc_c - right
-  point[3].i = i  ; point[3].j = j; point[3].loc = DMSTAG_UP_LEFT;   point[3].c = 0; // etc_n - up
-  point[4].i = i  ; point[4].j = j; point[4].loc = DMSTAG_DOWN_LEFT; point[4].c = 0; // etc_n - down
-
-  ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 5, point, cx); CHKERRQ(ierr);
-
-  Bx      = cx[0];
-  A_Left  = cx[1];
-  A_Right = cx[2];
-  A_Up    = cx[3];
-  A_Down  = cx[4];
+  Bx      = _coefflocal[j ][i  ][coeff_f[iL]];
+  A_Left  = _coefflocal[j ][i-1][coeff_e[S_COEFF_ELEMENT_A]];
+  A_Right = _coefflocal[j ][i  ][coeff_e[S_COEFF_ELEMENT_A]];
+  A_Up    = _coefflocal[j ][i  ][coeff_v[2]];
+  A_Down  = _coefflocal[j ][i  ][coeff_v[0]];
 
   // Grid spacings - need to correct for missing values
   dx  = coordx[i  ][icenter]-coordx[i-1][icenter];
@@ -338,54 +359,42 @@ ZMomentumResidual - (STOKES) calculates the Vz momentum residual per dof
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode ZMomentumResidual(DM dm, Vec xlocal, DM dmcoeff, Vec coefflocal,PetscScalar **coordx,PetscScalar **coordz,PetscInt i, PetscInt j,PetscInt n[],PetscScalar *ff)
+PetscErrorCode ZMomentumResidual(PetscInt i, PetscInt j,PetscScalar ***_xlocal,PetscScalar ***_coefflocal, PetscScalar **coordx,PetscScalar **coordz,PetscInt n[], PetscInt pv_slot[], PetscInt coeff_e[],PetscInt coeff_f[],PetscInt coeff_v[],PetscScalar *ff)
 {
   PetscScalar    dVx2dz, dVz2dx, dPdz, dVz2dz, ffi;
-  PetscInt       nEntries = 11, Nx, iprev, inext, icenter;
+  PetscInt       Nx, iprev, inext, icenter,iL,iR,iD,iU,iP,is,ie;
   PetscScalar    xx[11], dx, dz, dx1, dx2, dz1, dz2;
   PetscScalar    A_Left, A_Right, A_Up, A_Down, Bz;
-  DMStagStencil  point[11];
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
 
   Nx = n[0]; icenter = n[2]; iprev = n[3]; inext = n[4];
 
-  // Get stencil values
-  point[0].i  = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_DOWN;    point[0].c   = 0; // Vz(i  ,j  )
-  point[1].i  = i  ; point[1].j  = j  ; point[1].loc  = DMSTAG_UP;      point[1].c   = 0; // Vz(i  ,j+1)
-  point[2].i  = i  ; point[2].j  = j-1; point[2].loc  = DMSTAG_DOWN;    point[2].c   = 0; // Vz(i  ,j-1)
-  point[3].i  = i-1; point[3].j  = j  ; point[3].loc  = DMSTAG_DOWN;    point[3].c   = 0; // Vz(i-1,j  )
-  point[4].i  = i+1; point[4].j  = j  ; point[4].loc  = DMSTAG_DOWN;    point[4].c   = 0; // Vz(i+1,j  )
-  point[5].i  = i  ; point[5].j  = j  ; point[5].loc  = DMSTAG_LEFT;    point[5].c   = 0; // Vx(i-1,j  )
-  point[6].i  = i  ; point[6].j  = j  ; point[6].loc  = DMSTAG_RIGHT;   point[6].c   = 0; // Vx(i  ,j  )
-  point[7].i  = i  ; point[7].j  = j-1; point[7].loc  = DMSTAG_LEFT;    point[7].c   = 0; // Vx(i-1,j-1)
-  point[8].i  = i  ; point[8].j  = j-1; point[8].loc  = DMSTAG_RIGHT;   point[8].c   = 0; // Vx(i  ,j-1)
-  point[9].i  = i  ; point[9].j  = j-1; point[9].loc  = DMSTAG_ELEMENT; point[9].c   = 0; // P (i  ,j-1)
-  point[10].i = i  ; point[10].j = j  ; point[10].loc = DMSTAG_ELEMENT; point[10].c  = 0; // P (i  ,j  )
-  
-  // For boundaries remove the flux term
-  if (i == 0   ) point[3] = point[0];
-  if (i == Nx-1) point[4] = point[0];
+  iL = 0; iR  = 1; iD = 2; iU  = 3; iP = 4;
+  if (i == 0   ) is = i; else is = i-1;
+  if (i == Nx-1) ie = i; else ie = i+1;
 
-  // Get values
-  ierr = DMStagVecGetValuesStencil(dm, xlocal, nEntries, point, xx); CHKERRQ(ierr);
+  // Get stencil values
+  xx[0] = _xlocal[j  ][i ][pv_slot[iD]]; // Vz(i  ,j  )
+  xx[1] = _xlocal[j  ][i ][pv_slot[iU]]; // Vz(i  ,j+1)
+  xx[2] = _xlocal[j-1][i ][pv_slot[iD]]; // Vz(i  ,j-1)
+  xx[3] = _xlocal[j  ][is][pv_slot[iD]]; // Vz(i-1,j  )
+  xx[4] = _xlocal[j  ][ie][pv_slot[iD]]; // Vz(i+1,j  )
+
+  xx[5] = _xlocal[j  ][i ][pv_slot[iL]]; // Vx(i-1,j  )
+  xx[6] = _xlocal[j  ][i ][pv_slot[iR]]; // Vx(i  ,j  )
+  xx[7] = _xlocal[j-1][i ][pv_slot[iL]]; // Vx(i-1,j-1)
+  xx[8] = _xlocal[j-1][i ][pv_slot[iR]]; // Vx(i-1,j-1)
+  xx[9] = _xlocal[j-1][i ][pv_slot[iP]]; // P (i  ,j-1)
+  xx[10]= _xlocal[j  ][i ][pv_slot[iP]]; // P (i  ,j  )
 
   // Coefficients
-  PetscScalar  cx[5];
-  point[0].i = i  ; point[0].j = j  ; point[0].loc = DMSTAG_DOWN;       point[0].c = 0; // rhs
-  point[1].i = i  ; point[1].j = j  ; point[1].loc = DMSTAG_DOWN_LEFT;  point[1].c = 0; // etc_n - left
-  point[2].i = i  ; point[2].j = j  ; point[2].loc = DMSTAG_DOWN_RIGHT; point[2].c = 0; // etc_n - right
-  point[3].i = i  ; point[3].j = j  ; point[3].loc = DMSTAG_ELEMENT;    point[3].c = 1; // etc_c - up
-  point[4].i = i  ; point[4].j = j-1; point[4].loc = DMSTAG_ELEMENT;    point[4].c = 1; // etc_c - down
-
-  ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 5, point, cx); CHKERRQ(ierr);
-
-  Bz      = cx[0];
-  A_Left  = cx[1];
-  A_Right = cx[2];
-  A_Up    = cx[3];
-  A_Down  = cx[4];
+  Bz      = _coefflocal[j  ][i][coeff_f[iD]];
+  A_Left  = _coefflocal[j  ][i][coeff_v[0]];
+  A_Right = _coefflocal[j  ][i][coeff_v[1]];
+  A_Up    = _coefflocal[j  ][i][coeff_e[S_COEFF_ELEMENT_A]];
+  A_Down  = _coefflocal[j-1][i][coeff_e[S_COEFF_ELEMENT_A]];
 
   // Grid spacings
   dx  = coordx[i  ][inext  ]-coordx[i  ][iprev  ];
@@ -427,17 +436,17 @@ Use: internal
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "DMStagBCListApplyFace_Stokes"
-PetscErrorCode DMStagBCListApplyFace_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscScalar ***ff)
+PetscErrorCode DMStagBCListApplyFace_Stokes(PetscScalar ***_xlocal,PetscScalar ***_coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscInt pv_slot[], PetscInt coeff_e[],PetscInt coeff_f[],PetscInt coeff_v[], PetscScalar ***ff)
 {
   PetscScalar    xx, xxT[2], dx, dz;
   PetscScalar    A_Left, A_Right, A_Up, A_Down;
-  PetscInt       i, j, ibc, idx, iprev, inext, Nx, Nz;
-  DMStagStencil  point, pointT[2];
+  PetscInt       i, j, ibc, idx, iprev, inext, Nx, Nz,iL,iR,iD,iU;
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
 
   // dm domain info
   Nx = n[0]; Nz = n[1]; iprev = n[3]; inext = n[4];
+  iL = 0; iR  = 1; iD = 2; iU  = 3;
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
@@ -448,8 +457,7 @@ PetscErrorCode DMStagBCListApplyFace_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec co
       idx = bclist[ibc].idx;
 
       // access the value on this point
-      ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
-
+      xx = _xlocal[j][i][idx];
       ff[j][i][idx] = xx - bclist[ibc].val;
     }
     
@@ -459,47 +467,41 @@ PetscErrorCode DMStagBCListApplyFace_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec co
       idx = bclist[ibc].idx;
 
       // access the value on this point
-      ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
+      xx = _xlocal[j][i][idx];
 
       // Stokes flow - add flux terms
       if ((j == 0) && (i > 0) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx down - only interior points
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_LEFT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Down); CHKERRQ(ierr);
+        A_Down = _coefflocal[j][i][coeff_v[0]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += -2.0 * A_Down*( xx - bclist[ibc].val)/dz/dz;
       }
 
       else if ((j == 0) && (i < Nx-1) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx down-special case
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_RIGHT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Down); CHKERRQ(ierr);
+        A_Down = _coefflocal[j][i][coeff_v[1]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += -2.0 * A_Down*( xx - bclist[ibc].val)/dz/dz;
       }
 
       else if ((j == Nz-1) && (i > 0) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx up - only interior points
-        point.i = i; point.j = j; point.loc = DMSTAG_UP_LEFT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Up); CHKERRQ(ierr);
+        A_Up = _coefflocal[j][i][coeff_v[2]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += 2.0 * A_Up*( bclist[ibc].val - xx)/dz/dz;
       }
 
       else if ((j == Nz-1) && (i < Nx-1) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx up - special case
-        point.i = i; point.j = j; point.loc = DMSTAG_UP_RIGHT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Up); CHKERRQ(ierr);
+        A_Up = _coefflocal[j][i][coeff_v[3]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += 2.0 * A_Up*( bclist[ibc].val - xx)/dz/dz;
       }
 
       else if ((i == 0) && (j > 0) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz left
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_LEFT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Left); CHKERRQ(ierr);
+        A_Left = _coefflocal[j][i][coeff_v[0]];
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] += -2.0 * A_Left*( xx - bclist[ibc].val)/dx/dx;
       }
 
       else if ((i == Nx-1) && (j > 0) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz right
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_RIGHT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Right); CHKERRQ(ierr);
+        A_Right = _coefflocal[j][i][coeff_v[1]];
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] += 2.0 * A_Right*( bclist[ibc].val - xx)/dx/dx;
       }
@@ -517,43 +519,37 @@ PetscErrorCode DMStagBCListApplyFace_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec co
 
       // Stokes flow - add flux terms
       if ((j == 0) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx down
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_LEFT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Down); CHKERRQ(ierr);
+        A_Down = _coefflocal[j][i][coeff_v[0]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += -A_Down*bclist[ibc].val/dz;
       }
 
       if ((j == 0) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx down-special case
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_RIGHT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Down); CHKERRQ(ierr);
+        A_Down = _coefflocal[j][i][coeff_v[1]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += -A_Down*bclist[ibc].val/dz;
       }
 
       if ((j == Nz-1) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // Vx up
-        point.i = i; point.j = j; point.loc = DMSTAG_UP_LEFT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Up); CHKERRQ(ierr);
+        A_Up = _coefflocal[j][i][coeff_v[2]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += A_Up*bclist[ibc].val/dz;
       }
 
       if ((j == Nz-1) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // Vx up - special case
-        point.i = i; point.j = j; point.loc = DMSTAG_UP_RIGHT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Up); CHKERRQ(ierr);
+        A_Up = _coefflocal[j][i][coeff_v[3]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] += A_Up*bclist[ibc].val/dz;
       }
 
       if ((i == 0) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz left
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_LEFT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Left); CHKERRQ(ierr);
+        A_Left = _coefflocal[j][i][coeff_v[0]];
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] += -A_Left*bclist[ibc].val/dx;
       }
 
       if ((i == Nx-1) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // Vz right
-        point.i = i; point.j = j; point.loc = DMSTAG_DOWN_RIGHT; point.c = 0;
-        ierr = DMStagVecGetValuesStencil(dmcoeff, coefflocal, 1, &point, &A_Right); CHKERRQ(ierr);
+        A_Right = _coefflocal[j][i][coeff_v[1]];
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] += A_Right*bclist[ibc].val/dx;
       }
@@ -565,30 +561,26 @@ PetscErrorCode DMStagBCListApplyFace_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec co
       idx = bclist[ibc].idx;
 
       if ((i == 0) && (bclist[ibc].point.loc == DMSTAG_LEFT)) { // left dVx/dx = a
-        pointT[0].i = i  ; pointT[0].j = j; pointT[0].loc = DMSTAG_LEFT; pointT[0].c = 0;
-        pointT[1].i = i+1; pointT[1].j = j; pointT[1].loc = DMSTAG_LEFT; pointT[1].c = 0;
-        ierr = DMStagVecGetValuesStencil(dm,xlocal,2,pointT,xxT); CHKERRQ(ierr);
+        xxT[0] = _xlocal[j][i  ][pv_slot[iL]];
+        xxT[1] = _xlocal[j][i+1][pv_slot[iL]];
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dx;
       }
       if ((i == Nx-1) && (bclist[ibc].point.loc == DMSTAG_RIGHT)) { // right dVx/dx = a
-        pointT[0].i = i  ; pointT[0].j = j; pointT[0].loc = DMSTAG_LEFT ; pointT[0].c = 0;
-        pointT[1].i = i  ; pointT[1].j = j; pointT[1].loc = DMSTAG_RIGHT; pointT[1].c = 0;
-        ierr = DMStagVecGetValuesStencil(dm,xlocal,2,pointT,xxT); CHKERRQ(ierr);
+        xxT[0] = _xlocal[j][i  ][pv_slot[iL]];
+        xxT[1] = _xlocal[j][i  ][pv_slot[iR]];
         dx = coordx[i][inext]-coordx[i][iprev];
         ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dx;
       }
       if ((j == 0) && (bclist[ibc].point.loc == DMSTAG_DOWN)) { // down dVz/dz = a
-        pointT[0].i = i; pointT[0].j = j  ; pointT[0].loc = DMSTAG_DOWN; pointT[0].c = 0;
-        pointT[1].i = i; pointT[1].j = j+1; pointT[1].loc = DMSTAG_DOWN; pointT[1].c = 0;
-        ierr = DMStagVecGetValuesStencil(dm,xlocal,2,pointT,xxT); CHKERRQ(ierr);
+        xxT[0] = _xlocal[j  ][i][pv_slot[iD]];
+        xxT[1] = _xlocal[j+1][i][pv_slot[iD]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dz;
       }
       if ((j == Nz-1) && (bclist[ibc].point.loc == DMSTAG_UP)) { // up dVz/dz = a
-        pointT[0].i = i; pointT[0].j = j-1; pointT[0].loc = DMSTAG_UP; pointT[0].c = 0;
-        pointT[1].i = i; pointT[1].j = j  ; pointT[1].loc = DMSTAG_UP; pointT[1].c = 0;
-        ierr = DMStagVecGetValuesStencil(dm,xlocal,2,pointT,xxT); CHKERRQ(ierr);
+        xxT[0] = _xlocal[j-1][i][pv_slot[iU]];
+        xxT[1] = _xlocal[j  ][i][pv_slot[iU]];
         dz = coordz[j][inext]-coordz[j][iprev];
         ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dz;
       }
@@ -606,7 +598,7 @@ Use: internal
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "DMStagBCListApplyElement_Stokes"
-PetscErrorCode DMStagBCListApplyElement_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscScalar ***ff)
+PetscErrorCode DMStagBCListApplyElement_Stokes(PetscScalar ***_xlocal,PetscScalar ***_coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscInt pv_slot[], PetscInt coeff_e[],PetscInt coeff_f[],PetscInt coeff_v[], PetscScalar ***ff)
 {
   PetscScalar    xx;
   PetscInt       i, j, ibc, idx;
@@ -621,7 +613,7 @@ PetscErrorCode DMStagBCListApplyElement_Stokes(DM dm, Vec xlocal,DM dmcoeff, Vec
       idx = bclist[ibc].idx;
 
       // Get residual value
-      ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
+      xx = _xlocal[j][i][idx];
       ff[j][i][idx] = xx - bclist[ibc].val;
     }
 
