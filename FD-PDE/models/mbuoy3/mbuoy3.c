@@ -264,7 +264,33 @@ PetscErrorCode Numerical_solution(void *ctx)
     // Solve PV - default solves every timestep
     if ((nd->istep == 1 ) || (nd->istep % par->hc_cycles == 0 )) {
       PetscPrintf(PETSC_COMM_WORLD,"# (PV) Mechanics Solver - Stokes-Darcy3Field \n");
-      ierr = FDPDESolve(fdPV,NULL);CHKERRQ(ierr);
+      // ierr = FDPDESolve(fdPV,NULL);CHKERRQ(ierr);
+
+      SNESConvergedReason reason;
+      converged = PETSC_FALSE;
+      while (!converged) {
+        ierr = FDPDESolve(fdPV,&converged);CHKERRQ(ierr);
+        ierr = SNESGetConvergedReason(fdPV->snes,&reason); CHKERRQ(ierr);
+        if (!converged) { // use pc_telescope if failed
+          if (reason == -3) { // SNES_DIVERGED_LINEAR_SOLVE = -3 (error occurs in full ridge models with comp buoy)
+            PetscPrintf(PETSC_COMM_WORLD,"# PV Solver FAILED - Switching to pc_telescope \n");
+            PetscInt size;
+            char     fsize[10];
+            ierr = MPI_Comm_size(usr->comm,&size);CHKERRQ(ierr);
+            ierr = PetscSNPrintf(fsize,sizeof(fsize),"%d",size);
+            ierr = PetscOptionsClearValue(NULL,"-pv_pc_type");CHKERRQ(ierr);
+            ierr = PetscOptionsClearValue(NULL,"-pv_pc_factor_mat_solver_type");CHKERRQ(ierr);
+
+            ierr = PetscOptionsSetValue(NULL, "-pv_pc_type", "telescope"); CHKERRQ(ierr);
+            ierr = PetscOptionsSetValue(NULL, "-pv_pc_telescope_reduction_factor",fsize); CHKERRQ(ierr);
+            ierr = PetscOptionsSetValue(NULL, "-pv_telescope_pc_type", "lu"); CHKERRQ(ierr);
+            ierr = PetscOptionsSetValue(NULL, "-pv_telescope_pc_factor_mat_solver_type", "mumps"); CHKERRQ(ierr);
+          } else {
+            break; // terminate loop if different error
+          }
+        }
+      }
+
       ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
       ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
       ierr = VecDestroy(&xPV);CHKERRQ(ierr);
