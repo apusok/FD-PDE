@@ -112,14 +112,15 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
   // Restore arrays, local vectors
   ierr = DMStagRestoreProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
   ierr = DMStagVecRestoreArray(dmPV,flocal,&ff); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmPV,&xlocal); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmCoeff,&coefflocal); CHKERRQ(ierr);
-
-  // Map local to global
   ierr = DMLocalToGlobalBegin(dmPV,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dmPV,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
-
   ierr = VecDestroy(&flocal); CHKERRQ(ierr);
+
+  ierr = DMStagVecRestoreArrayRead(dmPV,xlocal,&_xlocal);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmPV,&xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArrayRead(dmCoeff,coefflocal,&_coefflocal);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dmCoeff,&coefflocal); CHKERRQ(ierr);
+
   PetscTime(&tlog[6]);
   
   if (fd->log_info) {
