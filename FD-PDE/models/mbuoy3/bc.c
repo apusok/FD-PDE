@@ -398,7 +398,7 @@ PetscErrorCode FormBCList_HC(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   for (k=0; k<n_bc; k++) {
     age = dim_param(x_bc[2*k]-xmor,scalx)/dim_param(u0,scalv);
     if (age <= 0.0) age = dim_param(x_bc[2*0],scalx)/dim_param(u0,scalv);
-    T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age); 
+    T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age,usr->par->hs_factor); 
     Hp = (T - usr->par->T0)/usr->par->DT;
     value_bc[k] = Hp; 
     type_bc[k] = BC_DIRICHLET;
@@ -410,7 +410,7 @@ PetscErrorCode FormBCList_HC(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   for (k=0; k<n_bc; k++) {
     age = dim_param(x_bc[2*k]-xmor,scalx)/dim_param(u0,scalv);
     if (age <= 0.0) age = dim_param(x_bc[2*0],scalx)/dim_param(u0,scalv);
-    T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age); 
+    T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age,usr->par->hs_factor); 
     Hc = (T - usr->par->T0)/usr->par->DT;
     value_bc[k] = Hc;
     type_bc[k] = BC_DIRICHLET;
@@ -507,7 +507,7 @@ PetscErrorCode FormBCList_HC_FullRidge(DM dm, Vec x, DMStagBCList bclist, void *
   for (k=0; k<n_bc; k++) {
     age = dim_param(fabs(x_bc[2*k])-xmor,scalx)/dim_param(u0,scalv);
     if (age <= 0.0) T = Tm;
-    else T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age); 
+    else T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age,usr->par->hs_factor); 
     Hp = (T - usr->par->T0)/usr->par->DT;
     value_bc[k] = Hp; 
     type_bc[k] = BC_DIRICHLET;
@@ -519,7 +519,7 @@ PetscErrorCode FormBCList_HC_FullRidge(DM dm, Vec x, DMStagBCList bclist, void *
   for (k=0; k<n_bc; k++) {
     age = dim_param(fabs(x_bc[2*k])-xmor,scalx)/dim_param(u0,scalv);
     if (age <= 0.0) T = Tm;
-    else T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age); 
+    else T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age,usr->par->hs_factor); 
     Hc = (T - usr->par->T0)/usr->par->DT;
     value_bc[k] = Hc;
     type_bc[k] = BC_DIRICHLET;

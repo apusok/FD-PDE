@@ -118,6 +118,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->k_hat, -1.0, "k_hat", "Direction of unit vertical vector [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->g, 9.8, "g", "Gravitational acceleration [m^2/s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->U0, 4.0, "U0", "Half-spreading rate [cm/yr]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->hs_factor, 2.0, "hs_factor", "Half-space cooling factor [-]"); CHKERRQ(ierr);
 
   ierr = PetscBagRegisterScalar(bag, &par->Tp, 1648, "Tp", "Potential temperature of mantle [K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->Ts, T_KELVIN, "Ts", "Surface temperature [K]"); CHKERRQ(ierr);

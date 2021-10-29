@@ -187,9 +187,9 @@ PetscScalar Buoyancy_Temperature(PetscScalar T, PetscScalar phi, PetscScalar alp
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "HalfSpaceCoolingTemp"
-PetscScalar HalfSpaceCoolingTemp(PetscScalar Tm, PetscScalar T0, PetscScalar z, PetscScalar kappa, PetscScalar t) 
-{ 
-  return T0 + (Tm-T0)*erf(z/(2.0*sqrt(kappa*t)));
+PetscScalar HalfSpaceCoolingTemp(PetscScalar Tm, PetscScalar T0, PetscScalar z, PetscScalar kappa, PetscScalar t, PetscScalar factor) 
+{ // factor = 2.0
+  return T0 + (Tm-T0)*erf(z/(factor*sqrt(kappa*t)));
 }
 
 // ---------------------------------------

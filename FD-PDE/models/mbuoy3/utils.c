@@ -224,11 +224,11 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
       // shift T from the axis if required with xmor
       age  = dim_param(fabs(coordx[i][icenter])-xmor,usr->scal->x)/dim_param(usr->nd->U0,usr->scal->v);
       if (age <= 0.0) T = Tm; 
-      else T = HalfSpaceCoolingTemp(Tm,usr->par->Ts,-dim_param(coordz[j][icenter],usr->scal->x),usr->par->kappa,age); 
+      else T = HalfSpaceCoolingTemp(Tm,usr->par->Ts,-dim_param(coordz[j][icenter],usr->scal->x),usr->par->kappa,age,usr->par->hs_factor); 
 
       // check adiabat in the mantle
       Ta  = (usr->par->Tp-T_KELVIN)*exp(-usr->nd->A*coordz[j][icenter])+T_KELVIN;
-      if (T>Ta) T = (3.0*Ta+T)*0.25;
+      //if (T>Ta) T = (3.0*Ta+T)*0.25;
       nd_T = (T - usr->par->T0)/usr->par->DT;
 
       // enthalpy H = S*phi+T (phi=0)

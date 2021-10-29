@@ -233,7 +233,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = PetscTime(&start_time); CHKERRQ(ierr);
     
     // Solve energy and composition
-    PetscPrintf(PETSC_COMM_WORLD,"# HC Solver \n");
+    PetscPrintf(PETSC_COMM_WORLD,"# (HC) Energy-Composition Solver - Enthalpy Method \n");
 
     // Set time step size
     ierr   = FDPDEEnthalpyComputeExplicitTimestep(fdHC,&dt);CHKERRQ(ierr);
@@ -263,7 +263,7 @@ PetscErrorCode Numerical_solution(void *ctx)
 
     // Solve PV - default solves every timestep
     if ((nd->istep == 1 ) || (nd->istep % par->hc_cycles == 0 )) {
-      PetscPrintf(PETSC_COMM_WORLD,"# PV Solver \n");
+      PetscPrintf(PETSC_COMM_WORLD,"# (PV) Mechanics Solver - Stokes-Darcy3Field \n");
       ierr = FDPDESolve(fdPV,NULL);CHKERRQ(ierr);
       ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
       ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
