@@ -148,6 +148,11 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterInt(bag, &par->initial_bulk_comp, 0, "initial_bulk_comp", "0-off, 1-on Initialize bulk composition everywhere as the column beneath axis (depleted)"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->hc_cycles, 1, "hc_cycles", "Number of timesteps and HC solves until update PV solve"); CHKERRQ(ierr);
 
+  // bottom boundary forcing - only in full ridge models
+  ierr = PetscBagRegisterInt(bag, &par->forcing, 0, "forcing", "Bottom forcing: 0=off, 1=Temp forcing dT/dx, 2=Chemical forcing dC/dx"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->dTdx_bottom, 0.1, "dTdx_bottom", "Lateral temperature gradient imposed on bottom boundary [K/km]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->dCdx_bottom, 1.0e-6, "dCdx_bottom", "Lateral compositional gradient imposed on bottom boundary [wt. frac./km]"); CHKERRQ(ierr);
+
   // phase diagram
   ierr = PetscBagRegisterScalar(bag, &par->C0, 0.85, "C0", "Reference composition [wt. frac.]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->DC, 0.1, "DC", "Compositional diff between solidus and liquidus at T0 [wt.  frac.]"); CHKERRQ(ierr);

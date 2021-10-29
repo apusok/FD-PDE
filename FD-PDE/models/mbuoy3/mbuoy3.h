@@ -79,9 +79,10 @@ typedef struct {
   PetscScalar    Tp, Ts, cp, La, rho0, drho, alpha, beta, kappa, D;
   PetscScalar    n, K0, phi_max, eta0, zeta0, mu, eta_min, eta_max, lambda, EoR, Teta0, zetaExp; 
   PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT, phi_init, phi_min, fextract, hs_factor;
+  PetscScalar    dTdx_bottom, dCdx_bottom;
   PetscInt       ts_scheme, adv_scheme, tout, tstep, restart, full_ridge;
   PetscScalar    tmax, dtmax, dt_out;
-  PetscInt       visc_shear, visc_bulk, buoyancy, buoy_phi, buoy_C, buoy_T, extract_mech, initial_bulk_comp, hc_cycles, vf_nonlinear;
+  PetscInt       visc_shear, visc_bulk, forcing, buoyancy, buoy_phi, buoy_C, buoy_T, extract_mech, initial_bulk_comp, hc_cycles, vf_nonlinear;
   char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH], fdir_out[FNAME_LENGTH]; 
   PetscBool      start_run, log_info;
 } Params;

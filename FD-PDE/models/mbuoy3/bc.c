@@ -471,7 +471,7 @@ PetscErrorCode FormBCList_HC_FullRidge(DM dm, Vec x, DMStagBCList bclist, void *
   UsrData     *usr = (UsrData*)ctx;
   PetscInt    k,n_bc,*idx_bc;
   PetscScalar *value_bc,*x_bc;
-  PetscScalar Hp, Hc, age, T, Tp, Ts, Tm, scalx, scalv, u0, kappa, xmor;
+  PetscScalar Hp, Hc, age, T, Tp, Ts, Tm, C, scalx, scalv, u0, kappa, xmor;
   BCType      *type_bc;
   PetscErrorCode ierr;
   PetscFunctionBegin;
@@ -504,14 +504,28 @@ PetscErrorCode FormBCList_HC_FullRidge(DM dm, Vec x, DMStagBCList bclist, void *
 
   // DOWN: H = Hp, enthalpy corresponding to the potential temperature at zero porosity (HP)
   ierr = DMStagBCListGetValues(bclist,'s','o',HC_ELEMENT_H,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    age = dim_param(fabs(x_bc[2*k])-xmor,scalx)/dim_param(u0,scalv);
-    if (age <= 0.0) T = Tm;
-    else T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age,usr->par->hs_factor); 
-    Hp = (T - usr->par->T0)/usr->par->DT;
-    value_bc[k] = Hp; 
-    type_bc[k] = BC_DIRICHLET;
+  
+  // no temperature forcing
+  if ((usr->par->forcing == 0) || (usr->par->forcing == 2)) { 
+    for (k=0; k<n_bc; k++) {
+      age = dim_param(fabs(x_bc[2*k])-xmor,scalx)/dim_param(u0,scalv);
+      if (age <= 0.0) T = Tm;
+      else T = HalfSpaceCoolingTemp(Tm,Ts,-dim_param(x_bc[2*k+1],scalx),kappa,age,usr->par->hs_factor); 
+      Hp = (T - usr->par->T0)/usr->par->DT;
+      value_bc[k] = Hp; 
+      type_bc[k] = BC_DIRICHLET;
+    }
+  } 
+  // with temperature forcing dT/dx = dTdx_bottom
+  else if (usr->par->forcing == 1) {
+    for (k=0; k<n_bc; k++) {
+      T = Tm + usr->par->dTdx_bottom * dim_param(x_bc[2*k],scalx)/1.0e3;
+      Hp = (T - usr->par->T0)/usr->par->DT;
+      value_bc[k] = Hp; 
+      type_bc[k] = BC_DIRICHLET;
+    }
   }
+
   ierr = DMStagBCListInsertValues(bclist,'o',HC_ELEMENT_H,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // UP: H = Hc, Hc is enthalpy corresponding to 0 deg C
@@ -553,9 +567,21 @@ PetscErrorCode FormBCList_HC_FullRidge(DM dm, Vec x, DMStagBCList bclist, void *
 
   // DOWN: C = C0 (dim) C = 0 (non-dim)
   ierr = DMStagBCListGetValues(bclist,'s','o',HC_ELEMENT_C,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    value_bc[k] = 0.0;
-    type_bc[k] = BC_DIRICHLET;
+  
+    // no chemical forcing
+  if ((usr->par->forcing == 0) || (usr->par->forcing == 1)) { 
+    for (k=0; k<n_bc; k++) {
+      value_bc[k] = 0.0;
+      type_bc[k] = BC_DIRICHLET;
+    }
+  } 
+  // with chemical forcing C = x*dCdx_bottom
+  else if (usr->par->forcing == 2) {
+    for (k=0; k<n_bc; k++) {
+      C = usr->par->C0 + usr->par->dCdx_bottom * dim_param(x_bc[2*k],scalx)/1.0e3;
+      value_bc[k] = (C - usr->par->C0)/usr->par->DC; 
+      type_bc[k] = BC_DIRICHLET;
+    }
   }
   ierr = DMStagBCListInsertValues(bclist,'o',HC_ELEMENT_C,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
