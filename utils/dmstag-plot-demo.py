@@ -91,7 +91,7 @@ im = plt.imshow( p.reshape(n,m), extent=[min(xv), max(xv), min(yv), max(yv)],
 #
 Q = plt.quiver( xc, yc, vxc, vyc, units='width', pivot='mid' )
 
-plt.axis(aspect='image')
+plt.axis('image')
 
 #
 # Add a colour bar
