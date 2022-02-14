@@ -97,8 +97,14 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
       PetscInt      im, jm, ip, jp;
 
       // get porosity, temperature, C, CF - center
-      if (i == 0   ) im = i; else im = i-1;
-      if (i == Nx-1) ip = i; else ip = i+1;
+      if (usr->dtype0!=DM_BOUNDARY_PERIODIC) {
+        if (i == 0   ) im = i; else im = i-1;
+        if (i == Nx-1) ip = i; else ip = i+1;
+      } else {
+        im = i-1;
+        ip = i+1;
+      }
+      
       if (j == 0   ) jm = j; else jm = j-1;
       if (j == Nz-1) jp = j; else jp = j+1;
 
@@ -132,6 +138,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
 
       { // A = delta^2*eta (center, c=1)
         PetscScalar   eta;
+        // if (i==0) PetscPrintf(PETSC_COMM_WORLD,"# j=%d phic[4]=%f Tc[4]=%f \n",j,phic[4],Tc[4]);
         eta = ShearViscosity(Tc[4]*par->DT+par->T0,phic[4],par->EoR,par->Teta0,par->lambda,nd->eta_min,nd->eta_max,par->visc_shear);
         c[j][i][icoeffA] = nd->delta*nd->delta*eta;
       }
@@ -402,8 +409,14 @@ PetscErrorCode FormCoefficient_HC(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
         vs[3] = _xPVlocal[j][i][pv_slot[iU]];
 
         p[0] = _xPVlocal[j][i][pv_slot[iP]];
-        if (i == 0   ) im = i; else im = i-1; p[1] = _xPVlocal[j][im][pv_slot[iP]];
-        if (i == Nx-1) im = i; else im = i+1; p[2] = _xPVlocal[j][im][pv_slot[iP]];
+
+        if (usr->dtype0!=DM_BOUNDARY_PERIODIC) {
+          if (i == 0   ) im = i; else im = i-1; p[1] = _xPVlocal[j][im][pv_slot[iP]];
+          if (i == Nx-1) im = i; else im = i+1; p[2] = _xPVlocal[j][im][pv_slot[iP]];
+        } else {
+          im = i-1; p[1] = _xPVlocal[j][im][pv_slot[iP]];
+          im = i+1; p[2] = _xPVlocal[j][im][pv_slot[iP]];
+        }
         if (j == 0   ) jm = j; else jm = j-1; p[3] = _xPVlocal[jm][i][pv_slot[iP]];
         if (j == Nz-1) jm = j; else jm = j+1; p[4] = _xPVlocal[jm][i][pv_slot[iP]];
 
@@ -413,8 +426,14 @@ PetscErrorCode FormCoefficient_HC(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
         gradP[3] = (p[4]-p[0])/dz;
 
         p[0] = _xPVlocal[j][i][pv_slot[iPc]];
-        if (i == 0   ) im = i; else im = i-1; p[1] = _xPVlocal[j][im][pv_slot[iPc]];
-        if (i == Nx-1) im = i; else im = i+1; p[2] = _xPVlocal[j][im][pv_slot[iPc]];
+
+        if (usr->dtype0!=DM_BOUNDARY_PERIODIC) {
+          if (i == 0   ) im = i; else im = i-1; p[1] = _xPVlocal[j][im][pv_slot[iPc]];
+          if (i == Nx-1) im = i; else im = i+1; p[2] = _xPVlocal[j][im][pv_slot[iPc]];
+        } else {
+          im = i-1; p[1] = _xPVlocal[j][im][pv_slot[iPc]];
+          im = i+1; p[2] = _xPVlocal[j][im][pv_slot[iPc]];
+        }
         if (j == 0   ) jm = j; else jm = j-1; p[3] = _xPVlocal[jm][i][pv_slot[iPc]];
         if (j == Nz-1) jm = j; else jm = j+1; p[4] = _xPVlocal[jm][i][pv_slot[iPc]];
 
@@ -425,8 +444,14 @@ PetscErrorCode FormCoefficient_HC(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
 
         // porosity
         Q[0] = _xEnthlocal[j][i][phi_slot];
-        if (i == 0   ) im = i; else im = i-1; Q[1] = _xEnthlocal[j][im][phi_slot];
-        if (i == Nx-1) im = i; else im = i+1; Q[2] = _xEnthlocal[j][im][phi_slot];
+
+        if (usr->dtype0!=DM_BOUNDARY_PERIODIC) {
+          if (i == 0   ) im = i; else im = i-1; Q[1] = _xEnthlocal[j][im][phi_slot];
+          if (i == Nx-1) im = i; else im = i+1; Q[2] = _xEnthlocal[j][im][phi_slot];
+        } else {
+          im = i-1; Q[1] = _xEnthlocal[j][im][phi_slot];
+          im = i+1; Q[2] = _xEnthlocal[j][im][phi_slot];
+        }
         if (j == 0   ) jm = j; else jm = j-1; Q[3] = _xEnthlocal[jm][i][phi_slot];
         if (j == Nz-1) jm = j; else jm = j+1; Q[4] = _xEnthlocal[jm][i][phi_slot];
         

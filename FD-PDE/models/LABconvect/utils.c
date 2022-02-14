@@ -88,6 +88,70 @@ PetscErrorCode HalfSpaceCooling(void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, iH, iC, icenter;
+  PetscScalar    **coordx,**coordz, ***xx, Cs0, Tm, Cdepl, zdepl;
+  Vec            x, xlocal;
+  DM             dm;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  dm  = usr->dmHC;
+  x   = usr->xHC;
+  Cs0 = usr->par->C0;
+  Tm  = (usr->par->Tp-T_KELVIN)*exp(-usr->nd->A*usr->nd->zmin)+T_KELVIN;
+  Cdepl = usr->par->C0+usr->par->DC*usr->par->depletion;
+  zdepl = usr->nd->zdepl;
+
+  ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
+  ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &iH); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm, ELEMENT, 1, &iC); CHKERRQ(ierr);
+
+  ierr = DMCreateLocalVector(dm, &xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+
+  // Loop over local domain
+  for (i = sx; i <sx+nx; i++) {
+    for (j = sz; j < sz+nz; j++) {
+      PetscScalar T, nd_T, age, C=0.0, zdepl0;
+
+      // half-space cooling temperature
+      age = usr->nd->age*usr->scal->t;
+      T = HalfSpaceCoolingTemp(Tm,usr->par->Ts,-dim_param(coordz[j][icenter],usr->scal->x),usr->par->kappa,age); 
+      nd_T = (T - usr->par->T0)/usr->par->DT;
+
+      // enthalpy H = S*phi+T (phi=0)
+      xx[j][i][iH] = nd_T;
+
+      // add perturbation
+      zdepl0 = zdepl*(1.0+ usr->par->Adepl*PetscCosScalar(usr->par->ndepl*PETSC_PI*coordx[i][icenter]));
+
+      // initial bulk composition C0 = Cs0 (phi=0) - impose gradient in lithosphere
+      if (coordz[j][icenter]>=zdepl0) {
+        C = Cs0+(coordz[j][icenter]-zdepl)*(Cdepl-Cs0)/PetscAbsScalar(zdepl);
+      } else {
+        C = Cs0;
+      }
+      xx[j][i][iC] = (C-usr->par->C0)/usr->par->DC;
+    }
+  }
+
+  // Restore arrays
+  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+PetscErrorCode HalfSpaceCooling_Tdepletion(void *ctx)
+{
+  UsrData       *usr = (UsrData*) ctx;
+  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, iH, iC, icenter;
   PetscScalar    **coordx,**coordz, ***xx, Cs0, Tm, Tdepl, Cdepl;
   Vec            x, xlocal;
   DM             dm;
@@ -341,8 +405,14 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmEnth, Vec xEnt
       vs[3] = _xPVlocal[j][i][pv_slot[iU]];
 
       p[0] = _xPVlocal[j][i][pv_slot[iP]];
-      if (i == 0   ) im = i; else im = i-1; p[1] = _xPVlocal[j][im][pv_slot[iP]];
-      if (i == Nx-1) im = i; else im = i+1; p[2] = _xPVlocal[j][im][pv_slot[iP]];
+      
+      if (usr->dtype0!=DM_BOUNDARY_PERIODIC) {
+        if (i == 0   ) im = i; else im = i-1; p[1] = _xPVlocal[j][im][pv_slot[iP]];
+        if (i == Nx-1) im = i; else im = i+1; p[2] = _xPVlocal[j][im][pv_slot[iP]];
+      } else {
+        im = i-1; p[1] = _xPVlocal[j][im][pv_slot[iP]];
+        im = i+1; p[2] = _xPVlocal[j][im][pv_slot[iP]];
+      }
       if (j == 0   ) jm = j; else jm = j-1; p[3] = _xPVlocal[jm][i][pv_slot[iP]];
       if (j == Nz-1) jm = j; else jm = j+1; p[4] = _xPVlocal[jm][i][pv_slot[iP]];
 
@@ -352,8 +422,14 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmEnth, Vec xEnt
       gradP[3] = (p[4]-p[0])/dz;
 
       p[0] = _xPVlocal[j][i][pv_slot[iPc]];
-      if (i == 0   ) im = i; else im = i-1; p[1] = _xPVlocal[j][im][pv_slot[iPc]];
-      if (i == Nx-1) im = i; else im = i+1; p[2] = _xPVlocal[j][im][pv_slot[iPc]];
+
+      if (usr->dtype0!=DM_BOUNDARY_PERIODIC) {
+        if (i == 0   ) im = i; else im = i-1; p[1] = _xPVlocal[j][im][pv_slot[iPc]];
+        if (i == Nx-1) im = i; else im = i+1; p[2] = _xPVlocal[j][im][pv_slot[iPc]];
+      } else {
+        im = i-1; p[1] = _xPVlocal[j][im][pv_slot[iPc]];
+        im = i+1; p[2] = _xPVlocal[j][im][pv_slot[iPc]];
+      }
       if (j == 0   ) jm = j; else jm = j-1; p[3] = _xPVlocal[jm][i][pv_slot[iPc]];
       if (j == Nz-1) jm = j; else jm = j+1; p[4] = _xPVlocal[jm][i][pv_slot[iPc]];
 
@@ -364,8 +440,14 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmEnth, Vec xEnt
 
       // porosity
       Q[0] = _xEnthlocal[j][i][phi_slot];
-      if (i == 0   ) im = i; else im = i-1; Q[1] = _xEnthlocal[j][im][phi_slot];
-      if (i == Nx-1) im = i; else im = i+1; Q[2] = _xEnthlocal[j][im][phi_slot];
+
+      if (usr->dtype0!=DM_BOUNDARY_PERIODIC) {
+        if (i == 0   ) im = i; else im = i-1; Q[1] = _xEnthlocal[j][im][phi_slot];
+        if (i == Nx-1) im = i; else im = i+1; Q[2] = _xEnthlocal[j][im][phi_slot];
+      } else {
+        im = i-1; Q[1] = _xEnthlocal[j][im][phi_slot];
+        im = i+1; Q[2] = _xEnthlocal[j][im][phi_slot];
+      }
       if (j == 0   ) jm = j; else jm = j-1; Q[3] = _xEnthlocal[jm][i][phi_slot];
       if (j == Nz-1) jm = j; else jm = j+1; Q[4] = _xEnthlocal[jm][i][phi_slot];
 
@@ -560,24 +642,46 @@ PetscErrorCode ComputeGamma(DM dmmatProp, Vec xmatProp, DM dmPV, Vec xPV, DM dmE
 
       // get phi data
       phi[0] = _xEnthlocal[j][i][iphi]; // Qi,j -C
-      if (i == 0   ) { im = i; jm = j; } else { im = i-1; jm = j  ; } phi[1] = _xEnthlocal[jm][im][iphi];// Qi-1,j -W
-      if (i == Nx-1) { im = i; jm = j; } else { im = i+1; jm = j  ; } phi[2] = _xEnthlocal[jm][im][iphi];// Qi+1,j -E
+
+      if (usr->dtype0!=DM_BOUNDARY_PERIODIC) {
+        if (i == 0   ) { im = i; jm = j; } else { im = i-1; jm = j  ; } phi[1] = _xEnthlocal[jm][im][iphi];// Qi-1,j -W
+        if (i == Nx-1) { im = i; jm = j; } else { im = i+1; jm = j  ; } phi[2] = _xEnthlocal[jm][im][iphi];// Qi+1,j -E
+      } else {
+        im = i-1; jm = j  ; phi[1] = _xEnthlocal[jm][im][iphi];// Qi-1,j -W
+        im = i+1; jm = j  ; phi[2] = _xEnthlocal[jm][im][iphi];// Qi+1,j -E
+      }
       if (j == 0   ) { im = i; jm = j; } else { im = i  ; jm = j-1; } phi[3] = _xEnthlocal[jm][im][iphi];// Qi,j-1 -S
       if (j == Nz-1) { im = i; jm = j; } else { im = i  ; jm = j+1; } phi[4] = _xEnthlocal[jm][im][iphi];// Qi,j+1 -N
 
-      if (i <= 1   ) { phi[5] = phi[2]; } else { im = i-2; jm = j  ; } phi[5] = _xEnthlocal[jm][im][iphi];// Qi-2,j -WW
-      if (i >= Nx-2) { phi[6] = phi[1]; } else { im = i+2; jm = j  ; } phi[6] = _xEnthlocal[jm][im][iphi];// Qi+2,j -EE
+      if (usr->dtype0!=DM_BOUNDARY_PERIODIC) {
+        if (i <= 1   ) { phi[5] = phi[2]; } else { im = i-2; jm = j  ; } phi[5] = _xEnthlocal[jm][im][iphi];// Qi-2,j -WW
+        if (i >= Nx-2) { phi[6] = phi[1]; } else { im = i+2; jm = j  ; } phi[6] = _xEnthlocal[jm][im][iphi];// Qi+2,j -EE
+      } else {
+        im = i-2; jm = j  ; phi[5] = _xEnthlocal[jm][im][iphi];// Qi-2,j -WW
+        im = i+2; jm = j  ; phi[6] = _xEnthlocal[jm][im][iphi];// Qi+2,j -EE
+      }
       if (j <= 1   ) { phi[7] = phi[4]; } else { im = i  ; jm = j-2; } phi[7] = _xEnthlocal[jm][im][iphi];// Qi,j-2 -SS
       if (j >= Nz-2) { phi[8] = phi[3]; } else { im = i  ; jm = j+2; } phi[8] = _xEnthlocal[jm][im][iphi];// Qi,j+2 -NN
 
       phiold[0] = _xEntholdlocal[j][i][iphi]; // Qi,j -C
-      if (i == 0   ) { im = i; jm = j; } else { im = i-1; jm = j  ; } phiold[1] = _xEntholdlocal[jm][im][iphi];// Qi-1,j -W
-      if (i == Nx-1) { im = i; jm = j; } else { im = i+1; jm = j  ; } phiold[2] = _xEntholdlocal[jm][im][iphi];// Qi+1,j -E
+
+      if (usr->dtype0!=DM_BOUNDARY_PERIODIC) {
+        if (i == 0   ) { im = i; jm = j; } else { im = i-1; jm = j  ; } phiold[1] = _xEntholdlocal[jm][im][iphi];// Qi-1,j -W
+        if (i == Nx-1) { im = i; jm = j; } else { im = i+1; jm = j  ; } phiold[2] = _xEntholdlocal[jm][im][iphi];// Qi+1,j -E
+      } else {
+        im = i-1; jm = j  ; phiold[1] = _xEntholdlocal[jm][im][iphi];// Qi-1,j -W
+        im = i+1; jm = j  ; phiold[2] = _xEntholdlocal[jm][im][iphi];// Qi+1,j -E
+      }
       if (j == 0   ) { im = i; jm = j; } else { im = i  ; jm = j-1; } phiold[3] = _xEntholdlocal[jm][im][iphi];// Qi,j-1 -S
       if (j == Nz-1) { im = i; jm = j; } else { im = i  ; jm = j+1; } phiold[4] = _xEntholdlocal[jm][im][iphi];// Qi,j+1 -N
       
-      if (i <= 1   ) { phiold[5] = phiold[2]; } else { im = i-2; jm = j  ; } phiold[5] = _xEntholdlocal[jm][im][iphi];// Qi-2,j -WW
-      if (i >= Nx-2) { phiold[6] = phiold[1]; } else { im = i+2; jm = j  ; } phiold[6] = _xEntholdlocal[jm][im][iphi];// Qi+2,j -EE
+      if (usr->dtype0!=DM_BOUNDARY_PERIODIC) {
+        if (i <= 1   ) { phiold[5] = phiold[2]; } else { im = i-2; jm = j  ; } phiold[5] = _xEntholdlocal[jm][im][iphi];// Qi-2,j -WW
+        if (i >= Nx-2) { phiold[6] = phiold[1]; } else { im = i+2; jm = j  ; } phiold[6] = _xEntholdlocal[jm][im][iphi];// Qi+2,j -EE
+      } else {
+        im = i-2; jm = j  ; phiold[5] = _xEntholdlocal[jm][im][iphi];// Qi-2,j -WW
+        im = i+2; jm = j  ; phiold[6] = _xEntholdlocal[jm][im][iphi];// Qi+2,j -EE
+      }
       if (j <= 1   ) { phiold[7] = phiold[4]; } else { im = i  ; jm = j-2; } phiold[7] = _xEntholdlocal[jm][im][iphi];// Qi,j-2 -SS
       if (j >= Nz-2) { phiold[8] = phiold[3]; } else { im = i  ; jm = j+2; } phiold[8] = _xEntholdlocal[jm][im][iphi];// Qi,j+2 -NN
       

@@ -119,6 +119,9 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->g, 9.8, "g", "Gravitational acceleration [m^2/s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->age, 90.0, "age", "Age of lithosphere [Myr]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->depletion, 0.2, "depletion", "Compositional depletion of lithosphere [-]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->zdepl, -50.0e3, "zdepl", "Depth for compositional depletion of lithosphere [m]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->Adepl, 0.1, "Adepl", "Amplitude of initial perturbation in zdepl [%]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->ndepl, 2.0, "ndepl", "Degree of sin for initial perturbation in zdepl [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->Tdepletion, 1573, "Tdepletion", "Isotherm for compositional depletion of lithosphere [K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->DT_bottom,0.0, "DT_bottom", "Temperature difference on bottom boundary [K]"); CHKERRQ(ierr);
 
@@ -187,7 +190,11 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->tmax, 1.0e6, "tmax", "Maximum time [yr]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->dtmax, 1.0e3, "dtmax", "Maximum time step size [yr]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->restart,0, "restart", "Restart from #istep, 0-means start from beginning"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->bc_type,0, "bc_type", "0-Free slip everywhere, 1-free-slip/inflow-outflow bottom, 2-periodic on sides"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->bc_type,0, "bc_type", "0-Free slip everywhere, 1-free-slip/inflow-outflow bottom, 2-periodic bc on sides, inflow/outflow on top/bottom,"); CHKERRQ(ierr);
+
+  if (par->bc_type<=1) usr->dtype0 = DM_BOUNDARY_NONE;
+  else                 usr->dtype0 = DM_BOUNDARY_PERIODIC;
+  usr->dtype1 = DM_BOUNDARY_NONE;
 
   par->start_run = PETSC_TRUE;
   ierr = PetscBagRegisterBool(bag, &par->log_info,PETSC_FALSE, "model_log_info", "Output profiling data (T/F)"); CHKERRQ(ierr);
@@ -336,6 +343,7 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   nd->zmin  = nd_param(par->zmin,scal->x);
   nd->H     = nd_param(par->H,scal->x);
   nd->L     = nd_param(par->L,scal->x);
+  nd->zdepl = nd_param(par->zdepl,scal->x);
   nd->visc_ratio = nd_param(par->zeta0,scal->eta);
   nd->eta_min = nd_param(par->eta_min,scal->eta);
   nd->eta_max = nd_param(par->eta_max,scal->eta);

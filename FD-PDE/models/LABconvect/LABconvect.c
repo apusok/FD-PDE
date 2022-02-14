@@ -121,9 +121,11 @@ PetscErrorCode Numerical_solution(void *ctx)
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
   PetscPrintf(PETSC_COMM_WORLD,"# Set-up MECHANICS: FD-PDE StokesDarcy3Field (PV)\n");
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKESDARCY3FIELD,&fdPV);CHKERRQ(ierr);
+  ierr = FDPDESetDMBoundaryType(fdPV,usr->dtype0,usr->dtype1);CHKERRQ(ierr);
   ierr = FDPDESetUp(fdPV);CHKERRQ(ierr);
 
   if      (usr->par->bc_type==1) { ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV_InflowOutflowBottom,bc_description_PV,usr); CHKERRQ(ierr); }
+  else if (usr->par->bc_type==2) { ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV_SidesPeriodic_InflowOutflowBottom,bc_description_PV,usr); CHKERRQ(ierr);}
   else { ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV,bc_description_PV,usr); CHKERRQ(ierr); }
   
   ierr = FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV,coeff_description_PV,usr); CHKERRQ(ierr);
@@ -136,9 +138,11 @@ PetscErrorCode Numerical_solution(void *ctx)
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
   PetscPrintf(PETSC_COMM_WORLD,"# Set-up ENERGY and COMPOSITION: FD-PDE Enthalpy (HC) \n");
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ENTHALPY,&fdHC);CHKERRQ(ierr);
+  ierr = FDPDESetDMBoundaryType(fdHC,usr->dtype0,usr->dtype1);CHKERRQ(ierr);
   ierr = FDPDESetUp(fdHC);CHKERRQ(ierr);
 
   if      (usr->par->bc_type==1) { ierr = FDPDESetFunctionBCList(fdHC,FormBCList_HC_InflowOutflowBottom,bc_description_HC,usr); CHKERRQ(ierr);}
+  else if (usr->par->bc_type==2) { ierr = FDPDESetFunctionBCList(fdHC,FormBCList_HC_SidesPeriodic_InflowOutflowBottom,bc_description_HC,usr); CHKERRQ(ierr); }
   else { ierr = FDPDESetFunctionBCList(fdHC,FormBCList_HC,bc_description_HC,usr); CHKERRQ(ierr);}
   
   ierr = FDPDESetFunctionCoefficient(fdHC,FormCoefficient_HC,coeff_description_HC,usr); CHKERRQ(ierr);

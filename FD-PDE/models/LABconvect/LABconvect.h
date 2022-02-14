@@ -75,7 +75,7 @@
 typedef struct {
   PetscInt       nx, nz;
   PetscScalar    L, H, xmin, zmin;
-  PetscScalar    k_hat, g, age, depletion, Tdepletion, DT_bottom;
+  PetscScalar    k_hat, g, age, depletion, zdepl, Adepl, ndepl, Tdepletion, DT_bottom;
   PetscScalar    Tp, Ts, cp, La, rho0, drho, alpha, beta, kappa, D;
   PetscScalar    n, K0, phi_max, eta0, zeta0, mu, eta_min, eta_max, lambda, EoR, Teta0, zetaExp; 
   PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT, phi_min;
@@ -91,7 +91,7 @@ typedef struct {
 } ScalParams;
 
 typedef struct {
-  PetscScalar    L, H, xmin, zmin, visc_ratio, eta_min, eta_max;
+  PetscScalar    L, H, xmin, zmin, zdepl, visc_ratio, eta_min, eta_max;
   PetscScalar    tmax, dtmax, t, dt, dt_out, age;
   PetscInt       istep;
   PetscScalar    delta, alpha_s, beta_s, alpha_ls, beta_ls, A, S, PeT, PeC, thetaS, G, RM;
@@ -107,6 +107,7 @@ typedef struct {
   PetscMPIInt   rank;
   DM            dmPV, dmHC, dmVel, dmEnth, dmmatProp;
   Vec           xPV, xHC, xVel, xEnth, xEnthold, xmatProp;
+  DMBoundaryType dtype0, dtype1;
 } UsrData;
 
 // ---------------------------------------
@@ -132,6 +133,8 @@ PetscErrorCode FormBCList_PV(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_HC(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_PV_InflowOutflowBottom(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_HC_InflowOutflowBottom(DM, Vec, DMStagBCList, void*);
+PetscErrorCode FormBCList_PV_SidesPeriodic_InflowOutflowBottom(DM, Vec, DMStagBCList, void*);
+PetscErrorCode FormBCList_HC_SidesPeriodic_InflowOutflowBottom(DM, Vec, DMStagBCList, void*);
 
 // constitutive equations
 PetscErrorCode Porosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar*,PetscScalar,PetscScalar,PetscScalar);
@@ -160,6 +163,7 @@ PetscScalar ArrheniusTerm_Viscosity(PetscScalar,PetscScalar,PetscScalar);
 // // utils
 PetscErrorCode SetInitialConditions(FDPDE, FDPDE, void*);
 PetscErrorCode HalfSpaceCooling(void*);
+PetscErrorCode HalfSpaceCooling_Tdepletion(void*);
 PetscErrorCode UpdateLithostaticPressure(DM,Vec,void*);
 PetscErrorCode CorrectInitialHCZeroPorosity(DM,Vec,void*);
 PetscErrorCode ComputeFluidAndBulkVelocity(DM,Vec,DM,Vec,DM,Vec,void*);
