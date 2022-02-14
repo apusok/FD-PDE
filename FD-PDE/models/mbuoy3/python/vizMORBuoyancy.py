@@ -2,7 +2,9 @@
 # Load modules
 # ---------------------------------
 import numpy as np
+import math
 import matplotlib.pyplot as plt
+from matplotlib import colors
 import matplotlib
 matplotlib.use('pdf')
 
@@ -1631,6 +1633,28 @@ def plot_crustal_thickness(A,tstart,tend,fname):
   plt.savefig(fname+'.pdf', bbox_inches = 'tight')
   plt.close()
 
+# ---------------------------------
+def plot_convergence_steady_state(A,tstart,tend,fname):
+
+  fig = plt.figure(1,figsize=(10,5))
+  ax = plt.subplot(1,1,1)
+
+  time_myr = A.flux.t[1:-1]/1e6
+  crust_thick = A.flux.h[1:-1]/1000
+  dHdt = np.abs((crust_thick[1:]-crust_thick[0:-1])/(time_myr[1:]-time_myr[0:-1]))
+  dH = np.abs(crust_thick[1:]-crust_thick[0:-1])
+
+  # ax.plot(np.log10(dHdt), 'k')
+  ax.plot(np.log10(dH), 'k')
+  plt.grid(True)
+  # ax.legend()
+  ax.set_xlabel('tstep [-]')
+  # ax.set_ylabel(r'log10$\left|\frac{H-Hprev}{t-tprev}\right|$ [km/Myr]')
+  ax.set_ylabel(r'log10$\left|H-Hprev\right|$ [km]')
+
+  plt.savefig(fname+'.pdf', bbox_inches = 'tight')
+  plt.close()
+
   # ---------------------------------
 def plot_asymmetry(A,tstart,tend,fname):
 
@@ -2175,11 +2199,12 @@ def plot_reference_vz(A,istart,iend,jstart,jend,fname,istep,dim):
     xdist = 0.0
 
   cmap1 = 'RdBu'
+  divnorm=colors.TwoSlopeNorm(vmin=-2.0, vcenter=0., vmax=8)
 
   # Vertical solid velocity
   ax = plt.subplot(1,1,1)
-  im = ax.imshow(A.Vsz[jstart:jend+1,istart:iend  ]*scalv,extent=extentVz,cmap=cmap1,origin='lower')
-  im.set_clim(-6.0,6.0)
+  im = ax.imshow(A.Vsz[jstart:jend+1,istart:iend  ]*scalv,extent=extentVz,cmap=cmap1,origin='lower', norm=divnorm)
+  # im.set_clim(-6.0,6.0)
   cbar = fig.colorbar(im,ax=ax, shrink=0.60)
   cbar.ax.set_title(r'$V_s^z$ [cm/yr]')
 
@@ -2606,6 +2631,14 @@ def plot_porosity_full_ridge(A,istart,iend,jstart,jend,fname,istep,dim):
   # solid streamlines
   stream = ax.streamplot(A.grid.xc[istart:iend  ]*scalx,A.grid.zc[jstart:jend  ]*scalx, A.Vscx[jstart:jend  ,istart:iend  ]*scalv, A.Vscz[jstart:jend  ,istart:iend  ]*scalv,
         color='grey',linewidth=0.5, start_points=stream_points, density=2.0, minlength=0.5, arrowstyle='-')
+  # nind1 = 4*nind_factor
+  # nind2 = 8*nind_factor
+  # #normalize vectors
+  # r = np.power(np.add(np.power(A.Vscx,2), np.power(A.Vscz,2)),0.5)
+  # Vscx = A.Vscx/r
+  # Vscz = A.Vscz/r
+  # Q  = ax.quiver(A.grid.xc[istart:iend:nind1]*scalx, A.grid.zc[jstart:jend:nind2]*scalx, Vscx[jstart:jend:nind2,istart:iend:nind1]*scalv, Vscz[jstart:jend:nind2,istart:iend:nind1]*scalv, 
+  #     color='grey', units='width', pivot='mid', width=0.0008, headaxislength=3, minlength=0)
 
   # temperature contour
   levels = [250, 500, 750, 1000, 1200, 1300,]
@@ -2681,16 +2714,20 @@ def plot_porosity_full_ridge_white(A,istart,iend,jstart,jend,fname,istep,dim):
   Vfz = np.ma.array(A.Vfcz, mask=mask)
   nind_factor = int(A.nz/100)
   nind = 4*nind_factor
-  if (istep>0):
-    Q  = ax.quiver(A.grid.xc[istart:iend:nind]*scalx, A.grid.zc[jstart:jend:nind]*scalx, Vfx[jstart:jend:nind,istart:iend:nind]*scalv, Vfz[jstart:jend:nind,istart:iend:nind]*scalv, 
-      color='orange', units='width', pivot='mid', width=0.001, headaxislength=3, minlength=0)
+  # if (istep>0):
+  #   Q  = ax.quiver(A.grid.xc[istart:iend:nind]*scalx, A.grid.zc[jstart:jend:nind]*scalx, Vfx[jstart:jend:nind,istart:iend:nind]*scalv, Vfz[jstart:jend:nind,istart:iend:nind]*scalv, 
+  #     color='orange', units='width', pivot='mid', width=0.001, headaxislength=3, minlength=0)
 
   #   stream_fluid = ax.streamplot(A.grid.xc*scalx,A.grid.zc*scalx, Vfx*scalv, Vfz*scalv,
   #       color='r', linewidth=0.5, density=2.0, minlength=0.5, arrowstyle='-')
 
   # solid streamlines
-  stream = ax.streamplot(A.grid.xc[istart:iend  ]*scalx,A.grid.zc[jstart:jend  ]*scalx, A.Vscx[jstart:jend  ,istart:iend  ]*scalv, A.Vscz[jstart:jend  ,istart:iend  ]*scalv,
-        color='grey',linewidth=0.5, start_points=stream_points, density=2.0, minlength=0.5, arrowstyle='-')
+  # stream = ax.streamplot(A.grid.xc[istart:iend  ]*scalx,A.grid.zc[jstart:jend  ]*scalx, A.Vscx[jstart:jend  ,istart:iend  ]*scalv, A.Vscz[jstart:jend  ,istart:iend  ]*scalv,
+  #       color='grey',linewidth=0.5, start_points=stream_points, density=2.0, minlength=0.5, arrowstyle='-')
+
+  nind = 6*nind_factor
+  Q  = ax.quiver(A.grid.xc[istart:iend:nind]*scalx, A.grid.zc[jstart:jend:nind]*scalx, A.Vscx[jstart:jend:nind,istart:iend:nind]*scalv, A.Vscz[jstart:jend:nind,istart:iend:nind]*scalv, 
+      color='silver', units='width', pivot='mid', width=0.0008, headaxislength=3, minlength=0)
 
   # temperature contour
   levels = [250, 500, 750, 1000, 1200, 1300,]
@@ -2728,7 +2765,76 @@ def plot_porosity_full_ridge_white(A,istart,iend,jstart,jend,fname,istep,dim):
   # ax.set_title(A.lbl.nd.phi+' tstep = '+str(istep)+' time = '+str(t)+' [yr]')
   ax.set_title(A.lbl.nd.phi+' time = '+str(round(t/1.0e3,0))+' [kyr]')
 
-  plt.savefig(fname+'.pdf', bbox_inches = 'tight')
+  plt.savefig(fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_vorticity_full_ridge(A,istart,iend,jstart,jend,fname,istep,dim):
+
+  matplotlib.rcParams.update({'font.size': 16})
+
+  fig = plt.figure(1,figsize=(50,10))  #14,5
+  scalx = get_scaling(A,'x',dim,1)
+  scalv = get_scaling(A,'v',dim,1)
+  scalt = get_scaling(A,'t',dim,1)
+
+  lblx = get_label(A,'x',dim)
+  lblz = get_label(A,'z',dim)
+  extentE =[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zc[jstart:jend  ])*scalx, max(A.grid.zc[jstart:jend  ])*scalx]
+  extentN =[min(A.grid.xv[istart:iend  ])*scalx, max(A.grid.xv[istart:iend  ])*scalx, min(A.grid.zv[jstart:jend  ])*scalx, max(A.grid.zv[jstart:jend  ])*scalx]
+
+  ax = plt.subplot(1,2,1)
+  cmap1='RdBu_r'
+  
+  dx = A.grid.xv[1]-A.grid.xv[0]
+  dz = A.grid.zv[1]-A.grid.zv[0]
+  dVzdx = (A.Vsz[jstart:jend+1,istart:iend-1]-A.Vsz[jstart:jend+1,istart+1:iend])/dx
+  dVxdz = (A.Vsx[jstart:jend-1,istart:iend+1]-A.Vsx[jstart+1:jend,istart:iend+1])/dz
+
+  Vorticity = (dVzdx[1:-1,:]-dVxdz[:,1:-1])
+  im = ax.imshow(Vorticity,extent=extentN,cmap=cmap1,origin='lower')
+  im.set_clim(-0.0001,0.0001)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.50)
+  cbar.ax.set_title(r'$\omega$')
+
+  # # vorticity contours
+  # levels = [-0.0002, -0.0001, 0, 0.0001, 0.0002,]
+  # om = ax.contour(A.grid.xv[istart:iend-1]*scalx, A.grid.zv[jstart:jend-1]*scalx, Vorticity, levels=levels,linewidths=(0.8,), extend='both')
+
+  # temperature contour
+  levels = [250, 500, 750, 1000, 1200, 1300,]
+  fmt = r'%0.0f $^o$C'
+  T = scale_TC(A,'Enth.T','T',dim,1)
+  ts = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, T[jstart:jend  ,istart:iend  ], levels=levels,linewidths=(0.8,), extend='both')
+  ax.clabel(ts, fmt=fmt, fontsize=14)
+
+  # solidus contour
+  if (istep>0):
+    cs = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, A.Enth.phi[jstart:jend  ,istart:iend  ], levels=[1e-8,], colors = ('k',),linewidths=(0.5,), extend='both')
+
+  t = A.nd.t*scalt
+
+  # MOR marker [km]
+  xdist = A.nd.U0*scalv*t*1.0e-5
+  if (A.grid.xc[0]<0.0):
+    xdist_full = -xdist
+  else: 
+    xdist_full = xdist
+
+  if (istep==0):
+    xdist = 0.0
+
+  zdist = A.grid.zc[-1]*scalx
+  if (xdist<=A.grid.xc[iend-1]*scalx) & (xdist>=A.grid.xc[istart]*scalx):
+    ax.plot(xdist,zdist,'v',color='orange',linewidth=0.1,mfc='orange', markersize=10,clip_on=False)
+    ax.plot(xdist_full,zdist,'v',color='orange',linewidth=0.1,mfc='orange', markersize=10,clip_on=False)
+
+  ax.axis('image')
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  ax.set_title(r'$\omega$ time = '+str(round(t/1.0e3,0))+' [kyr]')
+
+  plt.savefig(fname+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
@@ -2953,12 +3059,21 @@ def plot_rho_full_ridge(A,istart,iend,jstart,jend,fname,istep,dim,iplot):
   elif (iplot==2):
     im.set_clim(-100.0,0.0)
   else:
-    im.set_clim(-200.0,0.0)
+    im.set_clim(-125.0,0.0)
   cbar = fig.colorbar(im,ax=ax, shrink=0.50)
 
   # solidus contour
   if (istep>0):
     cs = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, A.Enth.phi[jstart:jend  ,istart:iend  ], levels=[1e-8,], colors = ('k',),linewidths=(0.8,), extend='both')
+
+  xa = A.grid.xc[istart:iend:4]*scalx
+  stream_points = []
+  for xi in xa:
+    stream_points.append([xi,A.grid.zc[jstart]*scalx])
+  
+  # solid streamlines
+  # stream = ax.streamplot(A.grid.xc[istart:iend  ]*scalx,A.grid.zc[jstart:jend  ]*scalx, A.Vscx[jstart:jend  ,istart:iend  ]*scalv, A.Vscz[jstart:jend  ,istart:iend  ]*scalv,
+  #       color='grey',linewidth=0.5, start_points=stream_points, density=2.0, minlength=0.5, arrowstyle='-')
 
   zdist = A.grid.zc[-1]*scalx
   if (xdist<=A.grid.xc[iend-1]*scalx) & (xdist>=A.grid.xc[istart]*scalx):
@@ -3115,6 +3230,97 @@ def plot_vx_full_ridge(A,istart,iend,jstart,jend,fname,istep,dim):
   ax.set_ylabel(lblz)
   lbl = get_label(A,'vsx',dim)
   ax.set_title(lbl+' time = '+str(round(t/1.0e3,0))+' [kyr]')
+
+  plt.savefig(fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_temperature_full_ridge(A,istart,iend,jstart,jend,fname,istep,dim):
+
+  matplotlib.rcParams.update({'font.size': 16})
+  fig = plt.figure(1,figsize=(50,10))  #14,5
+  scalx = get_scaling(A,'x',dim,1)
+  scalv = get_scaling(A,'v',dim,1)
+  scalt = get_scaling(A,'t',dim,1)
+
+  lblx = get_label(A,'x',dim)
+  lblz = get_label(A,'z',dim)
+  extentE =[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zc[jstart:jend  ])*scalx, max(A.grid.zc[jstart:jend  ])*scalx]
+
+  xa = A.grid.xc[istart:iend:4]*scalx
+  stream_points = []
+  for xi in xa:
+    stream_points.append([xi,A.grid.zc[jstart]*scalx])
+
+  t = A.nd.t*scalt
+  # MOR marker [km]
+  xdist = A.nd.U0*scalv*t*1.0e-5
+  if (A.grid.xc[0]<0.0):
+    xdist_full = -xdist
+  else:
+    xdist_full = xdist
+
+  if (istep==0):
+    xdist = 0.0
+    # xdist = A.grid.xc[0]*scalx
+
+  T0 = 273.15
+  Tp = 1648
+  A_nd  = 2.450000000000e-02
+  zmin_nd  = -1.0
+  Tm  = (Tp-T0)*np.exp(-A_nd*zmin_nd)+T0
+  kappa = 1.0e-6
+  xmor = 4.0
+
+  cmap1 = 'RdBu_r'
+  T = scale_TC(A,'Enth.T','T',dim,1)
+
+  T_HS = np.zeros_like(T)
+  for i in range(0,len(A.grid.xc)):
+    for j in range(0,len(A.grid.zc)):
+      ix = A.grid.xc[i]*scalx
+      iz = A.grid.zc[j]*scalx
+      age = np.abs(ix-xmor)*1.0e3/(A.nd.U0*scalv*1.0e-2)*A.scal.SEC_YEAR
+      if (age<=0.0):
+        T_HS[j,i] = Tm-T0
+      else:
+        T_HS[j,i] = np.abs((Tm-T0)*math.erf(iz*1.0e3/(2.0*np.sqrt(kappa*age))))
+
+  X = T-T_HS
+  # Temperature deviations from the halfspace
+  ax = plt.subplot(1,2,1)
+  im = ax.imshow(X[jstart:jend,istart:iend  ],extent=extentE,cmap=cmap1,origin='lower')
+  im.set_clim(-80.0,80.0)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.50)
+  cbar.ax.set_title(r'$\Delta T$ (K)')
+
+  # fluid streamlines
+  mask = np.zeros(A.Vfcx.shape, dtype=bool)
+  mask[np.where(A.Enth.phi<1e-8)] = True
+  Vfx = np.ma.array(A.Vfcx, mask=mask)
+  Vfz = np.ma.array(A.Vfcz, mask=mask)
+  nind_factor = int(A.nz/100)
+  nind = 4*nind_factor
+  if (istep>0):
+    Q  = ax.quiver(A.grid.xc[istart:iend:nind]*scalx, A.grid.zc[jstart:jend:nind]*scalx, Vfx[jstart:jend:nind,istart:iend:nind]*scalv, Vfz[jstart:jend:nind,istart:iend:nind]*scalv, 
+      color='k', units='width', pivot='mid', width=0.001, headaxislength=3, minlength=0)
+
+  # solid streamlines
+  # stream = ax.streamplot(A.grid.xc[istart:iend  ]*scalx,A.grid.zc[jstart:jend  ]*scalx, A.Vscx[jstart:jend  ,istart:iend  ]*scalv, A.Vscz[jstart:jend  ,istart:iend  ]*scalv,
+  #       color='grey',linewidth=0.5, start_points=stream_points, density=2.0, minlength=0.5, arrowstyle='-')
+
+  # solidus contour
+  if (istep>0):
+    cs = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, A.Enth.phi[jstart:jend  ,istart:iend  ], levels=[1e-8,], colors = ('k',),linewidths=(0.8,), extend='both')
+
+  zdist = A.grid.zc[-1]*scalx
+  if (xdist<=A.grid.xc[iend-1]*scalx) & (xdist>=A.grid.xc[istart]*scalx):
+    ax.plot(xdist,zdist,'v',color='orange',linewidth=0.1,mfc='orange', markersize=10,clip_on=False)
+    ax.plot(xdist_full,zdist,'v',color='orange',linewidth=0.1,mfc='orange', markersize=10,clip_on=False)
+  ax.axis('image')
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  ax.set_title('time = '+str(round(t/1.0e3,0))+' [kyr]')
 
   plt.savefig(fname+'.png', bbox_inches = 'tight')
   plt.close()
