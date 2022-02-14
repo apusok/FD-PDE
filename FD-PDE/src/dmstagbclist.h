@@ -7,7 +7,7 @@
 #include "dmstag_utils.h"
 
 // BC type
-typedef enum { BC_NULL = 0, BC_DIRICHLET, BC_DIRICHLET_STAG, BC_NEUMANN, BC_NEUMANN_T } BCType;
+typedef enum { BC_NULL = 0, BC_DIRICHLET, BC_DIRICHLET_STAG, BC_NEUMANN, BC_NEUMANN_T, BC_PERIODIC } BCType;
 
 // ---------------------------------------
 // Struct definitions

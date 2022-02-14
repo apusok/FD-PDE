@@ -82,14 +82,14 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
   // Loop over elements
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
-      ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j,-1,0.0,&fval); CHKERRQ(ierr);
+      ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j,-1,0.0,fd->dm_btype0,fd->dm_btype1,&fval); CHKERRQ(ierr);
       ierr = DMStagGetLocationSlot(dm, DMSTAG_ELEMENT, 0, &idx); CHKERRQ(ierr);
       ff[j][i][idx] = fval;
     }
   }
 
   // Boundary conditions - only element dofs
-  ierr = DMStagBCListApply_AdvDiff(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,ad,Nx,Nz,ff);CHKERRQ(ierr);
+  ierr = DMStagBCListApply_AdvDiff(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,ad,Nx,Nz,fd->dm_btype0,fd->dm_btype1,ff);CHKERRQ(ierr);
 
   // Restore arrays, local vectors
   ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -118,7 +118,7 @@ AdvDiffResidual - (ADVDIFF) calculates the steady state advdiff residual per dof
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode AdvDiffResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Vec xprevlocal, Vec coeffprevlocal, PetscScalar **coordx, PetscScalar **coordz, AdvDiffData *ad, PetscInt i, PetscInt j, PetscInt bc_type, PetscScalar bc_val, PetscScalar *_fval)
+PetscErrorCode AdvDiffResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Vec xprevlocal, Vec coeffprevlocal, PetscScalar **coordx, PetscScalar **coordz, AdvDiffData *ad, PetscInt i, PetscInt j, PetscInt bc_type, PetscScalar bc_val, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1,PetscScalar *_fval)
 {
   PetscScalar   xx, xxprev;
   PetscScalar   fval=0.0, fval0=0.0, fval1=0.0;
@@ -131,11 +131,11 @@ PetscErrorCode AdvDiffResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Vec
 
   if (ad->timesteptype == TS_NONE) {
     // steady-state operator
-    ierr = AdvDiffSteadyStateOperator(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,bc_type,bc_val,&fval,&A); CHKERRQ(ierr);
+    ierr = AdvDiffSteadyStateOperator(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,bc_type,bc_val,dm_btype0,dm_btype1,&fval,&A); CHKERRQ(ierr);
   } else { 
     // time-dependent solution
-    ierr = AdvDiffSteadyStateOperator(dm,xprevlocal,dmcoeff,coeffprevlocal,coordx,coordz,i,j,ad->advtype,bc_type,bc_val,&fval0,&A0); CHKERRQ(ierr);
-    ierr = AdvDiffSteadyStateOperator(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,bc_type,bc_val,&fval1,&A1); CHKERRQ(ierr);
+    ierr = AdvDiffSteadyStateOperator(dm,xprevlocal,dmcoeff,coeffprevlocal,coordx,coordz,i,j,ad->advtype,bc_type,bc_val,dm_btype0,dm_btype1,&fval0,&A0); CHKERRQ(ierr);
+    ierr = AdvDiffSteadyStateOperator(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,bc_type,bc_val,dm_btype0,dm_btype1,&fval1,&A1); CHKERRQ(ierr);
 
     point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
     ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&point,&xx); CHKERRQ(ierr);
@@ -156,7 +156,7 @@ AdvDiffSteadyStateOperator - (ADVDIFF) calculates the steady state advdiff resid
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode AdvDiffSteadyStateOperator(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, AdvectSchemeType advtype,PetscInt bc_type, PetscScalar bc_val,PetscScalar *ff,PetscScalar *_A)
+PetscErrorCode AdvDiffSteadyStateOperator(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, AdvectSchemeType advtype,PetscInt bc_type, PetscScalar bc_val, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, PetscScalar *ff,PetscScalar *_A)
 {
   PetscScalar    ffi;
   PetscInt       Nx, Nz, icenter;
@@ -230,16 +230,19 @@ PetscErrorCode AdvDiffSteadyStateOperator(DM dm, Vec xlocal, DM dmcoeff,Vec coef
   point[7].i = i  ; point[7].j = j-2; point[7].loc = DMSTAG_ELEMENT; point[7].c = 0; // Qi,j-2 -SS
   point[8].i = i  ; point[8].j = j+2; point[8].loc = DMSTAG_ELEMENT; point[8].c = 0; // Qi,j+2 -NN
 
-  if (i == 1) point[5] = point[2];
-  if (j == 1) point[7] = point[4];
-  if (i == Nx-2) point[6] = point[1];
-  if (j == Nz-2) point[8] = point[3];
+  if (dm_btype0!=DM_BOUNDARY_PERIODIC) {
+    if (i == 1   ) point[5] = point[2];
+    if (i == Nx-2) point[6] = point[1];
+    if (i == 0   ) { point[1] = point[0]; point[5] = point[2]; }
+    if (i == Nx-1) { point[2] = point[0]; point[6] = point[1]; }
+  }
 
-  if (i == 0) { point[1] = point[0]; point[5] = point[2]; }
-  if (j == 0) { point[3] = point[0]; point[7] = point[4]; }
-
-  if (i == Nx-1) { point[2] = point[0]; point[6] = point[1]; }
-  if (j == Nz-1) { point[4] = point[0]; point[8] = point[3]; }
+  if (dm_btype1!=DM_BOUNDARY_PERIODIC) {
+    if (j == 1   ) point[7] = point[4];
+    if (j == Nz-2) point[8] = point[3];
+    if (j == 0   ) { point[3] = point[0]; point[7] = point[4]; }
+    if (j == Nz-1) { point[4] = point[0]; point[8] = point[3]; }
+  }
 
   ierr = DMStagVecGetValuesStencil(dm,xlocal,9,point,xx); CHKERRQ(ierr);
 
@@ -277,7 +280,7 @@ Use: internal
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "DMStagBCListApply_AdvDiff"
-PetscErrorCode DMStagBCListApply_AdvDiff(DM dm, Vec xlocal,DM dmcoeff, Vec coefflocal, Vec xprevlocal, Vec coeffprevlocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz, AdvDiffData *ad, PetscInt Nx, PetscInt Nz, PetscScalar ***ff)
+PetscErrorCode DMStagBCListApply_AdvDiff(DM dm, Vec xlocal,DM dmcoeff, Vec coefflocal, Vec xprevlocal, Vec coeffprevlocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz, AdvDiffData *ad, PetscInt Nx, PetscInt Nz, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1,PetscScalar ***ff)
 {
   PetscScalar    xx, fval;
   PetscInt       i, j, ibc, idx;
@@ -286,6 +289,14 @@ PetscErrorCode DMStagBCListApply_AdvDiff(DM dm, Vec xlocal,DM dmcoeff, Vec coeff
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
+
+    if (bclist[ibc].type == BC_PERIODIC) { // normal stencil for i,j - should come before other BCs are set
+      i   = bclist[ibc].point.i;
+      j   = bclist[ibc].point.j;
+      idx = bclist[ibc].idx;
+      ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j,-1,0.0,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
+      ff[j][i][idx] = fval;
+    }
 
     if (bclist[ibc].type == BC_DIRICHLET) {
       SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"BC_DIRICHLET type on the true boundary for FDPDE_ADVDIFF [ELEMENT] is not yet implemented. Use BC_DIRICHLET_STAG type instead!");
@@ -308,27 +319,27 @@ PetscErrorCode DMStagBCListApply_AdvDiff(DM dm, Vec xlocal,DM dmcoeff, Vec coeff
       idx = bclist[ibc].idx;
 
       if (i == 0) { // left
-        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i  ,j,0,bclist[ibc].val,&fval); CHKERRQ(ierr);
+        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i  ,j,0,bclist[ibc].val,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
         ff[j][i  ][idx] = fval;
-        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i+1,j,4,bclist[ibc].val,&fval); CHKERRQ(ierr);
+        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i+1,j,4,bclist[ibc].val,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
         ff[j][i+1][idx] = fval;
       }
       if (i == Nx-1) { // right
-        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i  ,j,1,bclist[ibc].val,&fval); CHKERRQ(ierr);
+        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i  ,j,1,bclist[ibc].val,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
         ff[j][i  ][idx] = fval;
-        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i-1,j,5,bclist[ibc].val,&fval); CHKERRQ(ierr);
+        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i-1,j,5,bclist[ibc].val,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
         ff[j][i-1][idx] = fval;
       }
       if (j == 0) { // down
-        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j  ,2,bclist[ibc].val,&fval); CHKERRQ(ierr);
+        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j  ,2,bclist[ibc].val,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
         ff[j  ][i][idx] = fval;
-        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j+1,6,bclist[ibc].val,&fval); CHKERRQ(ierr);
+        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j+1,6,bclist[ibc].val,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
         ff[j+1][i][idx] = fval;
       }
       if (j == Nz-1) { // up
-        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j  ,3,bclist[ibc].val,&fval); CHKERRQ(ierr);
+        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j  ,3,bclist[ibc].val,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
         ff[j  ][i][idx] = fval;
-        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j-1,7,bclist[ibc].val,&fval); CHKERRQ(ierr);
+        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j-1,7,bclist[ibc].val,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
         ff[j-1][i][idx] = fval;
       }
     }

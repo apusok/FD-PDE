@@ -457,8 +457,10 @@ Use: internal
 PetscErrorCode JacobianPreallocator_AdvDiff(FDPDE fd,Mat J)
 {
   PetscInt       Nx, Nz;               // global variables
-  PetscInt       i, j, sx, sz, nx, nz; // local variables
+  PetscInt       i, j, sx, sz, nx, nz, nEntries = 9; // local variables
   Mat            preallocator = NULL;
+  PetscScalar    *xx;
+  DMStagStencil  *point;
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -474,17 +476,14 @@ PetscErrorCode JacobianPreallocator_AdvDiff(FDPDE fd,Mat J)
   ierr = DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   
   // Zero entries
-  PetscScalar   xx[5];
-  DMStagStencil point[5];
-  ierr = PetscMemzero(xx,sizeof(PetscScalar)*5); CHKERRQ(ierr);
+  ierr = PetscCalloc1(nEntries,&xx); CHKERRQ(ierr);
+  ierr = PetscCalloc1(nEntries,&point); CHKERRQ(ierr);
 
   // Get non-zero pattern for preallocator - Loop over all local elements 
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
-
-      // For boundary dofs - adapt the 5-point stencil
-      ierr = EnergyStencil(i,j,Nx,Nz,point);CHKERRQ(ierr);
-      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,5,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      ierr = EnergyStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point);CHKERRQ(ierr);
+      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries,point,xx,INSERT_VALUES); CHKERRQ(ierr);
     }
   }
   
@@ -494,6 +493,9 @@ PetscErrorCode JacobianPreallocator_AdvDiff(FDPDE fd,Mat J)
   // Matrix assembly
   ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
   ierr = MatAssemblyEnd  (J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+
+  ierr = PetscFree(xx);CHKERRQ(ierr);
+  ierr = PetscFree(point);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -505,7 +507,7 @@ EnergyStencil - calculates the non-zero pattern for the advdiff equation/dof for
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode EnergyStencil(PetscInt i,PetscInt j, PetscInt Nx, PetscInt Nz, DMStagStencil *point)
+PetscErrorCode EnergyStencil(PetscInt i,PetscInt j, PetscInt Nx, PetscInt Nz, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, DMStagStencil *point)
 {
   PetscFunctionBegin;
 
@@ -515,16 +517,23 @@ PetscErrorCode EnergyStencil(PetscInt i,PetscInt j, PetscInt Nx, PetscInt Nz, DM
   point[3].i = i  ; point[3].j = j-1; point[3].loc = DMSTAG_ELEMENT; point[3].c = 0;
   point[4].i = i  ; point[4].j = j+1; point[4].loc = DMSTAG_ELEMENT; point[4].c = 0;
 
-  if (i == 0) {
-    point[1] = point[0];
-  } else if (i == Nx-1) {
-    point[2] = point[0];
-  }
+  point[5].i = i-2; point[5].j = j  ; point[5].loc = DMSTAG_ELEMENT; point[5].c = 0; // WW
+  point[6].i = i+2; point[6].j = j  ; point[6].loc = DMSTAG_ELEMENT; point[6].c = 0; // EE
+  point[7].i = i  ; point[7].j = j-2; point[7].loc = DMSTAG_ELEMENT; point[7].c = 0; // SS
+  point[8].i = i  ; point[8].j = j+2; point[8].loc = DMSTAG_ELEMENT; point[8].c = 0; // NN
 
-  if (j == 0) {
-    point[3] = point[0];
-  } else if (j == Nz-1) {
-    point[4] = point[0];
+  if (dm_btype0!=DM_BOUNDARY_PERIODIC) {
+    if (i == 0   ) point[1] = point[0];
+    if (i == Nx-1) point[2] = point[0];
+    if (i <= 1   ) point[5] = point[0];
+    if (i >= Nx-2) point[6] = point[0];
+  }
+  
+  if (dm_btype1!=DM_BOUNDARY_PERIODIC) {
+    if (j == 0   ) point[3] = point[0];
+    if (j == Nz-1) point[4] = point[0];
+    if (j <= 1   ) point[7] = point[0];
+    if (j >= Nz-2) point[8] = point[0];
   }
 
   PetscFunctionReturn(0);

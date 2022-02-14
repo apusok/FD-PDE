@@ -23,6 +23,8 @@ typedef struct {
   PetscScalar        dt,theta;
 } AdvDiffData;
 
+#define STENCIL_ADVDIFF_NONZERO_PREALLOC 9
+
 // ---------------------------------------
 // Function definitions
 // ---------------------------------------
@@ -33,13 +35,13 @@ PetscErrorCode JacobianCreate_AdvDiff(FDPDE,Mat*);
 PetscErrorCode JacobianPreallocator_AdvDiff(FDPDE,Mat);
 
 // PREALLOCATOR
-PetscErrorCode EnergyStencil(PetscInt,PetscInt,PetscInt,PetscInt,DMStagStencil*);
+PetscErrorCode EnergyStencil(PetscInt,PetscInt,PetscInt,PetscInt,DMBoundaryType,DMBoundaryType,DMStagStencil*);
 
 // RESIDUAL
 PetscErrorCode FormFunction_AdvDiff(SNES,Vec,Vec,void*);
-PetscErrorCode AdvDiffResidual(DM,Vec,DM,Vec,Vec,Vec,PetscScalar**,PetscScalar**,AdvDiffData*,PetscInt,PetscInt,PetscInt,PetscScalar,PetscScalar*);
-PetscErrorCode AdvDiffSteadyStateOperator(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,AdvectSchemeType,PetscInt,PetscScalar,PetscScalar*,PetscScalar*);
-PetscErrorCode DMStagBCListApply_AdvDiff(DM,Vec,DM,Vec,Vec,Vec,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,AdvDiffData*,PetscInt,PetscInt,PetscScalar***);
+PetscErrorCode AdvDiffResidual(DM,Vec,DM,Vec,Vec,Vec,PetscScalar**,PetscScalar**,AdvDiffData*,PetscInt,PetscInt,PetscInt,PetscScalar,DMBoundaryType,DMBoundaryType,PetscScalar*);
+PetscErrorCode AdvDiffSteadyStateOperator(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,AdvectSchemeType,PetscInt,PetscScalar,DMBoundaryType,DMBoundaryType,PetscScalar*,PetscScalar*);
+PetscErrorCode DMStagBCListApply_AdvDiff(DM,Vec,DM,Vec,Vec,Vec,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,AdvDiffData*,PetscInt,PetscInt,DMBoundaryType,DMBoundaryType,PetscScalar***);
 
 
 // ADVECTION
