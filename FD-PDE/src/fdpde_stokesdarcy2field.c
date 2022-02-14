@@ -93,24 +93,24 @@ PetscErrorCode JacobianPreallocator_StokesDarcy2Field(FDPDE fd,Mat J)
     for (i = sx; i<sx+nx; i++) {
 
       // Continuity equation - add terms for Darcy
-      ierr = ContinuityStencil_StokesDarcy2Field(i,j,Nx,Nz,point); CHKERRQ(ierr);
+      ierr = ContinuityStencil_StokesDarcy2Field(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,9,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       // X-momentum equation - stencil remains the same as Stokes
-      ierr = XMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,0); CHKERRQ(ierr);
+      ierr = XMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,0); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       if (i==Nx-1){
-        ierr = XMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,1); CHKERRQ(ierr);
+        ierr = XMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,1); CHKERRQ(ierr);
         ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
 
       // Z-momentum equation - stencil remains the same as Stokes
-      ierr = ZMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,0); CHKERRQ(ierr);
+      ierr = ZMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,0); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       if (j==Nz-1){
-        ierr = ZMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,1); CHKERRQ(ierr);
+        ierr = ZMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,1); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
     }
@@ -154,7 +154,7 @@ ContinuityStencil_StokesDarcy2Field - calculates the non-zero pattern for the co
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode ContinuityStencil_StokesDarcy2Field(PetscInt i,PetscInt j,PetscInt Nx,PetscInt Nz,DMStagStencil *point)
+PetscErrorCode ContinuityStencil_StokesDarcy2Field(PetscInt i,PetscInt j,PetscInt Nx,PetscInt Nz, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, DMStagStencil *point)
 {
   PetscFunctionBegin;
   point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0; // for P Dirichlet BC
@@ -170,10 +170,14 @@ PetscErrorCode ContinuityStencil_StokesDarcy2Field(PetscInt i,PetscInt j,PetscIn
   point[8].i = i  ; point[8].j = j-1; point[8].loc = DMSTAG_ELEMENT; point[8].c = 0;
 
   // correct for boundaries
-  if (i == Nx-1) point[5] = point[0];
-  if (i == 0   ) point[6] = point[0];
-  if (j == Nz-1) point[7] = point[0];
-  if (j == 0   ) point[8] = point[0];
+  if (dm_btype0!=DM_BOUNDARY_PERIODIC) {
+    if (i == Nx-1) point[5] = point[0];
+    if (i == 0   ) point[6] = point[0];
+  }
+  if (dm_btype1!=DM_BOUNDARY_PERIODIC) {
+    if (j == Nz-1) point[7] = point[0];
+    if (j == 0   ) point[8] = point[0];
+  }
 
   PetscFunctionReturn(0);
 }

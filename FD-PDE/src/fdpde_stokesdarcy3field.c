@@ -97,7 +97,7 @@ PetscErrorCode JacobianPreallocator_StokesDarcy3Field(FDPDE fd,Mat J)
     for (i = sx; i<sx+nx; i++) {
 
       // Continuity equation - add terms for Darcy
-      ierr = ContinuityStencil_StokesDarcy3Field(i,j,Nx,Nz,point); CHKERRQ(ierr);
+      ierr = ContinuityStencil_StokesDarcy3Field(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,14,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       // Compaction equation
@@ -105,19 +105,19 @@ PetscErrorCode JacobianPreallocator_StokesDarcy3Field(FDPDE fd,Mat J)
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,5,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       // Momentum equations - the same as for Stokes
-      ierr = XMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,0); CHKERRQ(ierr);
+      ierr = XMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,0); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       if (i==Nx-1){
-        ierr = XMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,1); CHKERRQ(ierr);
+        ierr = XMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,1); CHKERRQ(ierr);
         ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
 
-      ierr = ZMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,0); CHKERRQ(ierr);
+      ierr = ZMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,0); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       if (j==Nz-1){
-        ierr = ZMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,1); CHKERRQ(ierr);
+        ierr = ZMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,1); CHKERRQ(ierr);
         ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
     }
@@ -161,7 +161,7 @@ ContinuityStencil_StokesDarcy3Field - calculates the non-zero pattern for the co
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode ContinuityStencil_StokesDarcy3Field(PetscInt i,PetscInt j,PetscInt Nx,PetscInt Nz,DMStagStencil *point)
+PetscErrorCode ContinuityStencil_StokesDarcy3Field(PetscInt i,PetscInt j,PetscInt Nx,PetscInt Nz, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, DMStagStencil *point)
 {
   PetscFunctionBegin;
   point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = SD3_DOF_P; 
@@ -183,10 +183,14 @@ PetscErrorCode ContinuityStencil_StokesDarcy3Field(PetscInt i,PetscInt j,PetscIn
   point[13].i = i  ; point[13].j = j-1; point[13].loc = DMSTAG_ELEMENT; point[13].c = SD3_DOF_PC;
 
   // correct for boundaries
-  if (i == Nx-1) { point[5] = point[0]; point[10] = point[9]; }
-  if (i == 0   ) { point[6] = point[0]; point[11] = point[9]; }
-  if (j == Nz-1) { point[7] = point[0]; point[12] = point[9]; }
-  if (j == 0   ) { point[8] = point[0]; point[13] = point[9]; }
+  if (dm_btype0!=DM_BOUNDARY_PERIODIC) {
+    if (i == Nx-1) { point[5] = point[0]; point[10] = point[9]; }
+    if (i == 0   ) { point[6] = point[0]; point[11] = point[9]; }
+  }
+  if (dm_btype1!=DM_BOUNDARY_PERIODIC) {
+    if (j == Nz-1) { point[7] = point[0]; point[12] = point[9]; }
+    if (j == 0   ) { point[8] = point[0]; point[13] = point[9]; }
+  }
 
   PetscFunctionReturn(0);
 }

@@ -31,7 +31,7 @@ PetscErrorCode JacobianCreate_StokesDarcy2Field(FDPDE,Mat*);
 
 // RESIDUAL STENCILS
 PetscErrorCode GetLocationSlots_Darcy2Field(DM,PetscInt*,PetscInt*,PetscInt*);
-PetscErrorCode ContinuityStencil_StokesDarcy2Field(PetscInt,PetscInt,PetscInt,PetscInt,DMStagStencil*);
+PetscErrorCode ContinuityStencil_StokesDarcy2Field(PetscInt,PetscInt,PetscInt,PetscInt,DMBoundaryType,DMBoundaryType,DMStagStencil*);
 PetscErrorCode ContinuityResidual_Darcy2Field(PetscInt,PetscInt,PetscScalar***,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscScalar*);
 PetscErrorCode XMomentumResidual_Darcy2Field(PetscInt,PetscInt,PetscScalar***,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscScalar*);
 PetscErrorCode ZMomentumResidual_Darcy2Field(PetscInt,PetscInt,PetscScalar***,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscScalar*);

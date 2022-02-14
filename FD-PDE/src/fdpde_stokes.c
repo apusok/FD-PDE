@@ -101,20 +101,20 @@ PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd,Mat J)
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,5,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       // X-momentum equation 
-      ierr = XMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,0); CHKERRQ(ierr);
+      ierr = XMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,0); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       if (i==Nx-1){
-        ierr = XMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,1); CHKERRQ(ierr);
+        ierr = XMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,1); CHKERRQ(ierr);
         ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
 
       // Z-momentum equation 
-      ierr = ZMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,0); CHKERRQ(ierr);
+      ierr = ZMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,0); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       if (j==Nz-1){
-        ierr = ZMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,1); CHKERRQ(ierr);
+        ierr = ZMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,1); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
     }
@@ -176,7 +176,7 @@ XMomentumStencil - calculates the non-zero pattern for the X-momentum equation/d
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, DMStagStencil *point, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, PetscInt iloc)
+PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, DMStagStencil *point, PetscInt iloc)
 {
   PetscFunctionBegin;
   point[0].i  = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_LEFT;    point[0].c   = 0;
@@ -306,7 +306,7 @@ ZMomentumStencil - calculates the non-zero pattern for the Z-momentum equation/d
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode ZMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, DMStagStencil *point, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, PetscInt iloc)
+PetscErrorCode ZMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, DMStagStencil *point, PetscInt iloc)
 {
   PetscFunctionBegin;
   point[0].i = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_DOWN;    point[0].c  = 0;
