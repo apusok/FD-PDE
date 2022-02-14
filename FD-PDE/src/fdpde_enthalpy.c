@@ -5,7 +5,7 @@
 const char enthalpy_description[] =
 "  << FD-PDE ENTHALPY >> solves the PDEs: \n"
 "    dH/dt + A1*div(v *TP) + B1*div(vs*(1-phi)) + (div(C1*grad(TP)) + D1 = 0 \n"
-"    dC/dt + A2*div(vs*(1-phi)*Cs) + B1*div(vf*phi*Cf) + (div(C2*phi*grad(Cf)) + D2 = 0 \n"
+"    dC/dt + A2*div(vs*(1-phi)*Cs) + B2*div(vf*phi*Cf) + (div(C2*phi*grad(Cf)) + D2 = 0 \n"
 "  Notes: \n"
 "  * Unknowns: H - enthalpy, C[] - composition (n-1 components). \n" 
 "  * Other variables: TP - temperature, phi - porosity, Cf[],Cs[] - fluid and solid compositions. \n" 
@@ -239,7 +239,7 @@ PetscErrorCode JacobianPreallocator_Enthalpy(FDPDE fd,Mat J)
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
       for (ii = 0; ii<fd->dof2; ii++) { // loop over all dofs
-        ierr = EnthalpyNonzeroStencil(i,j,ii,Nx,Nz,point);CHKERRQ(ierr);
+        ierr = EnthalpyNonzeroStencil(i,j,ii,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point);CHKERRQ(ierr);
         ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
     }
@@ -251,9 +251,6 @@ PetscErrorCode JacobianPreallocator_Enthalpy(FDPDE fd,Mat J)
   // Matrix assembly
   ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
   ierr = MatAssemblyEnd  (J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# PREALLOCATOR \n");
-  // ierr = MatView(J,PETSC_VIEWER_STDOUT_WORLD);
 
   ierr = PetscFree(xx);CHKERRQ(ierr);
   ierr = PetscFree(point);CHKERRQ(ierr);
@@ -267,7 +264,7 @@ EnthalpyNonzeroStencil - calculates the non-zero pattern for the enthalpy equati
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode EnthalpyNonzeroStencil(PetscInt i,PetscInt j, PetscInt ii, PetscInt Nx, PetscInt Nz, DMStagStencil *point)
+PetscErrorCode EnthalpyNonzeroStencil(PetscInt i,PetscInt j, PetscInt ii, PetscInt Nx, PetscInt Nz, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, DMStagStencil *point)
 {
   PetscFunctionBegin;
 
@@ -282,15 +279,19 @@ PetscErrorCode EnthalpyNonzeroStencil(PetscInt i,PetscInt j, PetscInt ii, PetscI
   point[7].i = i  ; point[7].j = j-2; point[7].loc = DMSTAG_ELEMENT; point[7].c = ii; // SS
   point[8].i = i  ; point[8].j = j+2; point[8].loc = DMSTAG_ELEMENT; point[8].c = ii; // NN
 
-  if (i == 0   ) point[1] = point[0];
-  if (i == Nx-1) point[2] = point[0];
-  if (j == 0   ) point[3] = point[0];
-  if (j == Nz-1) point[4] = point[0];
+  if (dm_btype0!=DM_BOUNDARY_PERIODIC) {
+    if (i == 0   ) point[1] = point[0];
+    if (i == Nx-1) point[2] = point[0];
+    if (i <= 1   ) point[5] = point[0];
+    if (i >= Nx-2) point[6] = point[0];
+  }
 
-  if (i <= 1   ) point[5] = point[0];
-  if (i >= Nx-2) point[6] = point[0];
-  if (j <= 1   ) point[7] = point[0];
-  if (j >= Nz-2) point[8] = point[0];
+  if (dm_btype1!=DM_BOUNDARY_PERIODIC) {
+    if (j == 0   ) point[3] = point[0];
+    if (j == Nz-1) point[4] = point[0];
+    if (j <= 1   ) point[7] = point[0];
+    if (j >= Nz-2) point[8] = point[0];
+  }
 
   PetscFunctionReturn(0);
 }

@@ -134,12 +134,11 @@ PetscErrorCode JacobianCreate_Enthalpy(FDPDE,Mat*);
 PetscErrorCode JacobianPreallocator_Enthalpy(FDPDE,Mat);
 
 // PREALLOCATOR
-PetscErrorCode EnthalpyNonzeroStencil(PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,DMStagStencil*);
+PetscErrorCode EnthalpyNonzeroStencil(PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,DMBoundaryType,DMBoundaryType,DMStagStencil*);
 
 // RESIDUAL
 PetscErrorCode FormFunction_Enthalpy(SNES,Vec,Vec,void*);
-PetscErrorCode DMStagBCListApply_Enthalpy(DM,Vec,DMStagBC*,PetscInt,PetscScalar***);
-PetscErrorCode ApplyEnthalpyMethod(FDPDE,DM,Vec,DM,Vec,EnthalpyData*,ThermoState*,const char[]);
+PetscErrorCode ApplyEnthalpyMethod(FDPDE,DM,Vec,DM,Vec,DMBoundaryType,DMBoundaryType,EnthalpyData*,ThermoState*,const char[]);
 PetscErrorCode UpdateCoeffStructure(FDPDE,DM,Vec,CoeffState*);
 PetscErrorCode ApplyEnthalpyReport_Failure(FDPDE,PetscViewer,EnthalpyData*,ThermoState*);
 

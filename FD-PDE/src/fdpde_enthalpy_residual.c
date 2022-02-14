@@ -58,16 +58,19 @@ typedef struct {
   const CoeffState   *cff,*cff_prev;
   const EnthalpyData *en;
   DM                 dm;
+  DMBoundaryType     dm_btype0,dm_btype1;
   const PetscScalar  **coordx,**coordz;
   PetscInt           icenter;
   PetscInt           sx,sz,nx,nz;
   PetscInt           Nx,Nz;
 } EnthalpyPackCtx;
 
-PetscErrorCode EnthalpyPackCtx_InitDM(DM dm,PetscScalar **cx,PetscScalar **cz,EnthalpyPackCtx *ctx)
+PetscErrorCode EnthalpyPackCtx_InitDM(DM dm, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, PetscScalar **cx,PetscScalar **cz,EnthalpyPackCtx *ctx)
 {
   PetscErrorCode ierr;
   ctx->dm = dm;
+  ctx->dm_btype0 = dm_btype0;
+  ctx->dm_btype1 = dm_btype1;
   ctx->coordx = (const PetscScalar**)cx;
   ctx->coordz = (const PetscScalar**)cz;
   ierr = DMStagGetCorners(dm, &ctx->sx, &ctx->sz, NULL, &ctx->nx, &ctx->nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -99,6 +102,14 @@ PetscErrorCode EnthalpyPackCtx_Init_IJ(PetscInt i,PetscInt j,PetscInt icomp,Enth
 
 PetscErrorCode EnthalpyResidual_pack(EnthalpyPackCtx*,PetscScalar*);
 PetscErrorCode BulkCompositionResidual_pack(EnthalpyPackCtx*,PetscScalar*);
+PetscErrorCode DMStagBCListApply_Enthalpy(DM,Vec,DMStagBC*,PetscInt,PetscScalar***,EnthalpyPackCtx);
+
+PetscBool ghost_point_enthalpy(PetscBool flgx, PetscBool flgz, PetscInt i, PetscInt j, PetscInt Nx, PetscInt Nz) {
+  if ((flgx  && flgz) || (!flgx && flgz && (i>=0) && (i<Nx)) || (flgx && !flgz && (j>=0) && (j<Nz)) || 
+     (!flgx && !flgz && (i>=0) && (i<Nx) && (j>=0) && (j<Nz))) {
+    return PETSC_TRUE;
+  } else return PETSC_FALSE;
+}
 
 // ---------------------------------------
 /*@
@@ -179,7 +190,7 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   if (en->timesteptype != TS_NONE) {
     ierr = PetscCalloc1((size_t)((nx+4)*(nz+4)),&thm_prev);CHKERRQ(ierr);
     ierr = PetscCalloc1((size_t)((nx+4)*(nz+4)),&cff_prev);CHKERRQ(ierr);
-    ierr = ApplyEnthalpyMethod(fd,dm,xprevlocal,dmP,Pprevlocal,en,thm_prev,"prev"); CHKERRQ(ierr);
+    ierr = ApplyEnthalpyMethod(fd,dm,xprevlocal,dmP,Pprevlocal,fd->dm_btype0,fd->dm_btype1,en,thm_prev,"prev"); CHKERRQ(ierr);
     ierr = UpdateCoeffStructure(fd,dmcoeff,coeffprevlocal,cff_prev);CHKERRQ(ierr);
   }
   PetscTime(&tlog[2]);
@@ -187,7 +198,7 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   // update enthalpy and coeff cell data
   ierr = PetscCalloc1((size_t)((nx+4)*(nz+4)),&thm);CHKERRQ(ierr);
   ierr = PetscCalloc1((size_t)((nx+4)*(nz+4)),&cff);CHKERRQ(ierr);
-  ierr = ApplyEnthalpyMethod(fd,dm,xlocal,dmP,Plocal,en,thm,NULL); CHKERRQ(ierr);
+  ierr = ApplyEnthalpyMethod(fd,dm,xlocal,dmP,Plocal,fd->dm_btype0,fd->dm_btype1,en,thm,NULL); CHKERRQ(ierr);
   PetscTime(&tlog[3]);
 
   // Update coefficients after enthalpy (for dependency of coeff on porosity)
@@ -212,7 +223,7 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
     ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,ii+1,&slot_c[ii]); CHKERRQ(ierr);
   }
   
-  ierr = EnthalpyPackCtx_InitDM(dm,coordx,coordz,&pack);CHKERRQ(ierr);
+  ierr = EnthalpyPackCtx_InitDM(dm,fd->dm_btype0,fd->dm_btype1,coordx,coordz,&pack);CHKERRQ(ierr);
   ierr = EnthalpyPackCtx_InitState(thm,thm_prev,cff,cff_prev,en,&pack);CHKERRQ(ierr);
 
   for (j = sz; j<sz+nz; j++) {
@@ -237,7 +248,7 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
     ierr = en->form_user_bc(dm,x,ff,en->user_context);CHKERRQ(ierr);
   }
   PetscTime(&tlog[8]);
-  ierr = DMStagBCListApply_Enthalpy(dm,xlocal,bclist->bc_e,bclist->nbc_element,ff);CHKERRQ(ierr);
+  ierr = DMStagBCListApply_Enthalpy(dm,xlocal,bclist->bc_e,bclist->nbc_element,ff,pack);CHKERRQ(ierr);
   PetscTime(&tlog[9]);
 
   // Restore arrays, local vectors
@@ -261,7 +272,6 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   // Map local to global
   ierr = DMLocalToGlobalBegin(dm,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dm,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
-  // ierr = VecView(f,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   ierr = VecDestroy(&flocal); CHKERRQ(ierr);
   PetscTime(&tlog[10]);
@@ -354,13 +364,14 @@ ApplyEnthalpyMethod - apply enthalpy method during each solver iteration; it col
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmP, Vec Plocal,EnthalpyData *en,ThermoState *thm, const char prefix[])
+PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmP, Vec Plocal,DMBoundaryType dm_btype0,DMBoundaryType dm_btype1,EnthalpyData *en,ThermoState *thm, const char prefix[])
 {
   PetscInt       ii,i,j,sx,sz,nx,nz,idx,nreports, gnreports;
   PetscInt       Nx, Nz;
   PetscScalar    H,C[MAX_COMPONENTS],P,phi,T,TP,CS[MAX_COMPONENTS],CF[MAX_COMPONENTS];
   PetscBool      passed = PETSC_TRUE;
   PetscMPIInt    rank;
+  PetscBool      flgx = PETSC_FALSE, flgz=PETSC_FALSE;
   PetscErrorCode ierr;
   
   PetscInt       dof0,dof1,dof2,*dm_slot,dmP_slot;
@@ -384,10 +395,15 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmP, Vec Plocal
   }
   ierr = DMStagGetLocationSlot(dmP,DMSTAG_ELEMENT,0,&dmP_slot); CHKERRQ(ierr);
   
+  if (dm_btype0==DM_BOUNDARY_PERIODIC) flgx = PETSC_TRUE;
+  if (dm_btype1==DM_BOUNDARY_PERIODIC) flgz = PETSC_TRUE;
+
   // compute ghosted enthalpy data
   for (j = sz-2; j<sz+nz+2; j++) {
     for (i = sx-2; i<sx+nx+2; i++) {
-      if ((i>=0) && (j>=0) && (i<Nx) && (j<Nz)) {
+      PetscBool flg;
+      flg = ghost_point_enthalpy(flgx,flgz,i,j,Nx,Nz);
+      if (flg) {
         EnthEvalErrorCode thermo_dyn_error_code = 0;
         
         H = 0.0; phi = 0.0; T = 0.0; P = 0.0; TP = 0.0;
@@ -624,15 +640,19 @@ PetscErrorCode EnthalpySteadyStateOperator_pack(EnthalpyPackCtx *pack,AdvectSche
   idx[7] = SingleDimIndex(i  -sx+2,j-2-sz+2,nz+4); // SS
   idx[8] = SingleDimIndex(i  -sx+2,j+2-sz+2,nz+4); // NN
   
-  if (i == 1) idx[5] = idx[2];
-  if (j == 1) idx[7] = idx[4];
-  if (i == Nx-2) idx[6] = idx[1];
-  if (j == Nz-2) idx[8] = idx[3];
-  
-  if (i == 0) { idx[1] = idx[0]; idx[5] = idx[2]; }
-  if (j == 0) { idx[3] = idx[0]; idx[7] = idx[4]; }
-  if (i == Nx-1) { idx[2] = idx[0]; idx[6] = idx[1]; }
-  if (j == Nz-1) { idx[4] = idx[0]; idx[8] = idx[3]; }
+  if (pack->dm_btype0!=DM_BOUNDARY_PERIODIC) {
+    if (i == 1   ) idx[5] = idx[2];
+    if (i == Nx-2) idx[6] = idx[1];
+    if (i == 0   ) { idx[1] = idx[0]; idx[5] = idx[2]; }
+    if (i == Nx-1) { idx[2] = idx[0]; idx[6] = idx[1]; }
+  }
+
+  if (pack->dm_btype1!=DM_BOUNDARY_PERIODIC) {
+    if (j == 1   ) idx[7] = idx[4];
+    if (j == Nz-2) idx[8] = idx[3];
+    if (j == 0   ) { idx[3] = idx[0]; idx[7] = idx[4]; }
+    if (j == Nz-1) { idx[4] = idx[0]; idx[8] = idx[3]; }
+  }
   
   for (ii = 0; ii<9; ii++) {
     xxTP[ii] = thm[idx[ii]].TP;
@@ -777,15 +797,19 @@ PetscErrorCode BulkCompositionSteadyStateOperator_pack(EnthalpyPackCtx *pack,Adv
   idx[7] = SingleDimIndex(i  -sx+2,j-2-sz+2,nz+4); // SS
   idx[8] = SingleDimIndex(i  -sx+2,j+2-sz+2,nz+4); // NN
   
-  if (i == 1) idx[5] = idx[2];
-  if (j == 1) idx[7] = idx[4];
-  if (i == Nx-2) idx[6] = idx[1];
-  if (j == Nz-2) idx[8] = idx[3];
-  
-  if (i == 0) { idx[1] = idx[0]; idx[5] = idx[2]; }
-  if (j == 0) { idx[3] = idx[0]; idx[7] = idx[4]; }
-  if (i == Nx-1) { idx[2] = idx[0]; idx[6] = idx[1]; }
-  if (j == Nz-1) { idx[4] = idx[0]; idx[8] = idx[3]; }
+  if (pack->dm_btype0!=DM_BOUNDARY_PERIODIC) {
+    if (i == 1   ) idx[5] = idx[2];
+    if (i == Nx-2) idx[6] = idx[1];
+    if (i == 0   ) { idx[1] = idx[0]; idx[5] = idx[2]; }
+    if (i == Nx-1) { idx[2] = idx[0]; idx[6] = idx[1]; }
+  }
+
+  if (pack->dm_btype1!=DM_BOUNDARY_PERIODIC) {
+    if (j == 1   ) idx[7] = idx[4];
+    if (j == Nz-2) idx[8] = idx[3];
+    if (j == 0   ) { idx[3] = idx[0]; idx[7] = idx[4]; }
+    if (j == Nz-1) { idx[4] = idx[0]; idx[8] = idx[3]; }
+  }
   
   // Get local data
   for (ii = 0; ii<9; ii++) {
@@ -861,12 +885,12 @@ DMStagBCListApply_Enthalpy - function to apply boundary conditions for ENTHALPY 
 Use: internal
 @*/
 // ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "DMStagBCListApply_Enthalpy"
-PetscErrorCode DMStagBCListApply_Enthalpy(DM dm, Vec xlocal,DMStagBC *bclist, PetscInt nbc, PetscScalar ***ff)
+// #undef __FUNCT__
+// #define __FUNCT__ "DMStagBCListApply_Enthalpy"
+PetscErrorCode DMStagBCListApply_Enthalpy(DM dm, Vec xlocal,DMStagBC *bclist, PetscInt nbc, PetscScalar ***ff,EnthalpyPackCtx pack)
 {
   PetscScalar    xx, fval;
-  PetscInt       i, j, ibc, idx;
+  PetscInt       i, j, ii, ibc, idx;
   PetscScalar    ***_xlocal;
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
@@ -875,6 +899,23 @@ PetscErrorCode DMStagBCListApply_Enthalpy(DM dm, Vec xlocal,DMStagBC *bclist, Pe
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
+    if (bclist[ibc].type == BC_PERIODIC) { // normal stencil for i,j - should come before other BCs are set
+      i   = bclist[ibc].point.i;
+      j   = bclist[ibc].point.j;
+      idx = bclist[ibc].idx;
+
+      if (bclist[ibc].point.c==0) {
+        ierr = EnthalpyPackCtx_Init_IJ(i,j,-1,&pack);CHKERRQ(ierr);
+        ierr = EnthalpyResidual_pack(&pack,&fval); CHKERRQ(ierr);
+        ff[j][i][idx] = fval;
+      } else {
+        ii = bclist[ibc].point.c - 1;
+        ierr = EnthalpyPackCtx_Init_IJ(i,j,ii,&pack);CHKERRQ(ierr);
+        ierr = BulkCompositionResidual_pack(&pack,&fval); CHKERRQ(ierr);
+        ff[j][i][idx] = fval;
+      }
+    }
+
     if (bclist[ibc].type == BC_DIRICHLET) {
       i   = bclist[ibc].point.i;
       j   = bclist[ibc].point.j;
@@ -894,6 +935,7 @@ PetscErrorCode DMStagBCListApply_Enthalpy(DM dm, Vec xlocal,DMStagBC *bclist, Pe
         SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Non-zero BC type NEUMANN for FDPDE_ENTHALPY [ELEMENT] is not yet implemented.");
       }
     }
+
   }
 
   ierr = DMStagVecRestoreArrayRead(dm,xlocal,&_xlocal);CHKERRQ(ierr);
