@@ -454,7 +454,7 @@ PetscErrorCode FDPDEEnthalpyComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
   EnthalpyData   *en;
   PetscScalar    domain_dt, global_dt, eps, dx, dz, cell_dt, cell_dt_x, cell_dt_z;
   PetscInt       iprev=-1, inext=-1;
-  PetscInt       i, j, sx, sz, nx, nz, vs_slot[4], vf_slot[4];
+  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, vs_slot[4], vf_slot[4];
   PetscScalar    **coordx, **coordz, ***_coeff;
   DM             dmcoeff;
   Vec            coefflocal;
@@ -477,6 +477,7 @@ PetscErrorCode FDPDEEnthalpyComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
   domain_dt = 1.0e32;
   eps = 1.0e-32; /* small shift to avoid dividing by zero */
 
+  ierr = DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL);CHKERRQ(ierr);
   ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
   ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_LEFT,&iprev);CHKERRQ(ierr); 
@@ -510,6 +511,9 @@ PetscErrorCode FDPDEEnthalpyComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
 
       dx = coordx[i][inext]-coordx[i][iprev];
       dz = coordz[j][inext]-coordz[j][iprev];
+
+      if ((fd->dm_btype0==DM_BOUNDARY_PERIODIC) & (i == Nx-1)) dx = coordx[i-1][inext]-coordx[i-1][iprev];
+      if ((fd->dm_btype1==DM_BOUNDARY_PERIODIC) & (j == Nz-1)) dz = coordz[j-1][inext]-coordz[j-1][iprev];
 
       // compute dx, dy for this cell
       cell_dt_x = dx / PetscMax(vx_max, eps);
