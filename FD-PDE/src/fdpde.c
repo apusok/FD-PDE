@@ -83,6 +83,9 @@ PetscErrorCode FDPDECreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
 
   fd->type = type;
 
+  fd->dm_btype0 = DM_BOUNDARY_NONE;
+  fd->dm_btype1 = DM_BOUNDARY_NONE;
+
   ierr = PetscMalloc1(1,&ops);CHKERRQ(ierr);
   ierr = PetscMemzero(ops, sizeof(struct _FDPDEOps)); CHKERRQ(ierr);
   fd->ops = ops;
@@ -177,7 +180,7 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
 
   // Create dms and vector - specific to FD-PDE
   PetscInt stencil_width = 2;
-  ierr = DMStagCreate2d(fd->comm, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, fd->Nx, fd->Nz, 
+  ierr = DMStagCreate2d(fd->comm, fd->dm_btype0, fd->dm_btype1, fd->Nx, fd->Nz, 
             PETSC_DECIDE, PETSC_DECIDE, fd->dof0, fd->dof1, fd->dof2, 
             DMSTAG_STENCIL_BOX, stencil_width, NULL,NULL, &fd->dmstag); CHKERRQ(ierr);
   ierr = DMSetFromOptions(fd->dmstag); CHKERRQ(ierr);
@@ -1182,5 +1185,27 @@ PetscErrorCode FDPDESetLinearPreallocatorStencil(FDPDE fd, PetscBool flg)
   if (fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDESetLinearPreallocatorStencil() before FDPDESetUp()");
   if (fd->type == FDPDE_ADVDIFF) PetscPrintf(PETSC_COMM_WORLD,"WARNING: This routine has no effect for FD-PDE Type = ADVDIFF! Only linear preallocator implemented.\n");
   fd->linearsolve = flg;
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+FDPDESetDMBoundaryType() - Set DMBoundaryType other than DM_BOUNDARY_NONE
+Options: 
+  DM_BOUNDARY_NONE, DM_BOUNDARY_GHOSTED, DM_BOUNDARY_MIRROR, DM_BOUNDARY_PERIODIC, DM_BOUNDARY_TWIST
+Warning: not all are implemented! 
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDESetDMBoundaryType"
+PetscErrorCode FDPDESetDMBoundaryType(FDPDE fd, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1)
+{
+  PetscFunctionBegin;
+  if (fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDESetDMBoundaryType() before FDPDESetUp()");
+  if (dm_btype0) fd->dm_btype0 = dm_btype0;
+  if (dm_btype1) fd->dm_btype1 = dm_btype1;
+
   PetscFunctionReturn(0);
 }
