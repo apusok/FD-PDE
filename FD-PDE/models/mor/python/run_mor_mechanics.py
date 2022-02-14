@@ -280,7 +280,7 @@ def plot_solution(fname,istep,data_PV,data_phi,data_xF,phi0):
   if (istep>-1):
     Qf = ax1.quiver( xc[iind::nind], zc[iind::nind], vfxc[iind::nind,iind::nind], vfzc[iind::nind,iind::nind], 
     color='w', units='width', pivot='mid', width=0.002, headaxislength=3)
-  ax1.axis(aspect='image')
+  ax1.axis('image')
   ax1.set_xlabel('x/h')
   ax1.set_ylabel('z/h')
 
@@ -321,8 +321,8 @@ zeta = 1e20 # bulk viscosity [Pa.s]
 phi0 = 0.01
 
 # Solver options
-pv_solver  = ' -pv_pc_type lu -pv_pc_factor_mat_solver_type umfpack -pv_snes_monitor_true_residual -pv_ksp_monitor_true_residual -pv_snes_converged_reason -pv_ksp_converged_reason'
-phi_solver = ' -phi_pc_type lu -phi_pc_factor_mat_solver_type umfpack -phi_snes_monitor_true_residual -phi_ksp_monitor_true_residual -phi_snes_converged_reason -phi_ksp_converged_reason'
+pv_solver  = ' -pv_pc_type lu -pv_pc_factor_mat_solver_type umfpack -pv_pc_factor_mat_ordering_type external -pv_snes_monitor_true_residual -pv_ksp_monitor_true_residual -pv_snes_converged_reason -pv_ksp_converged_reason'
+phi_solver = ' -phi_pc_type lu -phi_pc_factor_mat_solver_type umfpack -phi_pc_factor_mat_ordering_type external -phi_snes_monitor_true_residual -phi_ksp_monitor_true_residual -phi_snes_converged_reason -phi_ksp_converged_reason'
 
 # Run test
 str1 = '../mor_mechanics.app'+pv_solver+phi_solver+ \

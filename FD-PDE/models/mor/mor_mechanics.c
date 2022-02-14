@@ -1,7 +1,7 @@
 // ---------------------------------------
 // Mid-ocean ridge model solving for mechanics (conservation of mass and momentum)
 // Solves for coupled (P, v) and Q=(1-phi) evolution, where P-dynamic pressure, v-solid velocity, phi-porosity.
-// run: ./mor_mechanics.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 20 -nz 20 -snes_monitor 
+// run: ./mor_mechanics.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 20 -nz 20 -snes_monitor 
 // python output: ./python/mor_mechanics_plot_X.py
 // ---------------------------------------
 static char help[] = "Mid-ocean ridge model solving for mechanics\n\n";
