@@ -4,7 +4,7 @@
 // Example 3.1.2 - Zero source term, variable vertical wind, characteristic boundary layers (Neumann BC).
 // Example 3.1.3 - Zero source term, constant wind at a 30◦ angle to the left of vertical, downstream boundary layer and interior layer.
 // Example 3.1.4 - Zero source term, recirculating wind, characteristic boundary layers.
-// run: ./tests/test_advdiff_elman.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// run: ./tests/test_advdiff_elman.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
 // python test: ./tests/python/test_advdiff_elman.py
 // ---------------------------------------
 static char help[] = "Application (examples from Elman 2005) to solve the convection diffusion equation (ADVDIFF) with FD-PDE \n\n";
@@ -37,6 +37,7 @@ typedef struct {
   PetscScalar    k, rho, cp, ux, uz;
   char           fname_out[FNAME_LENGTH]; 
   char           fname_in [FNAME_LENGTH];  
+  char           fdir_out[FNAME_LENGTH]; 
 } Params;
 
 // user defined and model-dependent variables
@@ -138,6 +139,7 @@ PetscErrorCode Numerical_Elman311(DM *_dm, Vec *_x, void *ctx)
   Vec            x;
   PetscInt       nx, nz;
   PetscScalar    dx, dz,xmin, zmin, xmax, zmax;
+  char           fout[FNAME_LENGTH];
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -182,7 +184,8 @@ PetscErrorCode Numerical_Elman311(DM *_dm, Vec *_x, void *ctx)
   ierr = FDPDEGetDM(fd, &dm); CHKERRQ(ierr);
 
   // Output solution to file
-  ierr = DMStagViewBinaryPython(dm,x,usr->par->fname_out);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s",usr->par->fdir_out,usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
 
   // Destroy FD-PDE object
   ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
@@ -206,6 +209,7 @@ PetscErrorCode Numerical_Elman312(DM *_dm, Vec *_x, void *ctx)
   Vec            x;
   PetscInt       nx, nz;
   PetscScalar    dx, dz,xmin, zmin, xmax, zmax;
+  char           fout[FNAME_LENGTH];
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -246,7 +250,8 @@ PetscErrorCode Numerical_Elman312(DM *_dm, Vec *_x, void *ctx)
   ierr = FDPDEGetDM(fd, &dm); CHKERRQ(ierr);
 
   // Output solution to file
-  ierr = DMStagViewBinaryPython(dm,x,"out_num_solution_elman312");CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s",usr->par->fdir_out,"out_num_solution_elman312");
+  ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
 
   // Destroy FD-PDE object
   ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
@@ -270,6 +275,7 @@ PetscErrorCode Numerical_Elman313(DM *_dm, Vec *_x, void *ctx)
   Vec            x;
   PetscInt       nx, nz;
   PetscScalar    dx, dz,xmin, zmin, xmax, zmax;
+  char           fout[FNAME_LENGTH];
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -310,7 +316,8 @@ PetscErrorCode Numerical_Elman313(DM *_dm, Vec *_x, void *ctx)
   ierr = FDPDEGetDM(fd, &dm); CHKERRQ(ierr);
 
   // Output solution to file
-  ierr = DMStagViewBinaryPython(dm,x,"out_num_solution_elman313");CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s",usr->par->fdir_out,"out_num_solution_elman313");
+  ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
 
   // Destroy FD-PDE object
   ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
@@ -334,6 +341,7 @@ PetscErrorCode Numerical_Elman314(DM *_dm, Vec *_x, void *ctx)
   Vec            x;
   PetscInt       nx, nz;
   PetscScalar    dx, dz,xmin, zmin, xmax, zmax;
+  char           fout[FNAME_LENGTH];
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -373,7 +381,8 @@ PetscErrorCode Numerical_Elman314(DM *_dm, Vec *_x, void *ctx)
   ierr = FDPDEGetDM(fd, &dm); CHKERRQ(ierr);
 
   // Output solution to file
-  ierr = DMStagViewBinaryPython(dm,x,"out_num_solution_elman314");CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s",usr->par->fdir_out,"out_num_solution_elman314");
+  ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
 
   // Destroy FD-PDE object
   ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
@@ -1007,6 +1016,7 @@ PetscErrorCode Analytic_Elman311(DM dm,Vec *_x, void *ctx)
   PetscScalar    ***xx, k;
   PetscScalar    **coordx,**coordz;
   Vec            x, xlocal;
+  char           fout[FNAME_LENGTH];
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -1052,7 +1062,8 @@ PetscErrorCode Analytic_Elman311(DM dm,Vec *_x, void *ctx)
 
   ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
 
-  ierr = DMStagViewBinaryPython(dm,x,"out_analytic_solution_elman311");CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s",usr->par->fdir_out,"out_analytic_solution_elman311");
+  ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
 
   // Assign pointers
   *_x  = x;
@@ -1110,6 +1121,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   // Input/output 
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_num_solution_elman311","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterString(bag,&par->fdir_out,FNAME_LENGTH,"./","output_dir","Name for output directory, set with: -output_dir <dirname>"); CHKERRQ(ierr);
 
   // Other variables
   par->fname_in[0] = '\0';

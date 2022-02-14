@@ -1,14 +1,14 @@
 // ---------------------------------------
-// Mantle convection benchmark (Blankenbach et al. 1989)
+// Mantle convection benchmark (Blankenbach et al. 1989, Gerya, 2009)
 // Steady-state models:
 //    1A - eta0=1e23, b=0, c=0, Ra = 1e4
 //    1B - eta0=1e22, b=0, c=0, Ra = 1e5
 //    1C - eta0=1e21, b=0, c=0, Ra = 1e6
 //    2A - eta0=1e23, b=ln(1000), c=0, Ra0 = 1e4
 //    2B - eta0=1e23, b=ln(16384), c=ln(64), L=2500, Ra0 = 1e4
-// Time-dependent models:
+// Time-dependent models (not tested):
 //    3A - eta0=1e23, b=0, c=0, L=1500, Ra = 216000
-// run: ./tests/test_decoupled_convection.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// run: ./tests/test_decoupled_convection.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
 // python test: ./tests/python/test_decoupled_convection.py
 //
 // NON-DIMENSIONLESS FORM as in Moresi and Solomatov (1995) - decoupled PV-T
@@ -36,18 +36,21 @@ static char help[] = "Application to solve the mantle convection benchmark (Blan
 // Application Context
 // ---------------------------------------
 #define FNAME_LENGTH 200
+#define SEC_YEAR     31536000 //3600.00*24.00*365.00
 
 // parameters (bag)
 typedef struct {
   PetscInt       nx, nz;
-  PetscScalar    L, H;
+  PetscScalar    L, H, nd_L, nd_H;
+  PetscScalar    scal_h, scal_v, scal_t; 
   PetscScalar    xmin, zmin, xmax, zmax;
-  PetscScalar    Ttop, Tbot;
-  PetscScalar    b, c, Ra, dT;
-  PetscInt       ts_scheme, adv_scheme, test, tout, tstep;
-  PetscScalar    t, dt, tmax, dtmax;
+  PetscScalar    g, Ttop, Tbot, k, cp, rho0, eta0, b, c, alpha, DT;
+  PetscScalar    Ra, kappa, nd_Ttop, nd_Tbot;
+  PetscInt       ts_scheme, adv_scheme, test, tout, tstep, boussinesq;
+  PetscScalar    t, dt, tprev, tmax, dtmax, nd_tmax, nd_dtmax;
   char           fname_out[FNAME_LENGTH]; 
   char           fname_in [FNAME_LENGTH];  
+  char           fdir_out[FNAME_LENGTH]; 
 } Params;
 
 // user defined and model-dependent variables
@@ -71,7 +74,6 @@ PetscErrorCode FormBCList_Stokes(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormCoefficient_Temp(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList_Temp(DM, Vec, DMStagBCList, void*);
 PetscErrorCode SetInitialTempProfile(DM,Vec,void*);
-PetscErrorCode SetInitialTempCoefficient(DM,Vec,DM,Vec,void*);
 PetscErrorCode MantleConvectionDiagnostics(DM,Vec,DM,Vec,void*);
 
 // ---------------------------------------
@@ -79,12 +81,16 @@ PetscErrorCode MantleConvectionDiagnostics(DM,Vec,DM,Vec,void*);
 // ---------------------------------------
 const char coeff_description_stokes[] =
 "  << Stokes Coefficients (dimensionless) >> \n"
-"  eta_n/eta_c = eta_eff \n"
-"  fux = 0 \n" 
-"  fuz = -Ra*T \n"
-"  fp = 0 (incompressible)\n"
-"  where:\n"
-"  eta_eff = eta0/eta0*PetscExpScalar( -b*(T-Ttop)/(Tbot-Ttop) + c*z/H ) \n";
+"  A =  eta_eff, eta_eff = PetscExpScalar( -b*T + c*(1-z) ) \n"
+"  B = -Ra*T*k, k-unit vector \n" 
+"  C = 0 (incompressible)\n";
+
+const char coeff_description_temp[] =
+"  << Temperature Coefficients (dimensionless) >> \n"
+"  A = rho_eff, rho_eff = 1-alpha*DT*T (element)\n"
+"  B = 1.0 (edge)\n"
+"  C = 0 (element)\n"
+"  u = [ux, uz] (edge) - Stokes velocity \n";
 
 const char bc_description_stokes[] =
 "  << Stokes BCs >> \n"
@@ -93,22 +99,24 @@ const char bc_description_stokes[] =
 "  DOWN: Vz = 0, dVx/dz = 0 (free slip) \n" 
 "  UP: Vz = 0, dVx/dz = 0 (free slip) \n";
 
-const char coeff_description_temp[] =
-"  << Temperature Coefficients (dimensionless) >> \n"
-"  A = 1.0 (element)\n"
-"  B = 1.0 (edge)\n"
-"  C = 0 (element)\n"
-"  u = [ux, uz] (edge) - Stokes velocity \n";
-
 const char bc_description_temp[] =
-"  << Temperature BCs >> \n"
+"  << Temperature BCs (dimensionless)>> \n"
 "  LEFT: dT/dx = 0\n"
 "  RIGHT: dT/dx = 0\n" 
-"  DOWN: T = Tbot\n" 
-"  UP: T = Ttop \n";
+"  DOWN: T = 1 (Tbot)\n" 
+"  UP: T = 0 (Ttop) \n";
 
-static PetscScalar EffectiveViscosity(PetscScalar T, PetscScalar Ttop, PetscScalar Tbot, PetscScalar b, PetscScalar c, PetscScalar H, PetscScalar z)
-{ return PetscExpScalar( -b*(T-Ttop)/(Tbot-Ttop) + c*z/H ); }
+static PetscScalar EffectiveViscosity(PetscScalar T, PetscScalar z, PetscScalar b, PetscScalar c)
+{ return PetscExpScalar( -b*T + c*(1.0-z) ); }
+
+static PetscScalar EffectiveDensity(PetscScalar T, PetscScalar alpha, PetscScalar DT)
+{ return 1.0-alpha*DT*T; }
+
+static PetscScalar EffectiveDensity_Boussinesq(PetscScalar T, PetscScalar alpha, PetscScalar DT)
+{ return 1.0; }
+
+static PetscScalar scal_dim(PetscScalar X, PetscScalar scal)
+{ return X*scal; }
 
 // ---------------------------------------
 // Application functions
@@ -120,7 +128,7 @@ PetscErrorCode Numerical_convection(void *ctx)
   UsrData       *usr = (UsrData*) ctx;
   FDPDE          fdtemp, fdstokes;
   DM             dmPV, dmT, dmTcoeff;
-  Vec            xPV, xT, xTprev, Tcoeff, Tcoeffprev;
+  Vec            xPV, xT, xTprev, xTguess,Tcoeff, Tcoeffprev;
   PetscInt       nx, nz, istep = 0;
   PetscScalar    xmin, zmin, xmax, zmax, dt_damp;
   char           fout[FNAME_LENGTH];
@@ -141,6 +149,7 @@ PetscErrorCode Numerical_convection(void *ctx)
 
   // Create the sub FD-pde objects
   // 1. Stokes
+  PetscPrintf(PETSC_COMM_WORLD,"# Set FD-PDE Stokes for pressure-velocity\n");
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKES,&fdstokes);CHKERRQ(ierr);
   ierr = FDPDESetUp(fdstokes);CHKERRQ(ierr);
   ierr = FDPDESetFunctionBCList(fdstokes,FormBCList_Stokes,bc_description_stokes,NULL); CHKERRQ(ierr);
@@ -148,13 +157,13 @@ PetscErrorCode Numerical_convection(void *ctx)
   ierr = SNESSetFromOptions(fdstokes->snes); CHKERRQ(ierr);
 
   // 2. Temperature (Advection-diffusion)
+  PetscPrintf(PETSC_COMM_WORLD,"# Set FD-PDE AdvDiff for temperature\n");
   ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ADVDIFF,&fdtemp);CHKERRQ(ierr);
   ierr = FDPDESetUp(fdtemp);CHKERRQ(ierr);
 
   if (usr->par->adv_scheme==0) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fdtemp,ADV_UPWIND);CHKERRQ(ierr); }
   if (usr->par->adv_scheme==1) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fdtemp,ADV_FROMM);CHKERRQ(ierr); }
-  
-  // Set timestep and time-stepping scheme
+
   if (usr->par->ts_scheme ==  0) { ierr = FDPDEAdvDiffSetTimeStepSchemeType(fdtemp,TS_FORWARD_EULER);CHKERRQ(ierr); }
   if (usr->par->ts_scheme ==  1) { ierr = FDPDEAdvDiffSetTimeStepSchemeType(fdtemp,TS_BACKWARD_EULER);CHKERRQ(ierr); }
   if (usr->par->ts_scheme ==  2) { ierr = FDPDEAdvDiffSetTimeStepSchemeType(fdtemp,TS_CRANK_NICHOLSON );CHKERRQ(ierr);}
@@ -177,38 +186,54 @@ PetscErrorCode Numerical_convection(void *ctx)
   ierr = VecDestroy(&xPV);CHKERRQ(ierr);
 
   // Set initial temperature profile into xT, Tcoeff
+  PetscPrintf(PETSC_COMM_WORLD,"# Set initial temperature profile\n");
   ierr = FDPDEAdvDiffGetPrevSolution(fdtemp,&xTprev);CHKERRQ(ierr);
   ierr = SetInitialTempProfile(dmT,xTprev,usr);CHKERRQ(ierr);
   ierr = VecCopy(xTprev,usr->xTprev);CHKERRQ(ierr);
 
+  // Initialize guess with previous solution 
+  ierr = FDPDEGetSolutionGuess(fdtemp,&xTguess);CHKERRQ(ierr);
+  ierr = VecCopy(xTprev,xTguess);CHKERRQ(ierr);
+  ierr = VecDestroy(&xTguess);CHKERRQ(ierr);
+
+  // Solve Stokes to calculate velocities
+  PetscPrintf(PETSC_COMM_WORLD,"# Set initial PV profile\n");
+  ierr = FDPDESolve(fdstokes,NULL);CHKERRQ(ierr);
+  ierr = FDPDEGetSolution(fdstokes,&xPV);CHKERRQ(ierr);
+  ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
+  ierr = VecDestroy(&xPV);CHKERRQ(ierr);
+
   ierr = FDPDEGetCoefficient(fdtemp,&dmTcoeff,NULL);CHKERRQ(ierr);
   ierr = FDPDEAdvDiffGetPrevCoefficient(fdtemp,&Tcoeffprev);CHKERRQ(ierr);
-  ierr = SetInitialTempCoefficient(dmT,xTprev,dmTcoeff,Tcoeffprev,usr);CHKERRQ(ierr);
+  ierr = FormCoefficient_Temp(fdtemp,dmT,xTprev,dmTcoeff,Tcoeffprev,usr);CHKERRQ(ierr);
   ierr = VecDestroy(&Tcoeffprev);CHKERRQ(ierr);
   ierr = VecDestroy(&xTprev);CHKERRQ(ierr);
 
   dt_damp = 1.0e-2;
 
   // Time loop
-  while ((usr->par->t <= usr->par->tmax) && (istep<=usr->par->tstep)) {
+  while ((usr->par->t <= usr->par->nd_tmax) && (istep<=usr->par->tstep)) {
+    PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
     PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep);
-
-    // Stokes Solver - use Tprev
-    ierr = FDPDESolve(fdstokes,NULL);CHKERRQ(ierr);
-    ierr = FDPDEGetSolution(fdstokes,&xPV);CHKERRQ(ierr);
-    ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
-
+    PetscPrintf(PETSC_COMM_WORLD,"# Ra: %1.12e\n",usr->par->Ra);
+    
     // Set dt for temperature advection 
     if (istep == 0) { // first timestep
-      usr->par->dt = usr->par->dtmax*dt_damp*dt_damp;
+      usr->par->dt = usr->par->nd_dtmax*dt_damp*dt_damp;
     } else {
       PetscScalar dt;
       ierr = FDPDEAdvDiffComputeExplicitTimestep(fdtemp,&dt);CHKERRQ(ierr);
-      usr->par->dt = PetscMin(dt,usr->par->dtmax);
+      usr->par->dt = PetscMin(dt,usr->par->nd_dtmax);
     }
+    // usr->par->dt = usr->par->dtmax;
     ierr = FDPDEAdvDiffSetTimestep(fdtemp,usr->par->dt);CHKERRQ(ierr);
 
+    // Update time
+    usr->par->tprev = usr->par->t;
+    usr->par->t    += usr->par->dt;
+
     // Temperature Solver
+    PetscPrintf(PETSC_COMM_WORLD,"# Temperature Solver: \n");
     converged = PETSC_FALSE;
     while (!converged) {
       ierr = FDPDESolve(fdtemp,&converged);CHKERRQ(ierr);
@@ -219,13 +244,6 @@ PetscErrorCode Numerical_convection(void *ctx)
     }
 
     ierr = FDPDEGetSolution(fdtemp,&xT);CHKERRQ(ierr);
-
-    // Update time
-    usr->par->t += usr->par->dt;
-    PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e dt = %1.12e \n",usr->par->t,usr->par->dt);
-
-    // Calculate diagnostics
-    ierr = MantleConvectionDiagnostics(dmPV,xPV,dmT,xT,usr); CHKERRQ(ierr);
 
     // Temperature: copy new solution and coefficient to old
     ierr = FDPDEAdvDiffGetPrevSolution(fdtemp,&xTprev);CHKERRQ(ierr);
@@ -238,11 +256,20 @@ PetscErrorCode Numerical_convection(void *ctx)
     ierr = VecCopy(Tcoeff,Tcoeffprev);CHKERRQ(ierr);
     ierr = VecDestroy(&Tcoeffprev);CHKERRQ(ierr);
 
+    // Stokes Solver - use Tprev
+    PetscPrintf(PETSC_COMM_WORLD,"# Stokes Solver: \n");
+    ierr = FDPDESolve(fdstokes,NULL);CHKERRQ(ierr);
+    ierr = FDPDEGetSolution(fdstokes,&xPV);CHKERRQ(ierr);
+    ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
+
+    // Calculate diagnostics
+    ierr = MantleConvectionDiagnostics(dmPV,xPV,dmT,xT,usr); CHKERRQ(ierr);
+
     // Output solution
     if (istep % usr->par->tout == 0 ) {
-      ierr = PetscSNPrintf(fout,sizeof(fout),"%s_PV_m%d_ts%1.3d",usr->par->fname_out,usr->par->ts_scheme,istep);
+      ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_PV_m%d_ts%1.3d",usr->par->fdir_out,usr->par->fname_out,usr->par->ts_scheme,istep);
       ierr = DMStagViewBinaryPython(dmPV,xPV,fout);CHKERRQ(ierr);
-      ierr = PetscSNPrintf(fout,sizeof(fout),"%s_T_m%d_ts%1.3d",usr->par->fname_out,usr->par->ts_scheme,istep);
+      ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_T_m%d_ts%1.3d",usr->par->fdir_out,usr->par->fname_out,usr->par->ts_scheme,istep);
       ierr = DMStagViewBinaryPython(dmT,xT,fout);CHKERRQ(ierr);
     }
 
@@ -252,6 +279,8 @@ PetscErrorCode Numerical_convection(void *ctx)
 
     // increment timestep
     istep++;
+
+    PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e dt = %1.12e tmax = %1.12e\n",usr->par->t,usr->par->dt,usr->par->nd_tmax);
   }
 
   ierr = DMDestroy(&dmPV); CHKERRQ(ierr);
@@ -311,7 +340,7 @@ PetscErrorCode MantleConvectionDiagnostics(DM dmPV, Vec xPV, DM dmT, Vec xT, voi
   ierr = DMGetLocalVector(dmT,&xTlocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dmT,xT,INSERT_VALUES,xTlocal); CHKERRQ(ierr);
 
-  // 1. Nusselt number 
+  // 1. Nusselt number = surface mean flux/mean bottom temp, using nondimensional parameters
   j = sz; 
   if (j==0) { // bottom mean temperature
     for (i = sx; i<sx+nx; i++) {
@@ -340,10 +369,10 @@ PetscErrorCode MantleConvectionDiagnostics(DM dmPV, Vec xPV, DM dmT, Vec xT, voi
   ierr = MPI_Allreduce(&lT, &gT, 2, MPI_DOUBLE, MPI_SUM, usr->comm); CHKERRQ(ierr);
 
   // Nusselt number
-  Nu = -H*gT[1]/gT[0];
+  Nu = -gT[1]/gT[0];
   PetscPrintf(usr->comm,"# Nusselt number: Nu = %1.12e \n",Nu);
 
-  // 2. Root-mean-square velocity (vrms)
+  // 2. Root-mean-square velocity (vrms) - using dimensional params
   lvrms = 0.0;
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
@@ -356,15 +385,15 @@ PetscErrorCode MantleConvectionDiagnostics(DM dmPV, Vec xPV, DM dmT, Vec xT, voi
       point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 0;
       ierr = DMStagVecGetValuesStencil(dmPV,xPVlocal,4,point,v); CHKERRQ(ierr);
 
-      vx = (v[0]+v[1])*0.5;
-      vz = (v[2]+v[3])*0.5;
-      lvrms += (vx*vx+vz*vz)*dx*dz;
+      vx = scal_dim((v[0]+v[1])*0.5,usr->par->scal_v);
+      vz = scal_dim((v[2]+v[3])*0.5,usr->par->scal_v);
+      lvrms += (vx*vx+vz*vz)*scal_dim(dx,usr->par->scal_h)*scal_dim(dz,usr->par->scal_h);
     }
   }
   ierr = MPI_Allreduce(&lvrms, &gvrms, 1, MPI_DOUBLE, MPI_SUM, usr->comm); CHKERRQ(ierr);
 
   // Vrms
-  vrms = PetscSqrtReal(gvrms/H/L);
+  vrms = H/usr->par->kappa*PetscSqrtReal(gvrms/H/L);
   PetscPrintf(usr->comm,"# Root-mean-squared velocity: vrms = %1.12e \n",vrms);
 
   // Non-dimensional temperature gradients at the corners of the cells
@@ -377,7 +406,7 @@ PetscErrorCode MantleConvectionDiagnostics(DM dmPV, Vec xPV, DM dmT, Vec xT, voi
     point[0].i = i; point[0].j = j  ; point[0].loc = ELEMENT; point[0].c = 0;
     point[1].i = i; point[1].j = j+1; point[1].loc = ELEMENT; point[1].c = 0;
     ierr = DMStagVecGetValuesStencil(dmT,xTlocal,2,point,T); CHKERRQ(ierr);
-    q = -H/usr->par->dT*(T[1]-T[0])/dz;
+    q = -(T[1]-T[0])/dz;
     PetscPrintf(usr->comm,"# Corner flux (down-left): q1 = %1.12e \n",q);
   }
 
@@ -390,7 +419,7 @@ PetscErrorCode MantleConvectionDiagnostics(DM dmPV, Vec xPV, DM dmT, Vec xT, voi
     point[0].i = i; point[0].j = j  ; point[0].loc = ELEMENT; point[0].c = 0;
     point[1].i = i; point[1].j = j-1; point[1].loc = ELEMENT; point[1].c = 0;
     ierr = DMStagVecGetValuesStencil(dmT,xTlocal,2,point,T); CHKERRQ(ierr);
-    q = -H/usr->par->dT*(T[0]-T[1])/dz;
+    q = -(T[0]-T[1])/dz;
     PetscPrintf(usr->comm,"# Corner flux (up-left): q2 = %1.12e \n",q);
   } 
 
@@ -403,7 +432,7 @@ PetscErrorCode MantleConvectionDiagnostics(DM dmPV, Vec xPV, DM dmT, Vec xT, voi
     point[0].i = i; point[0].j = j  ; point[0].loc = ELEMENT; point[0].c = 0;
     point[1].i = i; point[1].j = j+1; point[1].loc = ELEMENT; point[1].c = 0;
     ierr = DMStagVecGetValuesStencil(dmT,xTlocal,2,point,T); CHKERRQ(ierr);
-    q = -H/usr->par->dT*(T[1]-T[0])/dz;
+    q = -(T[1]-T[0])/dz;
     PetscPrintf(usr->comm,"# Corner flux (down-right): q3 = %1.12e \n",q);
   } 
 
@@ -416,7 +445,7 @@ PetscErrorCode MantleConvectionDiagnostics(DM dmPV, Vec xPV, DM dmT, Vec xT, voi
     point[0].i = i; point[0].j = j  ; point[0].loc = ELEMENT; point[0].c = 0;
     point[1].i = i; point[1].j = j-1; point[1].loc = ELEMENT; point[1].c = 0;
     ierr = DMStagVecGetValuesStencil(dmT,xTlocal,2,point,T); CHKERRQ(ierr);
-    q = -H/usr->par->dT*(T[0]-T[1])/dz;
+    q = -(T[0]-T[1])/dz;
     PetscPrintf(usr->comm,"# Corner flux (up-right): q4 = %1.12e \n",q);
   } 
 
@@ -424,8 +453,6 @@ PetscErrorCode MantleConvectionDiagnostics(DM dmPV, Vec xPV, DM dmT, Vec xT, voi
   ierr = DMStagRestoreProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmPV,&xPVlocal); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmT,&xTlocal); CHKERRQ(ierr);
-
-  PetscPrintf(usr->comm,"\n");
 
   PetscFunctionReturn(0);
 }
@@ -447,8 +474,8 @@ PetscErrorCode SetInitialTempProfile(DM dm, Vec x, void *ctx)
   PetscFunctionBegin;
 
   // Parameters
-  Ttop = usr->par->Ttop;
-  Tbot = usr->par->Tbot;
+  Ttop = usr->par->nd_Ttop;
+  Tbot = usr->par->nd_Tbot;
   a = (Ttop-Tbot)/(usr->par->zmax-usr->par->zmin);
   p = 0.05;
 
@@ -492,98 +519,6 @@ PetscErrorCode SetInitialTempProfile(DM dm, Vec x, void *ctx)
 }
 
 // ---------------------------------------
-// SetInitialTempCoefficient
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "SetInitialTempCoefficient"
-PetscErrorCode SetInitialTempCoefficient(DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
-{
-  // UsrData        *usr = (UsrData*)ctx;
-  PetscInt       i, j, sx, sz, nx, nz;
-  Vec            coefflocal;
-  PetscScalar    ***c;
-  Vec            xlocal;
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-
-  // Get solution vector for temperature
-  ierr = DMGetLocalVector(dm,&xlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal); CHKERRQ(ierr);
-
-  // Get domain corners
-  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-
-  // Create coefficient local vector
-  ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
-  
-  // Loop over local domain
-  for (j = sz; j < sz+nz; j++) {
-    for (i = sx; i <sx+nx; i++) {
-
-      { // A = 1.0
-        DMStagStencil point;
-        PetscInt      idx;
-
-        point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 0;
-        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
-        c[j][i][idx] = 1.0;
-      }
-
-      { // C = 0.0 - sources of heat/sink
-        DMStagStencil point;
-        PetscInt      idx;
-
-        point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 1;
-        ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
-        c[j][i][idx] = 0.0;
-      }
-
-      { // B = 1.0 (edge)
-        DMStagStencil point[4];
-        PetscInt      ii, idx;
-
-        point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 0;
-        point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 0;
-        point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 0;
-        point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 0;
-
-        for (ii = 0; ii < 4; ii++) {
-          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, 0, &idx); CHKERRQ(ierr);
-          c[j][i][idx] = 1.0;
-        }
-      }
-
-      { // u = velocity (edge) = 0.0 (initial)
-        DMStagStencil point[4];
-        PetscInt      ii, idx;
-
-        point[0].i = i; point[0].j = j; point[0].loc = LEFT;  point[0].c = 1;
-        point[1].i = i; point[1].j = j; point[1].loc = RIGHT; point[1].c = 1;
-        point[2].i = i; point[2].j = j; point[2].loc = DOWN;  point[2].c = 1;
-        point[3].i = i; point[3].j = j; point[3].loc = UP;    point[3].c = 1;
-
-        for (ii = 0; ii < 4; ii++) {
-          ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, 1, &idx); CHKERRQ(ierr);
-          c[j][i][idx] = 0.0;
-        }
-      }
-    }
-  }
-
-  // Restore arrays, local vectors
-  ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
-  ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
-
-  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
 // FormCoefficient_Stokes
 // ---------------------------------------
 #undef __FUNCT__
@@ -598,18 +533,15 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
   PetscScalar    **coordx,**coordz;
   PetscInt       iprev, inext, icenter;
   PetscScalar    ***cx;
-  PetscScalar    eta, Ttop, Tbot,b,c, H, Ra;
+  PetscScalar    eta,b,c,Ra;
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
 
   // User parameters
-  Ttop  = usr->par->Ttop;
-  Tbot  = usr->par->Tbot;
-  b     = usr->par->b;
-  c     = usr->par->c;
-  H     = usr->par->H;
-  Ra    = usr->par->Ra;
+  b  = usr->par->b;
+  c  = usr->par->c;
+  Ra = usr->par->Ra;
   
   // Get dm and solution vector for Temperature
   dmT = usr->dmT;
@@ -641,7 +573,7 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
 
-      { // fux = 0.0
+      { // Bx = 0.0
         DMStagStencil point[2];
         PetscInt      ii, idx;
 
@@ -654,7 +586,7 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
         }
       }
 
-      { // fuz = -Ra*T - need to interpolate temp to Vz points
+      { // Bz = -Ra*T - need to interpolate temp to Vz points
         PetscScalar   T[3], Tinterp;
         DMStagStencil point[2], pointT[3];
         PetscInt      ii, idx;
@@ -679,7 +611,7 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
         }
       }
 
-      { // fp = 0.0
+      { // C = 0.0
         DMStagStencil point;
         PetscInt      idx;
 
@@ -688,7 +620,7 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
         cx[j][i][idx] = 0.0;
       }
 
-      { // eta_c = eta_eff
+      { // A_center = eta_eff
         PetscScalar   zp, T;
         DMStagStencil point, pointT;
         PetscInt      idx;
@@ -698,13 +630,13 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
         ierr = DMStagVecGetValuesStencil(dmT,xTlocal,1,&pointT,&T); CHKERRQ(ierr);
         
         zp = coordz[j][icenter];
-        eta = EffectiveViscosity(T,Ttop,Tbot,b,c,H,zp);
+        eta = EffectiveViscosity(T,zp,b,c);
 
         ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
         cx[j][i][idx] = eta;
       }
 
-      { // eta_n = eta_eff - need to interpolate Temp at corners
+      { // A_corner = eta_eff - need to interpolate Temp at corners
         DMStagStencil point[4], pointT[9];
         PetscScalar   zp[4], T[9], Tinterp[4];
         PetscInt      ii, idx;
@@ -748,7 +680,7 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
         zp[3] = coordz[j][inext];
 
         for (ii = 0; ii < 4; ii++) {
-          eta = EffectiveViscosity(Tinterp[ii],Ttop,Tbot,b,c,H,zp[ii]);
+          eta = EffectiveViscosity(Tinterp[ii],zp[ii],b,c);
           ierr = DMStagGetLocationSlot(dmcoeff, point[ii].loc, point[ii].c, &idx); CHKERRQ(ierr);
           cx[j][i][idx] = eta;
         }
@@ -777,12 +709,15 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
 #define __FUNCT__ "FormBCList_Stokes"
 PetscErrorCode FormBCList_Stokes(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
+  PetscInt    sx, sz, nx, nz;
   PetscInt    k,n_bc,*idx_bc;
   PetscScalar *value_bc;
   BCType      *type_bc;
   PetscErrorCode ierr;
   
   PetscFunctionBegin;
+
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   
   // dVz/dx=0 on left boundary (w)
   ierr = DMStagBCListGetValues(bclist,'w','|',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -848,6 +783,15 @@ PetscErrorCode FormBCList_Stokes(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
+  // pin pressure
+  // Warning: need to ensure valid boundary on processor
+  if ((sx==0) && (sz==0)) {
+    ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    value_bc[0] = 0.0;
+    type_bc[0] = BC_DIRICHLET_STAG;
+    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  }
+
   PetscFunctionReturn(0);
 }
 
@@ -892,13 +836,19 @@ PetscErrorCode FormCoefficient_Temp(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coef
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
 
-      { // A = 1.0
+      { // A = rho_eff
         DMStagStencil point;
         PetscInt      idx;
+        PetscScalar   T;
 
         point.i = i; point.j = j; point.loc = ELEMENT;  point.c = 0;
+        ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&point,&T); CHKERRQ(ierr);
         ierr = DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx); CHKERRQ(ierr);
-        c[j][i][idx] = 1.0;
+        if (usr->par->boussinesq) {
+          c[j][i][idx] = EffectiveDensity_Boussinesq(T,usr->par->alpha,usr->par->DT);
+        } else {
+          c[j][i][idx] = EffectiveDensity(T,usr->par->alpha,usr->par->DT);
+        }
       }
 
       { // C = 0.0 - sources of heat/sink
@@ -992,7 +942,7 @@ PetscErrorCode FormBCList_Temp(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   // DOWN: T = Tbot (Tij = 2/3*Tbot+1/3*Tij+1)
   ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    value_bc[k] = usr->par->Tbot;
+    value_bc[k] = usr->par->nd_Tbot;
     type_bc[k] = BC_DIRICHLET_STAG;
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -1000,7 +950,7 @@ PetscErrorCode FormBCList_Temp(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   // UP: T = Ttop (Tij = 2/3*Ttop+1/3*Tij-1)
   ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    value_bc[k] = usr->par->Ttop;
+    value_bc[k] = usr->par->nd_Ttop;
     type_bc[k] = BC_DIRICHLET_STAG;
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -1039,16 +989,34 @@ PetscErrorCode InputParameters(UsrData **_usr)
   par = usr->par;
 
   // Initialize domain variables
-  ierr = PetscBagRegisterInt(bag, &par->nx, 4, "nx", "Element count in the x-dir"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->nz, 5, "nz", "Element count in the z-dir"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->nx, 50, "nx", "Element count in the x-dir"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->nz, 50, "nz", "Element count in the z-dir"); CHKERRQ(ierr);
 
   ierr = PetscBagRegisterScalar(bag, &par->xmin, 0.0, "xmin", "Start coordinate of domain in x-dir [m]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->zmin, 0.0, "zmin", "Start coordinate of domain in z-dir [m]"); CHKERRQ(ierr);
 
-  ierr = PetscBagRegisterScalar(bag, &par->L, 1.0, "L", "Length of domain in x-dir [-]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->H, 1.0, "H", "Height of domain in z-dir [-]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->L, 1.0e6, "L", "Length of domain in x-dir [m]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->H, 1.0e6, "H", "Height of domain in z-dir [m]"); CHKERRQ(ierr);
 
-  ierr = PetscBagRegisterInt(bag, &par->test,2, "test", "Test case 0-decoupled nd1, 1-composite nd1, 2-composite nd2"); CHKERRQ(ierr);
+  // ierr = PetscBagRegisterInt(bag, &par->test,2, "test", "Test case 1-nd1, 2-nd2"); CHKERRQ(ierr);
+
+  // Physical and material parameters
+  ierr = PetscBagRegisterScalar(bag, &par->g, 10.0, "g", "Gravitational acceleration [m/s2]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->Ttop, 273.0, "Ttop", "Temperature top [K]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->Tbot, 1273.0, "Tbot", "Temperature bottom [k]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->k, 5.0, "k", "Thermal conductivity [W/m/K]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->cp, 1250.0, "cp", "Heat capacity [J/kg]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->rho0, 4000.0, "rho0", "Reference density [kg/m3]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->alpha, 2.5e-5, "alpha", "Thermal expansion coefficient [1/K]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->eta0, 1.0e23, "eta0", "Reference viscosity [Pa.s]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->b, 0.0, "b", "Effective viscosity parameter b (T-dep) [-]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->c, 0.0, "c", "Effective viscosity parameter c (depth-dep) [-]"); CHKERRQ(ierr);
+
+  par->DT = par->Tbot - par->Ttop;
+  par->kappa = par->k/par->rho0/par->cp;
+  par->Ra = par->rho0*par->alpha*par->DT*par->g*par->H*par->H*par->H/par->eta0/par->kappa;
+
+  ierr = PetscBagRegisterInt(bag, &par->boussinesq,1, "boussinesq", "Boussinesq approximation for energy balance: 0-no, 1-yes"); CHKERRQ(ierr);
 
   // Time stepping and advection
   ierr = PetscBagRegisterInt(bag, &par->ts_scheme,0, "ts_scheme", "Time stepping scheme 0-forward euler, 1-backward euler, 2-crank-nicholson"); CHKERRQ(ierr);
@@ -1056,30 +1024,32 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   ierr = PetscBagRegisterInt(bag, &par->tout,1, "tout", "Output every tout time step"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->tstep,1, "tstep", "Maximum no of time steps"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->tmax, 2.5e-1, "tmax", "Maximum time [-]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->dtmax, 1.0e-3, "dtmax", "Maximum time step size [-]"); CHKERRQ(ierr);
-
-  par->t  = 0.0;
-  par->dt = 0.0;
-
-  // Physical and material parameters
-  ierr = PetscBagRegisterScalar(bag, &par->Ttop, 0.0, "Ttop", "Temperature top [-]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->Tbot, 1.0, "Tbot", "Temperature bottom [-]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->Ra, 1.0e4, "Ra", "Rayleigh number [-]"); CHKERRQ(ierr);
-  
-  ierr = PetscBagRegisterScalar(bag, &par->b, 0.0, "b", "Effective viscosity parameter b (T-dep) [-]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->c, 0.0, "c", "Effective viscosity parameter c (depth-dep) [-]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->tmax, 5000.0, "tmax", "Maximum time [Myr]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->dtmax, 1.0, "dtmax", "Maximum time step size [Myr]"); CHKERRQ(ierr);
 
   // Input/output 
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_convection","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterString(bag,&par->fdir_out,FNAME_LENGTH,"./","output_dir","Name for output directory, set with: -output_dir <dirname>"); CHKERRQ(ierr);
+
+  par->scal_h = par->H;
+  par->scal_v = par->kappa/par->scal_h;
+  par->scal_t = par->scal_h*par->scal_h/par->kappa;
+
+  par->nd_H = par->H/par->scal_h;
+  par->nd_L = par->L/par->scal_h;
+  par->xmax = par->xmin+par->nd_L;
+  par->zmax = par->zmin+par->nd_H;
+  par->nd_Ttop = 0.0; // scaled as (Ttop-Ttop)/DT
+  par->nd_Tbot = 1.0; 
+
+  par->nd_tmax  = par->tmax*1.0e6*SEC_YEAR/par->scal_t;
+  par->nd_dtmax = par->dtmax*1.0e6*SEC_YEAR/par->scal_t;
+  par->t  = 0.0;
+  par->tprev = 0.0;
+  par->dt = 0.0;
 
   // Other variables
   par->fname_in[0] = '\0';
-
-  par->xmax = par->xmin+par->L;
-  par->zmax = par->zmin+par->H;
-
-  par->dT = par->Tbot-par->Ttop;
 
   // return pointer
   *_usr = usr;

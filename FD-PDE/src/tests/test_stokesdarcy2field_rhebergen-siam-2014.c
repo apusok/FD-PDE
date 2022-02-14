@@ -1,6 +1,6 @@
 // ---------------------------------------
 // Rhebergen et al. 2014, SIAM - Ex. 6.1
-// run: ./tests/test_stokesdarcy2field_rhebergen-siam-2014.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// run: ./tests/test_stokesdarcy2field_rhebergen-siam-2014.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
 // python test: ./tests/python/test_stokesdarcy2field_mms_rhebergen_siam_2014.py
 // python sympy: ./mms/mms_rhebergen_2014_siam.py
 // ---------------------------------------
@@ -34,6 +34,7 @@ typedef struct {
   PetscScalar    alpha, k_ls, k_us, e3, A;
   char           fname_out[FNAME_LENGTH]; 
   char           fname_in [FNAME_LENGTH];  
+  char           fdir_out[FNAME_LENGTH]; 
 } Params;
 
 // user defined and model-dependent variables
@@ -160,6 +161,7 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
   Vec            x, xMMS, coeff;//, xguess;
   PetscInt       nx, nz;
   PetscScalar    xmin, zmin, xmax, zmax;
+  char           fout[FNAME_LENGTH];
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -204,12 +206,15 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
   // ierr = SNESComputeFunction(fd->snes,x,fd->r);CHKERRQ(ierr); 
 
   // Output solution to file
-  ierr = DMStagViewBinaryPython(dm,x,usr->par->fname_out);CHKERRQ(ierr);
-  ierr = DMStagViewBinaryPython(dm,fd->r,"out_residual");CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s",usr->par->fdir_out,usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s",usr->par->fdir_out,"out_residual");
+  ierr = DMStagViewBinaryPython(dm,fd->r,fout);CHKERRQ(ierr);
 
   // Output coefficient to file
   ierr = FDPDEGetCoefficient(fd,&dmcoeff,&coeff);CHKERRQ(ierr);
-  ierr = DMStagViewBinaryPython(dmcoeff,coeff,"out_coefficients");CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s",usr->par->fdir_out,"out_coefficients");
+  ierr = DMStagViewBinaryPython(dmcoeff,coeff,fout);CHKERRQ(ierr);
 
   // Compute norms
   ierr = ComputeErrorNorms(dm,x,xMMS);CHKERRQ(ierr);
@@ -271,6 +276,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   // Input/output 
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_solution","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterString(bag,&par->fdir_out,FNAME_LENGTH,"./","output_dir","Name for output directory, set with: -output_dir <dirname>"); CHKERRQ(ierr);
 
   // Other variables
   par->fname_in[0] = '\0';
@@ -512,7 +518,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   // LEFT Boundary - Vz
   ierr = DMStagBCListGetValues(bclist,'w','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=1; k<n_bc-1; k++) {
+  for (k=0; k<n_bc; k++) {
     value_bc[k] = get_uz(x_bc[2*k],x_bc[2*k+1],usr->par->k_ls,usr->par->k_us,usr->par->alpha,usr->par->A);
     type_bc[k] = BC_DIRICHLET;
   }
@@ -536,7 +542,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   // RIGHT Boundary - Vz
   ierr = DMStagBCListGetValues(bclist,'e','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=1; k<n_bc-1; k++) {
+  for (k=0; k<n_bc; k++) {
     value_bc[k] = get_uz(x_bc[2*k],x_bc[2*k+1],usr->par->k_ls,usr->par->k_us,usr->par->alpha,usr->par->A);
     type_bc[k] = BC_DIRICHLET;
   }
@@ -552,7 +558,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   // DOWN Boundary - Vx
   ierr = DMStagBCListGetValues(bclist,'s','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=1; k<n_bc-1; k++) {
+  for (k=0; k<n_bc; k++) {
     value_bc[k] = get_ux(x_bc[2*k],x_bc[2*k+1],usr->par->k_ls,usr->par->k_us,usr->par->alpha,usr->par->A);
     type_bc[k] = BC_DIRICHLET;
   }
@@ -576,7 +582,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   // UP Boundary - Vx
   ierr = DMStagBCListGetValues(bclist,'n','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=1; k<n_bc-1; k++) {
+  for (k=0; k<n_bc; k++) {
     value_bc[k] = get_ux(x_bc[2*k],x_bc[2*k+1],usr->par->k_ls,usr->par->k_us,usr->par->alpha,usr->par->A);
     type_bc[k] = BC_DIRICHLET;
   }
@@ -613,6 +619,7 @@ PetscErrorCode ComputeManufacturedSolution(DM dm,Vec *_xMMS, void *ctx)
   PetscScalar    **coordx,**coordz;
   Vec            xMMS, xMMSlocal;
   PetscScalar    k_ls, k_us, A, alpha;
+  char           fout[FNAME_LENGTH];
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -673,7 +680,8 @@ PetscErrorCode ComputeManufacturedSolution(DM dm,Vec *_xMMS, void *ctx)
   ierr = DMLocalToGlobalBegin(dm,xMMSlocal,INSERT_VALUES,xMMS); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dm,xMMSlocal,INSERT_VALUES,xMMS); CHKERRQ(ierr);
   ierr = VecDestroy(&xMMSlocal); CHKERRQ(ierr);
-  ierr = DMStagViewBinaryPython(dm,xMMS,"out_mms_solution");CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s",usr->par->fdir_out,"out_mms_solution");
+  ierr = DMStagViewBinaryPython(dm,xMMS,fout);CHKERRQ(ierr);
 
   // Assign pointers
   *_xMMS  = xMMS;

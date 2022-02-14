@@ -1,6 +1,6 @@
 // ---------------------------------------
 // Exact solution for a rigid punch indenting a rigid plastic half space using the slip line field theory
-// run: ./tests/test_plastic_indenter.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -ksp_monitor -nx 20 -nz 20
+// run: ./tests/test_plastic_indenter.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -ksp_monitor -nx 20 -nz 20
 // python test: ./tests/python/test_plastic_indenter.py
 // ---------------------------------------
 static char help[] = "Application for a rigid punch indenting a rigid plastic half space (indenter test) \n\n";

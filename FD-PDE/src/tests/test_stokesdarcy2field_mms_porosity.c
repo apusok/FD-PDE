@@ -1,7 +1,7 @@
 // ---------------------------------------
 // MMS test for porosity evolution - verify coupled system for two-phase flow 
 // Solves for coupled (P, v) and Q=(1-phi) evolution, where P-dynamic pressure, v-solid velocity, phi-porosity.
-// run: ./tests/test_stokesdarcy2field_mms_porosity.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 20 -nz 20 -snes_monitor 
+// run: ./tests/test_stokesdarcy2field_mms_porosity.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 20 -nz 20 -snes_monitor 
 // python test: ./tests/python/test_stokesdarcy2field_mms_porosity.py
 // sympy: ./mms/mms_porosity_evolution.py
 // ---------------------------------------
@@ -37,6 +37,7 @@ typedef struct {
   PetscInt       ts_scheme, adv_scheme, tout, tstep;
   PetscScalar    t, dt, tmax, dtmax, tprev;
   char           fname_out[FNAME_LENGTH]; 
+  char           fdir_out[FNAME_LENGTH];
 } Params;
 
 // user defined and model-dependent variables
@@ -263,16 +264,16 @@ PetscErrorCode Numerical_solution(void *ctx)
 
     // Output solution
     if (istep % usr->par->tout == 0 ) {
-      ierr = PetscSNPrintf(fout,sizeof(fout),"%s_PV_ts%1.3d",usr->par->fname_out,istep);
+      ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_PV_ts%1.3d",usr->par->fdir_out,usr->par->fname_out,istep);
       ierr = DMStagViewBinaryPython(dmPV,xPV,fout);CHKERRQ(ierr);
 
-      ierr = PetscSNPrintf(fout,sizeof(fout),"%s_phi_ts%1.3d",usr->par->fname_out,istep);
+      ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_phi_ts%1.3d",usr->par->fdir_out,usr->par->fname_out,istep);
       ierr = DMStagViewBinaryPython(dmphi,xphi,fout);CHKERRQ(ierr);
 
-      ierr = PetscSNPrintf(fout,sizeof(fout),"%s_mms_PV_ts%1.3d",usr->par->fname_out,istep);
+      ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_mms_PV_ts%1.3d",usr->par->fdir_out,usr->par->fname_out,istep);
       ierr = DMStagViewBinaryPython(dmPV,xmms_PV,fout);CHKERRQ(ierr);
 
-      ierr = PetscSNPrintf(fout,sizeof(fout),"%s_mms_phi_ts%1.3d",usr->par->fname_out,istep);
+      ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_mms_phi_ts%1.3d",usr->par->fdir_out,usr->par->fname_out,istep);
       ierr = DMStagViewBinaryPython(dmphi,xmms_phi,fout);CHKERRQ(ierr);
     }
 
@@ -366,6 +367,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   // Input/output 
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_solution","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterString(bag,&par->fdir_out,FNAME_LENGTH,"./","output_dir","Name for output directory, set with: -output_dir <dirname>"); CHKERRQ(ierr);
 
   // return pointer
   *_usr = usr;
@@ -693,7 +695,7 @@ PetscErrorCode FormBCList_PV(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   // LEFT Boundary - Vz
   ierr = DMStagBCListGetValues(bclist,'w','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=1; k<n_bc-1; k++) {
+  for (k=0; k<n_bc; k++) {
     value_bc[k] = get_uz(x_bc[2*k],x_bc[2*k+1],t,eta,zeta,phi_0,p_s,m,n,e3);
     type_bc[k] = BC_DIRICHLET;
   }

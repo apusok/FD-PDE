@@ -2,8 +2,8 @@
 // Modified from ./tests/test_stokes_solcx.c
 // Four-Lid-driven rotational flow benchmark - constant grid spacing
 // Direction of four lid movement: Up->rightward, Right->downward, Bottom->leftward, Left->upward 
-// run: ./tests/test_stokes_lid4.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
-// python test: ./tests/python/test_stokes_lid4.py
+// run: ./tests/test_stokes_lid_driven.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
+// python test: ./tests/python/test_stokes_lid_driven.py
 // ---------------------------------------
 static char help[] = "Application to solve the four-lid-driven rotational flow benchmark with FD-PDE \n\n";
 
@@ -35,6 +35,7 @@ typedef struct {
   PetscScalar    eta0, eta1, g;
   char           fname_out[FNAME_LENGTH]; 
   char           fname_in [FNAME_LENGTH];  
+  char           fdir_out[FNAME_LENGTH]; 
 } Params;
 
 // user defined and model-dependent variables
@@ -87,6 +88,7 @@ PetscErrorCode SNESStokes_lid(DM *_dm, Vec *_x, void *ctx)
   Vec            x;
   PetscInt       nx, nz;
   PetscScalar    xmin, zmin, xmax, zmax;
+  char           fout[FNAME_LENGTH];
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -143,12 +145,14 @@ PetscErrorCode SNESStokes_lid(DM *_dm, Vec *_x, void *ctx)
   ierr = FDPDEGetDM(fd, &dmPV); CHKERRQ(ierr);
 
   // Output solution to file
-  ierr = DMStagViewBinaryPython(dmPV,x,usr->par->fname_out);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s",usr->par->fdir_out,usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(dmPV,x,fout);CHKERRQ(ierr);
   {
     DM dmcoeff;
     Vec coeff;
     ierr = FDPDEGetCoefficient(fd,&dmcoeff,&coeff);CHKERRQ(ierr);
-    ierr = DMStagViewBinaryPython(dmcoeff,coeff,"out_coefficients");CHKERRQ(ierr);
+    ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_coefficients",usr->par->fdir_out);
+    ierr = DMStagViewBinaryPython(dmcoeff,coeff,fout);CHKERRQ(ierr);
   }
 
   // Destroy FD-PDE object
@@ -206,6 +210,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   // Input/output 
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_num_solution","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterString(bag,&par->fdir_out,FNAME_LENGTH,"./","output_dir","Name for output directory, set with: -output_dir <dirname>"); CHKERRQ(ierr);
 
   // Other variables
   par->fname_in[0] = '\0';
@@ -407,6 +412,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
 #define __FUNCT__ "FormBCList"
 PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
+  PetscInt    sx, sz, nx, nz;
   PetscInt    k,n_bc,*idx_bc;
   PetscScalar *value_bc;
   BCType      *type_bc;
@@ -414,7 +420,8 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   
   PetscFunctionBegin;
 
-  
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+
   // Vz=0 on left boundary (w)
   ierr = DMStagBCListGetValues(bclist,'w','|',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
@@ -485,13 +492,13 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   
   // Pin pressure p=0 at the bottom left corner
-  ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
-
-  value_bc[0] = 0.0;
-  type_bc[0] = BC_DIRICHLET_STAG;
-
-  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
-  
+  // Warning: need to ensure valid boundary on processor
+  if ((sx==0) && (sz==0)) {
+    ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    value_bc[0] = 0.0;
+    type_bc[0] = BC_DIRICHLET_STAG;
+    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  }
   //  DMStagBCListView(bclist);
 
   

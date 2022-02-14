@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import linregress
 import importlib
 import os
+import sys, getopt
 
 # ---------------------------------------
 # Function definitions
@@ -66,7 +67,7 @@ def parse_log_file(fname):
     return tstep
 
 # ---------------------------------------
-def plot_solution_mms_error(fname,*args):
+def plot_solution_mms_error(fname_dir,fname,*args):
   istep = 0
   nx    = 0
   if (len(args)==1): 
@@ -79,9 +80,15 @@ def plot_solution_mms_error(fname,*args):
   if (istep >= 10) & (istep < 99): ft = '_ts0'+str(istep)
   if (istep >= 100): ft = '_ts'+str(istep)
 
+  fname_data = fname_dir+'/data'
+
   # Load data
   fout = fname+'_PV'+ft
-  imod = importlib.import_module(fout) # 1. Numerical solution
+  # imod = importlib.import_module(fout) # 1. Numerical solution
+  spec = importlib.util.spec_from_file_location(fout,fname_data+'/'+fout+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
+
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
 
@@ -96,7 +103,11 @@ def plot_solution_mms_error(fname,*args):
   p = data['X_cell']
 
   fout = fname+'_mms_PV'+ft
-  imod = importlib.import_module(fout) # 2. MMS solution
+  # imod = importlib.import_module(fout) # 2. MMS solution
+  spec = importlib.util.spec_from_file_location(fout,fname_data+'/'+fout+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
+
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
   vx_mms = data['X_face_x']
@@ -104,14 +115,22 @@ def plot_solution_mms_error(fname,*args):
   p_mms = data['X_cell']
 
   fout = fname+'_phi'+ft
-  imod = importlib.import_module(fout)  # 3. porosity solution
+  # imod = importlib.import_module(fout)  # 3. porosity solution
+  spec = importlib.util.spec_from_file_location(fout,fname_data+'/'+fout+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
+
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
   phi = data['X_cell']
   phi = 1.0 - phi # was solved for Q = 1-phi
 
   fout = fname+'_mms_phi'+ft
-  imod = importlib.import_module(fout) # 4. MMS porosity solution
+  # imod = importlib.import_module(fout) # 4. MMS porosity solution
+  spec = importlib.util.spec_from_file_location(fout,fname_data+'/'+fout+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
+
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
   phi_mms = data['X_cell']
@@ -198,29 +217,26 @@ def plot_solution_mms_error(fname,*args):
 
   plt.tight_layout() 
   fout = fname+ft+'_solution'+'_nx_'+str(nx)
-  plt.savefig(fout+'.pdf')
+  plt.savefig(fname_dir+'/'+fout+'.pdf')
   plt.close()
 
 # ---------------------------------------
-def plot_convergence_error_space(fname,hx,nrm_p,nrm_v,nrm_phi):
+def plot_convergence_error_space(fname_dir,fname,hx,nrm_p,nrm_v):
   hx_log    = np.log10(hx)
-  nrm2phi_log = np.log10(nrm_phi)
   nrm2p_log   = np.log10(nrm_p)
   nrm2v_log   = np.log10(nrm_v)
 
   # Perform linear regression
-  sl2phi, intercept, r_value, p_value, std_err = linregress(hx_log, nrm2phi_log)
   sl2p, intercept, r_value, p_value, std_err = linregress(hx_log, nrm2p_log)
   sl2v, intercept, r_value, p_value, std_err = linregress(hx_log, nrm2v_log)
 
   print('# --------------------------------------- #')
   print('# 1. MMS StokesDarcy2Field+Porosity convergence order (SPACE):')
-  print('     v_slope = '+str(sl2v)+' P_slope = '+str(sl2p)+' phi_slope = '+str(sl2phi))
+  print('     v_slope = '+str(sl2v)+' P_slope = '+str(sl2p))
 
   plt.figure(1,figsize=(6,6))
   plt.grid(color='lightgray', linestyle=':')
 
-  # plt.plot(hx,nrm_phi,'ko--',label=r'$\phi$ slope='+str(round(sl2phi,5)))
   plt.plot(hx,nrm_p,'bo--',label='P slope='+str(round(sl2p,5)))
   plt.plot(hx,nrm_v,'ro--',label='v slope='+str(round(sl2v,5)))
 
@@ -228,14 +244,14 @@ def plot_convergence_error_space(fname,hx,nrm_p,nrm_v,nrm_phi):
   plt.yscale("log")
 
   plt.xlabel('log10(h)',fontweight='bold',fontsize=12)
-  plt.ylabel(r'$E(\phi), E(P), E(v)$',fontweight='bold',fontsize=12)
+  plt.ylabel(r'$E(P), E(v)$',fontweight='bold',fontsize=12)
   plt.legend()
 
-  plt.savefig(fname+'_error_hx_L2.pdf')
+  plt.savefig(fname_dir+'/'+fname+'_error_hx_L2.pdf')
   plt.close()
 
 # ---------------------------------------
-def plot_convergence_error_time(fname,dt_nrm,*args):
+def plot_convergence_error_time(fname_dir,fname,dt_nrm,*args):
   nrm_phi1 = args[0]
   nrm_phi2 = args[1]
   nrm_phi3 = args[2]
@@ -292,11 +308,13 @@ def plot_convergence_error_time(fname,dt_nrm,*args):
   plt.ylabel(r'$E(\phi), E(P), E(v)$',fontweight='bold',fontsize=12)
   plt.legend()
 
-  plt.savefig(fname+'_error_dt_L2.pdf')
+  plt.savefig(fname_dir+'/'+fname+'_error_dt_L2.pdf')
   plt.close()
 
 # ---------------------------------------
-def test1_space(fname,n):
+def test1_space(fname_dir,fname,n,ncpu):
+
+  fname_data = fname_dir+'/data'
   # Prepare errors and convergence
   nrm_p   = np.zeros(len(n))
   nrm_v   = np.zeros(len(n))
@@ -311,20 +329,28 @@ def test1_space(fname,n):
   ts_scheme  = 2
   m = 1.0
 
+  # Use umfpack for sequential and mumps for parallel
+  solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+  if (ncpu == 1):
+    solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+  else:
+    solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
+
   # Run simulations
   for i in range(len(n)):
     # Create output filename
     nx = n[i]
-    fout = fname+'_'+str(nx)+'.out'
+    fout = fname_data+'/'+fname+'_'+str(nx)+'.out'
 
     # Run with different resolutions - 1 timestep
-    str1 = '../test_stokesdarcy2field_mms_porosity.app -pc_type lu -pc_factor_mat_solver_type umfpack'+ \
+    str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_mms_porosity.app '+solver+solver_default+ \
         ' -dtmax '+str(dtmax)+ \
         ' -tmax '+str(tmax)+ \
         ' -tstep '+str(tstep_max)+ \
         ' -adv_scheme '+str(adv_scheme)+ \
         ' -ts_scheme '+str(ts_scheme)+ \
         ' -output_file '+fname+ \
+        ' -output_dir '+fname_data+ \
         ' -tout '+str(tout)+ \
         ' -m '+str(m)+ \
         ' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout
@@ -339,13 +365,15 @@ def test1_space(fname,n):
     hx[i]    = hx_num
 
     # Plot solution and error
-    plot_solution_mms_error(fname,0,nx)
+    plot_solution_mms_error(fname_dir,fname,0,nx)
 
   # Convergence plot
-  plot_convergence_error_space(fname,hx,nrm_p,nrm_v,nrm_phi)
+  plot_convergence_error_space(fname_dir,fname,hx,nrm_p,nrm_v)
 
 # ---------------------------------------
-def test2_time(fname,dt,tend,n):
+def test2_time(fname_dir,fname,dt,tend,n,ncpu):
+
+  fname_data = fname_dir+'/data'
   # Prepare errors and convergence
   nrm_phi1 = np.zeros(len(dt)) # phi - fe
   nrm_phi2 = np.zeros(len(dt)) # be
@@ -364,6 +392,13 @@ def test2_time(fname,dt,tend,n):
   nts_scheme = [0, 1, 2]
   m = 2.0
 
+  # Use umfpack for sequential and mumps for parallel
+  solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+  if (ncpu == 1):
+    solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+  else:
+    solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
+
   # Run and plot simulations
   for ts_scheme in nts_scheme:
     nrm_phi = np.zeros(len(dt)) # dummy
@@ -378,7 +413,7 @@ def test2_time(fname,dt,tend,n):
       fname1 = fname+'_ts'+str(ts_scheme)+'_dt'+dt_string
 
       # Run test
-      str1 = '../test_stokesdarcy2field_mms_porosity.app -pc_type lu -pc_factor_mat_solver_type umfpack'+ \
+      str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_mms_porosity.app '+solver+solver_default+ \
         ' -dtmax '+str(dtmax)+ \
         ' -tmax '+str(tend)+ \
         ' -e3 '+str(-1.0)+ \
@@ -386,14 +421,15 @@ def test2_time(fname,dt,tend,n):
         ' -adv_scheme '+str(adv_scheme)+ \
         ' -ts_scheme '+str(ts_scheme)+ \
         ' -output_file '+fname1+ \
+        ' -output_dir '+fname_data+ \
         ' -tout '+str(tout)+ \
         ' -m '+str(m)+ \
-        ' -nx '+str(n)+' -nz '+str(n)+' > '+fname1+'.out'
+        ' -nx '+str(n)+' -nz '+str(n)+' > '+fname_data+'/'+fname1+'.out'
       print(str1)
       os.system(str1)
 
       # Parse log file and calculate errors
-      fout = fname1+'.out'
+      fout = fname_data+'/'+fname1+'.out'
       tstep, nrm_v_num, nrm_p_num, err_sum, err_mms, dt_num, hx_num = parse_log_file(fout)
       dt_nrm[i] = 10**(dt[i])
 
@@ -412,7 +448,7 @@ def test2_time(fname,dt,tend,n):
 
       # Plot solution for every timestep
       for istep in range(0,tstep,tout):
-        plot_solution_mms_error(fname1,istep,n)
+        plot_solution_mms_error(fname_dir,fname1,istep,n)
 
     # Save errors
     if   (ts_scheme==0): 
@@ -429,7 +465,7 @@ def test2_time(fname,dt,tend,n):
       nrm_v3   = nrm_v
 
   # Plot convergence
-  plot_convergence_error_time(fname,dt_nrm,nrm_phi1,nrm_phi2,nrm_phi3,nrm_p1,nrm_p2,nrm_p3,nrm_v1,nrm_v2,nrm_v3)
+  plot_convergence_error_time(fname_dir,fname,dt_nrm,nrm_phi1,nrm_phi2,nrm_phi3,nrm_p1,nrm_p2,nrm_p3,nrm_v1,nrm_v2,nrm_v3)
 
 
 # ---------------------------------------
@@ -439,16 +475,35 @@ print('# --------------------------------------- #')
 print('# MMS tests for coupled Stokes-Darcy porosity evolution ')
 print('# --------------------------------------- #')
 
+fname = 'out_stokesdarcy2field_mms_porosity'
+fname_data = fname+'/data'
+try:
+  os.mkdir(fname)
+except OSError:
+  pass
+
+try:
+  os.mkdir(fname_data)
+except OSError:
+  pass
+
+# Get cpu number
+ncpu = 1
+options, remainder = getopt.getopt(sys.argv[1:],'n:')
+for opt, arg in options:
+  if opt in ('-n'):
+    ncpu = int(arg)
+
 # 1. Spatial errors 
-fname = 'out_darcyporosity_01space'
+fname1 = 'out_darcyporosity_01space'
 n = [200, 250, 300, 350, 400] # 300-500
-test1_space(fname,n)
+test1_space(fname,fname1,n,ncpu)
 
 # # 2. Temporal errors 
-fname = 'out_darcyporosity_02time'
+fname1 = 'out_darcyporosity_02time'
 dt   = [-6, -5.5, -5, -4.5, -4]
 n    = 200
 tend = 5e-4 # 1e-3
-test2_time(fname,dt,tend,n)
+test2_time(fname,fname1,dt,tend,n,ncpu)
 
-os.system('rm -r __pycache__')
+os.system('rm -r '+fname_data+'/__pycache__')

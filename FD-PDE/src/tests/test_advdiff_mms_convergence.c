@@ -1,6 +1,6 @@
 // ---------------------------------------
 // (ADVDIFF) Advection-diffusion convergence test using MMS
-// run: ./tests/test_advdiff_mms_convergence.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// run: ./tests/test_advdiff_mms_convergence.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
 // python test: ./tests/python/test_advdiff_mms_convergence.py
 // sympy: ./mms/mms_advdiff_convergence.py
 // ---------------------------------------
@@ -36,6 +36,7 @@ typedef struct {
   PetscInt       bcleft,bcright,bcdown,bcup;
   char           fname_out[FNAME_LENGTH]; 
   char           fname_in [FNAME_LENGTH];  
+  char           fdir_out[FNAME_LENGTH]; 
 } Params;
 
 // user defined and model-dependent variables
@@ -349,13 +350,14 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr); 
 
     ierr = FDPDEGetDM(fd, &dm); CHKERRQ(ierr);
-    ierr = DMStagViewBinaryPython(dm,x,usr->par->fname_out);CHKERRQ(ierr);
+    ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s",usr->par->fdir_out,usr->par->fname_out);
+    ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
 
     // Compute manufactured solution and errors
     ierr = ComputeManufacturedSolution(dm,&xmms,usr); CHKERRQ(ierr);
     ierr = ComputeErrorNorms(dm,x,xmms);CHKERRQ(ierr);
 
-    ierr = PetscSNPrintf(fout,sizeof(fout),"%s_mms",usr->par->fname_out,istep);
+    ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_mms",usr->par->fdir_out,usr->par->fname_out);
     ierr = DMStagViewBinaryPython(dm,xmms,fout);CHKERRQ(ierr);
 
     // Destroy objects
@@ -431,10 +433,10 @@ PetscErrorCode Numerical_solution(void *ctx)
 
       // Output solution
       if (istep % usr->par->tout == 0 ) {
-        ierr = PetscSNPrintf(fout,sizeof(fout),"%s_ts%1.3d",usr->par->fname_out,istep);
+        ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_ts%1.3d",usr->par->fdir_out,usr->par->fname_out,istep);
         ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
 
-        ierr = PetscSNPrintf(fout,sizeof(fout),"%s_mms_ts%1.3d",usr->par->fname_out,istep);
+        ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_mms_ts%1.3d",usr->par->fdir_out,usr->par->fname_out,istep);
         ierr = DMStagViewBinaryPython(dm,xmms,fout);CHKERRQ(ierr);
       }
 
@@ -564,6 +566,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   // Input/output 
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_advdiff_mms","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterString(bag,&par->fdir_out,FNAME_LENGTH,"./","output_dir","Name for output directory, set with: -output_dir <dirname>"); CHKERRQ(ierr);
 
   // return pointer
   *_usr = usr;

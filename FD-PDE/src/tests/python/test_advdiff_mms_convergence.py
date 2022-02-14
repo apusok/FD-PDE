@@ -10,15 +10,16 @@ import matplotlib.pyplot as plt
 from scipy.stats import linregress
 import importlib
 import os
+import sys, getopt
 
 # ---------------------------------------
 # Function definitions
 # ---------------------------------------
-def parse_log_file(fname):
+def parse_log_file(fname,fname_data):
   tstep = 0
   try: # try to open directory
     # parse number of timesteps
-    f = open(fname, 'r')
+    f = open(fname_data+'/'+fname, 'r')
     i0=0
     for line in f:
       if '# TIMESTEP' in line:
@@ -39,7 +40,7 @@ def parse_log_file(fname):
       hx      = np.zeros(tstep)
 
     # Parse output and save norm info
-    f = open(fname, 'r')
+    f = open(fname_data+'/'+fname, 'r')
     i0=-1
     for line in f:
       if '# TIMESTEP' in line:
@@ -55,11 +56,11 @@ def parse_log_file(fname):
 
     return tstep, err_sum, err_mms, dt, hx
   except OSError:
-    print('Cannot open:', fdir)
+    print('Cannot open:', fname_data)
     return tstep
 
 # ---------------------------------------
-def plot_solution_mms_error(fnum,fmms,*args):
+def plot_solution_mms_error(fnum,fmms,fname_out,fname_data,*args):
   istep = 0
   nx    = 0
   adv_scheme = 99
@@ -80,7 +81,11 @@ def plot_solution_mms_error(fnum,fmms,*args):
     bc = args[3]
 
   # Load data
-  imod = importlib.import_module(fnum) # 1. Numerical solution
+  # imod = importlib.import_module(fnum) # 1. Numerical solution
+  spec = importlib.util.spec_from_file_location(fnum,fname_data+'/'+fnum+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
+
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
 
@@ -90,7 +95,11 @@ def plot_solution_mms_error(fnum,fmms,*args):
   zc = data['y1d_cell']
   Q = data['X_cell']
 
-  imod = importlib.import_module(fmms) # 2. MMS solution
+  # imod = importlib.import_module(fmms) # 2. MMS solution
+  spec = importlib.util.spec_from_file_location(fmms,fname_data+'/'+fmms+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
+
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
   Q_mms = data['X_cell']
@@ -122,11 +131,11 @@ def plot_solution_mms_error(fnum,fmms,*args):
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
 
   fout = fnum+'_solution'+'_adv_'+str(adv_scheme)+'_nx_'+str(nx)+'_BC_'+str(int(bc[0]))+str(int(bc[1]))+str(int(bc[2]))+str(int(bc[3]))
-  plt.savefig(fout+'.pdf')
+  plt.savefig(fname_out+'/'+fout+'.pdf')
   plt.close()
 
 # ---------------------------------------
-def plot_convergence_error_space(fname,hx,*args):
+def plot_convergence_error_space(fname,fname_out,hx,*args):
   nrm_Q = args[0]
   hx_log    = np.log10(hx)
   nrm2Q_log = np.log10(nrm_Q)
@@ -168,11 +177,11 @@ def plot_convergence_error_space(fname,hx,*args):
   if (len(args)>3):
     bc = args[3] 
 
-  plt.savefig(fname+'_error_hx_L2'+'_BC_'+str(int(bc[0]))+str(int(bc[1]))+str(int(bc[2]))+str(int(bc[3]))+'.pdf')
+  plt.savefig(fname_out+'/'+fname+'_error_hx_L2'+'_BC_'+str(int(bc[0]))+str(int(bc[1]))+str(int(bc[2]))+str(int(bc[3]))+'.pdf')
   plt.close()
 
 # ---------------------------------------
-def plot_convergence_error_time(fname,dt_nrm,*args):
+def plot_convergence_error_time(fname,fname_out,dt_nrm,*args):
   nrm_Q1 = args[0]
   nrm_Q2 = args[1]
   nrm_Q3 = args[2]
@@ -204,14 +213,27 @@ def plot_convergence_error_time(fname,dt_nrm,*args):
   plt.ylabel(r'$E(Q)$',fontweight='bold',fontsize=12)
   plt.legend()
 
-  plt.savefig(fname+'_error_dt_L2.pdf')
+  plt.savefig(fname_out+'/'+fname+'_error_dt_L2.pdf')
   plt.close()
 
 # ---------------------------------------
-def test1_diffusion_space(fname,n):
+def test1_diffusion_space(fname,fname_out,n,ncpu):
   # Prepare errors and convergence
   nrm_Q = np.zeros(len(n))
   hx    = np.zeros(len(n))
+
+  fname_data = fname_out+'/data01'
+  try:
+    os.mkdir(fname_data)
+  except OSError:
+    pass
+
+  # Use umfpack for sequential and mumps for parallel
+  solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+  if (ncpu == 1):
+    solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+  else:
+    solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
 
   # Run simulations
   for i in range(len(n)):
@@ -220,23 +242,25 @@ def test1_diffusion_space(fname,n):
     fout = fname+'_'+str(nx)+'.out'
 
     # Run with different resolutions
-    str1 = '../test_advdiff_mms_convergence.app -pc_type lu -pc_factor_mat_solver_type umfpack -test 1 -output_file '+fname+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout
+    str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence.app '+solver+' -test 1 -output_file '+fname+ \
+      ' -output_dir '+fname_data+' -nx '+str(nx)+' -nz '+str(nx)+solver_default+' > '+fname_data+'/'+fout
     print(str1)
     os.system(str1)
 
     # Parse variables
-    tstep, err_sum, err_mms, dt_num, hx_num = parse_log_file(fout)
+    tstep, err_sum, err_mms, dt_num, hx_num = parse_log_file(fout,fname_data)
     nrm_Q[i] = err_sum**0.5
     hx[i]    = hx_num
 
     # Plot solution and error
-    plot_solution_mms_error(fname,fname+'_mms',0,nx)
+    plot_solution_mms_error(fname,fname+'_mms',fname_out,fname_data,0,nx)
 
   # Convergence plot
-  plot_convergence_error_space(fname,hx,nrm_Q)
+  plot_convergence_error_space(fname,fname_out,hx,nrm_Q)
+  os.system('rm -r '+fname_data+'/__pycache__')
 
 # ---------------------------------------
-def test2_advection_diffusion_space(fname,n):
+def test2_advection_diffusion_space(fname,fname_out,n,ncpu):
   # Prepare errors and convergence
   nrm_Q1 = np.zeros(len(n)) # upwind
   nrm_Q2 = np.zeros(len(n)) # upwind2
@@ -244,8 +268,21 @@ def test2_advection_diffusion_space(fname,n):
   hx    = np.zeros(len(n))
 
   nadv_scheme = [0, 1, 2]
-  # Run simulations
 
+  fname_data = fname_out+'/data02'
+  try:
+    os.mkdir(fname_data)
+  except OSError:
+    pass
+
+  # Use umfpack for sequential and mumps for parallel
+  solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+  if (ncpu == 1):
+    solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+  else:
+    solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
+
+  # Run simulations
   for adv_scheme in nadv_scheme:
     nrm_Q = np.zeros(len(n)) # dummy
     for i in range(len(n)):
@@ -254,17 +291,18 @@ def test2_advection_diffusion_space(fname,n):
       fout = fname+'_adv'+str(adv_scheme)+'_'+str(nx)+'.out'
 
       # Run with different resolutions and advection schemes
-      str1 = '../test_advdiff_mms_convergence.app -pc_type lu -pc_factor_mat_solver_type umfpack -test 2 -output_file '+fname+' -adv_scheme '+str(adv_scheme)+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout
+      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence.app '+solver+' -test 2 -output_file '+fname+\
+        ' -output_dir '+fname_data+' -adv_scheme '+str(adv_scheme)+' -nx '+str(nx)+' -nz '+str(nx)+solver_default+' > '+fname_data+'/'+fout
       print(str1)
       os.system(str1)
 
       # Parse variables
-      tstep, err_sum, err_mms, dt_num, hx_num = parse_log_file(fout)
+      tstep, err_sum, err_mms, dt_num, hx_num = parse_log_file(fout,fname_data)
       nrm_Q[i] = err_sum**0.5
       hx[i]    = hx_num
 
       # Plot solution and error
-      plot_solution_mms_error(fname,fname+'_mms',0,nx,adv_scheme)
+      plot_solution_mms_error(fname,fname+'_mms',fname_out,fname_data,0,nx,adv_scheme)
 
     # Save errors
     if   (adv_scheme==0): nrm_Q1 = nrm_Q
@@ -272,19 +310,34 @@ def test2_advection_diffusion_space(fname,n):
     else:                 nrm_Q3 = nrm_Q
 
   # Convergence plot
-  plot_convergence_error_space(fname,hx,nrm_Q1,nrm_Q2,nrm_Q3)
+  plot_convergence_error_space(fname,fname_out,hx,nrm_Q1,nrm_Q2,nrm_Q3)
+  os.system('rm -r '+fname_data+'/__pycache__')
 
 # ---------------------------------------
-def test3_timediff(fname,dt,tend,n):
+def test3_timediff(fname,fname_out,dt,tend,n,ncpu):
   tout = 10 # output every x timesteps
   nts_scheme = [0, 1, 2]
   tstep_max = 10000000# max no of timesteps
+  tout_fields = tout*10
 
   # Prepare errors and convergence
   nrm_Q1 = np.zeros(len(dt)) # fe
   nrm_Q2 = np.zeros(len(dt)) # be
   nrm_Q3 = np.zeros(len(dt)) # cn
   dt_nrm = np.zeros(len(dt))
+
+  fname_data = fname_out+'/data03'
+  try:
+    os.mkdir(fname_data)
+  except OSError:
+    pass
+
+  # Use umfpack for sequential and mumps for parallel
+  solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+  if (ncpu == 1):
+    solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+  else:
+    solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
 
   # Run and plot simulations
   for ts_scheme in nts_scheme:
@@ -298,20 +351,21 @@ def test3_timediff(fname,dt,tend,n):
       fname1 = fname+'_ts'+str(ts_scheme)+'_dt'+dt_string
 
       # Run test
-      str1 = '../test_advdiff_mms_convergence.app -pc_type lu -pc_factor_mat_solver_type umfpack -test 3'+ \
+      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence.app '+solver+' -test 3'+ \
             ' -dtmax '+str(dtmax)+ \
             ' -tmax '+str(tend)+ \
             ' -tstep '+str(tstep_max)+ \
             ' -ts_scheme '+str(ts_scheme)+ \
             ' -output_file '+fname1+ \
-            ' -tout '+str(tout)+ \
-            ' -nx '+str(n)+' -nz '+str(n)+' > '+fname1+'.out'
+            ' -output_dir '+fname_data+ \
+            ' -tout '+str(tout)+solver_default+ \
+            ' -nx '+str(n)+' -nz '+str(n)+' > '+fname_data+'/'+fname1+'.out'
       print(str1)
       os.system(str1)
 
       # Parse log file and calculate errors
       fout = fname1+'.out'
-      tstep, err_sum, err_mms, dt_num, hx = parse_log_file(fout)
+      tstep, err_sum, err_mms, dt_num, hx = parse_log_file(fout,fname_data)
       dt_nrm[i] = 10**(dt[i])
 
       sum_Q = 0.0 
@@ -320,12 +374,12 @@ def test3_timediff(fname,dt,tend,n):
 
       nrm_Q[i] = sum_Q**0.5
 
-      # Plot solution for every timestep
-      for istep in range(0,tstep,tout):
+      # Plot solution for every X timestep
+      for istep in range(0,tstep,tout_fields):
         if (istep < 10): ft = '_ts00'+str(istep)
         if (istep >= 10) & (istep < 99): ft = '_ts0'+str(istep)
         if (istep >= 100): ft = '_ts'+str(istep)
-        plot_solution_mms_error(fname1+ft,fname1+'_mms'+ft,istep,n)
+        plot_solution_mms_error(fname1+ft,fname1+'_mms'+ft,fname_out,fname_data,istep,n)
     
     # Save errors
     if   (ts_scheme==0): nrm_Q1 = nrm_Q
@@ -333,20 +387,35 @@ def test3_timediff(fname,dt,tend,n):
     else:                nrm_Q3 = nrm_Q
 
   # Plot convergence
-  plot_convergence_error_time(fname,dt_nrm,nrm_Q1,nrm_Q2,nrm_Q3)
+  plot_convergence_error_time(fname,fname_out,dt_nrm,nrm_Q1,nrm_Q2,nrm_Q3)
+  os.system('rm -r '+fname_data+'/__pycache__')
 
 # ---------------------------------------
-def test4_timeadv(fname,dt,tend,n):
+def test4_timeadv(fname,fname_out,dt,tend,n,ncpu):
   tout = 10 # output every x timesteps
   nts_scheme = [0, 1, 2]
   tstep_max = 10000000# max no of timesteps
   adv_scheme = 2
+  tout_fields = tout*10
 
   # Prepare errors and convergence
   nrm_Q1 = np.zeros(len(dt)) # fe
   nrm_Q2 = np.zeros(len(dt)) # be
   nrm_Q3 = np.zeros(len(dt)) # cn
   dt_nrm = np.zeros(len(dt))
+
+  fname_data = fname_out+'/data04'
+  try:
+    os.mkdir(fname_data)
+  except OSError:
+    pass
+
+  # Use umfpack for sequential and mumps for parallel
+  solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+  if (ncpu == 1):
+    solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+  else:
+    solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
 
   # Run and plot simulations
   for ts_scheme in nts_scheme:
@@ -360,21 +429,22 @@ def test4_timeadv(fname,dt,tend,n):
       fname1 = fname+'_ts'+str(ts_scheme)+'_dt'+dt_string
 
       # Run test
-      str1 = '../test_advdiff_mms_convergence.app -pc_type lu -pc_factor_mat_solver_type umfpack -test 4'+ \
+      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence.app '+solver+' -test 4'+ \
             ' -dtmax '+str(dtmax)+ \
             ' -tmax '+str(tend)+ \
             ' -tstep '+str(tstep_max)+ \
             ' -ts_scheme '+str(ts_scheme)+ \
             ' -adv_scheme '+str(adv_scheme)+ \
             ' -output_file '+fname1+ \
-            ' -tout '+str(tout)+ \
-            ' -nx '+str(n)+' -nz '+str(n)+' > '+fname1+'.out'
+            ' -output_dir '+fname_data+ \
+            ' -tout '+str(tout)+solver_default+ \
+            ' -nx '+str(n)+' -nz '+str(n)+' > '+fname_data+'/'+fname1+'.out'
       print(str1)
       os.system(str1)
 
       # Parse log file and calculate errors
       fout = fname1+'.out'
-      tstep, err_sum, err_mms, dt_num, hx = parse_log_file(fout)
+      tstep, err_sum, err_mms, dt_num, hx = parse_log_file(fout,fname_data)
       dt_nrm[i] = 10**(dt[i])
 
       sum_Q = 0.0 
@@ -385,11 +455,11 @@ def test4_timeadv(fname,dt,tend,n):
       nrm_Q[i] = sum_Q**0.5
 
       # Plot solution for every timestep
-      for istep in range(0,tstep,tout):
+      for istep in range(0,tstep,tout_fields):
         if (istep < 10): ft = '_ts00'+str(istep)
         if (istep >= 10) & (istep < 99): ft = '_ts0'+str(istep)
         if (istep >= 100): ft = '_ts'+str(istep)
-        plot_solution_mms_error(fname1+ft,fname1+'_mms'+ft,istep,n,adv_scheme)
+        plot_solution_mms_error(fname1+ft,fname1+'_mms'+ft,fname_out,fname_data,istep,n,adv_scheme)
 
     # Save errors
     if   (ts_scheme==0): nrm_Q1 = nrm_Q
@@ -397,10 +467,11 @@ def test4_timeadv(fname,dt,tend,n):
     else:                nrm_Q3 = nrm_Q
 
   # Plot convergence
-  plot_convergence_error_time(fname,dt_nrm,nrm_Q1,nrm_Q2,nrm_Q3)
+  plot_convergence_error_time(fname,fname_out,dt_nrm,nrm_Q1,nrm_Q2,nrm_Q3)
+  os.system('rm -r '+fname_data+'/__pycache__')
 
 # ---------------------------------------
-def test5_advection_diffusion_BC(fname,n,bc):
+def test5_advection_diffusion_BC(fname,fname_out,n,bc,ncpu):
   # Prepare errors and convergence
   nrm_Q1 = np.zeros(len(n)) # upwind
   nrm_Q2 = np.zeros(len(n)) # upwind2
@@ -409,32 +480,47 @@ def test5_advection_diffusion_BC(fname,n,bc):
 
   nadv_scheme = [0, 1, 2]
 
+  fname_data = fname_out+'/data05'
+  try:
+    os.mkdir(fname_data)
+  except OSError:
+    pass
+
+  # Use umfpack for sequential and mumps for parallel
+  solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+  if (ncpu == 1):
+    solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+  else:
+    solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
+
   # Run simulations
   for adv_scheme in nadv_scheme:
     nrm_Q = np.zeros(len(n)) # dummy
     for i in range(len(n)):
       # Create output filename
       nx = n[i]
-      fout = fname+'_adv'+str(adv_scheme)+'_'+str(nx)+'.out'
+      fout = fname+'_adv'+str(adv_scheme)+'_'+str(nx)+'_'+str(int(bc[0]))+str(int(bc[1]))+str(int(bc[2]))+str(int(bc[3]))+'.out'
 
       # Run with different resolutions and advection schemes - test 2 but for BC 
-      str1 = '../test_advdiff_mms_convergence.app -pc_type lu -pc_factor_mat_solver_type umfpack -test 5 -output_file '+fname+ \
+      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence.app '+solver+' -test 5 -output_file '+fname+ \
+        ' -output_dir '+fname_data+ \
         ' -adv_scheme '+str(adv_scheme)+ \
         ' -bcleft '+str(int(bc[0]))+ \
         ' -bcright '+str(int(bc[1]))+ \
         ' -bcdown '+str(int(bc[2]))+ \
         ' -bcup '+str(int(bc[3]))+ \
-        ' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout
+        ' -nx '+str(nx)+' -nz '+str(nx)+solver_default+' > '+fname_data+'/'+fout
       print(str1)
       os.system(str1)
 
       # Parse variables
-      tstep, err_sum, err_mms, dt_num, hx_num = parse_log_file(fout)
+      tstep, err_sum, err_mms, dt_num, hx_num = parse_log_file(fout,fname_data)
       nrm_Q[i] = err_sum**0.5
       hx[i]    = hx_num
 
-      # Plot solution and error
-      plot_solution_mms_error(fname,fname+'_mms',0,nx,adv_scheme,bc)
+      # Plot solution and error for the highest resolution
+      if nx==n[-1]:
+        plot_solution_mms_error(fname,fname+'_mms',fname_out,fname_data,0,nx,adv_scheme,bc)
 
     # Save errors
     if   (adv_scheme==0): nrm_Q1 = nrm_Q
@@ -442,7 +528,8 @@ def test5_advection_diffusion_BC(fname,n,bc):
     else:                 nrm_Q3 = nrm_Q
 
   # Convergence plot
-  plot_convergence_error_space(fname,hx,nrm_Q1,nrm_Q2,nrm_Q3,bc)
+  plot_convergence_error_space(fname,fname_out,hx,nrm_Q1,nrm_Q2,nrm_Q3,bc)
+  os.system('rm -r '+fname_data+'/__pycache__')
 
 # ---------------------------------------
 # Main script - tests
@@ -451,33 +538,46 @@ print('# --------------------------------------- #')
 print('# MMS tests for ADVDIFF convergence order ')
 print('# --------------------------------------- #')
 
+fname_out = 'out_advdiff_mms_convergence'
+try:
+  os.mkdir(fname_out)
+except OSError:
+  pass
+
+# Get cpu number
+ncpu = 1
+options, remainder = getopt.getopt(sys.argv[1:],'n:')
+for opt, arg in options:
+  if opt in ('-n'):
+    ncpu = int(arg)
+
 # 1. Steady-state diffusion
 fname = 'out_mms_advdiff_01_diff'
 n = [25, 40, 50, 80, 100, 125, 150, 200, 300]
-test1_diffusion_space(fname,n)
+test1_diffusion_space(fname,fname_out,n,ncpu)
 
 # 2. Steady-state diffusion-advection
 fname = 'out_mms_advdiff_02_advdiff'
 n = [100, 125, 150, 200, 250, 300]
-test2_advection_diffusion_space(fname,n)
+test2_advection_diffusion_space(fname,fname_out,n,ncpu)
 
 # 3. Time-dependent diffusion
 fname = 'out_mms_advdiff_03_timediff'
 dt   = [-6, -5.5, -5, -4.5, -4]
 n    = 50
 tend = 1e-3
-test3_timediff(fname,dt,tend,n)
+test3_timediff(fname,fname_out,dt,tend,n,ncpu)
 
 # 4. Time-dependent advection
 fname = 'out_mms_advdiff_04_timeadv'
 dt   = [-6, -5.5, -5, -4.5, -4] # not stable above dt>1e-3
 n    = 50
 tend = 1e-3 # 1e-3
-test4_timeadv(fname,dt,tend,n)
+test4_timeadv(fname,fname_out,dt,tend,n,ncpu)
 
 # 5. Steady-state diffusion-advection with different boundary conditions - random Dirichlet or Neumann
 fname = 'out_mms_advdiff_05_BC'
-n  = [100, 125, 150, 200, 250, 300]
+n  = [100, 150, 200, 250, 300] #[100, 125, 150, 200, 250, 300]
 # bc = np.random.randint(0,2,4) # array of 4 random 0 or 1
 # bc = np.zeros(4)
 bc_list = np.zeros((16,4))
@@ -500,6 +600,5 @@ bc_list[15,:] = [1,1,1,1]
 
 for i in range(0,16):
   bc = bc_list[i,:]
-  test5_advection_diffusion_BC(fname,n,bc)
+  test5_advection_diffusion_BC(fname,fname_out,n,bc,ncpu)
 
-os.system('rm -r __pycache__')

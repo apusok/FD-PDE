@@ -1,6 +1,6 @@
 // ---------------------------------------
 // MMS 2D diffusion test div(k*grad(T)) = f, with k > 0
-// run: ./tests/test_advdiff_mms_2d_diffusion.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// run: ./tests/test_advdiff_mms_2d_diffusion.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
 // ---------------------------------------
 static char help[] = "Application to solve an MMS 2D diffusion equation (ADVDIFF) with FD-PDE \n\n";
 
@@ -61,10 +61,15 @@ int main (int argc,char **argv)
   DM              dm;
   Vec             x, xMMS;
   MPI_Comm        comm;
+  PetscLogDouble  start_time, end_time;
+  char            fname[PETSC_MAX_PATH_LEN] = "out_solution";
+  char            fdir[PETSC_MAX_PATH_LEN] = "./";
+  char            fout[PETSC_MAX_PATH_LEN];
   PetscErrorCode  ierr;
     
   // Initialize application
   ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return ierr;
+  ierr = PetscTime(&start_time); CHKERRQ(ierr);
 
   comm = PETSC_COMM_WORLD;
   nx   = 10;
@@ -77,6 +82,9 @@ int main (int argc,char **argv)
 
   ierr = PetscOptionsGetScalar(NULL, NULL, "-L", &L, NULL); CHKERRQ(ierr);
   ierr = PetscOptionsGetScalar(NULL, NULL, "-H", &H, NULL); CHKERRQ(ierr);
+
+  ierr = PetscOptionsGetString(NULL,NULL,"-fname",fname,sizeof(fname),NULL); CHKERRQ(ierr);
+  ierr = PetscOptionsGetString(NULL,NULL,"-fdir",fdir,sizeof(fdir),NULL); CHKERRQ(ierr);
 
   ierr = PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL); CHKERRQ(ierr);
 
@@ -98,7 +106,12 @@ int main (int argc,char **argv)
   // Solve
   ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
   ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr); 
-  ierr = DMStagViewBinaryPython(dm,x,"out_solution");CHKERRQ(ierr);
+
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s",fdir,fname);
+  ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
+
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s",fdir,"out_mms_solution");
+  ierr = DMStagViewBinaryPython(dm,xMMS,fout);CHKERRQ(ierr);
 
   // Compute error
   ierr = ComputeErrorNorms(dm,x,xMMS);CHKERRQ(ierr);
@@ -108,6 +121,10 @@ int main (int argc,char **argv)
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = VecDestroy(&xMMS); CHKERRQ(ierr);
   ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
+
+  ierr = PetscTime(&end_time); CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time);
+  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
   
   // Finalize main
   ierr = PetscFinalize();
@@ -300,7 +317,6 @@ PetscErrorCode ComputeManufacturedSolution(DM dm,Vec *_xMMS)
   ierr = DMLocalToGlobalBegin(dm,xMMSlocal,INSERT_VALUES,xMMS); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (dm,xMMSlocal,INSERT_VALUES,xMMS); CHKERRQ(ierr);
   ierr = VecDestroy(&xMMSlocal); CHKERRQ(ierr);
-  ierr = DMStagViewBinaryPython(dm,xMMS,"out_mms_solution");CHKERRQ(ierr);
 
   // Assign pointers
   *_xMMS  = xMMS;

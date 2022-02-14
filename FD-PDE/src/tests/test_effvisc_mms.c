@@ -1,6 +1,6 @@
 // ---------------------------------------
 // MMS test to verify a power-law effective viscosity approach, where eta=eta0*(epsII/eps0)^(1/np-1), zeta = eta/phi
-// run: ./tests/test_effvisc_mms.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -ksp_monitor -nx 20 -nz 20
+// run: ./tests/test_effvisc_mms.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -ksp_monitor -nx 20 -nz 20
 // python test: ./tests/python/test_effvisc_mms.py
 // python sympy: ./mms/mms_effvisc_powerlaw.py
 // ---------------------------------------
@@ -45,6 +45,7 @@ typedef struct {
   PetscScalar    eta0, eps0, np, R, etamax, etamin;
   PetscScalar    phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat;
   char           fname_out[FNAME_LENGTH]; 
+  char           fdir_out[FNAME_LENGTH]; 
 } Params;
 
 // user defined and model-dependent variables
@@ -216,15 +217,15 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr); 
 
   // Output solution to file
-  if (test==1) { ierr = PetscSNPrintf(fout,sizeof(fout),"%s_stokes",usr->par->fname_out); }
-  if (test==2) { ierr = PetscSNPrintf(fout,sizeof(fout),"%s_stokesdarcy",usr->par->fname_out); }
+  if (test==1) { ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_stokes",usr->par->fdir_out,usr->par->fname_out); }
+  if (test==2) { ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_stokesdarcy",usr->par->fdir_out,usr->par->fname_out); }
   ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
 
-  if (test==1) { ierr = PetscSNPrintf(fout,sizeof(fout),"%s_strain_stokes",usr->par->fname_out); }
-  if (test==2) { ierr = PetscSNPrintf(fout,sizeof(fout),"%s_strain_stokesdarcy",usr->par->fname_out); }
+  if (test==1) { ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_strain_stokes",usr->par->fdir_out,usr->par->fname_out); }
+  if (test==2) { ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_strain_stokesdarcy",usr->par->fdir_out,usr->par->fname_out); }
   ierr = DMStagViewBinaryPython(usr->dmeps,usr->xeps,fout);CHKERRQ(ierr);
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_residual",usr->par->fname_out);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_residual",usr->par->fdir_out,usr->par->fname_out);
   ierr = DMStagViewBinaryPython(dm,fd->r,fout);CHKERRQ(ierr);
 
   // Compute norms
@@ -300,6 +301,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   // Input/output 
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_solution","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterString(bag,&par->fdir_out,FNAME_LENGTH,"./","output_dir","Name for output directory, set with: -output_dir <dirname>"); CHKERRQ(ierr);
 
   // return pointer
   *_usr = usr;
@@ -742,7 +744,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   // LEFT Boundary - Vz
   ierr = DMStagBCListGetValues(bclist,'w','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=1; k<n_bc-1; k++) {
+  for (k=0; k<n_bc; k++) {
     value_bc[k] = get_uz(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
     type_bc[k] = BC_DIRICHLET;
   }
@@ -758,7 +760,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   // RIGHT Boundary - Vz
   ierr = DMStagBCListGetValues(bclist,'e','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=1; k<n_bc-1; k++) {
+  for (k=0; k<n_bc; k++) {
     value_bc[k] = get_uz(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
     type_bc[k] = BC_DIRICHLET;
   }
@@ -766,7 +768,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   // DOWN Boundary - Vx
   ierr = DMStagBCListGetValues(bclist,'s','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=1; k<n_bc-1; k++) {
+  for (k=0; k<n_bc; k++) {
     value_bc[k] = get_ux(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
     type_bc[k] = BC_DIRICHLET;
   }
@@ -782,7 +784,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   // UP Boundary - Vx
   ierr = DMStagBCListGetValues(bclist,'n','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=1; k<n_bc-1; k++) {
+  for (k=0; k<n_bc; k++) {
     value_bc[k] = get_ux(x_bc[2*k],x_bc[2*k+1],eta0,eps0,np,phi_0,phi_s,p_s,psi_s,U_s,m,n,k_hat,R);
     type_bc[k] = BC_DIRICHLET;
   }
@@ -1020,11 +1022,13 @@ PetscErrorCode ComputeManufacturedSolution(DM dm,Vec *_xMMS, Vec *_xepsMMS, void
   ierr = DMLocalToGlobalEnd  (dm,xrhslocal,INSERT_VALUES,xrhs); CHKERRQ(ierr);
   ierr = VecDestroy(&xrhslocal); CHKERRQ(ierr);
 
-  ierr = DMStagViewBinaryPython(dm,xMMS,"out_mms_solution");CHKERRQ(ierr);
-  ierr = DMStagViewBinaryPython(dmeps,xeps,"out_mms_strain");CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_mms_solution",usr->par->fdir_out);
+  ierr = DMStagViewBinaryPython(dm,xMMS,fout);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_mms_strain",usr->par->fdir_out);
+  ierr = DMStagViewBinaryPython(dmeps,xeps,fout);CHKERRQ(ierr);
 
-  if (test==1) { ierr = PetscSNPrintf(fout,sizeof(fout),"%s_rhs_stokes",usr->par->fname_out); }
-  if (test==2) { ierr = PetscSNPrintf(fout,sizeof(fout),"%s_rhs_stokesdarcy",usr->par->fname_out); }
+  if (test==1) { ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_rhs_stokes",usr->par->fdir_out,usr->par->fname_out); }
+  if (test==2) { ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_rhs_stokesdarcy",usr->par->fdir_out,usr->par->fname_out); }
   ierr = DMStagViewBinaryPython(dm,xrhs,fout);CHKERRQ(ierr);
 
   ierr = VecDestroy(&xrhs); CHKERRQ(ierr);

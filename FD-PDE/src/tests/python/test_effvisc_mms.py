@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import linregress
 import importlib
 import os
+import sys, getopt
 
 # ---------------------------------------
 # Function definitions
@@ -67,11 +68,15 @@ def parse_log_file(fname):
     return tstep
 
 # ---------------------------------------
-def plot_solution_mms_error(fname,nx,j):
+def plot_solution_mms_error(fname,fname_data,nx,j):
 
   # Load data
-  fout = fname+'_stokes' # 1. Numerical solution stokes
-  imod = importlib.import_module(fout) 
+  # fout = fname+'_stokes' 
+  # imod = importlib.import_module(fout) 
+  fname_out = fname+'_stokes' # 1. Numerical solution stokes
+  spec = importlib.util.spec_from_file_location(fname_out,fname_data+'/'+fname_out+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod) 
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
 
@@ -85,8 +90,12 @@ def plot_solution_mms_error(fname,nx,j):
   vz1 = data['X_face_y']
   p1 = data['X_cell']
 
-  fout = fname+'_stokesdarcy' # 2. Numerical solution stokesdarcy
-  imod = importlib.import_module(fout) 
+  # fout = fname+'_stokesdarcy' # 2. Numerical solution stokesdarcy
+  # imod = importlib.import_module(fout) 
+  fname_out = fname+'_stokesdarcy' # 2. Numerical solution stokesdarcy
+  spec = importlib.util.spec_from_file_location(fname_out,fname_data+'/'+fname_out+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod) 
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
 
@@ -94,8 +103,12 @@ def plot_solution_mms_error(fname,nx,j):
   vz2 = data['X_face_y']
   p2  = data['X_cell']
 
-  fout = 'out_mms_solution'
-  imod = importlib.import_module(fout) # 3. MMS solution
+  # fout = 'out_mms_solution'
+  # imod = importlib.import_module(fout) # 3. MMS solution
+  fname_out = 'out_mms_solution' # 3. MMS solution
+  spec = importlib.util.spec_from_file_location(fname_out,fname_data+'/'+fname_out+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod) 
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
   vx_mms = data['X_face_x']
@@ -193,16 +206,20 @@ def plot_solution_mms_error(fname,nx,j):
 
   plt.tight_layout() 
   fout = fname+'_solution'+'_npind'+str(j)+'_nx_'+str(nx)
-  plt.savefig(fout+'.pdf')
+  plt.savefig(fname+'/'+fout+'.pdf')
   plt.close()
 
 
 # ---------------------------------------
-def plot_rhs_mms(fname,nx,j):
+def plot_rhs_mms(fname,fname_data,nx,j):
 
   # Load data
-  fout = fname+'_rhs_stokes' # 1. Numerical solution stokes
-  imod = importlib.import_module(fout) 
+  # fout = fname+'_rhs_stokes' # 1. Numerical solution stokes
+  # imod = importlib.import_module(fout) 
+  fname_out = fname+'_rhs_stokes' 
+  spec = importlib.util.spec_from_file_location(fname_out,fname_data+'/'+fname_out+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod) 
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
 
@@ -216,8 +233,12 @@ def plot_rhs_mms(fname,nx,j):
   vz1 = data['X_face_y']
   p1 = data['X_cell']
 
-  fout = fname+'_rhs_stokesdarcy' # 2. Numerical solution stokesdarcy
-  imod = importlib.import_module(fout) 
+  # fout = fname+'_rhs_stokesdarcy' # 2. Numerical solution stokesdarcy
+  # imod = importlib.import_module(fout) 
+  fname_out = fname+'_rhs_stokesdarcy'
+  spec = importlib.util.spec_from_file_location(fname_out,fname_data+'/'+fname_out+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod) 
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
 
@@ -268,15 +289,19 @@ def plot_rhs_mms(fname,nx,j):
 
   plt.tight_layout() 
   fout = fname+'_rhs'+'_npind'+str(j)+'_nx_'+str(nx)
-  plt.savefig(fout+'.pdf')
+  plt.savefig(fname+'/'+fout+'.pdf')
   plt.close()
 
 # ---------------------------------------
-def plot_strain_rates_error(fname,nx,j):
+def plot_strain_rates_error(fname,fname_data,nx,j):
 
   # Load data
-  fout = fname+'_strain_stokes' # 1. Numerical solution stokes - strain rates
-  imod = importlib.import_module(fout) 
+  # fout = fname+'_strain_stokes' # 1. Numerical solution stokes - strain rates
+  # imod = importlib.import_module(fout) 
+  fname_out = fname+'_strain_stokes'
+  spec = importlib.util.spec_from_file_location(fname_out,fname_data+'/'+fname_out+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod) 
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
 
@@ -289,16 +314,24 @@ def plot_strain_rates_error(fname,nx,j):
   eps1n = data['X_vertex']
   eps1c = data['X_cell']
 
-  fout = fname+'_strain_stokesdarcy' # 2. Numerical solution stokesdarcy
-  imod = importlib.import_module(fout) 
+  # fout = fname+'_strain_stokesdarcy' # 2. Numerical solution stokesdarcy
+  # imod = importlib.import_module(fout) 
+  fname_out = fname+'_strain_stokesdarcy'
+  spec = importlib.util.spec_from_file_location(fname_out,fname_data+'/'+fname_out+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod) 
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
 
   eps2n = data['X_vertex']
   eps2c = data['X_cell']
 
-  fout = 'out_mms_strain'
-  imod = importlib.import_module(fout) # 3. MMS solution
+  # fout = 'out_mms_strain'
+  # imod = importlib.import_module(fout) # 3. MMS solution
+  fname_out = 'out_mms_strain'
+  spec = importlib.util.spec_from_file_location(fname_out,fname_data+'/'+fname_out+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod) 
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
   epsn_mms = data['X_vertex']
@@ -522,7 +555,7 @@ def plot_strain_rates_error(fname,nx,j):
 
   plt.tight_layout() 
   fout = fname+'_strain'+'_npind'+str(j)+'_nx_'+str(nx)
-  plt.savefig(fout+'.pdf')
+  plt.savefig(fname+'/'+fout+'.pdf')
   plt.close()
 
 # ---------------------------------------
@@ -605,7 +638,7 @@ def plot_convergence_error(fname,nexp,hx,nrm_p1,nrm_v1,nrm_p2,nrm_v2,conv1,conv2
   plt.title('b) Stokes-Darcy',fontweight='bold',fontsize=12)
   plt.legend(loc='lower right')
 
-  plt.savefig(fname+'_error_hx_L2.pdf')
+  plt.savefig(fname+'/'+fname+'_error_hx_L2.pdf')
   plt.close()
 
 # ---------------------------------------
@@ -790,7 +823,7 @@ def plot_convergence_error_strain_rate(fname,nexp,hx,nrm_exxc1,nrm_ezzc1,nrm_exz
   plt.title('d) Stokes-Darcy - CORNER',fontweight='bold',fontsize=12)
   plt.legend(loc='lower right')
 
-  plt.savefig(fname+'_error_strain_rate_hx_L2.pdf')
+  plt.savefig(fname+'/'+fname+'_error_strain_rate_hx_L2.pdf')
   plt.close()
 
 # ---------------------------------------
@@ -802,8 +835,33 @@ print('# --------------------------------------- #')
 
 # Set main parameters and run test
 fname = 'out_effvisc'
+fname_data = fname+'/data'
+try:
+  os.mkdir(fname)
+except OSError:
+  pass
+
+try:
+  os.mkdir(fname_data)
+except OSError:
+  pass
+
+# Get cpu number
+ncpu = 1
+options, remainder = getopt.getopt(sys.argv[1:],'n:')
+for opt, arg in options:
+  if opt in ('-n'):
+    ncpu = int(arg)
+
+# Use umfpack for sequential and mumps for parallel
+solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+if (ncpu == 1):
+  solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+else:
+  solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
+
 n  = [40, 100, 120, 150, 200, 250, 300] #[41, 101, 121, 151, 201, 251, 301] # resolution
-nexp = [1.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0] #[1.0, 5.0, 10.0, 15.0, 30.0]    # power-law exponent
+nexp = [1.0, 2.0, 3.0] #[1.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0] #[1.0, 5.0, 10.0, 15.0, 30.0]    # power-law exponent
 
 # Prepare errors and convergence
 nrm_p1  = np.zeros((len(nexp),len(n))) # 1- stokes
@@ -834,11 +892,12 @@ for j in range(len(nexp)):
     # Create output filename
     inp = nexp[j]
     nx  = n[i]
-    fout = fname+'_np'+str(j)+'_'+str(nx)+'.out'
+    fout = fname_data+'/'+fname+'_np'+str(j)+'_'+str(nx)+'.out'
 
     # Run with different resolutions - 1 timestep
-    str1 = '../test_effvisc_mms.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor_true_residual -ksp_monitor_true_residual -snes_converged_reason -ksp_converged_reason'+ \
+    str1 = 'mpiexec -n '+str(ncpu)+' ../test_effvisc_mms.app -pc_type lu -pc_factor_mat_solver_type mumps'+solver+solver_default+ \
         ' -output_file '+fname+ \
+        ' -output_dir '+fname_data+ \
         ' -nexp '+str(inp)+ \
         ' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout
     print(str1)
@@ -868,13 +927,14 @@ for j in range(len(nexp)):
     nrm_ezzn2[j,i] = nrm_ezzn2_num
     nrm_exzn2[j,i] = nrm_exzn2_num
 
-    # Plot solution and error
-    # plot_solution_mms_error(fname,nx,j)
-    # plot_strain_rates_error(fname,nx,j)
-    # plot_rhs_mms(fname,nx,j)
+    # Plot solution and error - for highest resolution
+    if (nx==n[-1]):
+      plot_solution_mms_error(fname,fname_data,nx,j)
+      plot_strain_rates_error(fname,fname_data,nx,j)
+      plot_rhs_mms(fname,fname_data,nx,j)
 
 # Convergence plot
 plot_convergence_error(fname,nexp,hx,nrm_p1,nrm_v1,nrm_p2,nrm_v2,conv1,conv2)
 plot_convergence_error_strain_rate(fname,nexp,hx,nrm_exxc1,nrm_ezzc1,nrm_exzc1,nrm_exxn1,nrm_ezzn1,nrm_exzn1,nrm_exxc2,nrm_ezzc2,nrm_exzc2,nrm_exxn2,nrm_ezzn2,nrm_exzn2,conv1,conv2)
 
-os.system('rm -r __pycache__')
+os.system('rm -r '+fname_data+'/__pycache__')

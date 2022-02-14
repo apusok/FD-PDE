@@ -10,6 +10,7 @@ import os
 import importlib
 import dmstagoutput as dmout
 from matplotlib import rc
+import sys, getopt
 
 # Some new font
 rc('font',**{'family':'serif','serif':['Times new roman']})
@@ -17,6 +18,31 @@ rc('text', usetex=True)
 
 # Input file
 f1 = 'out_mms_katz_ch13'
+fname = 'out_stokesdarcy_mms_katz_ch13'
+fname_data = fname+'/data'
+try:
+  os.mkdir(fname)
+except OSError:
+  pass
+
+try:
+  os.mkdir(fname_data)
+except OSError:
+  pass
+
+# Get cpu number, set with option -n 2
+ncpu = 1
+options, remainder = getopt.getopt(sys.argv[1:],'n:')
+for opt, arg in options:
+  if opt in ('-n'):
+    ncpu = int(arg)
+
+# Use umfpack for sequential and mumps for parallel
+solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+if (ncpu == 1):
+  solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+else:
+  solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
 
 # Parameters
 n = [20, 40, 80, 100, 200, 300, 400]
@@ -36,19 +62,23 @@ cmaps='RdBu_r'
 # Run simulations
 for nx in n:
   # Create output filename
-  fout1 = f1+'_'+str(nx)+'.out'
+  fout1 = fname_data+'/'+f1+'_'+str(nx)+'.out'
 
   # Run with different resolutions
-  str1 = '../test_stokesdarcy2field_mms_katz_ch13.app -pc_type lu -pc_factor_mat_solver_type umfpack -delta '+str(delta)+ \
+  str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_mms_katz_ch13.app '+solver+solver_default+' -delta '+str(delta)+ \
     ' -phi_0 '+str(phi_0)+' -phi_s '+str(phi_s)+' -p_s '+str(p_s)+' -psi_s '+str(psi_s)+ \
     ' -U_s '+str(U_s)+' -m '+str(m)+' -n '+str(nexp)+' -e3 '+str(e3)+ \
-    ' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
+    ' -output_dir '+fname_data+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
   print(str1)
   os.system(str1)
 
   # Get mms solution data
   f1out = 'out_mms_solution'
-  imod = importlib.import_module(f1out)
+  # imod = importlib.import_module(f1out)
+  spec = importlib.util.spec_from_file_location(f1out,fname_data+'/'+f1out+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
+
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
 
@@ -60,7 +90,11 @@ for nx in n:
 
   # Get solution data
   f1out = 'out_solution'
-  imod = importlib.import_module(f1out)
+  # imod = importlib.import_module(f1out)
+  spec = importlib.util.spec_from_file_location(f1out,fname_data+'/'+f1out+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
+
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
 
@@ -74,7 +108,11 @@ for nx in n:
 
   # Get extra parameters
   f1out = 'out_extra_parameters'
-  imod = importlib.import_module(f1out)
+  # imod = importlib.import_module(f1out)
+  spec = importlib.util.spec_from_file_location(f1out,fname_data+'/'+f1out+'.py')
+  imod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(imod)
+
   data = imod._PETScBinaryLoad()
   imod._PETScBinaryLoadReportNames(data)
 
@@ -163,7 +201,7 @@ for nx in n:
   cbar = fig.colorbar(im,ax=ax, shrink=0.75)
 
   plt.tight_layout() 
-  plt.savefig(f1+'_nx_'+str(nx)+'.pdf')
+  plt.savefig(fname+'/'+f1+'_nx_'+str(nx)+'.pdf')
   plt.close()
 
   # Plot data - mms, solution and errors for P, ux, uz
@@ -192,7 +230,7 @@ for nx in n:
   ax.set_xlabel('x')
   cbar = fig.colorbar(im,ax=ax, ticks=np.linspace(np.around(np.min(phi), decimals=2), np.around(np.max(phi), decimals=2), 5), shrink=0.75, extend='both')
 
-  plt.savefig(f1+'_extra_nx_'+str(nx)+'.pdf')
+  plt.savefig(fname+'/'+f1+'_extra_nx_'+str(nx)+'.pdf')
   plt.close()
 
 # Norm variables
@@ -206,7 +244,7 @@ hx = np.zeros(len(n))
 for i in range(0,len(n)):
     nx = n[i]
 
-    fout1 = f1+'_'+str(nx)+'.out'
+    fout1 = fname_data+'/'+f1+'_'+str(nx)+'.out'
 
     # Open file 1 and read
     f = open(fout1, 'r')
@@ -221,24 +259,6 @@ for i in range(0,len(n)):
           hx[i] = float(line[18:36])
     f.close()
 
-# Plot convergence data
-plt.figure(1,figsize=(6,6))
-
-plt.grid(color='lightgray', linestyle=':')
-
-plt.plot(n,nrm_v,'k+-',label='v')
-plt.plot(n,nrm_p,'ko--',label='P')
-
-plt.xscale("log")
-plt.yscale("log")
-
-plt.xlabel('$\sqrt{N}, N=n^2$',fontweight='bold',fontsize=12)
-plt.ylabel('$E(P), E(v_s)$',fontweight='bold',fontsize=12)
-plt.legend()
-
-plt.savefig(f1+'.pdf')
-plt.close()
-
 # Print convergence orders:
 hx_log    = np.log10(n)
 nrm2v_log = np.log10(nrm_v)
@@ -252,5 +272,23 @@ print('# --------------------------------------- #')
 print('# MMS StokesDarcy2Field (Katz, Magma dynamics, Ch. 13) convergence order:')
 print('     v_slope = '+str(sl2v)+' p_slope = '+str(sl2p))
 
-os.system('rm -r __pycache__')
+# Plot convergence data
+plt.figure(1,figsize=(6,6))
+
+plt.grid(color='lightgray', linestyle=':')
+
+plt.plot(n,nrm_v,'k+-',label='v sl = '+str(round(sl2v,5)))
+plt.plot(n,nrm_p,'ko--',label='P sl = '+str(round(sl2p,5)))
+
+plt.xscale("log")
+plt.yscale("log")
+
+plt.xlabel('$\sqrt{N}, N=n^2$',fontweight='bold',fontsize=12)
+plt.ylabel('$E(P), E(v_s)$',fontweight='bold',fontsize=12)
+plt.legend()
+
+plt.savefig(fname+'/'+f1+'.pdf')
+plt.close()
+
+os.system('rm -r '+fname_data+'/__pycache__')
 

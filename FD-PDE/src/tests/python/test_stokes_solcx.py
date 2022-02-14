@@ -7,33 +7,65 @@
 # Import libraries
 import numpy as np
 import matplotlib.pyplot as plt
+import importlib
 from scipy.stats import linregress
 import os
+import shutil 
+import glob
+import sys, getopt
 
 # Input file
 f1 = 'out_solcx_1e0' # isoviscous
 f2 = 'out_solcx_1e6' # variable viscosity
+
+fname = 'out_stokes_solcx'
+fname_data = fname+'/data'
+try:
+  os.mkdir(fname)
+except OSError:
+  pass
+
+try:
+  os.mkdir(fname_data)
+except OSError:
+  pass
+
+# Get cpu number
+ncpu = 1
+options, remainder = getopt.getopt(sys.argv[1:],'n:')
+for opt, arg in options:
+  if opt in ('-n'):
+    ncpu = int(arg)
 
 print('# --------------------------------------- #')
 print('# SolCx benchmark ')
 print('# --------------------------------------- #')
 
 # Parameters
-n = [40, 80, 100, 200, 300, 400]
+n = [80, 100, 200, 300, 400]
+
+# Use umfpack for sequential and mumps for parallel
+solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+if (ncpu == 1):
+  solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+else:
+  solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
 
 # Run simulations
 for nx in n:
 
     # Create output filename
-    fout1 = f1+'_'+str(nx)+'.out'
-    fout2 = f2+'_'+str(nx)+'.out'
+    fout1 = fname_data+'/'+f1+'_'+str(nx)+'.out'
+    fout2 = fname_data+'/'+f2+'_'+str(nx)+'.out'
 
     # Run with different resolutions
-    str1 = '../test_stokes_solcx.app -pc_type lu -pc_factor_mat_solver_type umfpack -output_file '+f1+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
+    str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_solcx.app '+solver+solver_default+ \
+      ' -output_file '+f1+' -output_dir '+fname_data+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
     print(str1)
     os.system(str1)
 
-    str2 = '../test_stokes_solcx.app -pc_type lu -pc_factor_mat_solver_type umfpack -eta1 1.0e6 -output_file '+f2+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout2
+    str2 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_solcx.app '+solver+solver_default+ \
+      ' -eta1 1.0e6 -output_file '+f2+' -output_dir '+fname_data+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout2
     print(str2)
     os.system(str2)
 
@@ -57,8 +89,8 @@ for i in range(0,len(n)):
     nx = n[i]
 
     # Create output filename
-    fout1 = f1+'_'+str(nx)+'.out'
-    fout2 = f2+'_'+str(nx)+'.out'
+    fout1 = fname_data+'/'+f1+'_'+str(nx)+'.out'
+    fout2 = fname_data+'/'+f2+'_'+str(nx)+'.out'
 
     # Open file 1 and read
     f = open(fout1, 'r')
@@ -95,35 +127,6 @@ y1 = [1e-9, 1e-8]
 x2 = [1e-3, 1e-2]
 y2 = [1e-9, 1e-7]
 
-# Plot convergence data
-plt.figure(1,figsize=(12,6))
-
-plt.subplot(121)
-plt.grid(color='lightgray', linestyle=':')
-plt.plot(np.log10(hx),np.log10(nrm1v),'k+--',label='v')
-plt.plot(np.log10(hx),np.log10(nrm1p),'ko--',label='P')
-
-plt.plot(np.log10(x1),np.log10(y1),'r-',label='slope=1')
-plt.plot(np.log10(x2),np.log10(y2),'b-',label='slope=2')
-
-plt.xlabel('log10(h)',fontweight='bold',fontsize=12)
-plt.ylabel('log10||e||',fontweight='bold',fontsize=12)
-plt.title('A. Isoviscous',fontweight='bold',fontsize=16)
-plt.legend()
-
-plt.subplot(122)
-plt.grid(color='lightgray', linestyle=':')
-plt.plot(np.log10(hx_1e6),np.log10(nrm1v_1e6),'k+--',label='v')
-plt.plot(np.log10(hx_1e6),np.log10(nrm1p_1e6),'ko--',label='P')
-
-plt.plot(np.log10(x1),np.log10(y1),'r-',label='slope=1')
-plt.plot(np.log10(x2),np.log10(y2),'b-',label='slope=2')
-
-plt.xlabel('log10(h)',fontweight='bold',fontsize=12)
-plt.ylabel('log10||e||',fontweight='bold',fontsize=12)
-plt.title('B. 1e6 viscosity jump',fontweight='bold',fontsize=16)
-plt.legend()
-
 # Print convergence orders:
 hx10    = np.log10(hx)
 nrm1v10 = np.log10(nrm1v)
@@ -139,23 +142,55 @@ sl1e0p, intercept, r_value, p_value, std_err = linregress(hx10, nrm1p10)
 sl1e6v, intercept, r_value, p_value, std_err = linregress(hx10_1e6, nrm1v10_1e6)
 sl1e6p, intercept, r_value, p_value, std_err = linregress(hx10_1e6, nrm1p10_1e6)
 
+# Plot convergence data
+plt.figure(1,figsize=(12,6))
+
+plt.subplot(121)
+plt.grid(color='lightgray', linestyle=':')
+plt.plot(np.log10(hx),np.log10(nrm1v),'k+--',label='v '+str(round(sl1e0v,5)))
+plt.plot(np.log10(hx),np.log10(nrm1p),'ko--',label='P '+str(round(sl1e0p,5)))
+
+plt.plot(np.log10(x1),np.log10(y1),'r-',label='slope=1')
+plt.plot(np.log10(x2),np.log10(y2),'b-',label='slope=2')
+
+plt.xlabel('log10(h)',fontweight='bold',fontsize=12)
+plt.ylabel('log10||e||',fontweight='bold',fontsize=12)
+plt.title('A. Isoviscous',fontweight='bold',fontsize=16)
+plt.legend()
+
+plt.subplot(122)
+plt.grid(color='lightgray', linestyle=':')
+plt.plot(np.log10(hx_1e6),np.log10(nrm1v_1e6),'k+--',label='v '+str(round(sl1e6v,5)))
+plt.plot(np.log10(hx_1e6),np.log10(nrm1p_1e6),'ko--',label='P '+str(round(sl1e6p,5)))
+
+plt.plot(np.log10(x1),np.log10(y1),'r-',label='slope=1')
+plt.plot(np.log10(x2),np.log10(y2),'b-',label='slope=2')
+
+plt.xlabel('log10(h)',fontweight='bold',fontsize=12)
+plt.ylabel('log10||e||',fontweight='bold',fontsize=12)
+plt.title('B. 1e6 viscosity jump',fontweight='bold',fontsize=16)
+plt.legend()
+
 print('# --------------------------------------- #')
 print('# SolCx convergence order:')
 print('     (isoviscous 1e0): v_slope = '+str(sl1e0v)+' p_slope = '+str(sl1e0p))
 print('     (visc contr 1e6): v_slope = '+str(sl1e6v)+' p_slope = '+str(sl1e6p))
 
-fname = 'out_test_solcx_convergence.pdf'
-plt.savefig(fname)
+fout = fname+'/'+'out_test_solcx_convergence.pdf'
+plt.savefig(fout)
 
 print('# --------------------------------------- #')
-print('# Printed SolCx convergence results to: '+fname)
+print('# Printed SolCx convergence results to: '+fout)
 print('# --------------------------------------- #')
 
 nind = 15
 
 # Plot solution - ISOVISCOUS
 # Import the auto-generated python script
-import out_solcx_1e0 as solcx0
+# import out_solcx_1e0 as solcx0
+spec = importlib.util.spec_from_file_location(f1,fname_data+'/'+f1+'.py')
+solcx0 = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(solcx0)
 
 # Load the data
 data = solcx0._PETScBinaryLoad()
@@ -196,17 +231,20 @@ fig, ax1 = plt.subplots(1)
 im = plt.imshow( p.reshape(n,m), extent=[min(xv), max(xv), min(yv), max(yv)],
                 origin='lower', cmap='RdBu', interpolation='nearest' )
 Q = plt.quiver( xc[::nind], yc[::nind], vxc[::nind,::nind], vyc[::nind,::nind], units='width', pivot='mid' )
-plt.axis(aspect='image')
+plt.axis('image')
 plt.xlabel('x-dir')
 plt.ylabel('z-dir')
 plt.title('SolCx benchmark - isoviscous')
 cbar = fig.colorbar( im, ax=ax1 )
 cbar.ax.set_ylabel('pressure')
-plt.savefig(f1+'.pdf')
+plt.savefig(fname+'/'+f1+'.pdf')
 
 # Plot solution - VARVISC
 # Import the auto-generated python script
-import out_solcx_1e6 as solcx6
+# import out_solcx_1e6 as solcx6
+spec = importlib.util.spec_from_file_location(f2,fname_data+'/'+f2+'.py')
+solcx6 = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(solcx6)
 
 # Load the data
 data = solcx6._PETScBinaryLoad()
@@ -247,10 +285,12 @@ fig, ax1 = plt.subplots(1)
 im = plt.imshow( p.reshape(n,m), extent=[min(xv), max(xv), min(yv), max(yv)],
                 origin='lower', cmap='RdBu', interpolation='nearest' )
 Q = plt.quiver( xc[::nind], yc[::nind], vxc[::nind,::nind], vyc[::nind,::nind], units='xy', pivot='mid')
-plt.axis(aspect='image')
+plt.axis('image')
 plt.xlabel('x-dir')
 plt.ylabel('z-dir')
 plt.title('SolCx benchmark - var viscosity')
 cbar = fig.colorbar( im, ax=ax1)
 cbar.ax.set_ylabel('pressure')
-plt.savefig(f2+'.pdf')
+plt.savefig(fname+'/'+f2+'.pdf')
+
+os.system('rm -r '+fname_data+'/__pycache__')

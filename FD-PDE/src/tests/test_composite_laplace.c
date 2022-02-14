@@ -1,6 +1,6 @@
 // ---------------------------------------
 // Composite solver test (monolithic)
-// run: ./tests/test_composite_laplace.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// run: ./tests/test_composite_laplace.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
 // ---------------------------------------
 static char help[] = "Application to solve two de-coupled Laplace problems with a monolithoc FD-PDE \n\n";
 
@@ -810,7 +810,7 @@ PetscErrorCode Analytic_Laplace(DM dm,Vec *_x, void *ctx)
 
   ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
 
-  ierr = DMStagViewBinaryPython(dm,x,"out_analytic_solution_laplace");CHKERRQ(ierr);
+  // ierr = DMStagViewBinaryPython(dm,x,"out_analytic_solution_laplace");CHKERRQ(ierr);
 
   // Assign pointers
   *_x  = x;

@@ -1,6 +1,6 @@
 // ---------------------------------------
 // (ADVDIFF) Pure advection and time-stepping test
-// run: ./tests/test_advdiff_advtime.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// run: ./tests/test_advdiff_advtime.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
 // python test: ./tests/python/test_advdiff_advtime.py
 // ---------------------------------------
 static char help[] = "Application to solve advection of a Gaussian pulse in time (ADVDIFF) with FD-PDE \n\n";
@@ -36,6 +36,7 @@ typedef struct {
   PetscScalar    A, x0, z0, taox, taoz;
   char           fname_out[FNAME_LENGTH]; 
   char           fname_in [FNAME_LENGTH];  
+  char           fdir_out[FNAME_LENGTH]; 
 } Params;
 
 // user defined and model-dependent variables
@@ -80,7 +81,7 @@ const char bc_description[] =
 PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
 {
   UsrData       *usr = (UsrData*) ctx;
-  DM             dm;
+  DM             dm, dmcoeff;
   Vec            x, xprev, xguess;
   Vec            coeff, coeffprev;
   FDPDE          fd;
@@ -113,7 +114,8 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
   ierr = FDPDESetUp(fd);CHKERRQ(ierr);
   
   if (usr->par->adv_scheme == 0) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_UPWIND);CHKERRQ(ierr); }
-  if (usr->par->adv_scheme == 1) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_FROMM);CHKERRQ(ierr); }
+  if (usr->par->adv_scheme == 1) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_UPWIND2);CHKERRQ(ierr); }
+  if (usr->par->adv_scheme == 2) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_FROMM);CHKERRQ(ierr); }
 
   if (ts_scheme == 0) { ierr = FDPDEAdvDiffSetTimeStepSchemeType(fd,TS_FORWARD_EULER);CHKERRQ(ierr); }
   if (ts_scheme == 1) { ierr = FDPDEAdvDiffSetTimeStepSchemeType(fd,TS_BACKWARD_EULER);CHKERRQ(ierr); }
@@ -132,19 +134,23 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
 
   // Set initial distribution - xguess
   ierr = FDPDEGetDM(fd, &dm); CHKERRQ(ierr);
-
   ierr = FDPDEGetSolutionGuess(fd, &xguess);CHKERRQ(ierr);
   ierr = SetGaussianInitialGuess(dm,xguess,usr);CHKERRQ(ierr);
 
   ierr = FDPDEAdvDiffGetPrevSolution(fd,&xprev);CHKERRQ(ierr);
   ierr = VecCopy(xguess,xprev);CHKERRQ(ierr);
   
+  // Set initial coefficient structure
+  ierr = FDPDEGetCoefficient(fd,&dmcoeff,NULL);CHKERRQ(ierr);
+  ierr = FDPDEAdvDiffGetPrevCoefficient(fd,&coeffprev);CHKERRQ(ierr);
+  ierr = FormCoefficient(fd,dm,xprev,dmcoeff,coeffprev,usr);CHKERRQ(ierr);
+  ierr = VecDestroy(&coeffprev);CHKERRQ(ierr);
   ierr = VecDestroy(&xguess);CHKERRQ(ierr);
   ierr = VecDestroy(&xprev);CHKERRQ(ierr);
 
   // Time loop
   while (istep < tstep) {
-    PetscPrintf(PETSC_COMM_WORLD,"# Timestep %d out of %d: time %1.3f\n\n",istep,tstep,usr->par->t);
+    PetscPrintf(PETSC_COMM_WORLD,"# Timestep %d out of %d: time %1.3f\n",istep,tstep,usr->par->t);
 
     // FD SNES Solver
     ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
@@ -167,7 +173,7 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
 
     // Output solution
     if (istep % usr->par->tout == 0 ) {
-      ierr = PetscSNPrintf(fout,sizeof(fout),"%s_m%d_ts%1.3d",usr->par->fname_out,ts_scheme,istep);
+      ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_tstep%1.3d",usr->par->fdir_out,usr->par->fname_out,istep);
       ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
 
       // Calculate analytical solution and output
@@ -274,7 +280,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterInt(bag, &par->tstep, 1, "tstep", "Number of time steps"); CHKERRQ(ierr);
 
   ierr = PetscBagRegisterInt(bag, &par->ts_scheme,0, "ts_scheme", "Time stepping scheme"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->adv_scheme,0, "adv_scheme", "Advection scheme 0-upwind, 1-fromm"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->adv_scheme,0, "adv_scheme", "Advection scheme 0-upwind, 1-upwind2, 2-fromm"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->tout,5,"tout", "Output every <tout> time steps"); CHKERRQ(ierr);
 
   ierr = PetscBagRegisterScalar(bag, &par->xmin, 0.0, "xmin", "Start coordinate of domain in x-dir"); CHKERRQ(ierr);
@@ -301,6 +307,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   // Input/output 
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_num_advtime","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterString(bag,&par->fdir_out,FNAME_LENGTH,"./","output_dir","Name for output directory, set with: -output_dir <dirname>"); CHKERRQ(ierr);
 
   // Other variables
   par->fname_in[0] = '\0';
@@ -673,7 +680,7 @@ PetscErrorCode Analytic_AdvTime(DM dm,void *ctx, PetscInt istep)
   ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
 
   // output
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s_ts%1.3d","out_analytic_solution",istep);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s_tstep%1.3d",usr->par->fdir_out,"out_analytic_solution",istep);
   ierr = DMStagViewBinaryPython(dm,x,fout);CHKERRQ(ierr);
 
   ierr = VecDestroy(&x); CHKERRQ(ierr);

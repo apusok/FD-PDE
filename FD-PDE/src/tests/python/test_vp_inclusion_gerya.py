@@ -728,13 +728,13 @@ for i in range(0, 4):
 
   # solver
   picard = ' -p_pc_factor_mat_solver_type umfpack'+ \
-           ' -p_pc_type lu'+ \
+           ' -p_pc_type lu -pc_factor_mat_ordering_type external'+ \
            ' -p_snes_linesearch_damping 1.0'+ \
            ' -p_snes_linesearch_type bt'+ \
            ' -p_snes_max_it 40 -p_snes_monitor'
 
   newton = ' -pc_factor_mat_solver_type umfpack'+ \
-           ' -pc_type lu'+ \
+           ' -pc_type lu -pc_factor_mat_ordering_type external'+ \
            ' -snes_linesearch_type bt'+ \
            ' -snes_atol 1e-10'+ \
            ' -snes_rtol 1e-50'+ \

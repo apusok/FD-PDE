@@ -8,25 +8,56 @@ import numpy as np
 import matplotlib.pyplot as plt
 import importlib
 import os
+import shutil 
+import glob
+import sys, getopt
 
 # Input file
 fname = 'out_stokes_mor'
+fname_data = fname+'/data'
+try:
+  os.mkdir(fname)
+except OSError:
+  pass
+
+try:
+  os.mkdir(fname_data)
+except OSError:
+  pass
+
+# Get cpu number
+ncpu = 1
+options, remainder = getopt.getopt(sys.argv[1:],'n:')
+for opt, arg in options:
+  if opt in ('-n'):
+    ncpu = int(arg)
 
 print('# --------------------------------------- #')
 print('# Corner flow (mid-ocean ridges) benchmark ')
 print('# --------------------------------------- #')
 
-n = 200
+n = 100
+
+# Use umfpack for sequential and mumps for parallel
+solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+if (ncpu == 1):
+  solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+else:
+  solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
 
 # Run test
-str1 = '../test_stokes_mor.app -pc_type lu -pc_factor_mat_solver_type umfpack -output_file '+fname+' -nx '+str(n)+' -nz '+str(n)
+fout1 = fname_data+'/log_'+fname+'_'+str(n)+'.out'
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_mor.app '+solver+solver_default+ \
+  ' -output_file '+fname+' -output_dir '+fname_data+' -nx '+str(n)+' -nz '+str(n)+' > '+fout1
 print(str1)
 os.system(str1)
 
 # Plot solution
-
 # Load python module describing data
-imod = importlib.import_module(fname)
+# imod = importlib.import_module(fname)
+spec = importlib.util.spec_from_file_location(fname,fname_data+'/'+fname+'.py')
+imod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(imod)
 
 # Load data
 data = imod._PETScBinaryLoad()
@@ -73,7 +104,7 @@ im = ax1.imshow( p.reshape(n,m), extent=[min(xv), max(xv), min(yv), max(yv)],
                 origin='lower', cmap='inferno', interpolation='nearest' )
 im.set_clim(-10,0)
 Q = ax1.quiver( xc[::nind], yc[::nind], vxc[::nind,::nind], vyc[::nind,::nind], units='width', pivot='mid' )
-ax1.axis(aspect='image')
+ax1.axis('image')
 ax1.set_xlabel('x-dir')
 ax1.set_ylabel('z-dir')
 ax1.set_title('MOR Corner Flow (numerical)')
@@ -84,7 +115,10 @@ ax1.set_title('MOR Corner Flow (numerical)')
 fname1 = 'out_analytic_solution_mor'
 
 # Load python module describing data
-imod = importlib.import_module(fname1)
+# imod = importlib.import_module(fname1)
+spec = importlib.util.spec_from_file_location(fname1,fname_data+'/'+fname1+'.py')
+imod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(imod)
 
 # Load data
 data = imod._PETScBinaryLoad()
@@ -128,7 +162,7 @@ im = plt.imshow( p.reshape(n,m), extent=[min(xv), max(xv), min(yv), max(yv)],
                 origin='lower', cmap='inferno', interpolation='nearest' )
 im.set_clim(-10,0)
 Q = ax2.quiver( xc[::nind], yc[::nind], vxc[::nind,::nind], vyc[::nind,::nind], units='width', pivot='mid' )
-ax2.axis(aspect='image')
+ax2.axis('image')
 ax2.set_xlabel('x-dir')
 #plt.ylabel('z-dir')
 ax2.set_title('MOR Corner Flow (analytical)')
@@ -136,4 +170,5 @@ ax2.set_title('MOR Corner Flow (analytical)')
 cbar = fig.colorbar(im,ax=axs, shrink=0.75)
 cbar.ax.set_ylabel('Pressure')
 
-plt.savefig(fname+'.pdf')
+plt.savefig(fname+'/'+fname+'.pdf')
+os.system('rm -r '+fname_data+'/__pycache__')

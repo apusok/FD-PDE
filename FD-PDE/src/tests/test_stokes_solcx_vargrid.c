@@ -1,6 +1,6 @@
 // ---------------------------------------
 // SOLCX benchmark - Irregular grid spacing
-// run: ./tests/test_stokes_solcx_vargrid.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10
+// run: ./tests/test_stokes_solcx_vargrid.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
 // viz: with Paraview (example VTK output)
 // ---------------------------------------
 static char help[] = "Application to solve the SolCx benchmark with FD-PDE - Irregular grid spacing \n\n";
@@ -143,7 +143,7 @@ PetscErrorCode SNESStokes_Solcx(DM *_dm, Vec *_x, void *ctx)
   ierr = FDPDEGetDM(fd,&dmPV); CHKERRQ(ierr);
 
   // Output solution to file
-  ierr = DoOutput(dmPV,x,"numerical_solution_vargrid.vtr");CHKERRQ(ierr);
+  ierr = DoOutput(dmPV,x,"out_stokes_solcx_vargrid.vtr");CHKERRQ(ierr);
 
   // Destroy FD-PDE object
   ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);

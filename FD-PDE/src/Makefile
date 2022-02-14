@@ -59,7 +59,7 @@ TEST_SRC = 	tests/test_stokes_solcx.c \
 		tests/test_stokes_rt.c \
 		tests/test_plastic_indenter.c \
 		tests/test_vp_inclusion_gerya.c \
-		tests/test_stokes_lid4.c \
+		tests/test_stokes_lid_driven.c \
 		tests/test_trueboundary.c \
 		tests/test_enthalpy_2d_diffusion.c \
 		tests/test_enthalpy_1d_eutectic_solidification.c \
@@ -99,7 +99,7 @@ clean_all:
 	@rm -rf $(TEST_APP)
 	@rm -rf $(MODEL_OBJ)
 	@rm -rf $(MODEL_APP)
-	@rm -rf *.dSYM $(TEST_DIR)/*.dSYM *.py *.vtr *.pbin *.info
+	@rm -rf *.dSYM $(TEST_DIR)/*.dSYM *.py *.vtr *.pbin *.info *.out $(TEST_DIR)/*.out $(PYTHON_DIR)/*.out
 	@rm -rf out_* $(TEST_DIR)/out_* $(PYTHON_DIR)/out_*
 	@rm -rf snes_failure* $(TEST_DIR)/snes_failure* $(PYTHON_DIR)/snes_failure*
 	@rm -rf enthalpy_failure* $(TEST_DIR)/enthalpy_failure* $(PYTHON_DIR)/enthalpy_failure*

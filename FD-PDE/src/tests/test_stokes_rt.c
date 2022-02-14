@@ -1,7 +1,7 @@
 // ---------------------------------------
-// run: ./tests/test_stokes_rt.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10 -snes_type ksponly -snes_fd_color -nt 800
+// run: ./tests/test_stokes_rt.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -snes_type ksponly -snes_fd_color -nt 800
 // ---------------------------------------
-static char help[] = "Application to solve an RT instability\n\n";
+static char help[] = "Application to solve an Rayleigh-Taylor instability\n\n";
 
 // define convenient names for DMStagStencilLocation
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
@@ -31,7 +31,8 @@ typedef struct {
   PetscScalar    xmin, zmin;
   PetscScalar    eta0, eta1, g;
   char           fname_out[FNAME_LENGTH]; 
-  char           fname_in [FNAME_LENGTH];  
+  char           fname_in [FNAME_LENGTH]; 
+  char           fdir_out[FNAME_LENGTH]; 
 } Params;
 
 // user defined and model-dependent variables
@@ -74,13 +75,15 @@ const char bc_description[] =
 // ---------------------------------------
 
 
-static PetscErrorCode DumpSolution(DM dmStokes,Vec x)
+static PetscErrorCode DumpSolution(DM dmStokes,Vec x, void *ctx)
 {
   PetscErrorCode ierr;
+  UsrData       *usr = (UsrData*) ctx;
   DM             dmVelAvg;
   Vec            velAvg;
   DM             daVelAvg;
   Vec            vecVelAvg;
+  char           fout[FNAME_LENGTH];
   
   PetscFunctionBeginUser;
   
@@ -127,7 +130,8 @@ static PetscErrorCode DumpSolution(DM dmStokes,Vec x)
   /* Dump element-based fields to a .vtr file */
   {
     PetscViewer viewer;
-    ierr = PetscViewerVTKOpen(PetscObjectComm((PetscObject)daVelAvg),"rt_element.vtr",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+    ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s",usr->par->fdir_out,"out_stokes_rt_element.vtr");
+    ierr = PetscViewerVTKOpen(PetscObjectComm((PetscObject)daVelAvg),fout,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
     ierr = VecView(vecVelAvg,viewer);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
   }
@@ -156,6 +160,7 @@ PetscErrorCode SNESStokes_RT(DM *_dm, Vec *_x, void *ctx)
   PetscInt       nx, nz, k;
   PetscScalar    xmin, zmin, xmax, zmax;
   SNES           snes;
+  char           fout[FNAME_LENGTH];
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -239,7 +244,8 @@ PetscErrorCode SNESStokes_RT(DM *_dm, Vec *_x, void *ctx)
 
   ierr = FDPDEGetSNES(fd,&snes);CHKERRQ(ierr);
 
-  ierr = DMSwarmViewXDMF(dmswarm,"dms-0.xmf");CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s","out_stokes_rt-0.xmf");
+  ierr = DMSwarmViewXDMF(dmswarm,fout);CHKERRQ(ierr);
 
   for (k=1; k<usr->par->nt; k++) {
     char filename[100];
@@ -254,8 +260,8 @@ PetscErrorCode SNESStokes_RT(DM *_dm, Vec *_x, void *ctx)
     
     ierr = MPoint_AdvectRK1(dmswarm,dmPV,x,20.0);CHKERRQ(ierr);
 
-    ierr = DumpSolution(dmPV,x);CHKERRQ(ierr);
-    PetscSNPrintf(filename,99,"dms-%d.xmf",k);
+    ierr = DumpSolution(dmPV,x,usr);CHKERRQ(ierr);
+    ierr = PetscSNPrintf(filename,99,"out_stokes_rt-%d.xmf",k);
     if (k%10 == 0) { ierr = DMSwarmViewXDMF(dmswarm,filename);CHKERRQ(ierr); }
 
     ierr = VecDestroy(&x);CHKERRQ(ierr);
@@ -266,12 +272,14 @@ PetscErrorCode SNESStokes_RT(DM *_dm, Vec *_x, void *ctx)
   ierr = FDPDEGetDM(fd,&dmPV);CHKERRQ(ierr);
 
   // Output solution to file
-  ierr = DMStagViewBinaryPython(dmPV,x,usr->par->fname_out);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s",usr->par->fdir_out,usr->par->fname_out);
+  ierr = DMStagViewBinaryPython(dmPV,x,fout);CHKERRQ(ierr);
   {
     DM dmcoeff;
     Vec coeff;
     ierr = FDPDEGetCoefficient(fd,&dmcoeff,&coeff);CHKERRQ(ierr);
-    ierr = DMStagViewBinaryPython(dmcoeff,coeff,"out_coefficients");CHKERRQ(ierr);
+    ierr = PetscSNPrintf(fout,sizeof(fout),"%s/%s",usr->par->fdir_out,"out_coefficients");
+    ierr = DMStagViewBinaryPython(dmcoeff,coeff,fout);CHKERRQ(ierr);
   }
 
   // Destroy FD-PDE object
@@ -331,6 +339,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   // Input/output 
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_num_solution","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterString(bag,&par->fdir_out,FNAME_LENGTH,"./","output_dir","Name for output directory, set with: -output_dir <dirname>"); CHKERRQ(ierr);
 
   // Other variables
   par->fname_in[0] = '\0';

@@ -1,5 +1,5 @@
 # ------------------------------------------------ #
-# MMS test to verify 2 non-dimensionalization schemes (Rhebergen et al. 2014, Katz-Magma dynamics)
+# MMS test to verify 2 non-dimensionalization schemes (ND1 Rhebergen et al. 2014, ND2 Katz-Magma dynamics)
 # ------------------------------------------------ #
 
 # Import libraries
@@ -10,6 +10,7 @@ import os
 import importlib
 import dmstagoutput as dmout
 from matplotlib import rc
+import sys, getopt
 
 # # Some new font
 # rc('font',**{'family':'serif','serif':['Times new roman']})
@@ -36,6 +37,20 @@ nexp  = 3.0
 
 cmaps='RdBu_r' 
 
+# Get cpu number
+ncpu = 1
+options, remainder = getopt.getopt(sys.argv[1:],'n:')
+for opt, arg in options:
+  if opt in ('-n'):
+    ncpu = int(arg)
+
+# Use umfpack for sequential and mumps for parallel
+solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+if (ncpu == 1):
+  solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+else:
+  solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
+
 for ixx in alpha_i:
   for iyy in R_i:
     for izz in e3_i:
@@ -43,13 +58,26 @@ for ixx in alpha_i:
       R = iyy
       e3 = izz
 
+      fname = 'out_stokesdarcy_mms_compare_nd_alpha_'+str(alpha)+'_R_'+str(R)+'_e3_'+str(e3)
+      fname_data = fname+'/data'
+      try:
+        os.mkdir(fname)
+      except OSError:
+        pass
+
+      try:
+        os.mkdir(fname_data)
+      except OSError:
+        pass
+
       # Run simulations and plot solution and error
       for nx in n:
         # Create output filename
-        fout1 = f1+'_'+str(nx)+'.out'
+        fout1 = fname_data+'/'+f1+'_'+str(nx)+'.out'
 
         # Run with different resolutions
-        str1 = '../test_stokesdarcy2field_mms_compare_nd.app -pc_type lu -pc_factor_mat_solver_type umfpack -snes_monitor -ksp_monitor'+ \
+        str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_mms_compare_nd.app '+solver+solver_default+ \
+          ' -output_dir '+fname_data+ \
           ' -alpha '+str(alpha)+' -R '+str(R)+ \
           ' -phi_0 '+str(phi_0)+' -phi_s '+str(phi_s)+' -p_s '+str(p_s)+' -psi_s '+str(psi_s)+ \
           ' -U_s '+str(U_s)+' -m '+str(m)+' -n '+str(nexp)+' -e3 '+str(e3)+ \
@@ -59,7 +87,11 @@ for ixx in alpha_i:
 
         # Get mms solution data
         f1out = 'out_mms_solution'
-        imod = importlib.import_module(f1out)
+        # imod = importlib.import_module(f1out)
+        spec = importlib.util.spec_from_file_location(f1out,fname_data+'/'+f1out+'.py')
+        imod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(imod)
+
         data = imod._PETScBinaryLoad()
         imod._PETScBinaryLoadReportNames(data)
 
@@ -71,7 +103,11 @@ for ixx in alpha_i:
 
         # Get solution data MMS1
         f1out = 'out_solution_test1'
-        imod = importlib.import_module(f1out)
+        # imod = importlib.import_module(f1out)
+        spec = importlib.util.spec_from_file_location(f1out,fname_data+'/'+f1out+'.py')
+        imod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(imod)
+
         data = imod._PETScBinaryLoad()
         imod._PETScBinaryLoadReportNames(data)
 
@@ -85,7 +121,11 @@ for ixx in alpha_i:
 
         # Get solution data MMS2
         f1out = 'out_solution_test2'
-        imod = importlib.import_module(f1out)
+        # imod = importlib.import_module(f1out)
+        spec = importlib.util.spec_from_file_location(f1out,fname_data+'/'+f1out+'.py')
+        imod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(imod)
+
         data = imod._PETScBinaryLoad()
         imod._PETScBinaryLoadReportNames(data)
 
@@ -95,7 +135,11 @@ for ixx in alpha_i:
 
         # Get extra parameters
         f1out = 'out_extra_parameters'
-        imod = importlib.import_module(f1out)
+        # imod = importlib.import_module(f1out)
+        spec = importlib.util.spec_from_file_location(f1out,fname_data+'/'+f1out+'.py')
+        imod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(imod)
+
         data = imod._PETScBinaryLoad()
         imod._PETScBinaryLoadReportNames(data)
 
@@ -214,7 +258,7 @@ for ixx in alpha_i:
         cbar = fig.colorbar(im,ax=ax, shrink=0.75)
 
         plt.tight_layout() 
-        plt.savefig(f1+'_nx_'+str(nx)+'.pdf')
+        plt.savefig(fname+'/'+f1+'_nx_'+str(nx)+'.pdf')
         plt.close()
 
         # Plot data - mms, solution and errors for P, ux, uz
@@ -243,7 +287,7 @@ for ixx in alpha_i:
         ax.set_xlabel('x')
         cbar = fig.colorbar(im,ax=ax, ticks=np.linspace(np.around(np.min(phi), decimals=2), np.around(np.max(phi), decimals=2), 5), shrink=0.75, extend='both')
 
-        plt.savefig(f1+'_extra_nx_'+str(nx)+'.pdf')
+        plt.savefig(fname+'/'+f1+'_extra_nx_'+str(nx)+'.pdf')
         plt.close()
 
       # Norm variables
@@ -262,7 +306,7 @@ for ixx in alpha_i:
       for i in range(0,len(n)):
           nx = n[i]
 
-          fout1 = f1+'_'+str(nx)+'.out'
+          fout1 = fname_data+'/'+f1+'_'+str(nx)+'.out'
 
           # Open file 1 and read
           f = open(fout1, 'r')
@@ -282,29 +326,7 @@ for ixx in alpha_i:
             if 'Grid info MMS1:' in line:
                 hx[i] = float(line[18+line_ind:36+line_ind])
           f.close()
-
-      # Plot convergence data
-      plt.figure(1,figsize=(6,6))
-
-      plt.grid(color='lightgray', linestyle=':')
-
-      plt.plot(n,nrm1_v,'k+-',label='v (non-dim 1)')
-      plt.plot(n,nrm1_p,'ko--',label='P (non-dim 1)')
-      plt.plot(n,nrm2_v,'r+-',label='v (non-dim 2)')
-      plt.plot(n,nrm2_p,'ro--',label='P (non-dim 2)')
-
-      plt.xscale("log")
-      plt.yscale("log")
       
-      plt.ylim(bottom=1e-5,top=1e4)
-      plt.xlabel('$\sqrt{N}, N=n^2$',fontweight='bold',fontsize=12)
-      plt.ylabel('$E(P), E(v_s)$',fontweight='bold',fontsize=12)
-      plt.title('alpha='+str(alpha)+' R='+str(R)+' e3='+str(e3), fontweight='bold',fontsize=12)
-      plt.legend()
-
-      plt.savefig(f1+'.pdf')
-      plt.close()
-
       # Print convergence orders:
       hx_log    = np.log10(n)
       nrmv1_log = np.log10(nrm1_v)
@@ -320,12 +342,29 @@ for ixx in alpha_i:
 
       print('# --------------------------------------- #')
       print('# MMS StokesDarcy2Field convergence order for different non-dimensionalizations:')
-      print('    MMS1 Rhebergen et al. 2014: v_slope = '+str(slv1)+' p_slope = '+str(slp1))
-      print('    MMS2 Katz, Magma dynamics : v_slope = '+str(slv2)+' p_slope = '+str(slp2))
+      print('    ND1 Rhebergen et al. 2014: v_slope = '+str(slv1)+' p_slope = '+str(slp1))
+      print('    ND2 Katz, Magma dynamics : v_slope = '+str(slv2)+' p_slope = '+str(slp2))
 
-      os.system('rm -r __pycache__')
+      # Plot convergence data
+      plt.figure(1,figsize=(6,6))
 
-      # fdir = 'mms_compare_nd_alpha_'+str(alpha).replace('.','-')+'_R_'+str(R).replace('.','-')+'_e3_'+str(e3).replace('.','-')+'/'
-      fdir = 'mms_compare_nd_alpha_'+str(alpha)+'_R_'+str(R)+'_e3_'+str(e3)+'/'
-      os.system('mkdir '+fdir)
-      os.system('mv out_* '+fdir)
+      plt.grid(color='lightgray', linestyle=':')
+
+      plt.plot(n,nrm1_v,'k+-',label='v (ND1) sl = '+str(round(slv1,5)))
+      plt.plot(n,nrm1_p,'ko--',label='P (ND1) sl = '+str(round(slp1,5)))
+      plt.plot(n,nrm2_v,'r+-',label='v (ND2) sl = '+str(round(slv2,5)))
+      plt.plot(n,nrm2_p,'ro--',label='P (ND2) sl = '+str(round(slp2,5)))
+
+      plt.xscale("log")
+      plt.yscale("log")
+      
+      plt.ylim(bottom=1e-5,top=1e4)
+      plt.xlabel('$\sqrt{N}, N=n^2$',fontweight='bold',fontsize=12)
+      plt.ylabel('$E(P), E(v_s)$',fontweight='bold',fontsize=12)
+      plt.title('alpha='+str(alpha)+' R='+str(R)+' e3='+str(e3), fontweight='bold',fontsize=12)
+      plt.legend()
+
+      plt.savefig(fname+'/'+f1+'.pdf')
+      plt.close()
+
+      os.system('rm -r '+fname_data+'/__pycache__')

@@ -10,39 +10,70 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import linregress
+import importlib
 import os
-
-# Input file
-f1 = 'out_lid'
+import sys, getopt
 
 print('# --------------------------------------- #')
 print('# Four-lid-driven rotation flow benchmark ')
 print('# --------------------------------------- #')
 
-# Parameters
-nlist = [40, 80, 100, 200, 300, 400]
+# Input file
+fname = 'out_lid_driven'
+fname_data = fname+'/data'
+try:
+  os.mkdir(fname)
+except OSError:
+  pass
 
+try:
+  os.mkdir(fname_data)
+except OSError:
+  pass
+
+# Get cpu number
+ncpu = 1
+options, remainder = getopt.getopt(sys.argv[1:],'n:')
+for opt, arg in options:
+  if opt in ('-n'):
+    ncpu = int(arg)
+
+# Use umfpack for sequential and mumps for parallel
+solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+if (ncpu == 1):
+  solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+else:
+  solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
+
+# Parameters
+nlist = [80, 100, 200, 300, 400]
 
 # initialize
 hx = np.zeros(len(nlist))
-errp = np.zeros(len(nlist));
-erru = np.zeros(len(nlist));
-errv = np.zeros(len(nlist));
+errp = np.zeros(len(nlist))
+erru = np.zeros(len(nlist))
+errv = np.zeros(len(nlist))
 
 # Run simulations
 ii = 0 #initialise the count for for loops
 for nx in nlist:
 
     # Create output filename
-    fout1 = f1+'_'+str(nx)+'.out'
+    fout1 = fname_data+'/'+fname+'_'+str(nx)+'.out'
 
     # Run with different resolutions
-    str1 = '../test_stokes_lid4.app -pc_type lu -pc_factor_mat_solver_type umfpack -output_file '+f1+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
+    str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_lid_driven.app '+solver+solver_default+ \
+      ' -output_file '+fname+' -output_dir '+fname_data+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
     print(str1)
     os.system(str1)
     
-    import out_lid as on
-    data = on._PETScBinaryLoad();
+    # import out_lid as on
+    # data = on._PETScBinaryLoad()
+    fname_out = 'out_lid_driven'
+    spec = importlib.util.spec_from_file_location(fname_out,fname_data+'/'+fname_out+'.py')
+    imod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(imod) 
+    data = imod._PETScBinaryLoad()
     
     # Get data
     m = data['Nx'][0]
@@ -76,10 +107,10 @@ for nx in nlist:
     pp = p.reshape(n,m)
     
     #check if it is zero pressure an the two diagnols - n=m for this check, report error on screen if too large
-    pd = np.zeros([2*n]);
+    pd = np.zeros([2*n])
     for i in range(0, n):
-        pd[2*i] = pp[i][i];
-        pd[2*i+1] = pp[i][n-1-i];
+        pd[2*i] = pp[i][i]
+        pd[2*i+1] = pp[i][n-1-i]
     
     if np.max(abs(pd))>1e-6:
         str2 = 'abs(P) on diagnoals is larger than 1e-6 at nx = ' +str(nx)+ ', that Max(abs(P)) = ' +str(np.max(abs(pd)))
@@ -130,7 +161,7 @@ for nx in nlist:
     vana = np.zeros([n,m])
     for i in range(0,m):
         for j in range(0,n):
-            th = np.arctan(yc[j]/xc[i]);
+            th = np.arctan(yc[j]/xc[i])
             xr = xc[i]/(xc[i]**2 + yc[j]**2)
             yr = yc[j]/(xc[i]**2 + yc[j]**2)
             uana[j][i] = aa + cc * th + (cc*yc[j] + dd*xc[i])*xr
@@ -138,16 +169,16 @@ for nx in nlist:
             ppa[j][i] = 2.0*(cc*yc[j]+dd*xc[i])/(xc[i]**2+yc[j]**2)
     
     #error check, x<0.05, y< 0.05
-    corner_size = 0.05;
-    il = int(n * corner_size);
+    corner_size = 0.05
+    il = int(n * corner_size)
     
-    dx = 1.0/m;
-    dz = 1.0/n;
+    dx = 1.0/m
+    dz = 1.0/n
     for j in range(0, il):
         for i in range(0, il):
-            errp[ii] = errp[ii] + abs((pp[j][i] - ppa[j][i]))*dx*dz;
-            erru[ii] = erru[ii] + abs((vxc[j][i] - uana[j][i]))*dx*dz;
-            errv[ii] = errv[ii] + abs((vyc[j][i] - vana[j][i]))*dx*dz;
+            errp[ii] = errp[ii] + abs((pp[j][i] - ppa[j][i]))*dx*dz
+            erru[ii] = erru[ii] + abs((vxc[j][i] - uana[j][i]))*dx*dz
+            errv[ii] = errv[ii] + abs((vyc[j][i] - vana[j][i]))*dx*dz
             
     #grid size
     hx[ii] = 1.0/nx
@@ -169,25 +200,31 @@ ax.legend(loc='lower right')
 ax.set_xlabel('log10(dx)')
 ax.set_ylabel('log10(P_err), log10(v_err)')
 ax.set_title('Discretisation error in the corner x,z in [0,0.05]')
-plt.savefig('lid4_convergence.pdf', format='pdf')
+plt.savefig(fname+'/'+'lid_driven_convergence.pdf')
 
 print('# --------------------------------------- #')
-print('# Printed Four-lid driven flow convergence results to: lid4_convergence.eps')
+print('# Printed Four-lid driven flow convergence results to: lid_driven_convergence.eps')
 print('# --------------------------------------- #')
 
 
 #compute another case to show the flow field, It is easier to show the symmetric feature with odd number cells
 nx = 201
 # Create output filename
-fout1 = f1+'_'+str(nx)+'.out'
+fout1 = fname_data+'/'+fname+'_'+str(nx)+'.out'
 
 # Run with different resolutions
-str1 = '../test_stokes_lid4.app -pc_type lu -pc_factor_mat_solver_type umfpack -output_file '+f1+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_lid_driven.app '+solver+solver_default+ \
+  ' -output_file '+fname+' -output_dir '+fname_data+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
 print(str1)
 os.system(str1)
 
-import out_lid as on
-data = on._PETScBinaryLoad();
+# import out_lid as on
+# data = on._PETScBinaryLoad()
+fname_out = 'out_lid_driven'
+spec = importlib.util.spec_from_file_location(fname_out,fname_data+'/'+fname_out+'.py')
+imod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(imod) 
+data = imod._PETScBinaryLoad()
 
 # Get data
 m = data['Nx'][0]
@@ -217,21 +254,21 @@ for i in range(0,m):
     vxc[j][i] = 0.5 * (vxface[j][i+1] + vxface[j][i])
     vyc[j][i] = 0.5 * (vyface[j+1][i] + vyface[j][i])
 
-nind = 10;
+nind = 10
 
 # Open a figure
 fig, ax1 = plt.subplots(1)
 im = plt.imshow( p.reshape(n,m), extent=[min(xv), max(xv), min(yv), max(yv)], origin='lower', cmap='RdBu', interpolation='nearest' )
 Q = plt.quiver( xc[::nind], yc[::nind], vxc[::nind,::nind], vyc[::nind,::nind], units='width', pivot='mid' )
-plt.axis(aspect='image')
+plt.axis('image')
 plt.xlabel('x')
 plt.ylabel('z')
 plt.title('Four-Lid driven flow, N=200')
 cbar = fig.colorbar( im, ax=ax1 )
 cbar.ax.set_ylabel('pressure')
-plt.savefig('lid4_flowfield.pdf', format='pdf')
+plt.savefig(fname+'/'+'lid_driven_flowfield.pdf')
 
-
+os.system('rm -r '+fname_data+'/__pycache__')
 
 # =============================================================================
 # ncut = 5;
