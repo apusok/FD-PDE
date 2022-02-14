@@ -32,13 +32,13 @@ PetscErrorCode JacobianCreate_StokesDarcy2Field(FDPDE,Mat*);
 // RESIDUAL STENCILS
 PetscErrorCode GetLocationSlots_Darcy2Field(DM,PetscInt*,PetscInt*,PetscInt*);
 PetscErrorCode ContinuityStencil_StokesDarcy2Field(PetscInt,PetscInt,PetscInt,PetscInt,DMBoundaryType,DMBoundaryType,DMStagStencil*);
-PetscErrorCode ContinuityResidual_Darcy2Field(PetscInt,PetscInt,PetscScalar***,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscScalar*);
+PetscErrorCode ContinuityResidual_Darcy2Field(PetscInt,PetscInt,PetscScalar***,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],DMBoundaryType,DMBoundaryType,PetscScalar*);
 PetscErrorCode XMomentumResidual_Darcy2Field(PetscInt,PetscInt,PetscScalar***,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscScalar*);
 PetscErrorCode ZMomentumResidual_Darcy2Field(PetscInt,PetscInt,PetscScalar***,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscScalar*);
 
 // RESIDUAL
 PetscErrorCode FormFunction_StokesDarcy2Field(SNES, Vec, Vec, void*);
-PetscErrorCode DMStagBCListApplyFace_StokesDarcy2Field(PetscScalar***,PetscScalar***,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscScalar***);
-PetscErrorCode DMStagBCListApplyElement_StokesDarcy2Field(PetscScalar***,PetscScalar***,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscScalar***);
+PetscErrorCode DMStagBCListApplyFace_StokesDarcy2Field(PetscScalar***,PetscScalar***,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscInt[],DMBoundaryType,DMBoundaryType,PetscScalar***);
+PetscErrorCode DMStagBCListApplyElement_StokesDarcy2Field(PetscScalar***,PetscScalar***,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscInt[],DMBoundaryType,DMBoundaryType,PetscScalar***);
 
 #endif

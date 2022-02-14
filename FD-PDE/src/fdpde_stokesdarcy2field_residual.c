@@ -77,7 +77,7 @@ PetscErrorCode FormFunction_StokesDarcy2Field(SNES snes, Vec x, Vec f, void *ctx
 
       // 1) Stokes Continuity equation + div(v_D)
       ierr = ContinuityResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,&fval);CHKERRQ(ierr);
-      ierr = ContinuityResidual_Darcy2Field(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_D2,coeff_D3,&fval1);CHKERRQ(ierr);
+      ierr = ContinuityResidual_Darcy2Field(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_D2,coeff_D3,fd->dm_btype0,fd->dm_btype1,&fval1);CHKERRQ(ierr);
       ff[j][i][pv_slot[4]] = fval + fval1;
 
       // 2) Stokes X-Momentum equation + grad (P_D)
@@ -97,8 +97,8 @@ PetscErrorCode FormFunction_StokesDarcy2Field(SNES snes, Vec x, Vec f, void *ctx
   }
 
   // Boundary conditions - edges and element
-  ierr = DMStagBCListApplyFace_StokesDarcy2Field(_xlocal,_coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,pv_slot,coeff_v,ff);CHKERRQ(ierr);
-  ierr = DMStagBCListApplyElement_StokesDarcy2Field(_xlocal,_coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,n,pv_slot,coeff_D2,ff);CHKERRQ(ierr);
+  ierr = DMStagBCListApplyFace_StokesDarcy2Field(_xlocal,_coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,pv_slot,coeff_e,coeff_B,coeff_v,fd->dm_btype0,fd->dm_btype1,ff);CHKERRQ(ierr);
+  ierr = DMStagBCListApplyElement_StokesDarcy2Field(_xlocal,_coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,n,pv_slot,coeff_e,coeff_D2,coeff_D3,fd->dm_btype0,fd->dm_btype1,ff);CHKERRQ(ierr);
 
   // Restore arrays, local vectors
   ierr = DMStagRestoreProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -150,7 +150,7 @@ ContinuityResidual_Darcy2Field - (STOKESDARCY2FIELD) calculates the div(Darcy fl
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode ContinuityResidual_Darcy2Field(PetscInt i, PetscInt j,PetscScalar ***_xlocal,PetscScalar ***_coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt n[],PetscInt pv_slot[], PetscInt coeff_D2[],PetscInt coeff_D3[],PetscScalar *ff)
+PetscErrorCode ContinuityResidual_Darcy2Field(PetscInt i, PetscInt j,PetscScalar ***_xlocal,PetscScalar ***_coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt n[],PetscInt pv_slot[], PetscInt coeff_D2[],PetscInt coeff_D3[],DMBoundaryType dm_btype0,DMBoundaryType dm_btype1,PetscScalar *ff)
 {
   PetscScalar    ffi, xx[5], D2[4], D3[4], dPdx[4],qD[4],dx, dx1, dx2, dz, dz1, dz2;
   PetscInt       ii, iprev, inext,icenter, Nx, Nz, im, jm, ip, jp, P_slot;
@@ -160,10 +160,20 @@ PetscErrorCode ContinuityResidual_Darcy2Field(PetscInt i, PetscInt j,PetscScalar
   Nx = n[0]; Nz = n[1]; icenter = n[2]; iprev = n[3]; inext = n[4];
 
   P_slot = 4;
-  if (i == 0   ) im = i; else im = i-1;
-  if (i == Nx-1) ip = i; else ip = i+1;
-  if (j == 0   ) jm = j; else jm = j-1;
-  if (j == Nz-1) jp = j; else jp = j+1;
+  if (dm_btype0!=DM_BOUNDARY_PERIODIC) {
+    if (i == 0   ) im = i; else im = i-1;
+    if (i == Nx-1) ip = i; else ip = i+1;
+  } else {
+    im = i-1;
+    ip = i+1;
+  }
+  if (dm_btype1!=DM_BOUNDARY_PERIODIC) {
+    if (j == 0   ) jm = j; else jm = j-1;
+    if (j == Nz-1) jp = j; else jp = j+1;
+  } else {
+    jm = j-1;
+    jp = j+1;
+  }
 
   // Get stencil values
   xx[0] = _xlocal[j ][i ][pv_slot[P_slot]];
@@ -311,7 +321,7 @@ Use: internal
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "DMStagBCListApplyFace_StokesDarcy2Field"
-PetscErrorCode DMStagBCListApplyFace_StokesDarcy2Field(PetscScalar ***_xlocal,PetscScalar ***_coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscInt pv_slot[], PetscInt coeff_v[], PetscScalar ***ff)
+PetscErrorCode DMStagBCListApplyFace_StokesDarcy2Field(PetscScalar ***_xlocal,PetscScalar ***_coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscInt pv_slot[], PetscInt coeff_e[], PetscInt coeff_B[], PetscInt coeff_v[], DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, PetscScalar ***ff)
 {
   PetscScalar    xx, xxT[2],dx, dz;
   PetscScalar    A_Left, A_Right, A_Up, A_Down;
@@ -325,6 +335,22 @@ PetscErrorCode DMStagBCListApplyFace_StokesDarcy2Field(PetscScalar ***_xlocal,Pe
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
+
+    if (bclist[ibc].type == BC_PERIODIC) { // normal stencil for i,j - should come before other BCs are set
+      PetscScalar fval = 0.0, fval1 = 0.0;
+      i   = bclist[ibc].point.i;
+      j   = bclist[ibc].point.j;
+      idx = bclist[ibc].idx;
+      if ((bclist[ibc].point.loc == DMSTAG_LEFT) || (bclist[ibc].point.loc == DMSTAG_RIGHT)) {
+        ierr = XMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_B,coeff_v,dm_btype1,&fval);CHKERRQ(ierr);
+        ierr = XMomentumResidual_Darcy2Field(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,&fval1);CHKERRQ(ierr);
+      }
+      if ((bclist[ibc].point.loc == DMSTAG_DOWN) || (bclist[ibc].point.loc == DMSTAG_UP)) {
+        ierr = ZMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_B,coeff_v,dm_btype0,&fval);CHKERRQ(ierr);
+        ierr = ZMomentumResidual_Darcy2Field(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,&fval1);CHKERRQ(ierr);
+      }
+      ff[j][i][idx] = fval+fval1;
+    }
 
     if (bclist[ibc].type == BC_DIRICHLET_STAG) {
       i   = bclist[ibc].point.i;
@@ -473,7 +499,7 @@ Use: internal
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "DMStagBCListApplyElement_StokesDarcy2Field"
-PetscErrorCode DMStagBCListApplyElement_StokesDarcy2Field(PetscScalar ***_xlocal,PetscScalar ***_coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscInt pv_slot[], PetscInt coeff_D2[], PetscScalar ***ff)
+PetscErrorCode DMStagBCListApplyElement_StokesDarcy2Field(PetscScalar ***_xlocal,PetscScalar ***_coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscInt pv_slot[], PetscInt coeff_e[], PetscInt coeff_D2[], PetscInt coeff_D3[], DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, PetscScalar ***ff)
 {
   PetscScalar    xx, dx, dz;
   PetscScalar    D2_Left, D2_Right, D2_Up, D2_Down;
@@ -487,6 +513,16 @@ PetscErrorCode DMStagBCListApplyElement_StokesDarcy2Field(PetscScalar ***_xlocal
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
+
+    if (bclist[ibc].type == BC_PERIODIC) { // normal stencil for i,j - should come before other BCs are set
+      PetscScalar fval = 0.0, fval1 = 0.0;
+      i   = bclist[ibc].point.i;
+      j   = bclist[ibc].point.j;
+      idx = bclist[ibc].idx;
+      ierr = ContinuityResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,&fval);CHKERRQ(ierr);
+      ierr = ContinuityResidual_Darcy2Field(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_D2,coeff_D3,dm_btype0,dm_btype1,&fval1);CHKERRQ(ierr);
+      ff[j][i][idx] = fval + fval1;
+    }
 
     if (bclist[ibc].type == BC_DIRICHLET_STAG) {
       i   = bclist[ibc].point.i;
