@@ -10,6 +10,8 @@ import os
 import shutil 
 import glob
 import sys, getopt
+import warnings
+warnings.filterwarnings('ignore')
 
 # Input file
 fname = 'out_enthalpy_periodic'
@@ -45,10 +47,11 @@ ncomp = 2 # number of chemical components
 # Gaussian shape flags
 gs = ' -dt 1e-2' 
 
-# Use umfpack for sequential and mumps for parallel
-solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason -log_view'
-if (ncpu == 1):
+# Use umfpack for sequential and mumps for sequential/parallel
+solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+if (ncpu == -1):
   solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+  ncpu = 1
 else:
   solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
 

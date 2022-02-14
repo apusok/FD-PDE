@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import importlib
 import os
+import sys, getopt
 from scipy.stats import linregress
 
 # Input file
@@ -23,6 +24,21 @@ try:
 except OSError:
   pass
 
+# Get cpu number
+ncpu = 1
+options, remainder = getopt.getopt(sys.argv[1:],'n:')
+for opt, arg in options:
+  if opt in ('-n'):
+    ncpu = int(arg)
+
+# Use umfpack for sequential and mumps for sequential/parallel
+solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+if (ncpu == -1):
+  solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+  ncpu = 1
+else:
+  solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
+
 print('# --------------------------------------- #')
 print('# 2D diffusion test (ENTHALPY) ')
 print('# --------------------------------------- #')
@@ -35,12 +51,9 @@ ncomp = 3 # number of chemical components - warning: many of the plots below dep
 # Run simulations
 for n in ni:
   fout = fname+'_n'+str(n)
-  solver = ' -snes_converged_reason -ksp_converged_reason -snes_monitor -ksp_monitor -snes_atol 1e-10 -snes_rtol 1e-20 -log_view -stop_enthalpy_failed'
-  # str1 = '../test_enthalpy_2d_diffusion.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -snes_max_it 200'+ \
-  #     ' -output_file '+fout+' -output_dir '+fname_data+' -tstep '+str(tstep)+solver+' -ts_scheme 2'+' -nx '+str(n)+' -nz '+str(n) +\
-  #     ' -ncomp '+str(ncomp)
-  str1 = 'mpiexec -n 2 ../test_enthalpy_2d_diffusion.app -pc_type lu -pc_factor_mat_solver_type mumps -snes_monitor -snes_max_it 200'+ \
-      ' -output_file '+fout+' -output_dir '+fname_data+' -tstep '+str(tstep)+solver+' -ts_scheme 2'+' -nx '+str(n)+' -nz '+str(n) +\
+  solver0 = ' -snes_atol 1e-10 -snes_rtol 1e-20 -log_view -stop_enthalpy_failed'
+  str1 = 'mpiexec -n '+str(ncpu)+' ../test_enthalpy_2d_diffusion.app -snes_max_it 200'+ \
+      ' -output_file '+fout+' -output_dir '+fname_data+' -tstep '+str(tstep)+solver+solver0+solver_default+' -ts_scheme 2'+' -nx '+str(n)+' -nz '+str(n) +\
       ' -ncomp '+str(ncomp)
   print(str1)
   os.system(str1)

@@ -200,6 +200,14 @@ echo -e "  test_$fname.c > log_$fname.out [1s]"
 time=$SECONDS
 echo "    >> took $(($time/3600))h $(($time%3600/60))m $(($time%60))s"
 
+test ="PYTHON"
+SECONDS=0
+fname="advdiff_periodic"
+echo -e "  test_$fname.py > log_$fname.out [s]"
+python test_$fname.py > log_$fname.out
+time=$SECONDS
+echo "    >> took $(($time/3600))h $(($time%3600/60))m $(($time%60))s"
+
 # Others - not included
 # test_plastic_indenter.c
 # test_vp_inclusion_gerya.c

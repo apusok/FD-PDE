@@ -51,9 +51,11 @@ fname3 = 'out_num_solution_elman313'
 fname4 = 'out_num_solution_elman314'
 solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
 
-# Use umfpack for sequential and mumps for parallel
-if (ncpu == 1):
+# Use umfpack for sequential and mumps for sequential/parallel
+solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+if (ncpu == -1):
   solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+  ncpu = 1
 else:
   solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
 

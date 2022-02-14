@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import importlib
 import os
 import sys, getopt
+import warnings
+warnings.filterwarnings('ignore')
 
 print('# --------------------------------------- #')
 print('# Convection with periodic BC')
@@ -20,7 +22,7 @@ n  = 50
 Ra = 1e6
 tmax = 1e-4
 dtmax = 1e-7
-tout = 20 #50
+tout = 20
 tstep_max = 1000 #timesteps
 
 # Get cpu number
@@ -30,10 +32,11 @@ for opt, arg in options:
   if opt in ('-n'):
     ncpu = int(arg)
 
-# Use umfpack for sequential and mumps for parallel
+# Use umfpack for sequential and mumps for sequential/parallel
 solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
-if (ncpu == 1):
+if (ncpu == -1):
   solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+  ncpu = 1
 else:
   solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
 

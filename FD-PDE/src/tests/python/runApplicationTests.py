@@ -12,8 +12,6 @@
 # Import libraries
 import os, sys, getopt, time
 
-#tests = ['advdiff_advtime']
-
 tests = ['advdiff_advtime',
           'advdiff_elman',
           'advdiff_laplace',
@@ -29,10 +27,17 @@ tests = ['advdiff_advtime',
           'stokesdarcy2field_mms_compare_nd',
           'stokesdarcy2field_mms_katz_ch13',
           'stokesdarcy2field_mms_porosity',
-          'stokesdarcy2field_mms_rhebergen_siam_2014']
+          'stokesdarcy2field_mms_rhebergen_siam_2014',
+          'stokesdarcy3field_mms_bulkviscosity',
+          'enthalpy_2d_diffusion',
+          'enthalpy_1d_eutectic_solidification',
+          'enthalpy_1d_solidification_TC',
+          'advdiff_periodic',
+          'enthalpy_periodic',
+          'convection_stokes_periodic']
 
-# Default run with 1cpu
-ncpu = 2
+# Default run with -1cpu which uses umfpack # if ncpu>0 uses mumps (slower, but parallel)
+ncpu = -1
 output_dir = 'results_'+str(ncpu)+'cpu/'
 
 try:

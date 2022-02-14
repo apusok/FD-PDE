@@ -46,10 +46,11 @@ ts  = [0, 1, 2]
 gs = ' -L 20.0 -A 10.0 -x0 5.0 -ux 2.0 -dt 1e-2' 
 adv_label = ['Upwind','Upwind2','Fromm']
 
-# Use umfpack for sequential and mumps for parallel
+# Use umfpack for sequential and mumps for sequential/parallel
 solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
-if (ncpu == 1):
+if (ncpu == -1):
   solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+  ncpu = 1
 else:
   solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
 

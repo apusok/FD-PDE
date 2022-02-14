@@ -11,6 +11,8 @@ import os
 import shutil 
 import glob
 import sys, getopt
+import warnings
+warnings.filterwarnings('ignore')
 
 # Input file
 fname = 'out_advdiff_periodic'
@@ -42,14 +44,14 @@ tout = 100
 x0 = 5.0
 z0 = 5.0
 
-
 # Gaussian shape flags
 gs = ' -dt 1e-2' 
 
-# Use umfpack for sequential and mumps for parallel
-solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason -log_view'
-if (ncpu == 1):
+# Use umfpack for sequential and mumps for sequential/parallel
+solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+if (ncpu == -1):
   solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+  ncpu = 1
 else:
   solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
 
@@ -155,10 +157,15 @@ for istep in range(0,tstep,tout):
   if (istep==0):
     ax = plt.subplot(3,3,1)
     im = ax.imshow(Tres0, extent=[min(xc), max(xc), min(zc), max(zc)],origin='lower', interpolation='nearest' )
-    ax.axis('image')
+    # ax.axis('image')
     ax.set_xlabel('x-dir')
     ax.set_title('Initial conditions (num)')
     cbar = fig.colorbar(im,ax=ax, shrink=0.75)
+  #   cs = ax.contour(xc,zc,-Tres0, levels = [-5,], colors='k')
+  
+  # if (istep % tout == 0):
+  #   ax = plt.subplot(3,3,1)
+  #   cs = ax.contour(xc,zc,-Tres0, levels = [-5,], colors='w')
 
   if (istep==tstep-1):
     ax = plt.subplot(3,3,2)

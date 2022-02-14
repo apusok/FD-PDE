@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import linregress
 import os
+import sys, getopt
 import importlib
 import dmstagoutput as dmout
 from matplotlib import rc
@@ -14,6 +15,13 @@ from matplotlib import rc
 # Some new font
 rc('font',**{'family':'serif','serif':['Times new roman']})
 rc('text', usetex=True)
+
+# Get cpu number
+ncpu = 1
+options, remainder = getopt.getopt(sys.argv[1:],'n:')
+for opt, arg in options:
+  if opt in ('-n'):
+    ncpu = int(arg)
 
 # Input file
 fname = 'out_stokesdarcy3_mms_bulkviscosity'
@@ -44,7 +52,14 @@ nexp  = 3.0
 k_hat = 0.0 # unit vector in the z-dir (remove if ignore buoyancy)
 
 cmaps='RdBu_r' 
-solver = ' -snes_converged_reason -ksp_converged_reason -snes_monitor -ksp_monitor '
+
+# Use umfpack for sequential and mumps for sequential/parallel
+solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
+if (ncpu == -1):
+  solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
+  ncpu = 1
+else:
+  solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
 
 # Run simulations
 for nx in n:
@@ -52,8 +67,8 @@ for nx in n:
   fout1 = fname_data+'/'+fname+'_'+str(nx)+'.out'
 
   # Run with different resolutions
-  str1 = '../test_stokesdarcy3field_mms_bulkviscosity.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -delta '+str(delta)+ \
-    ' -phi0 '+str(phi0)+' -phia '+str(phia)+' -phi_min '+str(phi_min)+' -p_s '+str(p_s)+' -psi_s '+str(psi_s)+ solver +\
+  str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy3field_mms_bulkviscosity.app -delta '+str(delta)+ \
+    ' -phi0 '+str(phi0)+' -phia '+str(phia)+' -phi_min '+str(phi_min)+' -p_s '+str(p_s)+' -psi_s '+str(psi_s)+ solver+solver_default +\
     ' -vzeta '+str(vzeta)+' -U_s '+str(U_s)+' -m '+str(m)+' -n '+str(nexp)+' -k_hat '+str(k_hat)+ \
     ' -output_dir '+fname_data+' -output_file '+fname+'_'+str(nx)+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
   print(str1)
