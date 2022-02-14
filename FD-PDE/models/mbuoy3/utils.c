@@ -1308,6 +1308,23 @@ PetscErrorCode LoadParametersFromFile(void *ctx)
   tmax  = usr->par->tmax;
   dtmax = usr->par->dtmax;
 
+  // save buoyancy
+  PetscInt    buoy_phi, buoy_C, buoy_T;
+  PetscScalar beta;
+
+  buoy_phi = usr->par->buoy_phi;
+  buoy_C   = usr->par->buoy_C;
+  buoy_T   = usr->par->buoy_T;
+  beta   = usr->par->beta;
+
+  // save forcing
+  PetscInt    forcing;
+  PetscScalar dTdx_bottom,dCdx_bottom;
+
+  forcing = usr->par->forcing;
+  dTdx_bottom = usr->par->dTdx_bottom;
+  dCdx_bottom = usr->par->dCdx_bottom;
+
   // read bag
   ierr = PetscBagLoad(viewer,usr->bag);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
@@ -1321,6 +1338,29 @@ PetscErrorCode LoadParametersFromFile(void *ctx)
   // non-dimensionalize necessary params
   usr->nd->tmax  = nd_param(usr->par->tmax*SEC_YEAR,usr->scal->t);
   usr->nd->dtmax = nd_param(usr->par->dtmax*SEC_YEAR,usr->scal->t);
+
+  // buoyancy 
+  usr->par->buoy_phi = buoy_phi;
+  usr->par->buoy_C   = buoy_C; 
+  usr->par->buoy_T   = buoy_T; 
+  usr->par->beta     = beta; 
+
+  if ((usr->par->buoy_phi==0) && (usr->par->buoy_C==0) && (usr->par->buoy_T==0)) usr->par->buoyancy = 0;
+  if ((usr->par->buoy_phi==1) && (usr->par->buoy_C==0) && (usr->par->buoy_T==0)) usr->par->buoyancy = 1;
+  if ((usr->par->buoy_phi==0) && (usr->par->buoy_C>=1) && (usr->par->buoy_T==0)) usr->par->buoyancy = 2;
+  if ((usr->par->buoy_phi==1) && (usr->par->buoy_C>=1) && (usr->par->buoy_T==0)) usr->par->buoyancy = 3;
+  if ((usr->par->buoy_phi==0) && (usr->par->buoy_C==0) && (usr->par->buoy_T>=1)) usr->par->buoyancy = 4;
+  if ((usr->par->buoy_phi==1) && (usr->par->buoy_C==0) && (usr->par->buoy_T>=1)) usr->par->buoyancy = 5;
+  if ((usr->par->buoy_phi==0) && (usr->par->buoy_C>=1) && (usr->par->buoy_T>=1)) usr->par->buoyancy = 6;
+  if ((usr->par->buoy_phi==1) && (usr->par->buoy_C>=1) && (usr->par->buoy_T>=1)) usr->par->buoyancy = 7;
+
+  usr->nd->beta_s  = usr->par->beta*usr->par->rho0*usr->par->DC/usr->par->drho;
+  usr->nd->beta_ls = usr->par->beta*usr->par->DC;
+
+  // forcing
+  usr->par->forcing = forcing;
+  usr->par->dTdx_bottom = dTdx_bottom;
+  usr->par->dCdx_bottom = dCdx_bottom;
 
   PetscFunctionReturn(0);
 }
