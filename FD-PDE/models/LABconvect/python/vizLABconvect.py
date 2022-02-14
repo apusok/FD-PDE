@@ -1205,7 +1205,7 @@ def plot_fields_model(A,istart,iend,jstart,jend,fname,istep,dim):
 
   XX = X*scal_rho-rho0
   im = ax.imshow(XX[jstart:jend  ,istart:iend  ],extent=extentE,cmap=cmap1,origin='lower')
-  im.set_clim(-200.0,0.0)
+  im.set_clim(-100.0,50.0)
   lblrho = r'$\Delta\rho$ [kg/m3]'
 
   divider = make_axes_locatable(ax)
