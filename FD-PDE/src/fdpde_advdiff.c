@@ -457,7 +457,7 @@ Use: internal
 PetscErrorCode JacobianPreallocator_AdvDiff(FDPDE fd,Mat J)
 {
   PetscInt       Nx, Nz;               // global variables
-  PetscInt       i, j, sx, sz, nx, nz, nEntries = 9; // local variables
+  PetscInt       i, j, sx, sz, nx, nz, nEntries = 5; // local variables, extended stencil = 9  
   Mat            preallocator = NULL;
   PetscScalar    *xx;
   DMStagStencil  *point;
@@ -503,12 +503,12 @@ PetscErrorCode JacobianPreallocator_AdvDiff(FDPDE fd,Mat J)
 // ---------------------------------------
 /*@
 EnergyStencil - calculates the non-zero pattern for the advdiff equation/dof for JacobianPreallocator_AdvDiff()
-
 Use: internal
+Note: 9-point extended stencil seems to cause convergence issues!
 @*/
 // ---------------------------------------
 PetscErrorCode EnergyStencil(PetscInt i,PetscInt j, PetscInt Nx, PetscInt Nz, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, DMStagStencil *point)
-{
+{ 
   PetscFunctionBegin;
 
   point[0].i = i  ; point[0].j = j  ; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0;
@@ -517,23 +517,23 @@ PetscErrorCode EnergyStencil(PetscInt i,PetscInt j, PetscInt Nx, PetscInt Nz, DM
   point[3].i = i  ; point[3].j = j-1; point[3].loc = DMSTAG_ELEMENT; point[3].c = 0;
   point[4].i = i  ; point[4].j = j+1; point[4].loc = DMSTAG_ELEMENT; point[4].c = 0;
 
-  point[5].i = i-2; point[5].j = j  ; point[5].loc = DMSTAG_ELEMENT; point[5].c = 0; // WW
-  point[6].i = i+2; point[6].j = j  ; point[6].loc = DMSTAG_ELEMENT; point[6].c = 0; // EE
-  point[7].i = i  ; point[7].j = j-2; point[7].loc = DMSTAG_ELEMENT; point[7].c = 0; // SS
-  point[8].i = i  ; point[8].j = j+2; point[8].loc = DMSTAG_ELEMENT; point[8].c = 0; // NN
+  // point[5].i = i-2; point[5].j = j  ; point[5].loc = DMSTAG_ELEMENT; point[5].c = 0; // WW
+  // point[6].i = i+2; point[6].j = j  ; point[6].loc = DMSTAG_ELEMENT; point[6].c = 0; // EE
+  // point[7].i = i  ; point[7].j = j-2; point[7].loc = DMSTAG_ELEMENT; point[7].c = 0; // SS
+  // point[8].i = i  ; point[8].j = j+2; point[8].loc = DMSTAG_ELEMENT; point[8].c = 0; // NN
 
   if (dm_btype0!=DM_BOUNDARY_PERIODIC) {
     if (i == 0   ) point[1] = point[0];
     if (i == Nx-1) point[2] = point[0];
-    if (i <= 1   ) point[5] = point[0];
-    if (i >= Nx-2) point[6] = point[0];
+    // if (i <= 1   ) point[5] = point[0];
+    // if (i >= Nx-2) point[6] = point[0];
   }
   
   if (dm_btype1!=DM_BOUNDARY_PERIODIC) {
     if (j == 0   ) point[3] = point[0];
     if (j == Nz-1) point[4] = point[0];
-    if (j <= 1   ) point[7] = point[0];
-    if (j >= Nz-2) point[8] = point[0];
+    // if (j <= 1   ) point[7] = point[0];
+    // if (j >= Nz-2) point[8] = point[0];
   }
 
   PetscFunctionReturn(0);
