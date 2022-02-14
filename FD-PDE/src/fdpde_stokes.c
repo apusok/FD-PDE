@@ -101,20 +101,20 @@ PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd,Mat J)
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,5,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       // X-momentum equation 
-      ierr = XMomentumStencil(i,j,Nx,Nz,point,0); CHKERRQ(ierr);
+      ierr = XMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,0); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       if (i==Nx-1){
-        ierr = XMomentumStencil(i,j,Nx,Nz,point,1); CHKERRQ(ierr);
+        ierr = XMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,1); CHKERRQ(ierr);
         ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
 
       // Z-momentum equation 
-      ierr = ZMomentumStencil(i,j,Nx,Nz,point,0); CHKERRQ(ierr);
+      ierr = ZMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,0); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       if (j==Nz-1){
-        ierr = ZMomentumStencil(i,j,Nx,Nz,point,1); CHKERRQ(ierr);
+        ierr = ZMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,1); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
     }
@@ -176,7 +176,7 @@ XMomentumStencil - calculates the non-zero pattern for the X-momentum equation/d
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, DMStagStencil *point, PetscInt iloc)
+PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, DMStagStencil *point, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, PetscInt iloc)
 {
   PetscFunctionBegin;
   point[0].i  = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_LEFT;    point[0].c   = 0;
@@ -212,83 +212,88 @@ PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, 
   point[26].i = i  ; point[26].j = j+1; point[26].loc = DMSTAG_ELEMENT; point[26].c   = 0;
 
   // left
-  if (i == 0) {
-    point[3] = point[0];
-    point[5] = point[6];
-    point[7] = point[8];
-    point[9] = point[10];
+  if (dm_btype0!=DM_BOUNDARY_PERIODIC) {
+    if (i == 0) {
+      point[3] = point[0];
+      point[5] = point[6];
+      point[7] = point[8];
+      point[9] = point[10];
 
-    point[11] = point[0];
-    point[12] = point[0];
-    point[13] = point[0];
-    point[14] = point[0];
-    point[21] = point[0];
-    point[22] = point[0];
+      point[11] = point[0];
+      point[12] = point[0];
+      point[13] = point[0];
+      point[14] = point[0];
+      point[21] = point[0];
+      point[22] = point[0];
 
-    point[23] = point[0];
-    point[25] = point[0];
-  } 
+      point[23] = point[0];
+      point[25] = point[0];
+    } 
 
-  if (i == 1) {
-    point[11] = point[0];
-    point[12] = point[0];
-  } 
+    if (i == 1) {
+      point[11] = point[0];
+      point[12] = point[0];
+    } 
 
-  if (i == Nx-1) {
-    point[17] = point[0];
-    point[18] = point[0];
-  } 
+    if (i == Nx-1) {
+      point[17] = point[0];
+      point[18] = point[0];
+    } 
+  }
 
-  
-  if (iloc) { // last right - different stencil
-    point[0].i  = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_RIGHT;   point[0].c   = 0;
-    point[1].i  = i  ; point[1].j  = j-1; point[1].loc  = DMSTAG_RIGHT;   point[1].c   = 0;
-    point[2].i  = i  ; point[2].j  = j+1; point[2].loc  = DMSTAG_RIGHT;   point[2].c   = 0;
-    point[3].i  = i  ; point[3].j  = j  ; point[3].loc  = DMSTAG_LEFT;    point[3].c   = 0;
-    point[4] = point[0];
-    point[5].i  = i  ; point[5].j  = j  ; point[5].loc  = DMSTAG_DOWN;    point[5].c   = 0;
-    point[6] = point[5];
-    point[7].i  = i  ; point[7].j  = j  ; point[7].loc  = DMSTAG_UP;      point[7].c   = 0;
-    point[8] = point[7];
-    point[9].i  = i  ; point[9].j  = j  ; point[9].loc  = DMSTAG_ELEMENT; point[9].c   = 0;
-    point[10] = point[9];
+  if (dm_btype0!=DM_BOUNDARY_PERIODIC) {
+    if (iloc) { // last right - different stencil
+      point[0].i  = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_RIGHT;   point[0].c   = 0;
+      point[1].i  = i  ; point[1].j  = j-1; point[1].loc  = DMSTAG_RIGHT;   point[1].c   = 0;
+      point[2].i  = i  ; point[2].j  = j+1; point[2].loc  = DMSTAG_RIGHT;   point[2].c   = 0;
+      point[3].i  = i  ; point[3].j  = j  ; point[3].loc  = DMSTAG_LEFT;    point[3].c   = 0;
+      point[4] = point[0];
+      point[5].i  = i  ; point[5].j  = j  ; point[5].loc  = DMSTAG_DOWN;    point[5].c   = 0;
+      point[6] = point[5];
+      point[7].i  = i  ; point[7].j  = j  ; point[7].loc  = DMSTAG_UP;      point[7].c   = 0;
+      point[8] = point[7];
+      point[9].i  = i  ; point[9].j  = j  ; point[9].loc  = DMSTAG_ELEMENT; point[9].c   = 0;
+      point[10] = point[9];
 
-    point[11].i = i-1; point[11].j = j  ; point[11].loc = DMSTAG_DOWN;    point[11].c   = 0;
-    point[12].i = i-1; point[12].j = j  ; point[12].loc = DMSTAG_UP;      point[12].c   = 0;
-    point[13].i = i  ; point[13].j = j-1; point[13].loc = DMSTAG_LEFT;    point[13].c   = 0;
-    point[14].i = i  ; point[14].j = j-1; point[14].loc = DMSTAG_DOWN;    point[14].c   = 0;
-    point[15] = point[0];
-    point[16] = point[0];
-    point[17] = point[0];
-    point[18] = point[0];
-    point[19] = point[0];
-    point[20] = point[0];
-    point[21].i = i  ; point[21].j = j+1; point[21].loc = DMSTAG_LEFT;    point[21].c   = 0;
-    point[22].i = i  ; point[22].j = j+1; point[22].loc = DMSTAG_UP;      point[22].c   = 0;
+      point[11].i = i-1; point[11].j = j  ; point[11].loc = DMSTAG_DOWN;    point[11].c   = 0;
+      point[12].i = i-1; point[12].j = j  ; point[12].loc = DMSTAG_UP;      point[12].c   = 0;
+      point[13].i = i  ; point[13].j = j-1; point[13].loc = DMSTAG_LEFT;    point[13].c   = 0;
+      point[14].i = i  ; point[14].j = j-1; point[14].loc = DMSTAG_DOWN;    point[14].c   = 0;
+      point[15] = point[0];
+      point[16] = point[0];
+      point[17] = point[0];
+      point[18] = point[0];
+      point[19] = point[0];
+      point[20] = point[0];
+      point[21].i = i  ; point[21].j = j+1; point[21].loc = DMSTAG_LEFT;    point[21].c   = 0;
+      point[22].i = i  ; point[22].j = j+1; point[22].loc = DMSTAG_UP;      point[22].c   = 0;
 
-    point[23].i = i  ; point[23].j = j-1; point[23].loc = DMSTAG_ELEMENT; point[23].c   = 0;
-    point[24] = point[0];
-    point[25].i = i  ; point[25].j = j+1; point[25].loc = DMSTAG_ELEMENT; point[25].c   = 0;
-    point[26] = point[0];
+      point[23].i = i  ; point[23].j = j-1; point[23].loc = DMSTAG_ELEMENT; point[23].c   = 0;
+      point[24] = point[0];
+      point[25].i = i  ; point[25].j = j+1; point[25].loc = DMSTAG_ELEMENT; point[25].c   = 0;
+      point[26] = point[0];
+    }
   }
 
   // down/up boundary
-  if (j == 0) {
-    point[1]  = point[0];
-    point[13] = point[0];
-    point[14] = point[0];
-    point[15] = point[0];
-    point[16] = point[0];
-    point[23] = point[0];
-    point[24] = point[0];
-  } else if (j == Nz-1) {
-    point[2]  = point[0];
-    point[19] = point[0];
-    point[20] = point[0];
-    point[21] = point[0];
-    point[22] = point[0];
-    point[25] = point[0];
-    point[26] = point[0];
+  if (dm_btype1!=DM_BOUNDARY_PERIODIC) {
+    if (j == 0) {
+      point[1]  = point[0];
+      point[13] = point[0];
+      point[14] = point[0];
+      point[15] = point[0];
+      point[16] = point[0];
+      point[23] = point[0];
+      point[24] = point[0];
+    } else if (j == Nz-1) {
+      point[2]  = point[0];
+      point[19] = point[0];
+      point[20] = point[0];
+      point[21] = point[0];
+      point[22] = point[0];
+      point[25] = point[0];
+      point[26] = point[0];
+    }
   }
 
   PetscFunctionReturn(0);
@@ -301,7 +306,7 @@ ZMomentumStencil - calculates the non-zero pattern for the Z-momentum equation/d
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode ZMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, DMStagStencil *point, PetscInt iloc)
+PetscErrorCode ZMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, DMStagStencil *point, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, PetscInt iloc)
 {
   PetscFunctionBegin;
   point[0].i = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_DOWN;    point[0].c  = 0;
@@ -336,82 +341,88 @@ PetscErrorCode ZMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, 
   point[25].i = i+1; point[25].j = j-1; point[25].loc = DMSTAG_ELEMENT; point[25].c   = 0;
   point[26].i = i+1; point[26].j = j  ; point[26].loc = DMSTAG_ELEMENT; point[26].c   = 0;
 
-  if (j == 0) { // down
-    point[1] = point[0]; 
-    point[5] = point[7];
-    point[6] = point[8];
-    point[9] = point[10];
+  if (dm_btype1!=DM_BOUNDARY_PERIODIC) {
+    if (j == 0) { // down
+      point[1] = point[0]; 
+      point[5] = point[7];
+      point[6] = point[8];
+      point[9] = point[10];
 
-    point[13] = point[0]; 
-    point[14] = point[0]; 
-    point[15] = point[0]; 
-    point[16] = point[0]; 
-    point[17] = point[0]; 
-    point[18] = point[0]; 
+      point[13] = point[0]; 
+      point[14] = point[0]; 
+      point[15] = point[0]; 
+      point[16] = point[0]; 
+      point[17] = point[0]; 
+      point[18] = point[0]; 
 
-    point[23] = point[0]; 
-    point[25] = point[0]; 
-  } 
+      point[23] = point[0]; 
+      point[25] = point[0]; 
+    } 
 
-  if (j == 1) {
-    point[15] = point[0]; 
-    point[16] = point[0]; 
-  } 
+    if (j == 1) {
+      point[15] = point[0]; 
+      point[16] = point[0]; 
+    } 
 
-  if (j == Nz-1) {
-    point[21] = point[0]; 
-    point[22] = point[0]; 
-  } 
+    if (j == Nz-1) {
+      point[21] = point[0]; 
+      point[22] = point[0]; 
+    } 
+  }
 
-  if (iloc) { // up - different stencil
-    point[0].i = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_UP;      point[0].c  = 0;
-    point[1].i = i  ; point[1].j  = j  ; point[1].loc  = DMSTAG_DOWN;    point[1].c  = 0;
-    point[2] = point[0];
-    point[3].i = i-1; point[3].j  = j  ; point[3].loc  = DMSTAG_UP;      point[3].c  = 0;
-    point[4].i = i+1; point[4].j  = j  ; point[4].loc  = DMSTAG_UP;      point[4].c  = 0;
-    point[5].i = i  ; point[5].j  = j  ; point[5].loc  = DMSTAG_LEFT;    point[5].c  = 0;
-    point[6].i = i  ; point[6].j  = j  ; point[6].loc  = DMSTAG_RIGHT;   point[6].c  = 0;
-    point[7] = point[5];
-    point[8] = point[6];
-    point[9].i = i  ; point[9].j  = j  ; point[9].loc  = DMSTAG_ELEMENT; point[9].c  = 0;
-    point[10] = point[9];
+  if (dm_btype1!=DM_BOUNDARY_PERIODIC) {
+    if (iloc) { // up - different stencil
+      point[0].i = i  ; point[0].j  = j  ; point[0].loc  = DMSTAG_UP;      point[0].c  = 0;
+      point[1].i = i  ; point[1].j  = j  ; point[1].loc  = DMSTAG_DOWN;    point[1].c  = 0;
+      point[2] = point[0];
+      point[3].i = i-1; point[3].j  = j  ; point[3].loc  = DMSTAG_UP;      point[3].c  = 0;
+      point[4].i = i+1; point[4].j  = j  ; point[4].loc  = DMSTAG_UP;      point[4].c  = 0;
+      point[5].i = i  ; point[5].j  = j  ; point[5].loc  = DMSTAG_LEFT;    point[5].c  = 0;
+      point[6].i = i  ; point[6].j  = j  ; point[6].loc  = DMSTAG_RIGHT;   point[6].c  = 0;
+      point[7] = point[5];
+      point[8] = point[6];
+      point[9].i = i  ; point[9].j  = j  ; point[9].loc  = DMSTAG_ELEMENT; point[9].c  = 0;
+      point[10] = point[9];
 
-    point[11] = point[0]; 
-    point[12] = point[0]; 
-    point[13].i = i-1; point[13].j = j  ; point[13].loc = DMSTAG_LEFT;   point[13].c   = 0;
-    point[14].i = i-1; point[14].j = j  ; point[14].loc = DMSTAG_DOWN;   point[14].c   = 0;
-    point[15].i = i  ; point[15].j = j-1; point[15].loc = DMSTAG_LEFT;   point[15].c   = 0;
-    point[16].i = i  ; point[16].j = j-1; point[16].loc = DMSTAG_RIGHT;  point[16].c   = 0;
-    point[17].i = i+1; point[17].j = j  ; point[17].loc = DMSTAG_DOWN;   point[17].c   = 0;
-    point[18].i = i+1; point[18].j = j  ; point[18].loc = DMSTAG_RIGHT;  point[18].c   = 0;
-    point[19] = point[0]; 
-    point[20] = point[0]; 
-    point[21] = point[0]; 
-    point[22] = point[0]; 
+      point[11] = point[0]; 
+      point[12] = point[0]; 
+      point[13].i = i-1; point[13].j = j  ; point[13].loc = DMSTAG_LEFT;   point[13].c   = 0;
+      point[14].i = i-1; point[14].j = j  ; point[14].loc = DMSTAG_DOWN;   point[14].c   = 0;
+      point[15].i = i  ; point[15].j = j-1; point[15].loc = DMSTAG_LEFT;   point[15].c   = 0;
+      point[16].i = i  ; point[16].j = j-1; point[16].loc = DMSTAG_RIGHT;  point[16].c   = 0;
+      point[17].i = i+1; point[17].j = j  ; point[17].loc = DMSTAG_DOWN;   point[17].c   = 0;
+      point[18].i = i+1; point[18].j = j  ; point[18].loc = DMSTAG_RIGHT;  point[18].c   = 0;
+      point[19] = point[0]; 
+      point[20] = point[0]; 
+      point[21] = point[0]; 
+      point[22] = point[0]; 
 
-    point[23].i = i-1; point[23].j = j  ; point[23].loc = DMSTAG_ELEMENT; point[23].c   = 0;
-    point[24] = point[0]; 
-    point[25].i = i+1; point[25].j = j  ; point[25].loc = DMSTAG_ELEMENT; point[25].c   = 0;
-    point[26] = point[0]; 
+      point[23].i = i-1; point[23].j = j  ; point[23].loc = DMSTAG_ELEMENT; point[23].c   = 0;
+      point[24] = point[0]; 
+      point[25].i = i+1; point[25].j = j  ; point[25].loc = DMSTAG_ELEMENT; point[25].c   = 0;
+      point[26] = point[0]; 
+    }
   }
 
   // left/right boundary
-  if (i == 0) {
-    point[3]  = point[0]; 
-    point[11] = point[0]; 
-    point[12] = point[0];
-    point[13] = point[0]; 
-    point[14] = point[0]; 
-    point[23] = point[0]; 
-    point[24] = point[0]; 
-  } else if (i == Nx-1) {
-    point[4] = point[0];
-    point[17] = point[0]; 
-    point[18] = point[0];
-    point[19] = point[0]; 
-    point[20] = point[0]; 
-    point[25] = point[0]; 
-    point[26] = point[0]; 
+  if (dm_btype0!=DM_BOUNDARY_PERIODIC) {
+    if (i == 0) {
+      point[3]  = point[0]; 
+      point[11] = point[0]; 
+      point[12] = point[0];
+      point[13] = point[0]; 
+      point[14] = point[0]; 
+      point[23] = point[0]; 
+      point[24] = point[0]; 
+    } else if (i == Nx-1) {
+      point[4] = point[0];
+      point[17] = point[0]; 
+      point[18] = point[0];
+      point[19] = point[0]; 
+      point[20] = point[0]; 
+      point[25] = point[0]; 
+      point[26] = point[0]; 
+    }
   }
   PetscFunctionReturn(0);
 }

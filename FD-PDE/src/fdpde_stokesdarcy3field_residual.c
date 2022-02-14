@@ -91,13 +91,13 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
 
       // X-Momentum equation - same as for Stokes
       if (i > 0) {
-        ierr = XMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_B,coeff_v,&fval);CHKERRQ(ierr);
+        ierr = XMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_B,coeff_v,fd->dm_btype1,&fval);CHKERRQ(ierr);
         ff[j][i][pv_slot[0]] = fval; // LEFT
       }
 
       // Z-Momentum equation - same as for Stokes
       if (j > 0) {
-        ierr = ZMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_B,coeff_v,&fval);CHKERRQ(ierr);
+        ierr = ZMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_B,coeff_v,fd->dm_btype0,&fval);CHKERRQ(ierr);
         ff[j][i][pv_slot[2]] = fval; // DOWN
       }
     }
@@ -451,6 +451,7 @@ PetscErrorCode DMStagBCListApplyFace_StokesDarcy3Field(PetscScalar ***_xlocal,Pe
         ff[j][i][idx] = xxT[1]-xxT[0]-bclist[ibc].val*dz;
       }
     }
+
   }
   PetscFunctionReturn(0);
 }
@@ -563,6 +564,7 @@ PetscErrorCode DMStagBCListApplyElement_StokesDarcy3Field(PetscScalar ***_xlocal
         }
       } 
     }
+
   }
   PetscFunctionReturn(0);
 }

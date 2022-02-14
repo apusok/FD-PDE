@@ -105,19 +105,19 @@ PetscErrorCode JacobianPreallocator_StokesDarcy3Field(FDPDE fd,Mat J)
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,5,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       // Momentum equations - the same as for Stokes
-      ierr = XMomentumStencil(i,j,Nx,Nz,point,0); CHKERRQ(ierr);
+      ierr = XMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,0); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       if (i==Nx-1){
-        ierr = XMomentumStencil(i,j,Nx,Nz,point,1); CHKERRQ(ierr);
+        ierr = XMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,1); CHKERRQ(ierr);
         ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
 
-      ierr = ZMomentumStencil(i,j,Nx,Nz,point,0); CHKERRQ(ierr);
+      ierr = ZMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,0); CHKERRQ(ierr);
       ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
 
       if (j==Nz-1){
-        ierr = ZMomentumStencil(i,j,Nx,Nz,point,1); CHKERRQ(ierr);
+        ierr = ZMomentumStencil(i,j,Nx,Nz,point,fd->dm_btype0,fd->dm_btype1,1); CHKERRQ(ierr);
         ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
       }
     }

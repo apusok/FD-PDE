@@ -82,14 +82,14 @@ PetscErrorCode FormFunction_StokesDarcy2Field(SNES snes, Vec x, Vec f, void *ctx
 
       // 2) Stokes X-Momentum equation + grad (P_D)
       if (i > 0) {
-        ierr = XMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_B,coeff_v,&fval);CHKERRQ(ierr);
+        ierr = XMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_B,coeff_v,fd->dm_btype1,&fval);CHKERRQ(ierr);
         ierr = XMomentumResidual_Darcy2Field(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,&fval1);CHKERRQ(ierr);
         ff[j][i][pv_slot[0]] = fval + fval1; // LEFT
       }
 
       // 3) Stokes Z-Momentum equation + grad (P_D)
       if (j > 0) {
-        ierr = ZMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_B,coeff_v,&fval);CHKERRQ(ierr);
+        ierr = ZMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_B,coeff_v,fd->dm_btype0,&fval);CHKERRQ(ierr);
         ierr = ZMomentumResidual_Darcy2Field(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,&fval1);CHKERRQ(ierr);
         ff[j][i][pv_slot[2]] = fval + fval1; // DOWN
       }

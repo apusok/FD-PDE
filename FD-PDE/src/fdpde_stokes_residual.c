@@ -79,20 +79,20 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
 
       // 2) X-Momentum equation
       if (i > 0) {
-        ierr = XMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,&fval);CHKERRQ(ierr);
+        ierr = XMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,fd->dm_btype1,&fval);CHKERRQ(ierr);
         ff[j][i][pv_slot[0]] = fval; // LEFT
       }
 
       // 3) Z-Momentum equation
       if (j > 0) {
-        ierr = ZMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,&fval);CHKERRQ(ierr);
+        ierr = ZMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,fd->dm_btype0,&fval);CHKERRQ(ierr);
         ff[j][i][pv_slot[2]] = fval; // DOWN
       }
     }
   }
 
   // Boundary conditions - edges and element
-  ierr = DMStagBCListApplyFace_Stokes(_xlocal,_coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,ff);CHKERRQ(ierr);
+  ierr = DMStagBCListApplyFace_Stokes(_xlocal,_coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,fd->dm_btype0,fd->dm_btype1,ff);CHKERRQ(ierr);
   ierr = DMStagBCListApplyElement_Stokes(_xlocal,_coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,ff);CHKERRQ(ierr);
 
   // Restore arrays, local vectors
@@ -110,6 +110,8 @@ PetscErrorCode FormFunction_Stokes(SNES snes, Vec x, Vec f, void *ctx)
   PetscFunctionReturn(0);
 }
 
+// ---------------------------------------
+// ---------------------------------------
 PetscErrorCode FormFunctionSplit_Stokes(SNES snes, Vec x, Vec x2, Vec f, void *ctx)
 {
   FDPDE          fd = (FDPDE)ctx;
@@ -180,20 +182,20 @@ PetscErrorCode FormFunctionSplit_Stokes(SNES snes, Vec x, Vec x2, Vec f, void *c
       
       // 2) X-Momentum equation
       if (i > 0) {
-        ierr = XMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,&fval);CHKERRQ(ierr);
+        ierr = XMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,fd->dm_btype1,&fval);CHKERRQ(ierr);
         ff[j][i][pv_slot[0]] = fval; // LEFT
       }
       
       // 3) Z-Momentum equation
       if (j > 0) {
-        ierr = ZMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,&fval);CHKERRQ(ierr);
+        ierr = ZMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,fd->dm_btype0,&fval);CHKERRQ(ierr);
         ff[j][i][pv_slot[2]] = fval; // DOWN
       }
     }
   }
   
   // Boundary conditions - edges and element
-  ierr = DMStagBCListApplyFace_Stokes(_xlocal,_coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,ff);CHKERRQ(ierr);
+  ierr = DMStagBCListApplyFace_Stokes(_xlocal,_coefflocal,bclist->bc_f,bclist->nbc_face,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,fd->dm_btype0,fd->dm_btype1,ff);CHKERRQ(ierr);
   ierr = DMStagBCListApplyElement_Stokes(_xlocal,_coefflocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,ff);CHKERRQ(ierr);
   
   // Restore arrays, local vectors
@@ -286,7 +288,7 @@ XMomentumResidual - (STOKES) calculates the Vx momentum residual per dof
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode XMomentumResidual(PetscInt i, PetscInt j,PetscScalar ***_xlocal,PetscScalar ***_coefflocal, PetscScalar **coordx,PetscScalar **coordz,PetscInt n[], PetscInt pv_slot[], PetscInt coeff_e[],PetscInt coeff_f[],PetscInt coeff_v[],PetscScalar *ff)
+PetscErrorCode XMomentumResidual(PetscInt i, PetscInt j,PetscScalar ***_xlocal,PetscScalar ***_coefflocal, PetscScalar **coordx,PetscScalar **coordz,PetscInt n[], PetscInt pv_slot[], PetscInt coeff_e[],PetscInt coeff_f[],PetscInt coeff_v[],DMBoundaryType dm_btype,PetscScalar *ff)
 {
   PetscScalar    dVx2dz, dVz2dx, dPdx, dVx2dx, ffi;
   PetscInt       Nz, iprev, inext, icenter,iL,iR,iU,iD,iP, jm, jp;
@@ -298,8 +300,13 @@ PetscErrorCode XMomentumResidual(PetscInt i, PetscInt j,PetscScalar ***_xlocal,P
   Nz = n[1]; icenter = n[2]; iprev = n[3]; inext = n[4];
 
   iL = 0; iR  = 1; iD = 2; iU  = 3; iP = 4;
-  if (j == 0   ) jm = j; else jm = j-1;
-  if (j == Nz-1) jp = j; else jp = j+1;
+  if (dm_btype!=DM_BOUNDARY_PERIODIC) {
+    if (j == 0   ) jm = j; else jm = j-1;
+    if (j == Nz-1) jp = j; else jp = j+1;
+  } else {
+    jm = j-1;
+    jp = j+1;
+  }
 
   // Get stencil values
   xx[0] = _xlocal[j ][i  ][pv_slot[iL]]; // Vx(i  ,j  )
@@ -359,7 +366,7 @@ ZMomentumResidual - (STOKES) calculates the Vz momentum residual per dof
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode ZMomentumResidual(PetscInt i, PetscInt j,PetscScalar ***_xlocal,PetscScalar ***_coefflocal, PetscScalar **coordx,PetscScalar **coordz,PetscInt n[], PetscInt pv_slot[], PetscInt coeff_e[],PetscInt coeff_f[],PetscInt coeff_v[],PetscScalar *ff)
+PetscErrorCode ZMomentumResidual(PetscInt i, PetscInt j,PetscScalar ***_xlocal,PetscScalar ***_coefflocal, PetscScalar **coordx,PetscScalar **coordz,PetscInt n[], PetscInt pv_slot[], PetscInt coeff_e[],PetscInt coeff_f[],PetscInt coeff_v[],DMBoundaryType dm_btype,PetscScalar *ff)
 {
   PetscScalar    dVx2dz, dVz2dx, dPdz, dVz2dz, ffi;
   PetscInt       Nx, iprev, inext, icenter,iL,iR,iD,iU,iP,is,ie;
@@ -372,8 +379,13 @@ PetscErrorCode ZMomentumResidual(PetscInt i, PetscInt j,PetscScalar ***_xlocal,P
   Nx = n[0]; icenter = n[2]; iprev = n[3]; inext = n[4];
 
   iL = 0; iR  = 1; iD = 2; iU  = 3; iP = 4;
-  if (i == 0   ) is = i; else is = i-1;
-  if (i == Nx-1) ie = i; else ie = i+1;
+  if (dm_btype!=DM_BOUNDARY_PERIODIC) {
+    if (i == 0   ) is = i; else is = i-1;
+    if (i == Nx-1) ie = i; else ie = i+1;
+  } else {
+    is = i-1;
+    ie = i+1;
+  }
 
   // Get stencil values
   xx[0] = _xlocal[j  ][i ][pv_slot[iD]]; // Vz(i  ,j  )
@@ -436,7 +448,7 @@ Use: internal
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "DMStagBCListApplyFace_Stokes"
-PetscErrorCode DMStagBCListApplyFace_Stokes(PetscScalar ***_xlocal,PetscScalar ***_coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscInt pv_slot[], PetscInt coeff_e[],PetscInt coeff_f[],PetscInt coeff_v[], PetscScalar ***ff)
+PetscErrorCode DMStagBCListApplyFace_Stokes(PetscScalar ***_xlocal,PetscScalar ***_coefflocal, DMStagBC *bclist, PetscInt nbc, PetscScalar **coordx, PetscScalar **coordz,PetscInt n[], PetscInt pv_slot[], PetscInt coeff_e[],PetscInt coeff_f[],PetscInt coeff_v[], DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, PetscScalar ***ff)
 {
   PetscScalar    xx, xxT[2], dx, dz;
   PetscScalar    A_Left, A_Right, A_Up, A_Down;
@@ -450,6 +462,20 @@ PetscErrorCode DMStagBCListApplyFace_Stokes(PetscScalar ***_xlocal,PetscScalar *
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
+
+    if (bclist[ibc].type == BC_PERIODIC) { // normal stencil for i,j - should come before other BCs are set
+      PetscScalar fval = 0.0;
+      i   = bclist[ibc].point.i;
+      j   = bclist[ibc].point.j;
+      idx = bclist[ibc].idx;
+      if ((bclist[ibc].point.loc == DMSTAG_LEFT) || (bclist[ibc].point.loc == DMSTAG_RIGHT)) {
+        ierr = XMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,dm_btype1,&fval);CHKERRQ(ierr);
+      }
+      if ((bclist[ibc].point.loc == DMSTAG_DOWN) || (bclist[ibc].point.loc == DMSTAG_UP)) {
+        ierr = ZMomentumResidual(i,j,_xlocal,_coefflocal,coordx,coordz,n,pv_slot,coeff_e,coeff_f,coeff_v,dm_btype0,&fval);CHKERRQ(ierr);
+      }
+      ff[j][i][idx] = fval;
+    }
 
     if (bclist[ibc].type == BC_DIRICHLET_STAG) {
       i   = bclist[ibc].point.i;

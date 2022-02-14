@@ -27,19 +27,19 @@ PetscErrorCode JacobianCreate_Stokes(FDPDE,Mat*);
 
 // PREALLOCATOR STENCIL
 PetscErrorCode ContinuityStencil(PetscInt,PetscInt,DMStagStencil*);
-PetscErrorCode XMomentumStencil(PetscInt,PetscInt,PetscInt,PetscInt,DMStagStencil*,PetscInt);
-PetscErrorCode ZMomentumStencil(PetscInt,PetscInt,PetscInt,PetscInt,DMStagStencil*,PetscInt);
+PetscErrorCode XMomentumStencil(PetscInt,PetscInt,PetscInt,PetscInt,DMStagStencil*,DMBoundaryType,DMBoundaryType,PetscInt);
+PetscErrorCode ZMomentumStencil(PetscInt,PetscInt,PetscInt,PetscInt,DMStagStencil*,DMBoundaryType,DMBoundaryType,PetscInt);
 
 // RESIDUAL STENCILS
 PetscErrorCode GetLocationSlots(DM,DM,PetscInt*,PetscInt*,PetscInt*,PetscInt*);
 PetscErrorCode ContinuityResidual(PetscInt,PetscInt,PetscScalar***,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscScalar*);
-PetscErrorCode XMomentumResidual(PetscInt,PetscInt,PetscScalar***,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscScalar*);
-PetscErrorCode ZMomentumResidual(PetscInt,PetscInt,PetscScalar***,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscScalar*);
+PetscErrorCode XMomentumResidual(PetscInt,PetscInt,PetscScalar***,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscInt[],DMBoundaryType,PetscScalar*);
+PetscErrorCode ZMomentumResidual(PetscInt,PetscInt,PetscScalar***,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscInt[],DMBoundaryType,PetscScalar*);
 
 // RESIDUAL
 PetscErrorCode FormFunction_Stokes(SNES, Vec, Vec, void*);
 PetscErrorCode FormFunctionSplit_Stokes(SNES snes, Vec x, Vec x2, Vec f, void *ctx);
-PetscErrorCode DMStagBCListApplyFace_Stokes(PetscScalar***,PetscScalar***,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscScalar***);
+PetscErrorCode DMStagBCListApplyFace_Stokes(PetscScalar***,PetscScalar***,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscInt[],DMBoundaryType,DMBoundaryType,PetscScalar***);
 PetscErrorCode DMStagBCListApplyElement_Stokes(PetscScalar***,PetscScalar***,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscScalar***);
 
 #endif
