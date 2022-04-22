@@ -2510,12 +2510,12 @@ def plot_rho_full_ridge(A,istart,iend,jstart,jend,fname,istep,dim,iplot,beta):
     X = A.matProp.rhos
   else:
     # cmap1 = 'terrain'
-    # cmap1 = 'gist_earth'
-    cmap1 = 'RdBu'
+    cmap1 = 'gist_earth'
+    # cmap1 = 'RdBu'
     X = A.matProp.rho
 
-  divnorm=colors.TwoSlopeNorm(vmin=-125.0, vcenter=0., vmax=50)
-  im = ax.imshow(X[jstart:jend+1,istart:iend  ]*scal-rho0,extent=extentE,cmap=cmap1,origin='lower', norm=divnorm)
+  # divnorm=colors.TwoSlopeNorm(vmin=-125.0, vcenter=0., vmax=50)
+  im = ax.imshow(X[jstart:jend+1,istart:iend  ]*scal-rho0,extent=extentE,cmap=cmap1,origin='lower')
   if (iplot==1):
     nrho = 0
     im.set_clim(0.0,500.0)
@@ -2527,7 +2527,7 @@ def plot_rho_full_ridge(A,istart,iend,jstart,jend,fname,istep,dim,iplot,beta):
       nrho = -50
     else:
       nrho = -125
-    # im.set_clim(nrho,0.0)
+    im.set_clim(nrho,0.0)
 
   cbar = fig.colorbar(im,ax=ax, shrink=0.60,ticks=np.arange(nrho, 0.1,25))
 
