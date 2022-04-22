@@ -217,7 +217,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
         }
 
         for (ii = 0; ii < 4; ii++) { 
-          K[ii]  = Permeability(phi[ii],usr->par->phi_max,usr->par->n);
+          K[ii]  = Permeability(phi[ii],usr->par->n);
           Bf[ii] = FluidBuoyancy(0.0,0.0,usr->nd->alpha_s,usr->nd->beta_s);
           D2[ii] = -K[ii];
           D3[ii] = -K[ii]*(1+Bf[ii])*k_hat[ii];
@@ -633,7 +633,7 @@ PetscErrorCode FormCoefficient_HC_VF_nonlinear(FDPDE fd, DM dm, Vec x, DM dmcoef
         
         // fluid and bulk velocities
         for (ii = 0; ii < 4; ii++) {
-          K      = Permeability(phi[ii],usr->par->phi_max,usr->par->n);
+          K      = Permeability(phi[ii],usr->par->n);
           Bf     = FluidBuoyancy(0.0,0.0,usr->nd->alpha_s,usr->nd->beta_s);
           vf[ii] = FluidVelocity(vs[ii],phi[ii],gradP[ii],gradPc[ii],Bf,K,k_hat[ii]);
           v [ii] = BulkVelocity(vs[ii],vf[ii],phi[ii]);

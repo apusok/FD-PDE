@@ -573,7 +573,7 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmEnth, Vec xEnt
       
       for (ii = 0; ii < 4; ii++) {
         // permeability
-        K = Permeability(phi[ii],usr->par->phi_max,usr->par->n);
+        K = Permeability(phi[ii],usr->par->n);
 
         // fluid buoyancy
         Bf = FluidBuoyancy(0.0,0.0,usr->nd->alpha_s,usr->nd->beta_s);
@@ -662,7 +662,7 @@ PetscErrorCode UpdateMaterialProperties(DM dmEnth, Vec xEnth, DM dmmatProp, Vec 
 
       eta  = ShearViscosity(T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->lambda,nd->eta_min,nd->eta_max,par->visc_shear);
       zeta = BulkViscosity(nd->visc_ratio,T*par->DT+par->T0,phi,par->EoR,par->Teta0,par->phi_min,par->zetaExp,nd->eta_min,nd->eta_max,par->visc_bulk); 
-      K    = Permeability(phi,usr->par->phi_max,usr->par->n);
+      K    = Permeability(phi,usr->par->n);
       rhos = SolidDensity(par->rho0,par->drho,T,CS,nd->alpha_s,nd->beta_s,par->buoyancy);
       rhof = FluidDensity(par->rho0,par->drho,T,CF,nd->alpha_s,nd->beta_s,par->buoyancy);
       rho  = BulkDensity(rhos,rhof,phi);

@@ -150,7 +150,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   // bottom boundary forcing - only in full ridge models
   ierr = PetscBagRegisterInt(bag, &par->forcing, 0, "forcing", "Bottom forcing: 0=off, 1=Temp forcing dT/dx, 2=Chemical forcing dC/dx"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->dTdx_bottom, 0.1, "dTdx_bottom", "Lateral temperature gradient imposed on bottom boundary [K/km]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->dTdx_bottom, 0.01, "dTdx_bottom", "Lateral temperature gradient imposed on bottom boundary [K/km]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->dCdx_bottom, 1.0e-6, "dCdx_bottom", "Lateral compositional gradient imposed on bottom boundary [wt. frac./km]"); CHKERRQ(ierr);
 
   // phase diagram
@@ -165,10 +165,9 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   // two-phase flow parameters
   ierr = PetscBagRegisterScalar(bag, &par->n, 3.0, "n", "Exponent in porosity-permeability relationship [-]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->K0, 1.0e-13, "K0", "Reference permeability [m^2]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->phi_max, 0.1, "phi_max", "Porosity at which permeability reaches maximum [-]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->K0, 1.0e-7, "K0", "Reference permeability [m^2]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta0, 1.0e19, "eta0", "Reference shear viscosity [Pa.s]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->zeta0, 2.0e19, "zeta0", "Reference bulk viscosity [Pa.s]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->zeta0, 4.0e19, "zeta0", "Reference bulk viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mu, 1.0, "mu", "Reference magma viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta_min, 1.0e15, "eta_min", "Cutoff minimum shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta_max, 1.0e25, "eta_max", "Cutoff maximum shear viscosity [Pa.s]"); CHKERRQ(ierr);
@@ -176,8 +175,8 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->EoR, 3.6e4, "EoR", "Activation energy divided by gas constant [K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->zetaExp, -1.0, "zetaExp", "Porosity exponent in bulk viscosity [-]"); CHKERRQ(ierr);
 
-  ierr = PetscBagRegisterInt(bag, &par->visc_shear,0, "visc_shear", "0-constant, 1-porosity dependent, 2-Temp,porosity dependent"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->visc_bulk,0, "visc_bulk", "0-constant, 1-porosity dependent, 2-Temp,porosity dependent"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->visc_shear,2, "visc_shear", "0-constant, 1-porosity dependent, 2-Temp,porosity dependent"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->visc_bulk,2, "visc_bulk", "0-constant, 1-porosity dependent, 2-Temp,porosity dependent"); CHKERRQ(ierr);
 
   ierr = PetscBagRegisterScalar(bag, &par->phi_init, 1.0e-4, "phi_init", "Extract initial porosity phi*phi_init"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->phi_min, PHI_CUTOFF, "phi_min", "Cutoff minimum porosity"); CHKERRQ(ierr);
@@ -185,11 +184,12 @@ PetscErrorCode InputParameters(UsrData **_usr)
   dsol = par->cp*(par->Tp-par->T0)/par->gamma_inv*1e9/par->g/(par->rho0*par->cp - par->Tp*par->alpha/par->gamma_inv*1e9);
   Teta0 = par->Tp*exp(dsol*par->alpha*par->g/par->cp);
   ierr = PetscBagRegisterScalar(bag, &par->Teta0, Teta0, "Teta0", "Temperature at which viscosity is equal to eta0 [K]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->dsol, dsol, "zm", "Depth of melting [m]"); CHKERRQ(ierr);
 
   // bc and melt extraction
   ierr = PetscBagRegisterInt(bag, &par->extract_mech,1, "extract_mech", "LEGACY: 0-no extract (T_up), 1-outflow xMOR (dH/dz=0), both depend on xmor"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->xmor, 3.0e3, "xmor", "Distance from mid-ocean ridge axis for melt extraction ~6km [m]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->fextract, 0.01, "fextract", "Percentage of melt extraction"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->xmor, 4.0e3, "xmor", "Distance from mid-ocean ridge axis for melt extraction ~6km [m]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->fextract, 0.2, "fextract", "Percentage of melt extraction"); CHKERRQ(ierr);
 
   ierr = PetscBagRegisterInt(bag, &par->vf_nonlinear,0, "vf_nonlinear", "0-update vf outside HC solve, 1-update vf inside HC solve"); CHKERRQ(ierr);
 

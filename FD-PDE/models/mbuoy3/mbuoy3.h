@@ -77,7 +77,7 @@ typedef struct {
   PetscScalar    L, H, xmin, zmin, xmor;
   PetscScalar    k_hat, g, U0;
   PetscScalar    Tp, Ts, cp, La, rho0, drho, alpha, beta, kappa, D;
-  PetscScalar    n, K0, phi_max, eta0, zeta0, mu, eta_min, eta_max, lambda, EoR, Teta0, zetaExp; 
+  PetscScalar    n, K0, eta0, zeta0, mu, eta_min, eta_max, lambda, EoR, Teta0, dsol, zetaExp; 
   PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT, phi_init, phi_min, fextract, hs_factor;
   PetscScalar    dTdx_bottom, dCdx_bottom;
   PetscInt       ts_scheme, adv_scheme, tout, tstep, restart, full_ridge;
@@ -144,7 +144,7 @@ PetscScalar TotalEnthalpy(PetscScalar,PetscScalar,PetscScalar);
 PetscScalar PhiRes(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 PetscScalar FluidVelocity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar); 
 PetscScalar BulkVelocity(PetscScalar,PetscScalar,PetscScalar);
-PetscScalar Permeability(PetscScalar,PetscScalar,PetscScalar);
+PetscScalar Permeability(PetscScalar,PetscScalar);
 PetscScalar FluidBuoyancy(PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 PetscScalar HalfSpaceCoolingTemp(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 PetscScalar SolidDensity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt);
