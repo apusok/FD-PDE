@@ -1,5 +1,5 @@
 # FD-PDE (Release version)
-Release version of the FD-PDE framework developed for magma dynamics and other applications in Geodynamics.
+Release version of the FD-PDE framework developed for magma dynamics and other applications in geodynamics.
 
 The FD-PDE Framework was created within the **RIFT-O-MAT** (Magma-Assisted Tectonics) project, funded by the European Research Council under Horizon 2020 research and innovation program, and awarded to PI Richard Katz.
 
@@ -16,9 +16,9 @@ The goal of the RIFT-O-MAT project is to create analytical and numerical tools t
 ## Repository contents
 - `src/`: source code for FD-PDE framework
 - `tests/`: tests for FD-PDE framework
-- `models`: model applications using the FD-PDE Framework
-- `models/mbuoy3`: mid-ocean ridge code used in Pusok et al. (GJI, 2022)
-- `utils`: python routines for I/O of PETSc objects
+- `models/`: model applications using the FD-PDE Framework
+- `models/mbuoy3/`: mid-ocean ridge code used in Pusok et al. (GJI, 2022)
+- `utils/`: python routines for I/O of PETSc objects
 
 ## Description
 The **FD-PDE framework** uses finite difference staggered grids for solving partial differential equations (PDEs) for single-/two-phase flow magma dynamics. 
@@ -29,14 +29,6 @@ Documentation for the FD-PDE Framework and tests can be found: [FD-PDE Benchmark
 
 Source code is located in `/FD-PDE/src/`.
 Tests are located in `/FD-PDE/tests/`.
-
-## Tests executables
-In `FD-PDE/src/`:
-- Clean executables: `make clean_all`
-- Make tests: `make tests`
-- Run tests (example 1): `./tests/test_fdpde.app`
-- Run tests (example 2): `python runApplicationTests.py` in `/FD-PDE/tests/python/`
-- Visualization: using python examples in `/FD-PDE/tests/python/`.
 
 ## Dependencies
 ### PETSc
@@ -73,11 +65,20 @@ To use the visualization tools developed within the FD-PDE Framework, update the
 
 `export PYTHONPATH=<PATH_FDPDE>/utils:${PETSC_DIR}/lib/petsc/bin`
 
+## Tests 
+In `FD-PDE/src/`:
+- Clean executables: `make clean_all`
+- Make executables: `make tests`
+- Run tests (example 1): `./tests/test_fdpde.app`
+- Run tests (example 2): `python runApplicationTests.py` in `/FD-PDE/tests/python/`
+- Visualization: using python examples in `/FD-PDE/tests/python/`.
+
+
 # Models
 ## mbuoy3
 **mbuoy3** is a 2-D mid-ocean ridge, two-phase flow model with buoyancy forces (porous, compositional, thermal). 
 
-Publication: *Buoyancy-driven flow beneath mid-ocean ridges: the role of chemical heterogeneity*
+Publication: *Chemical heterogeneity, convection and asymmetry beneath mid-ocean ridges*
 
 Authors: Adina E. Pusok<sup>1</sup>, Richard F. Katz<sup>1</sup>, Dave A. May<sup>2</sup>, Yuan Li<sup>1</sup>
 
@@ -106,7 +107,7 @@ The input files are actually identical, except for the option to switch on full-
 
 ### Visualization
 
-First, make sure the `PYTHONPATH` is updated as above. Then, install some cool [Scientific Colormaps](https://www.fabiocrameri.ch/colourmaps/) from Fabio Crameri with:
+First, make sure the `PYTHONPATH` is updated as indicated above. Then, install some cool [Scientific Colormaps](https://www.fabiocrameri.ch/colourmaps/) from Fabio Crameri with:
 `pip install cmcrameri`
 
 Example visualization for either the half-ridge/full-ridge test. In `mbuoy3/python` run:
