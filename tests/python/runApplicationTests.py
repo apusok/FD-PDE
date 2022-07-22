@@ -70,5 +70,5 @@ for i in range(0,len(tests)):
 os.system('find . -name __pycache__ -type d -exec rm -r {} \;')
 
 # mv everything
-print('Reorganize folders:')
+print('Reorganize output in: '+output_dir)
 os.system('mv log* out* '+output_dir)
