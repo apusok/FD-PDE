@@ -20,13 +20,12 @@ def sortTimesteps(tdir):
   return int(tdir[8:])
 
 # Parameters
-A.tout  = 1000
-A.tstep = 200000
-A.istep = 14741
+A.tout  = 10
+A.tstep = 10
 A.dimensional = 1 # 0-nd, 1-dim
 check_entire_dir = 1 
 
-A.input = 'b000-hr000_xmor4_fextract0.1'
+A.input = 'test'
 A.output_path_dir = '../Figures/'
 A.path_dir = '../'
 
@@ -38,6 +37,8 @@ if 'log_out.out' in tdir:
   tdir.remove('log_out.out')
 if 'model_half_ridge.opts' in tdir:
   tdir.remove('model_half_ridge.opts')
+if 'model_full_ridge.opts' in tdir:
+  tdir.remove('model_full_ridge.opts')
 if 'submit_job.run' in tdir:
   tdir.remove('submit_job.run')
 nt = len(tdir)
@@ -154,25 +155,21 @@ for istep in time_list: #range(A.istep,A.tstep+1,A.tout):
   A.Vscx, A.Vscz = vizB.calc_center_velocities(A.Vsx,A.Vsz,A.nx,A.nz)
   A.Vfcx, A.Vfcz = vizB.calc_center_velocities(A.Vfx,A.Vfz,A.nx,A.nz)
   A.Vcx, A.Vcz   = vizB.calc_center_velocities(A.Vx,A.Vz,A.nx,A.nz)
-  A.divmass = vizB.calc_divergence(A.Vx,A.Vz,A.dx,A.dz,A.nx,A.nz)
+#  A.divmass = vizB.calc_divergence(A.Vx,A.Vz,A.dx,A.dz,A.nx,A.nz)
 
   # Plots
   if (A.dimensional):
-    vizB.plot_porosity_contours(A,istart,iend,jstart,jend,A.output_dir_real+'out_porosity_contours_ts'+str(istep),istep,A.dimensional)
-  
-  # vizB.plot_temperature_slices(A,A.output_dir_real+'out_temp_slices_ts'+str(istep),istep,A.dimensional)
-
-  # vizB.plot_PV3(0,A,istart,iend,jstart,jend,A.output_dir_real+'out_xPV_ts'+str(istep),istep,A.dimensional)
-  # vizB.plot_HC(0,A,istart,iend,jstart,jend,A.output_dir_real+'out_xHC_ts'+str(istep),istep,A.dimensional) # H,C
+   vizB.plot_PV3(0,A,istart,iend,jstart,jend,A.output_dir_real+'out_xPV_ts'+str(istep),istep,A.dimensional)
+   vizB.plot_HC(0,A,istart,iend,jstart,jend,A.output_dir_real+'out_xHC_ts'+str(istep),istep,A.dimensional) # H,C
   vizB.plot_Enth(A,istart,iend,jstart,jend,A.output_dir_real+'out_xEnth_ts'+str(istep),istep,A.dimensional)
   vizB.plot_Vel(A,istart,iend,jstart,jend,A.output_dir_real+'out_xVel_ts'+str(istep),istep,A.dimensional)
   # vizB.plot_HCcoeff(A,istart,iend,jstart,jend,A.output_dir_real+'out_xHCcoeff_ts'+str(istep),istep,A.dimensional)
 
-  if (istep > 0):
+#  if (istep > 0):
     # vizB.plot_PVcoeff3(A,istart,iend,jstart,jend,A.output_dir_real+'out_xPVcoeff_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_PV3(1,A,istart,iend,jstart,jend,A.output_dir_real+'out_resPV_ts'+str(istep),istep,A.dimensional) # res PV
     # vizB.plot_HC(1,A,istart,iend,jstart,jend,A.output_dir_real+'out_resHC_ts'+str(istep),istep,A.dimensional) # res HC
-    vizB.plot_matProp(A,istart,iend,jstart,jend,A.output_dir_real+'out_matProp_ts'+str(istep),istep,A.dimensional)
+#    vizB.plot_matProp(A,istart,iend,jstart,jend,A.output_dir_real+'out_matProp_ts'+str(istep),istep,A.dimensional)
 
   os.system('rm -r '+A.input_dir+'Timestep'+str(istep)+'/__pycache__')
 
