@@ -1,7 +1,7 @@
 static char help[] = "DMStagCoupling test \n\n";
 
 #include "petsc.h"
-#include "../composite_prealloc_utils.h"
+#include "../src/composite_prealloc_utils.h"
 
 
 PetscErrorCode test1(PetscInt mx,PetscInt my)

@@ -2,7 +2,7 @@ static char help[] = "Material point layout test \n\n";
 
 
 #include "petsc.h"
-#include "../material_point.h"
+#include "../src/material_point.h"
 
 
 PetscErrorCode test_layout(PetscInt nx,PetscInt ny)

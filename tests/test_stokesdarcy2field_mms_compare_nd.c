@@ -18,8 +18,8 @@ static char help[] = "Application to verify two-phase flow implementation with a
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../fdpde_stokesdarcy2field.h"
-#include "../dmstagoutput.h"
+#include "../src/fdpde_stokesdarcy2field.h"
+#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context

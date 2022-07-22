@@ -19,8 +19,8 @@ static char help[] = "Application to solve the four-lid-driven rotational flow b
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../fdpde_stokes.h"
-#include "../dmstagoutput.h"
+#include "../src/fdpde_stokes.h"
+#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context

@@ -17,7 +17,7 @@ static char help[] = "Application to solve the SolCx benchmark with FD-PDE - Irr
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../fdpde_stokes.h"
+#include "../src/fdpde_stokes.h"
 
 // ---------------------------------------
 // Application Context

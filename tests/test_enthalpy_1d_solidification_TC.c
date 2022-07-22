@@ -20,8 +20,8 @@ static char help[] = "1D Solidification problem using the Enthalpy Method\n\n";
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../../src/fdpde_enthalpy.h"
-#include "../../src/dmstagoutput.h"
+#include "../src/fdpde_enthalpy.h"
+#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context

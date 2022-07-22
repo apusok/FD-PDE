@@ -5,8 +5,8 @@
 static char help[] = "Application to solve an MMS 2D diffusion equation (ADVDIFF) with FD-PDE \n\n";
 
 #include "petsc.h"
-#include "../fdpde_advdiff.h"
-#include "../dmstagoutput.h"
+#include "../src/fdpde_advdiff.h"
+#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Function definitions

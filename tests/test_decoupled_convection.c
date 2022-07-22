@@ -27,10 +27,10 @@ static char help[] = "Application to solve the mantle convection benchmark (Blan
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../fdpde_stokes.h"
-#include "../fdpde_advdiff.h"
-#include "../fdpde_composite.h"
-#include "../dmstagoutput.h"
+#include "../src/fdpde_stokes.h"
+#include "../src/fdpde_advdiff.h"
+#include "../src/fdpde_composite.h"
+#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context

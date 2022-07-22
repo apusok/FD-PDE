@@ -17,8 +17,8 @@ static char help[] = "2D Diffusion problem using the Enthalpy Method\n\n";
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../../src/fdpde_enthalpy.h"
-#include "../../src/dmstagoutput.h"
+#include "../src/fdpde_enthalpy.h"
+#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context

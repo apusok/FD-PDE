@@ -18,9 +18,9 @@ static char help[] = "Application for shortening of a visco-plastic block in the
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../fdpde_stokes.h"
-#include "../consteq.h"
-#include "../dmstagoutput.h"
+#include "../src/fdpde_stokes.h"
+#include "../src/consteq.h"
+#include "../src/dmstagoutput.h"
 
 
 // ---------------------------------------

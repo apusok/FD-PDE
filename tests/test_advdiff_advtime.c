@@ -17,8 +17,8 @@ static char help[] = "Application to solve advection of a Gaussian pulse in time
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../fdpde_advdiff.h"
-#include "../dmstagoutput.h"
+#include "../src/fdpde_advdiff.h"
+#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context

@@ -15,9 +15,9 @@ static char help[] = "Application to solve an Rayleigh-Taylor instability\n\n";
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../fdpde_stokes.h"
-#include "../dmstagoutput.h"
-#include "../material_point.h"
+#include "../src/fdpde_stokes.h"
+#include "../src/dmstagoutput.h"
+#include "../src/material_point.h"
 
 // ---------------------------------------
 // Application Context

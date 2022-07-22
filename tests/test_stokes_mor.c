@@ -17,9 +17,9 @@ static char help[] = "Application to solve the 2D corner flow (mid-ocean ridges)
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../fdpde_stokes.h"
-#include "../benchmark_cornerflow.h"
-#include "../dmstagoutput.h"
+#include "../src/fdpde_stokes.h"
+#include "../src/benchmark_cornerflow.h"
+#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context

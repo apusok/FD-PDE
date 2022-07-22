@@ -2,7 +2,7 @@ static char help[] = "DMStag output and read test \n\n";
 // run: ./tests/test_dmstagoutput_read.app
 
 #include "petsc.h"
-#include "../dmstagoutput.h"
+#include "../src/dmstagoutput.h"
 
 PetscErrorCode test_write(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscInt dof2,const char fname[])
 {

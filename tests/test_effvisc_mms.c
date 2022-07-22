@@ -26,10 +26,10 @@ static char help[] = "Application to verify a power-law effective viscosity for 
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../fdpde_stokesdarcy2field.h"
-#include "../fdpde_stokes.h"
-#include "../consteq.h"
-#include "../dmstagoutput.h"
+#include "../src/fdpde_stokesdarcy2field.h"
+#include "../src/fdpde_stokes.h"
+#include "../src/consteq.h"
+#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context

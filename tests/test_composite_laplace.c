@@ -16,9 +16,9 @@ static char help[] = "Application to solve two de-coupled Laplace problems with 
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../fdpde_advdiff.h"
-#include "../fdpde_composite.h"
-#include "../dmstagoutput.h"
+#include "../src/fdpde_advdiff.h"
+#include "../src/fdpde_composite.h"
+#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context

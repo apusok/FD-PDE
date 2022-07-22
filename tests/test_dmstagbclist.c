@@ -12,7 +12,7 @@ static char help[] = "DMStagBCList test \n\n";
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../dmstagbclist.h"
+#include "../src/dmstagbclist.h"
 
 PetscErrorCode test1(PetscInt nx,PetscInt ny)
 {

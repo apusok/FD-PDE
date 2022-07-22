@@ -18,8 +18,8 @@ static char help[] = "Application to verify the convergence accuracy of ADVDIFF 
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../fdpde_advdiff.h"
-#include "../dmstagoutput.h"
+#include "../src/fdpde_advdiff.h"
+#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context

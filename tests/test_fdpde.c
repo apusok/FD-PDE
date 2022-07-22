@@ -2,7 +2,7 @@ static char help[] = "FD-PDE test \n\n";
 // run: ./tests/test_fd.app
 
 #include "petsc.h"
-#include "../fdpde.h"
+#include "../src/fdpde.h"
 
 // test0 - create/destroy
 PetscErrorCode test0(PetscInt nx,PetscInt nz)

@@ -2,7 +2,7 @@ static char help[] = "DMStag output test - outputs dummy data for all combinatio
 // run: ./tests/test_dmstagoutput.app
 
 #include "petsc.h"
-#include "../dmstagoutput.h"
+#include "../src/dmstagoutput.h"
 
 // test0
 PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscInt dof2,const char fname[])

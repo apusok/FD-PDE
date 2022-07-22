@@ -17,9 +17,9 @@ static char help[] = "Convection in a box test with periodic boundary conditions
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../fdpde_stokes.h"
-#include "../fdpde_advdiff.h"
-#include "../dmstagoutput.h"
+#include "../src/fdpde_stokes.h"
+#include "../src/fdpde_advdiff.h"
+#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context

@@ -18,9 +18,9 @@ static char help[] = "Two-phase flow application to verify 2-Field and 3-Field f
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../fdpde_stokesdarcy2field.h"
-#include "../fdpde_stokesdarcy3field.h"
-#include "../dmstagoutput.h"
+#include "../src/fdpde_stokesdarcy2field.h"
+#include "../src/fdpde_stokesdarcy3field.h"
+#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context

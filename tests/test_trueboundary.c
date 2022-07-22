@@ -12,8 +12,8 @@ static char help[] = "Test: DMStagCellSize_2d, Coordinates of true boundary retu
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
 #include "petsc.h"
-#include "../dmstagbclist.h"
-#include "../dmstag_utils.h"
+#include "../src/dmstagbclist.h"
+#include "../src/dmstag_utils.h"
 
 PetscErrorCode test1(PetscInt nx,PetscInt ny)
 {
