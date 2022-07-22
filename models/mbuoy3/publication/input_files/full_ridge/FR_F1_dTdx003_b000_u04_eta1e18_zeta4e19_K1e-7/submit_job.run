@@ -1,0 +1,14 @@
+#!/bin/bash
+#SBATCH --job-name=F1f3
+#SBATCH --qos=earth
+#SBATCH --clusters=arc
+#SBATCH --partition=short
+#SBATCH --time=120:00:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=9
+
+module load PETSc/3.14.4-foss-2020b
+#export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+
+mpirun /home/sann3352/riftomat-private/FD-PDE/models/mbuoy3/mbuoy3.app -options_file model_half_ridge.opts -restart 10210
+

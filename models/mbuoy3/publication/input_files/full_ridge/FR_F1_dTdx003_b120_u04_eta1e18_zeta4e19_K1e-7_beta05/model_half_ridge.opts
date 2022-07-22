@@ -1,0 +1,78 @@
+# Run: ../mbuoy3.app -options_file model_half_ridge.opts > log_out.out
+
+# model options
+-full_ridge 1
+
+# parameters set as for half-ridge
+-L 600.0e3
+-H 100.0e3
+-zmin -100e3
+-output_file out_model
+
+-nx 600
+-nz 100
+-U0 4
+-K0 1e-7
+-eta0 1e18
+-zeta0 4e19
+-Tp 1648
+
+-tstep 100000
+-tout 100000
+-dt_out 1e4
+-tmax 5e6
+-dtmax 1e2
+-ts_scheme 2
+
+# Extraction: (dH/dz=0 for x<=xMOR)
+-xmor 4e3
+-fextract 0.2
+-hc_cycles 1
+-vf_nonlinear 1
+
+# Buoyancy
+-buoy_phi 1 # 0=off, 1=on
+-buoy_C 2 # 0=off, 1=on, 2-extended
+-buoy_T 0 # 0=off, 1=on, 2-extended
+-beta 0.5
+-initial_bulk_comp 0
+
+# Forcing
+-forcing 1 # 0-off, 1-Temp, 2-Comp
+-dTdx_bottom 0.03
+-dCdx_bottom 1e-6
+
+# Viscosity:
+-visc_shear 2 # 0-constant, 1-porosity dependent, 2-Temp,porosity dependent
+-visc_bulk 2 # 0-constant, 1-porosity dependent, 2-Temp,porosity dependent
+-eta_max 1e25
+
+-phi_min 1e-6
+-phi_init 0.0
+
+# solver options
+-hc_pc_type lu 
+-hc_pc_factor_mat_solver_type mumps
+#-hc_pc_factor_mat_solver_type umfpack 
+#-hc_pc_factor_mat_ordering_type external
+-hc_snes_atol 1e-10 
+-hc_snes_rtol 1e-20
+
+#-pv_snes_mf_operator
+-pv_pc_type lu 
+-pv_pc_factor_mat_solver_type mumps
+#-pv_pc_factor_mat_solver_type umfpack 
+#-pv_pc_factor_mat_ordering_type external
+-pv_snes_atol 1e-10 
+-pv_snes_rtol 1e-20
+
+-pv_snes_monitor
+-pv_snes_converged_reason 
+-pv_ksp_converged_reason 
+-pv_ksp_monitor
+-log_view
+
+-hc_snes_monitor
+-hc_snes_converged_reason 
+-hc_ksp_converged_reason 
+-hc_ksp_monitor
