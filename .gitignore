@@ -1,11 +1,8 @@
-# PDFS
+# PDFs
 *.pdf
 
-# EXECS
-/petsc_examples/stokes_ksp/stokes_ksp
-/petsc_examples/stokes_snes/stokes_snes
-/StagRidge/src/stagridge
-/StagRidge/src/stagridge_advdiff
+# EXECs
+*.o
 *.app
 
 # SNES REPORTS
@@ -27,3 +24,4 @@ __pycache__
 
 # VSC/IDE
 .vscode
+*.json
