@@ -12,7 +12,7 @@
 # Import libraries
 import os, sys, getopt, time
 
-tests = ['advdiff_advtime',
+tests_seq = ['advdiff_advtime',
           'advdiff_elman',
           'advdiff_laplace',
           'advdiff_mms_2d_diffusion',
@@ -36,6 +36,31 @@ tests = ['advdiff_advtime',
           'enthalpy_periodic',
           'convection_stokes_periodic']
 
+tests_mpi = ['advdiff_advtime',
+          'advdiff_elman',
+          'advdiff_laplace',
+          'advdiff_mms_2d_diffusion',
+          'advdiff_mms_convergence',
+          'dmstagoutput',
+          'effvisc_mms',
+          'stokes_lid_driven',
+          'stokes_mor',
+          'stokes_solcx',
+          'stokesdarcy2field_mms_compare_nd',
+          'stokesdarcy2field_mms_katz_ch13',
+          'stokesdarcy2field_mms_porosity',
+          'stokesdarcy2field_mms_rhebergen_siam_2014',
+          'enthalpy_2d_diffusion',
+          'enthalpy_1d_eutectic_solidification',
+          'enthalpy_1d_solidification_TC',
+          'advdiff_periodic',
+          'enthalpy_periodic']
+
+# tests_mpi_fail = ['decoupled_convection',
+#           'stokes_rt',
+#           'stokesdarcy3field_mms_bulkviscosity',
+#           'convection_stokes_periodic']
+
 # Default run with -1cpu which uses umfpack # if ncpu>0 uses mumps (slower, but parallel)
 ncpu = -1
 output_dir = 'results_'+str(ncpu)+'cpu/'
@@ -51,6 +76,9 @@ options, remainder = getopt.getopt(sys.argv[1:],'n:')
 for opt, arg in options:
   if opt in ('-n'):
     ncpu = int(arg)
+
+if (ncpu==-1): tests = tests_seq
+else:          tests = tests_mpi
 
 print('TESTS:')
 # Run tests
