@@ -92,7 +92,57 @@ To compile the code, in `FD-PDE/models/mbuoy3/`:
 Running the model: `./mbuoy3.app -options_file model_half_ridge.opts > log_out.out`
 
 ### Test run
+In `mbuoy3/test/` run:
+
+1. Half-ridge model with:
+
+`../mbuoy3.app -options_file model_half_ridge.opts > log_out.out`
+
+2. Full-ridge model with:
+
+`../mbuoy3.app -options_file model_full_ridge.opts > log_out.out`
+
+The input files are actually identical, except for the option to switch on full-ridge mode: `-full_ridge 1`. This option will automatically extend the domain and adapt boundary conditions. 
+
 ### Visualization
+
+First, make sure the `PYTHONPATH` is updated as above. Then, install some cool [Scientific Colormaps](https://www.fabiocrameri.ch/colourmaps/) from Fabio Crameri with:
+`pip install cmcrameri`
+
+Example visualization for either the half-ridge/full-ridge test. In `mbuoy3/python` run:
+* `python plot_debug_output.py`
+* `python plot_time_series.py`
+* `plot_HR_sims_porosity.py` - for half-ridge
+* `plot_FR_sims_porosity.py` - for full-ridge
+
+More output routines can be found in `vizMORBuoyancy.py`, which can be loaded as a module in any new script.
+
 ### Input files
+Input files to reproduce the simulations in Pusok et al. (GJI, 2022) are found in `mbuoy3/publication/input_files/`. All parameter variations are indicated in the manuscript. Some nomenclature for half-ridge models:
+* b000 - no buoyancy (passive flow)
+* b100 - porous buoyancy
+* b120 - porous and compositional buoyancy
+
+Some nomenclature for full-ridge models:
+* F1 - temperature forcing, can be modified with `-forcing 1 # 0-off, 1-Temp, 2-Comp`
+* F2 - compositional forcing
+* dTdx, dCdx - indicates magnitude of forcing
+ 
+The `submit_job.run` are SLURM submission files, included to help with cpu and time usage, and how to restart a simulation from a specified timestep.
+
 ### pMELTs Jupyter notebook
+
+To install `ThermoEngine` (Ghiorso et al., 2002, Ghiorso and Wolf, 2019), follow instructions from the [ENKI website](https://enki-portal.gitlab.io/ThermoEngine/index.html). In addition, you'll need to install and start [Docker](https://docs.docker.com) before running the ENKI server.
+
+Copy the Jupyter notebooks:
+* `MOR_beta_revised.ipynb`
+* `MOR_beta_revised_min.ipynb`
+
+in `ThermoEngine/Notebooks/my_notebooks/` to reproduce the pMELTS simulations in this study.
+
+In the `ThermoEngine` directory, run the script `./run_docker_locally.sh` to start the ENKI server locally (JupyterLab session). Run the Jupyter notebooks within the JupyterLab session.
+
+
+
+
 
