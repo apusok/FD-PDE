@@ -67,6 +67,18 @@ TEST_SRC = 	$(TEST_DIR)/test_stokes_solcx.c \
 		$(TEST_DIR)/test_advdiff_periodic.c \
 		$(TEST_DIR)/test_enthalpy_periodic.c \
 		$(TEST_DIR)/test_convection_stokes_periodic.c \
+		$(TEST_DIR)/test_stokesdarcy2field_vp_inclusion.c \
+		$(TEST_DIR)/test_stokesdarcy2field_vep_0d_shear.c \
+		$(TEST_DIR)/test_stokesdarcy2field_vep_0d_expansion.c \
+		$(TEST_DIR)/test_stokesdarcy2field_vep_inclusion.c \
+		$(TEST_DIR)/test_dmstag_phasemethod.c \
+		$(TEST_DIR)/test_stokesdarcy2field_rt.c \
+		$(TEST_DIR)/test_stokesdarcy2field_rt2.c \
+		$(TEST_DIR)/test_stokesdarcy2field_beam.c \
+		$(TEST_DIR)/test_stokesdarcy2field_plume.c \
+		$(TEST_DIR)/test_stokes_rt_compare_pic_phasefield.c \
+		$(TEST_DIR)/test_stokesdarcy2field_vep_inclusion_pic.c \
+		$(TEST_DIR)/test_dmswarm_project.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,$(TEST_SRC))
 TEST_APP := $(patsubst %.c,%.app,$(TEST_SRC))

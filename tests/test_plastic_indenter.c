@@ -246,8 +246,9 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
 
       { // A = eta (corner, c=0)
         DMStagStencil point[4],pointP[9];
-        PetscScalar   eta,epsII[4],P[9], Pinterp[4], Y, eta_P, eta_VP, inv_eta, inv_eta_VP;
+        PetscScalar   eta,epsII[4],P[9], Y, eta_P, eta_VP, inv_eta, inv_eta_VP;
         PetscInt      ii;
+        // PetscScalar   Pinterp[4];
 
         // second invariant of strain rate
         point[0].i = i; point[0].j = j; point[0].loc = DOWN_LEFT;  point[0].c = 3;
@@ -278,11 +279,11 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         if ((i==Nx-1) && (j==Nz-1)) {pointP[5] = pointP[4]; pointP[7] = pointP[4]; pointP[8] = pointP[4];}
         ierr = DMStagVecGetValuesStencil(dm,xlocal,9,pointP,P); CHKERRQ(ierr);
 
-        // interpolate - assume constant grid spacing -> should be replaced with interpolation routines for every field
-        Pinterp[0] = 0.25*(P[0]+P[1]+P[3]+P[4]);
-        Pinterp[1] = 0.25*(P[1]+P[2]+P[4]+P[5]);
-        Pinterp[2] = 0.25*(P[3]+P[4]+P[6]+P[7]);
-        Pinterp[3] = 0.25*(P[4]+P[5]+P[7]+P[8]);
+        // // interpolate - assume constant grid spacing -> should be replaced with interpolation routines for every field
+        // Pinterp[0] = 0.25*(P[0]+P[1]+P[3]+P[4]);
+        // Pinterp[1] = 0.25*(P[1]+P[2]+P[4]+P[5]);
+        // Pinterp[2] = 0.25*(P[3]+P[4]+P[6]+P[7]);
+        // Pinterp[3] = 0.25*(P[4]+P[5]+P[7]+P[8]);
 
         for (ii = 0; ii < 4; ii++) {
           // linear viscous

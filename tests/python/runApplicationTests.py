@@ -34,7 +34,19 @@ tests_seq = ['advdiff_advtime',
           'enthalpy_1d_solidification_TC',
           'advdiff_periodic',
           'enthalpy_periodic',
-          'convection_stokes_periodic']
+          'convection_stokes_periodic',
+          'stokes_rt_compare_pic_phasefield',
+          'dmstag_phasemethod_flow',
+          'dmstag_phasemethod_stationary',
+          'stokesdarcy2field_beam',
+          'stokesdarcy2field_plume',
+          'stokesdarcy2field_rt',
+          'stokesdarcy2field_rt_analytical',
+          'stokesdarcy2field_vep_0d_expansion',
+          'stokesdarcy2field_vep_0d_shear',
+          'stokesdarcy2field_vep_inclusion',
+          'stokesdarcy2field_vep_inclusion_pic',
+          'stokesdarcy2field_vp_inclusion']
 
 tests_mpi = ['advdiff_advtime',
           'advdiff_elman',
@@ -46,6 +58,8 @@ tests_mpi = ['advdiff_advtime',
           'stokes_lid_driven',
           'stokes_mor',
           'stokes_solcx',
+          'stokes_rt',
+          'stokes_rt_compare_pic_phasefield',
           'stokesdarcy2field_mms_compare_nd',
           'stokesdarcy2field_mms_katz_ch13',
           'stokesdarcy2field_mms_porosity',
@@ -54,21 +68,15 @@ tests_mpi = ['advdiff_advtime',
           'enthalpy_1d_eutectic_solidification',
           'enthalpy_1d_solidification_TC',
           'advdiff_periodic',
-          'enthalpy_periodic']
+          'enthalpy_periodic',
+          'stokesdarcy2field_vep_inclusion_pic']
 
 # tests_mpi_fail = ['decoupled_convection',
-#           'stokes_rt',
 #           'stokesdarcy3field_mms_bulkviscosity',
 #           'convection_stokes_periodic']
 
 # Default run with -1cpu which uses umfpack # if ncpu>0 uses mumps (slower, but parallel)
 ncpu = -1
-output_dir = 'results_'+str(ncpu)+'cpu/'
-
-try:
-  os.mkdir(output_dir)
-except OSError:
-  pass
 
 # Command line options
 options, remainder = getopt.getopt(sys.argv[1:],'n:')
@@ -76,6 +84,13 @@ options, remainder = getopt.getopt(sys.argv[1:],'n:')
 for opt, arg in options:
   if opt in ('-n'):
     ncpu = int(arg)
+
+output_dir = 'results_'+str(ncpu)+'cpu/'
+
+try:
+  os.mkdir(output_dir)
+except OSError:
+  pass
 
 if (ncpu==-1): tests = tests_seq
 else:          tests = tests_mpi

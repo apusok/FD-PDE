@@ -417,12 +417,10 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   //ierr = MPoint_ProjectP0_arith(dmswarm,"eta",dm,dmcoeff,0,coeff);CHKERRQ(ierr);
   //ierr = MPoint_ProjectP0_arith(dmswarm,"rho",dm,dmcoeff,1,coeff);CHKERRQ(ierr);
 
-  ierr = VecZeroEntries(coeff);CHKERRQ(ierr);
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"eta",dm,dmcoeff,2,1,coeff);CHKERRQ(ierr);//cell
-  
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"eta",dm,dmcoeff,0,0,coeff);CHKERRQ(ierr);//vertex
-
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"rho",dm,dmcoeff,1,0,coeff);CHKERRQ(ierr);//face
+  // ierr = VecZeroEntries(coeff);CHKERRQ(ierr);
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"eta",dm,dmcoeff,2,1,coeff);CHKERRQ(ierr);//cell
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"eta",dm,dmcoeff,0,0,coeff);CHKERRQ(ierr);//vertex
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"rho",dm,dmcoeff,1,0,coeff);CHKERRQ(ierr);//face
   
   // Density is defined on the edges
   // Viscosity is defined (vertices and cell center
@@ -608,6 +606,14 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
     type_bc[k] = BC_DIRICHLET;
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+
+  // pin P = 0
+  ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+  if (n_bc){
+    value_bc[0] = 0.0;
+    type_bc[0] = BC_DIRICHLET_STAG;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

@@ -57,6 +57,7 @@ PetscErrorCode FormCoefficient(FDPDE,DM,Vec,DM,Vec,void*);
 PetscErrorCode FormBCList_Dirichlet(DM,Vec,DMStagBCList,void*);
 PetscErrorCode SetGaussianInitialGuess(DM,Vec,void*);
 PetscErrorCode Analytic_AdvTime(DM,void*,PetscInt);
+PetscErrorCode CorrectNegativeValues(DM,Vec);
 
 // ---------------------------------------
 // Some descriptions
@@ -116,6 +117,7 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
   if (usr->par->adv_scheme == 0) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_UPWIND);CHKERRQ(ierr); }
   if (usr->par->adv_scheme == 1) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_UPWIND2);CHKERRQ(ierr); }
   if (usr->par->adv_scheme == 2) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_FROMM);CHKERRQ(ierr); }
+  if (usr->par->adv_scheme == 3) { ierr = FDPDEAdvDiffSetAdvectSchemeType(fd,ADV_UPWIND_MINMOD);CHKERRQ(ierr); }
 
   if (ts_scheme == 0) { ierr = FDPDEAdvDiffSetTimeStepSchemeType(fd,TS_FORWARD_EULER);CHKERRQ(ierr); }
   if (ts_scheme == 1) { ierr = FDPDEAdvDiffSetTimeStepSchemeType(fd,TS_BACKWARD_EULER);CHKERRQ(ierr); }
@@ -156,6 +158,8 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
     ierr = FDPDESolve(fd,NULL);CHKERRQ(ierr);
     ierr = FDPDEGetSolution(fd,&x);CHKERRQ(ierr); 
 
+    // ierr = CorrectNegativeValues(dm,x);CHKERRQ(ierr);
+
     // increment time
     ierr = FDPDEAdvDiffGetTimestep(fd,&dt);CHKERRQ(ierr);
     usr->par->t += dt;
@@ -190,6 +194,9 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
   // Destroy FD-PDE object
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
   ierr = FDPDEDestroy(&fd);CHKERRQ(ierr);
+
+  // ierr = VecDestroy(&xl);CHKERRQ(ierr);
+  // ierr = VecDestroy(&xu);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -685,5 +692,39 @@ PetscErrorCode Analytic_AdvTime(DM dm,void *ctx, PetscInt istep)
 
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// CorrectNegativeValues
+// ---------------------------------------
+PetscErrorCode CorrectNegativeValues(DM dm, Vec x)
+{
+  PetscInt       i, j, sx, sz, nx, nz, iE;
+  PetscScalar    ***xx;
+  Vec            xlocal;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &iE); CHKERRQ(ierr);
+
+  ierr = DMCreateLocalVector(dm, &xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+  
+  // Loop over local domain
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      if (xx[j][i][iE]<0.0) xx[j][i][iE] = 0.0;
+    }
+  }
+
+  // Restore arrays
+  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
+
   PetscFunctionReturn(0);
 }
