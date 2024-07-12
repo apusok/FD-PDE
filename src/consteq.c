@@ -267,6 +267,259 @@ PetscErrorCode get_exz_corner(DM dm, Vec x, PetscScalar **coordx,PetscScalar **c
   else              dhz = coordz[j][icenter]-coordz[j-1][icenter];
 
   eps = 0.5*((xx[1]-xx[0])/dhz + (xx[3]-xx[2])/dhx);
+
+  *_eps = eps;
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+/*@
+DMStagGetArrayPointStrainRates - returns the second invariant of strain rate (epsII) and the strain rate components [exx,ezz,exz]
+Pointwise only; Requirements:
+xx - array of vector associated with dm
+coordx, coordz - coordinates of dm
+
+Use: user
+@*/
+// ---------------------------------------
+PetscErrorCode DMStagGetArrayPointStrainRates(DM dm, PetscScalar ***xx, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, DMStagStencilLocation loc, PetscScalar *epsII, PetscScalar *exx, PetscScalar *ezz, PetscScalar *exz)
+{
+  PetscInt       sl[4], info[5],dof0,dof1,dof2,dof3; 
+  PetscScalar    epsIIs2, eps_xx, eps_zz, eps_xz;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  // error checking
+  ierr = DMStagGetDOF(dm,&dof0,&dof1,&dof2,&dof3);CHKERRQ(ierr);
+  if (dof1==0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Only calculation of strain rates from face velocities is supported! No face field was detected.");
+  if (dof1>1 ) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"More than 1 face field was detected!");
+
+  ierr = DMStagGetGlobalSizes(dm,&info[0],&info[1],NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&info[2]);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&info[3]);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&info[4]);CHKERRQ(ierr);
+
+  ierr = DMStagGetLocationSlot(dm,DMSTAG_LEFT ,0,&sl[0]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm,DMSTAG_RIGHT,0,&sl[1]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm,DMSTAG_DOWN ,0,&sl[2]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm,DMSTAG_UP   ,0,&sl[3]); CHKERRQ(ierr);
+
+  switch (loc) {
+    case DMSTAG_ELEMENT:
+    {
+      ierr = get_exx_center_sl(xx,coordx,coordz,i,j,sl,info,&eps_xx);CHKERRQ(ierr);
+      ierr = get_ezz_center_sl(xx,coordx,coordz,i,j,sl,info,&eps_zz);CHKERRQ(ierr);
+      ierr = get_exz_center_sl(xx,coordx,coordz,i,j,sl,info,&eps_xz);CHKERRQ(ierr);
+      break;
+    }
+    case DMSTAG_DOWN_LEFT:
+    {
+      ierr = get_exx_corner_sl(xx,coordx,coordz,i,j,sl,info,&eps_xx);CHKERRQ(ierr);
+      ierr = get_ezz_corner_sl(xx,coordx,coordz,i,j,sl,info,&eps_zz);CHKERRQ(ierr);
+      ierr = get_exz_corner_sl(xx,coordx,coordz,i,j,sl,info,&eps_xz);CHKERRQ(ierr);
+      break;
+    }
+    case DMSTAG_DOWN_RIGHT:
+    {
+      ierr = get_exx_corner_sl(xx,coordx,coordz,i+1,j,sl,info,&eps_xx);CHKERRQ(ierr);
+      ierr = get_ezz_corner_sl(xx,coordx,coordz,i+1,j,sl,info,&eps_zz);CHKERRQ(ierr);
+      ierr = get_exz_corner_sl(xx,coordx,coordz,i+1,j,sl,info,&eps_xz);CHKERRQ(ierr);
+      break;
+    }
+    case DMSTAG_UP_LEFT:
+    {
+      ierr = get_exx_corner_sl(xx,coordx,coordz,i,j+1,sl,info,&eps_xx);CHKERRQ(ierr);
+      ierr = get_ezz_corner_sl(xx,coordx,coordz,i,j+1,sl,info,&eps_zz);CHKERRQ(ierr);
+      ierr = get_exz_corner_sl(xx,coordx,coordz,i,j+1,sl,info,&eps_xz);CHKERRQ(ierr);
+      break;
+    }
+    case DMSTAG_UP_RIGHT:
+    {
+      ierr = get_exx_corner_sl(xx,coordx,coordz,i+1,j+1,sl,info,&eps_xx);CHKERRQ(ierr);
+      ierr = get_ezz_corner_sl(xx,coordx,coordz,i+1,j+1,sl,info,&eps_zz);CHKERRQ(ierr);
+      ierr = get_exz_corner_sl(xx,coordx,coordz,i+1,j+1,sl,info,&eps_xz);CHKERRQ(ierr);
+      break;
+    }
+    default:
+      SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"DMStagStencil location %d is not supported. Point location must be centers or corners.",loc);
+    break;
+  }
+
+  // Second invariant of strain rate
+  epsIIs2 = 0.5*(eps_xx*eps_xx + eps_zz*eps_zz + 2.0*eps_xz*eps_xz);
+
+  *epsII = PetscPowScalar(epsIIs2,0.5);
+  *exx = eps_xx;
+  *ezz = eps_zz;
+  *exz = eps_xz;
+
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode get_exx_center_sl(PetscScalar ***xx, PetscScalar **coordx,PetscScalar **coordz, PetscInt i, PetscInt j, PetscInt sl[], PetscInt info[], PetscScalar *_eps)
+{
+  PetscInt       inext, iprev, iL, iR;
+  PetscScalar    eps = 0.0, dh;
+  PetscErrorCode ierr;
+  
+  PetscFunctionBegin;
+  if ((i<0) || (i==info[0]) || (j<0) || (j==info[1])) {
+    *_eps = eps;
+    PetscFunctionReturn(0);
+  }
+
+  iprev = info[2]; inext = info[3];  
+  iL = 0; iR = 1;
+
+  dh = coordx[i][inext]-coordx[i][iprev];
+  eps = (xx[j][i][sl[iR]]-xx[j][i][sl[iL]])/dh;
+  *_eps = eps;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode get_ezz_center_sl(PetscScalar ***xx, PetscScalar **coordx,PetscScalar **coordz, PetscInt i, PetscInt j, PetscInt sl[], PetscInt info[], PetscScalar *_eps)
+{
+  PetscInt       inext, iprev, iD, iU;
+  PetscScalar    eps = 0.0, dh;
+  PetscErrorCode ierr;
+  
+  PetscFunctionBegin;
+  if ((i<0) || (i==info[0]) || (j<0) || (j==info[1])) {
+    *_eps = eps;
+    PetscFunctionReturn(0);
+  }
+
+  iprev = info[2]; inext = info[3];
+  iD = 2; iU = 3;
+
+  dh = coordz[j][inext]-coordz[j][iprev];
+  eps = (xx[j][i][sl[iU]]-xx[j][i][sl[iD]])/dh;
+  *_eps = eps;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode get_exz_center_sl(PetscScalar ***xx, PetscScalar **coordx,PetscScalar **coordz, PetscInt i, PetscInt j, PetscInt sl[], PetscInt info[], PetscScalar *_eps)
+{
+  PetscScalar    eps_xz_sw, eps_xz_nw, eps_xz_se, eps_xz_ne;
+  PetscScalar    xi[2], zi[2], xp, zp; 
+  PetscScalar    eps = 0.0;
+  PetscErrorCode ierr;
+  
+  PetscFunctionBegin;
+  ierr = get_exz_corner_sl(xx,coordx,coordz,i  ,j  ,sl,info,&eps_xz_sw);CHKERRQ(ierr);
+  ierr = get_exz_corner_sl(xx,coordx,coordz,i  ,j+1,sl,info,&eps_xz_nw);CHKERRQ(ierr);
+  ierr = get_exz_corner_sl(xx,coordx,coordz,i+1,j  ,sl,info,&eps_xz_se);CHKERRQ(ierr);
+  ierr = get_exz_corner_sl(xx,coordx,coordz,i+1,j+1,sl,info,&eps_xz_ne);CHKERRQ(ierr);
+
+  xp   = coordx[i][info[4]];
+  zp   = coordz[j][info[4]];
+  xi[0] = coordx[i][info[2]]; xi[1] = coordx[i][info[3]];
+  zi[0] = coordz[j][info[2]]; zi[1] = coordz[j][info[3]];
+  eps = interp_bilinear(xp,zp,xi,zi,eps_xz_sw,eps_xz_nw,eps_xz_se,eps_xz_ne);
+  *_eps = eps;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode get_exx_corner_sl(PetscScalar ***xx, PetscScalar **coordx,PetscScalar **coordz, PetscInt i, PetscInt j, PetscInt sl[], PetscInt info[], PetscScalar *_eps)
+{
+  PetscScalar  eps = 0.0, eps_xx_sw, eps_xx_nw, eps_xx_se, eps_xx_ne;
+  PetscScalar  xi[2], zi[2], xp, zp;
+  PetscInt     Nx, Nz, iprev, inext, icenter;
+  PetscErrorCode ierr;
+  
+  PetscFunctionBegin;
+  ierr = get_exx_center_sl(xx,coordx,coordz,i-1,j-1,sl,info,&eps_xx_sw);CHKERRQ(ierr);
+  ierr = get_exx_center_sl(xx,coordx,coordz,i  ,j-1,sl,info,&eps_xx_se);CHKERRQ(ierr);
+  ierr = get_exx_center_sl(xx,coordx,coordz,i-1,j  ,sl,info,&eps_xx_nw);CHKERRQ(ierr);
+  ierr = get_exx_center_sl(xx,coordx,coordz,i  ,j  ,sl,info,&eps_xx_ne);CHKERRQ(ierr);
+  Nx = info[0]; Nz = info[1]; iprev = info[2]; inext = info[3]; icenter = info[4];
+
+  if (i == Nx) xp = coordx[i-1][inext];
+  else         xp = coordx[i  ][iprev];
+  if (j == Nz) zp = coordz[j-1][inext];
+  else         zp = coordz[j  ][iprev];
+
+  if (i == 0 ) xi[0] = 2.0*coordx[i][iprev]-coordx[i][icenter]; 
+  else         xi[0] = coordx[i-1][icenter]; 
+  if (i == Nx) xi[1] = 2.0*coordx[i-1][inext]-coordx[i-1][icenter]; 
+  else         xi[1] = coordx[i][icenter]; 
+
+  if (j == 0 ) zi[0] = 2.0*coordz[j][iprev]-coordz[j][icenter]; 
+  else         zi[0] = coordz[j-1][icenter]; 
+  if (j == Nz) zi[1] = 2.0*coordz[j-1][inext]-coordz[j-1][icenter]; 
+  else         zi[1] = coordz[j][icenter]; 
+
+  eps = interp_bilinear(xp,zp,xi,zi,eps_xx_sw,eps_xx_nw,eps_xx_se,eps_xx_ne);
+  *_eps = eps;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode get_ezz_corner_sl(PetscScalar ***xx, PetscScalar **coordx,PetscScalar **coordz, PetscInt i, PetscInt j, PetscInt sl[], PetscInt info[], PetscScalar *_eps)
+{
+  PetscScalar  eps = 0.0, eps_zz_sw, eps_zz_nw, eps_zz_se, eps_zz_ne;
+  PetscScalar  xi[2], zi[2], xp, zp;
+  PetscInt     Nx, Nz, iprev, inext, icenter;
+  PetscErrorCode ierr;
+  
+  PetscFunctionBegin;
+  ierr = get_ezz_center_sl(xx,coordx,coordz,i-1,j-1,sl,info,&eps_zz_sw);CHKERRQ(ierr);
+  ierr = get_ezz_center_sl(xx,coordx,coordz,i  ,j-1,sl,info,&eps_zz_se);CHKERRQ(ierr);
+  ierr = get_ezz_center_sl(xx,coordx,coordz,i-1,j  ,sl,info,&eps_zz_nw);CHKERRQ(ierr);
+  ierr = get_ezz_center_sl(xx,coordx,coordz,i  ,j  ,sl,info,&eps_zz_ne);CHKERRQ(ierr);
+  Nx = info[0]; Nz = info[1]; iprev = info[2]; inext = info[3]; icenter = info[4];
+
+  if (i == Nx) xp = coordx[i-1][inext];
+  else         xp = coordx[i  ][iprev];
+  if (j == Nz) zp = coordz[j-1][inext];
+  else         zp = coordz[j  ][iprev];
+
+  if (i == 0 ) xi[0] = 2.0*coordx[i][iprev]-coordx[i][icenter]; 
+  else         xi[0] = coordx[i-1][icenter]; 
+  if (i == Nx) xi[1] = 2.0*coordx[i-1][inext]-coordx[i-1][icenter]; 
+  else         xi[1] = coordx[i][icenter]; 
+
+  if (j == 0 ) zi[0] = 2.0*coordz[j][iprev]-coordz[j][icenter]; 
+  else         zi[0] = coordz[j-1][icenter]; 
+  if (j == Nz) zi[1] = 2.0*coordz[j-1][inext]-coordz[j-1][icenter]; 
+  else         zi[1] = coordz[j][icenter]; 
+
+  eps = interp_bilinear(xp,zp,xi,zi,eps_zz_sw,eps_zz_nw,eps_zz_se,eps_zz_ne);
+  *_eps = eps;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode get_exz_corner_sl(PetscScalar ***xx, PetscScalar **coordx,PetscScalar **coordz, PetscInt i, PetscInt j, PetscInt sl[], PetscInt info[], PetscScalar *_eps)
+{
+  PetscInt       ii, icenter, iprev, inext, Nx, Nz, iL, iD;
+  PetscScalar    dVxdz, dVzdx, eps = 0.0, dhx, dhz;
+  PetscErrorCode ierr;
+  
+  PetscFunctionBegin;
+  Nx = info[0]; Nz = info[1]; iprev = info[2]; inext = info[3]; icenter = info[4];
+  iL = 0; iD = 2;
+
+  if      (i == 0)  dhx = 2.0*(coordx[i][icenter]-coordx[i][iprev]);
+  else if (i == Nx) dhx = 2.0*(coordx[i-1][inext]-coordx[i-1][icenter]);
+  else              dhx = coordx[i][icenter]-coordx[i-1][icenter];
+
+  if      (j == 0)  dhz = 2.0*(coordz[j][icenter]-coordz[j][iprev]);
+  else if (j == Nz) dhz = 2.0*(coordz[j-1][inext]-coordz[j-1][icenter]);
+  else              dhz = coordz[j][icenter]-coordz[j-1][icenter];
+
+  if ((j>0) && (j<Nz)) {
+    dVxdz = (xx[j][i][sl[iL]]-xx[j-1][i][sl[iL]])/dhz;
+  } else {
+    dVxdz = 0.0;
+  }
+
+  if ((i>0) && (i<Nx)) {
+    dVzdx = (xx[j][i][sl[iD]]-xx[j][i-1][sl[iD]])/dhx;
+  } else {
+    dVzdx = 0.0;
+  }
+
+  eps = 0.5*(dVxdz + dVzdx);
+
   *_eps = eps;
   PetscFunctionReturn(0);
 }

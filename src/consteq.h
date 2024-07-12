@@ -18,4 +18,15 @@ PetscErrorCode get_exx_corner(DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscI
 PetscErrorCode get_ezz_corner(DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*);
 PetscErrorCode get_exz_corner(DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscScalar*); // i,j - assumed DOWN_LEFT
 
+// Using dm arrays (optimized)
+PetscErrorCode DMStagGetArrayPointStrainRates(DM,PetscScalar***,PetscScalar**,PetscScalar**,PetscInt,PetscInt,DMStagStencilLocation,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*);
+
+PetscErrorCode get_exx_center_sl(PetscScalar***,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscInt[],PetscScalar*);
+PetscErrorCode get_ezz_center_sl(PetscScalar***,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscInt[],PetscScalar*);
+PetscErrorCode get_exz_center_sl(PetscScalar***,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscInt[],PetscScalar*);
+
+PetscErrorCode get_exx_corner_sl(PetscScalar***,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscInt[],PetscScalar*);
+PetscErrorCode get_ezz_corner_sl(PetscScalar***,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscInt[],PetscScalar*);
+PetscErrorCode get_exz_corner_sl(PetscScalar***,PetscScalar**,PetscScalar**,PetscInt,PetscInt,PetscInt[],PetscInt[],PetscScalar*); // i,j - assumed DOWN_LEFT
+
 #endif
