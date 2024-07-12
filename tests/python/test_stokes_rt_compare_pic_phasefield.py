@@ -200,7 +200,7 @@ else:
 buoy = ' -eta0 '+str(eta0)+' -eta1 '+str(eta1)+' -rho0 '+str(rho0)+' -rho1 '+str(rho1)
 
 # Run PIC
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_rt_compare_pic_phasefield.app'+solver+solver_default+' -snes_type ksponly -snes_fd_color -output_dir '+fname+ \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_rt_compare_pic_phasefield'+solver+solver_default+' -snes_type ksponly -snes_fd_color -output_dir '+fname+ \
     buoy+' -ppcell '+str(ppcell)+' -nt '+str(nt)+' -dt '+str(dt)+' -nx '+str(nx)+' -nz '+str(nx)+' -tout '+str(tout)+' -method 0 > log_'+fname+'0.out'
 print(str1)
 os.system(str1)
@@ -211,7 +211,7 @@ vfopt = 3
 
 # Run PhaseField
 phasefield = ' -eps '+str(eps)+' -gamma '+str(gamma)+' -vfopt '+str(vfopt)
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_rt_compare_pic_phasefield.app'+solver+solver_default+' -snes_type ksponly -snes_fd_color -output_dir '+fname+ \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_rt_compare_pic_phasefield'+solver+solver_default+' -snes_type ksponly -snes_fd_color -output_dir '+fname+ \
     buoy+phasefield+' -nt '+str(nt)+' -dt '+str(dt)+' -nx '+str(nx)+' -nz '+str(nx)+' -tout '+str(tout)+' -method 1 > log_'+fname+'1.out'
 print(str1)
 os.system(str1)

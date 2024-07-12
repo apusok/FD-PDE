@@ -498,7 +498,7 @@ for ivf in range(numvf):
                 
                 # Run test
                 # Forward euler
-                str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_rt.app' + \
+                str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_rt' + \
                        ' -nx '+str(nx)+' -nz '+str(nz)+' -tstep '+str(tstep) + \
                        newton + model + phase + solver + sdpar + \
                        ' -output_dir '+fname+' -output_file '+fname+' -tout '+str(tout)+' -ts_scheme 0'

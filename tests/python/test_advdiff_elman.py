@@ -60,12 +60,12 @@ else:
   solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
 
 # Run test
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_elman.app'+solver+' -output_file '+fname11+' -output_dir '+fname_data+ \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_elman'+solver+' -output_file '+fname11+' -output_dir '+fname_data+ \
   ' -nx '+str(n)+' -nz '+str(n)+solver_default+' -advtype 0 > '+fname_data+'/'+'out_num_elman1.out'
 print(str1)
 os.system(str1)
 
-str2 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_elman.app'+solver+' -output_file '+fname12+' -output_dir '+fname_data+ \
+str2 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_elman'+solver+' -output_file '+fname12+' -output_dir '+fname_data+ \
   ' -nx '+str(n)+' -nz '+str(n)+solver_default+' -advtype 1  > '+fname_data+'/'+'out_num_elman2.out'
 print(str2)
 os.system(str2)

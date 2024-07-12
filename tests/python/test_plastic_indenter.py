@@ -370,7 +370,7 @@ harmonic = 1
 C        = 1 # cohesion, default C=1
 
 # Run simulation
-str1 = '../test_plastic_indenter.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor_true_residual -ksp_monitor_true_residual -snes_converged_reason -ksp_converged_reason'+ \
+str1 = '../test_plastic_indenter -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor_true_residual -ksp_monitor_true_residual -snes_converged_reason -ksp_converged_reason'+ \
     ' -output_file '+fname+ \
     ' -g '+str(g)+ \
     ' -eta0 '+str(eta0)+ \

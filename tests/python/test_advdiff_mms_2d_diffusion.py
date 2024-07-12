@@ -49,7 +49,7 @@ for nx in n:
   fout1 = f1+'_'+str(nx)+'.out'
 
   # Run with different resolutions
-  str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_2d_diffusion.app '+solver+' -fname '+f1+\
+  str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_2d_diffusion '+solver+' -fname '+f1+\
     ' -fdir '+fname_data+' -nx '+str(nx)+' -nz '+str(nx)+solver_default+' > '+fname_data+'/'+fout1
   print(str1)
   os.system(str1)

@@ -89,7 +89,7 @@ for isim in range(0,nsim):
   #   tmax /= Ra
 
   # Run test
-  str1 = 'mpiexec -n '+str(ncpu)+' ../test_decoupled_convection.app '+solver+solver_default+ \
+  str1 = 'mpiexec -n '+str(ncpu)+' ../test_decoupled_convection '+solver+solver_default+ \
         ' -test '+str(test)+ \
         ' -eta0 '+str(eta0)+ \
         ' -tmax '+str(tmax)+ \

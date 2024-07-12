@@ -1004,7 +1004,7 @@ for i in range(0, 1):
     #solver = ''
 
     # Run simulation
-    str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_vp_inclusion.app'+ picard + newton + solver + sdpar + \
+    str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_vp_inclusion'+ picard + newton + solver + sdpar + \
            ' -output_file '+fname+ \
            ' -C_b '+str(C_b)+ \
            ' -eta_w '+str(eta_w)+ \

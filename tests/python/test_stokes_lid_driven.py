@@ -63,7 +63,7 @@ for nx in nlist:
     fout1 = fname_data+'/'+fname+'_'+str(nx)+'.out'
 
     # Run with different resolutions
-    str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_lid_driven.app '+solver+solver_default+ \
+    str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_lid_driven '+solver+solver_default+ \
       ' -output_file '+fname+' -output_dir '+fname_data+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
     print(str1)
     os.system(str1)
@@ -214,7 +214,7 @@ nx = 201
 fout1 = fname_data+'/'+fname+'_'+str(nx)+'.out'
 
 # Run with different resolutions
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_lid_driven.app '+solver+solver_default+ \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_lid_driven '+solver+solver_default+ \
   ' -output_file '+fname+' -output_dir '+fname_data+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
 print(str1)
 os.system(str1)

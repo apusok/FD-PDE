@@ -449,7 +449,7 @@ sdpar = ' -R ' + str(R)+ \
 
 # Run test
 # Forward euler
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_plume.app' + \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_plume' + \
        ' -nx '+str(nx)+' -nz '+str(n)+' -tstep '+str(tstep) + ' -tmax '+str(tmax) +\
        newton + model + phase + solver + sdpar + \
        ' -output_dir '+fname+' -output_file '+fname+' -tout '+str(tout)

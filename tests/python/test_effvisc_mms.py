@@ -896,7 +896,7 @@ for j in range(len(nexp)):
     fout = fname_data+'/'+fname+'_np'+str(j)+'_'+str(nx)+'.out'
 
     # Run with different resolutions - 1 timestep
-    str1 = 'mpiexec -n '+str(ncpu)+' ../test_effvisc_mms.app -pc_type lu -pc_factor_mat_solver_type mumps'+solver+solver_default+ \
+    str1 = 'mpiexec -n '+str(ncpu)+' ../test_effvisc_mms -pc_type lu -pc_factor_mat_solver_type mumps'+solver+solver_default+ \
         ' -output_file '+fname+ \
         ' -output_dir '+fname_data+ \
         ' -nexp '+str(inp)+ \

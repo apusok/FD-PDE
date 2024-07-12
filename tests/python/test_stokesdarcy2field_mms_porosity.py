@@ -344,7 +344,7 @@ def test1_space(fname_dir,fname,n,ncpu):
     fout = fname_data+'/'+fname+'_'+str(nx)+'.out'
 
     # Run with different resolutions - 1 timestep
-    str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_mms_porosity.app '+solver+solver_default+ \
+    str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_mms_porosity '+solver+solver_default+ \
         ' -dtmax '+str(dtmax)+ \
         ' -tmax '+str(tmax)+ \
         ' -tstep '+str(tstep_max)+ \

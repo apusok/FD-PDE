@@ -52,7 +52,7 @@ ncomp = 3 # number of chemical components - warning: many of the plots below dep
 for n in ni:
   fout = fname+'_n'+str(n)
   solver0 = ' -snes_atol 1e-10 -snes_rtol 1e-20 -log_view -stop_enthalpy_failed'
-  str1 = 'mpiexec -n '+str(ncpu)+' ../test_enthalpy_2d_diffusion.app -snes_max_it 200'+ \
+  str1 = 'mpiexec -n '+str(ncpu)+' ../test_enthalpy_2d_diffusion -snes_max_it 200'+ \
       ' -output_file '+fout+' -output_dir '+fname_data+' -tstep '+str(tstep)+solver+solver0+solver_default+' -ts_scheme 2'+' -nx '+str(n)+' -nz '+str(n) +\
       ' -ncomp '+str(ncomp)
   print(str1)

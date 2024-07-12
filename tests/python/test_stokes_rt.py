@@ -31,7 +31,7 @@ if (ncpu == -1):
 else:
   solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
 
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_rt.app'+solver+solver_default+' -snes_type ksponly -snes_fd_color -output_dir '+fname+ \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_rt'+solver+solver_default+' -snes_type ksponly -snes_fd_color -output_dir '+fname+ \
     ' -nt 101 -nx 21 -nz 21 > log_'+fname+'.out'
 print(str1)
 os.system(str1)

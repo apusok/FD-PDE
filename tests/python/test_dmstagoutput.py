@@ -1,5 +1,5 @@
 # ----------------------------------------- #
-# Run and visualize ../test_dmstagoutput.app
+# Run and visualize ../test_dmstagoutput
 # Warning: if python modules are written with a prefix (i.e. directory), the dmstagoutput and loading the files as modules will give an error. 
 # Use the following instead:
 #   fname = 'out_test'
@@ -14,7 +14,7 @@ import os
 import dmstagoutput as dmout
 import sys, getopt
 
-test0 = '../test_dmstagoutput.app'
+test0 = '../test_dmstagoutput'
 print('# --------------------------------------- #')
 print('# Running test: '+test0)
 print('# --------------------------------------- #')
@@ -34,7 +34,7 @@ for opt, arg in options:
     ncpu = int(arg)
 
 # Run test
-os.system('mpiexec -n '+str(ncpu)+' ../test_dmstagoutput.app')
+os.system('mpiexec -n '+str(ncpu)+' ../test_dmstagoutput')
 
 # Visualize data
 dmout.general_output_pcolormesh('out_test_dmstagoutput0','RdBu')

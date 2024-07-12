@@ -55,7 +55,7 @@ except OSError:
   pass
 
 # Run test
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_convection_stokes_periodic.app '+solver+solver_default+ \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_convection_stokes_periodic '+solver+solver_default+ \
       ' -Ra '+str(Ra)+ \
       ' -tmax '+str(tmax)+ \
       ' -dtmax '+str(dtmax)+ \

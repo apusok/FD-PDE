@@ -81,7 +81,7 @@ TEST_SRC = 	$(TEST_DIR)/test_stokes_solcx.c \
 		$(TEST_DIR)/test_dmswarm_project.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,$(TEST_SRC))
-TEST_APP := $(patsubst %.c,%.app,$(TEST_SRC))
+TEST_APP := $(patsubst %.c,%,$(TEST_SRC))
 
 all: $(OBJ)
 
@@ -91,7 +91,7 @@ tests: $(OBJ) $(TEST_APP)
 	-$(PCC) $(CFLAGS) -O2 -o $@ -c $< $(PETSC_CC_INCLUDES)
 
 
-%.app: %.c $(OBJ) $(HDR)
+%: %.c $(OBJ) $(HDR)
 	-$(CLINKER) -O2 -o $@ $< $(OBJ) $(PETSC_SNES_LIB) $(PETSC_CONTRIB) $(PETSC_CC_INCLUDES)
 
 clean_tests:

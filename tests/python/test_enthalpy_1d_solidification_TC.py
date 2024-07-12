@@ -103,7 +103,7 @@ beta = 0.516385
 
 # Run test
 solver0 = ' -snes_converged_reason -ksp_converged_reason -snes_monitor -ksp_monitor -snes_atol 1e-10 -snes_rtol 1e-20 -stop_enthalpy_failed'
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_enthalpy_1d_solidification_TC.app -snes_max_it 200'+ \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_enthalpy_1d_solidification_TC -snes_max_it 200'+ \
     ' -output_file '+fname+ \
     ' -output_dir '+fname_data+ \
     ' -dtmax '+str(dt)+ \

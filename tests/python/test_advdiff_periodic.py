@@ -58,7 +58,7 @@ else:
 # Run test 1 - horizontal
 uz = 0.0
 fname_out = fname+'_hor'
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_periodic.app '+solver+' -output_file '+fname_out+' -output_dir '+fname_data+ \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_periodic '+solver+' -output_file '+fname_out+' -output_dir '+fname_data+ \
   ' -nx '+str(n)+' -nz '+str(n)+' -x0 '+str(x0)+' -z0 '+str(z0)+' -uz '+str(uz)+' -tstep '+str(tstep)+' -tout '+str(tout)+gs+solver_default+ \
   ' > '+fname_data+'/'+fname_out+'.out'
 print(str1)
@@ -66,14 +66,14 @@ os.system(str1)
 
 ux = 0.0
 fname_out = fname+'_ver'
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_periodic.app '+solver+' -output_file '+fname_out+' -output_dir '+fname_data+ \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_periodic '+solver+' -output_file '+fname_out+' -output_dir '+fname_data+ \
   ' -nx '+str(n)+' -nz '+str(n)+' -x0 '+str(x0)+' -z0 '+str(z0)+' -ux '+str(ux)+' -tstep '+str(tstep)+' -tout '+str(tout)+gs+solver_default+ \
   ' > '+fname_data+'/'+fname_out+'.out'
 print(str1)
 os.system(str1)
 
 fname_out = fname
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_periodic.app '+solver+' -output_file '+fname_out+' -output_dir '+fname_data+ \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_periodic '+solver+' -output_file '+fname_out+' -output_dir '+fname_data+ \
   ' -nx '+str(n)+' -nz '+str(n)+' -x0 '+str(x0)+' -z0 '+str(z0)+' -tstep '+str(tstep)+' -tout '+str(tout)+gs+solver_default+ \
   ' > '+fname_data+'/'+fname_out+'.out'
 print(str1)

@@ -382,7 +382,7 @@ sdpar = ' -R ' + str(R)+ \
   ' -dt ' + str(dt)
 
 # Run simulation
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_vep_0d_shear.app' + newton + solver + sdpar + \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_vep_0d_shear' + newton + solver + sdpar + \
   ' -output_file '+fname+ \
   ' -C '+str(C)+ \
   ' -etamin '+str(etamin)+ \
@@ -418,7 +418,7 @@ for istep in range(0,tstep,tout):
 # Run simulation #2
 C = 0.2#1.0
 etamin = 0.0
-str2 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_vep_0d_shear.app' + newton + solver + sdpar + \
+str2 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_vep_0d_shear' + newton + solver + sdpar + \
   ' -output_file '+fname+ \
   ' -C '+str(C)+ \
   ' -etamin '+str(etamin)+ \

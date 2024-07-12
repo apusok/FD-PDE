@@ -48,7 +48,7 @@ else:
 
 # Run test
 fout1 = fname_data+'/log_'+fname+'_'+str(n)+'.out'
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_mor.app '+solver+solver_default+ \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_mor '+solver+solver_default+ \
   ' -output_file '+fname+' -output_dir '+fname_data+' -nx '+str(n)+' -nz '+str(n)+' > '+fout1
 print(str1)
 os.system(str1)

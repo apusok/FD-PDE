@@ -77,7 +77,7 @@ for ixx in alpha_i:
         fout1 = fname_data+'/'+f1+'_'+str(nx)+'.out'
 
         # Run with different resolutions
-        str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_mms_compare_nd.app '+solver+solver_default+ \
+        str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_mms_compare_nd '+solver+solver_default+ \
           ' -output_dir '+fname_data+ \
           ' -alpha '+str(alpha)+' -R '+str(R)+ \
           ' -phi_0 '+str(phi_0)+' -phi_s '+str(phi_s)+' -p_s '+str(p_s)+' -psi_s '+str(psi_s)+ \

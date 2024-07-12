@@ -752,7 +752,7 @@ for i in range(0, 4):
   # solver = ''
 
   # Run simulation
-  str1 = '../test_vp_inclusion_gerya.app'+ picard + newton + solver + \
+  str1 = '../test_vp_inclusion_gerya'+ picard + newton + solver + \
          ' -output_file '+fname+ \
          ' -C_b '+str(C_b)+ \
          ' -eta_w '+str(eta_w)+ \

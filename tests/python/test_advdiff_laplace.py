@@ -51,7 +51,7 @@ if (ncpu == -1):
 else:
   solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
 
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_laplace.app'+solver+ \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_laplace'+solver+ \
   ' -output_dir '+fname_data+' -output_file '+fname+' -nx '+str(n)+ \
   ' -nz '+str(n)+solver_default+' > '+fname_data+'/'+fname+'.out'
 print(str1)

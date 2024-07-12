@@ -66,7 +66,7 @@ for nx in n:
   fout1 = fname_data+'/'+f1+'_'+str(nx)+'.out'
 
   # Run with different resolutions
-  str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_mms_katz_ch13.app '+solver+solver_default+' -delta '+str(delta)+ \
+  str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_mms_katz_ch13 '+solver+solver_default+' -delta '+str(delta)+ \
     ' -phi_0 '+str(phi_0)+' -phi_s '+str(phi_s)+' -p_s '+str(p_s)+' -psi_s '+str(psi_s)+ \
     ' -U_s '+str(U_s)+' -m '+str(m)+' -n '+str(nexp)+' -e3 '+str(e3)+ \
     ' -output_dir '+fname_data+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1

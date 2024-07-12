@@ -243,7 +243,7 @@ def test1_diffusion_space(fname,fname_out,n,ncpu):
     fout = fname+'_'+str(nx)+'.out'
 
     # Run with different resolutions
-    str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence.app '+solver+' -test 1 -output_file '+fname+ \
+    str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence '+solver+' -test 1 -output_file '+fname+ \
       ' -output_dir '+fname_data+' -nx '+str(nx)+' -nz '+str(nx)+solver_default+' > '+fname_data+'/'+fout
     print(str1)
     os.system(str1)
@@ -293,7 +293,7 @@ def test2_advection_diffusion_space(fname,fname_out,n,ncpu):
       fout = fname+'_adv'+str(adv_scheme)+'_'+str(nx)+'.out'
 
       # Run with different resolutions and advection schemes
-      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence.app '+solver+' -test 2 -output_file '+fname+\
+      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence '+solver+' -test 2 -output_file '+fname+\
         ' -output_dir '+fname_data+' -adv_scheme '+str(adv_scheme)+' -nx '+str(nx)+' -nz '+str(nx)+solver_default+' > '+fname_data+'/'+fout
       print(str1)
       os.system(str1)
@@ -354,7 +354,7 @@ def test3_timediff(fname,fname_out,dt,tend,n,ncpu):
       fname1 = fname+'_ts'+str(ts_scheme)+'_dt'+dt_string
 
       # Run test
-      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence.app '+solver+' -test 3'+ \
+      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence '+solver+' -test 3'+ \
             ' -dtmax '+str(dtmax)+ \
             ' -tmax '+str(tend)+ \
             ' -tstep '+str(tstep_max)+ \
@@ -433,7 +433,7 @@ def test4_timeadv(fname,fname_out,dt,tend,n,ncpu):
       fname1 = fname+'_ts'+str(ts_scheme)+'_dt'+dt_string
 
       # Run test
-      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence.app '+solver+' -test 4'+ \
+      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence '+solver+' -test 4'+ \
             ' -dtmax '+str(dtmax)+ \
             ' -tmax '+str(tend)+ \
             ' -tstep '+str(tstep_max)+ \
@@ -507,7 +507,7 @@ def test5_advection_diffusion_BC(fname,fname_out,n,bc,ncpu):
       fout = fname+'_adv'+str(adv_scheme)+'_'+str(nx)+'_'+str(int(bc[0]))+str(int(bc[1]))+str(int(bc[2]))+str(int(bc[3]))+'.out'
 
       # Run with different resolutions and advection schemes - test 2 but for BC 
-      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence.app '+solver+' -test 5 -output_file '+fname+ \
+      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence '+solver+' -test 5 -output_file '+fname+ \
         ' -output_dir '+fname_data+ \
         ' -adv_scheme '+str(adv_scheme)+ \
         ' -bcleft '+str(int(bc[0]))+ \

@@ -1143,7 +1143,7 @@ sdpar = ' -R ' + str(R)+ \
   ' -dt ' + str(dt)
 
 # Run simulation
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_vep_inclusion_pic.app' + solver_cpu + newton + solver + sdpar + \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_vep_inclusion_pic' + solver_cpu + newton + solver + sdpar + \
   ' -output_file '+fname+ \
   ' -C_b '+str(cb)+ \
   ' -lam_p '+str(lam_p)+ \

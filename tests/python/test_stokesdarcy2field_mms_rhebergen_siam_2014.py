@@ -62,7 +62,7 @@ for al in alpha:
     fout1 = fname_data+'/'+f1+'_'+str(nx)+'_'+str(i)+'.out'
   
     # Run with different resolutions
-    str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_rhebergen-siam-2014.app '+solver+solver_default+ \
+    str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_rhebergen-siam-2014 '+solver+solver_default+ \
       ' -output_dir '+fname_data+' -alpha '+str(al)+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
     print(str1)
     os.system(str1)

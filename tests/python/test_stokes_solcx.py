@@ -60,12 +60,12 @@ for nx in n:
     fout2 = fname_data+'/'+f2+'_'+str(nx)+'.out'
 
     # Run with different resolutions
-    str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_solcx.app '+solver+solver_default+ \
+    str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_solcx '+solver+solver_default+ \
       ' -output_file '+f1+' -output_dir '+fname_data+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1
     print(str1)
     os.system(str1)
 
-    str2 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_solcx.app '+solver+solver_default+ \
+    str2 = 'mpiexec -n '+str(ncpu)+' ../test_stokes_solcx '+solver+solver_default+ \
       ' -eta1 1.0e6 -output_file '+f2+' -output_dir '+fname_data+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout2
     print(str2)
     os.system(str2)

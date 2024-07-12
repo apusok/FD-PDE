@@ -85,7 +85,7 @@ CFL = 0.2
 
 # Run test
 solver0 = ' -snes_atol 1e-10 -snes_rtol 1e-20 -fp_trap -stop_enthalpy_failed'
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_enthalpy_1d_eutectic_solidification.app -snes_max_it 200'+ \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_enthalpy_1d_eutectic_solidification -snes_max_it 200'+ \
     ' -output_file '+fname+ \
     ' -output_dir '+fname_data+ \
     ' -tstep '+str(tstep)+solver+solver0+solver_default+ \

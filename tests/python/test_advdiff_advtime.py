@@ -72,7 +72,7 @@ for iadv in adv:
   for its in ts:
     # Do every ts_scheme
     fname_out = fname+'_ts'+str(its)+'_adv'+str(iadv)
-    str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_advtime.app '+solver+' -output_file '+fname_out+' -output_dir '+fname_data+ \
+    str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_advtime '+solver+' -output_file '+fname_out+' -output_dir '+fname_data+ \
       ' -nx '+str(n)+' -nz '+str(n)+' -tstep '+str(tstep)+' -tout '+str(tout)+gs+solver_default+ \
       ' -ts_scheme '+str(its)+\
       ' -adv_scheme '+str(iadv)+' > '+fname_data+'/'+fname_out+'.out'
