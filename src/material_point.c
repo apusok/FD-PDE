@@ -448,6 +448,145 @@ PetscErrorCode MPoint_ProjectQ1_arith_general(DM dmswarm,const char propname[],
   PetscFunctionReturn(0);
 }
 
+
+PetscErrorCode MPoint_ProjectQ1_arith_general_AP(DM dmswarm,const char propname[],
+                                              DM dmstag,
+                                              DM dmcell,
+                                              PetscInt stratrum_index, /* 0:(vertex) 1:(face) 2:(element) */
+                                              PetscInt stagdof,Vec cellcoeff)
+{
+  DM compat;
+  PetscDataType type;
+  PetscReal *pfield;
+  PetscInt  i,j,p,ns,sx,sz,nx,nz, slot[4], cslot[4], dof[4], nslot, bs, c, npoints, *pcellid;
+  Vec       sum_global, sum_local, cnt_global, cnt_local, cellcoeff_local;
+  PetscReal ***coeff_s,***coeff,***cnt;
+  PetscErrorCode ierr;
+  PetscFunctionBeginUser;
+
+  ierr = DMStagGetCorners(dmcell, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+
+  // set indices and create dummy dmstag with one layer dof
+  slot[0] = slot[1] = slot[2] = slot[3] = -1;
+  switch (stratrum_index) {
+    case 0: // vertex
+      dof[0] = 1; dof[1] = 0; dof[2] = 0; dof[3] = 0; /* (vertex) (face) (element) */
+      ierr = DMStagCreateCompatibleDMStag(dmcell,dof[0],dof[1],dof[2],dof[3],&compat);CHKERRQ(ierr);
+      nslot = 4;
+      ierr = DMStagGetLocationSlot(compat,DMSTAG_UP_LEFT   ,0,&slot[0]);CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(compat,DMSTAG_UP_RIGHT  ,0,&slot[1]);CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(compat,DMSTAG_DOWN_LEFT ,0,&slot[2]);CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(compat,DMSTAG_DOWN_RIGHT,0,&slot[3]);CHKERRQ(ierr);
+
+      ierr = DMStagGetLocationSlot(dmcell,DMSTAG_UP_LEFT   ,stagdof,&cslot[0]);CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(dmcell,DMSTAG_UP_RIGHT  ,stagdof,&cslot[1]);CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(dmcell,DMSTAG_DOWN_LEFT ,stagdof,&cslot[2]);CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(dmcell,DMSTAG_DOWN_RIGHT,stagdof,&cslot[3]);CHKERRQ(ierr);
+      break;
+    case 1: // face
+      dof[0] = 0; dof[1] = 1; dof[2] = 0; dof[3] = 0; /* (vertex) (face) (element) */
+      ierr = DMStagCreateCompatibleDMStag(dmcell,dof[0],dof[1],dof[2],dof[3],&compat);CHKERRQ(ierr);
+      nslot = 4;
+      ierr = DMStagGetLocationSlot(compat,DMSTAG_UP   ,0,&slot[0]);CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(compat,DMSTAG_DOWN ,0,&slot[1]);CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(compat,DMSTAG_LEFT ,0,&slot[2]);CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(compat,DMSTAG_RIGHT,0,&slot[3]);CHKERRQ(ierr);
+
+      ierr = DMStagGetLocationSlot(dmcell,DMSTAG_UP   ,stagdof,&cslot[0]);CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(dmcell,DMSTAG_DOWN ,stagdof,&cslot[1]);CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(dmcell,DMSTAG_LEFT ,stagdof,&cslot[2]);CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(dmcell,DMSTAG_RIGHT,stagdof,&cslot[3]);CHKERRQ(ierr);
+      break;
+    case 2: // cell
+      dof[0] = 0; dof[1] = 0; dof[2] = 1; dof[3] = 0; /* (vertex) (face) (element) */
+      ierr = DMStagCreateCompatibleDMStag(dmcell,dof[0],dof[1],dof[2],dof[3],&compat);CHKERRQ(ierr);
+      nslot = 1;
+      ierr = DMStagGetLocationSlot(compat,DMSTAG_ELEMENT,0,&slot[0]);CHKERRQ(ierr);
+      ierr = DMStagGetLocationSlot(dmcell,DMSTAG_ELEMENT,stagdof,&cslot[0]);CHKERRQ(ierr);
+      break;
+      
+    default:
+      break;
+  }
+
+  // check dmswarm
+  ierr = DMSwarmGetLocalSize(dmswarm,&npoints);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,propname,&bs,&type,(void**)&pfield);CHKERRQ(ierr);
+  if (type != PETSC_REAL) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Type must be PETSC_REAL for field %s",propname);
+  if (bs != 1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"Block size must be 1. Found %d for field %s",bs,propname);
+  ierr = DMSwarmGetField(dmswarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&pcellid);CHKERRQ(ierr);
+  
+  // create vectors
+  ierr = DMCreateGlobalVector(compat,&sum_global);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(compat,&sum_local);CHKERRQ(ierr);
+
+  ierr = DMCreateGlobalVector(compat,&cnt_global);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(compat,&cnt_local);CHKERRQ(ierr);
+  
+  ierr = DMStagVecGetArray(compat,sum_local,&coeff);CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(compat,cnt_local,&cnt);CHKERRQ(ierr);
+  
+  for (p=0; p<npoints; p++) {
+    PetscInt cellid = -1;
+    PetscInt geid[]={0,0,0};
+    
+    cellid = pcellid[p];
+    
+    ierr = DMStagGetLocalElementGlobalIndices(compat,cellid,geid);CHKERRQ(ierr);
+    for (ns=0; ns<nslot; ns++) {
+      coeff[ geid[1] ][ geid[0] ][ slot[ns] ] += pfield[p];
+      cnt  [ geid[1] ][ geid[0] ][ slot[ns] ] += 1.0;
+    }
+  }
+
+  ierr = DMStagVecRestoreArray(compat,cnt_local,&cnt);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(compat,sum_local,&coeff);CHKERRQ(ierr);
+  
+  ierr = DMSwarmRestoreField(dmswarm,propname,NULL,NULL,(void**)&pfield);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&pcellid);CHKERRQ(ierr);
+  
+  ierr = DMLocalToGlobal(compat,sum_local,ADD_VALUES,sum_global);CHKERRQ(ierr);
+  ierr = DMLocalToGlobal(compat,cnt_local,ADD_VALUES,cnt_global);CHKERRQ(ierr);
+
+  // save in dmcell
+  ierr = DMCreateLocalVector(dmcell,&cellcoeff_local);CHKERRQ(ierr);
+  
+  ierr = DMGlobalToLocal(compat,sum_global,INSERT_VALUES,sum_local);CHKERRQ(ierr);
+  ierr = DMGlobalToLocal(compat,cnt_global,INSERT_VALUES,cnt_local);CHKERRQ(ierr);
+  ierr = DMGlobalToLocal(dmcell,cellcoeff,INSERT_VALUES,cellcoeff_local);CHKERRQ(ierr);
+
+  ierr = DMStagVecGetArray(compat,sum_local,&coeff);CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(compat,cnt_local,&cnt);CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmcell,cellcoeff_local,&coeff_s);CHKERRQ(ierr);
+  
+  // loop
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      for (ns=0; ns<nslot; ns++) {
+        if (cnt[j][i][slot[ns]] > 0.0) {
+          coeff_s[j][i][cslot[ns]] = coeff[j][i][slot[ns]]/cnt[j][i][slot[ns]];
+        }
+      }
+    }
+  }
+
+  ierr = DMStagVecRestoreArray(compat,cnt_local,&cnt);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(compat,sum_local,&coeff);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dmcell,cellcoeff_local,&coeff_s);CHKERRQ(ierr);
+
+  ierr = DMLocalToGlobal(dmcell,cellcoeff_local,INSERT_VALUES,cellcoeff);CHKERRQ(ierr);
+
+  // clean-up
+  ierr = VecDestroy(&cnt_global);CHKERRQ(ierr);
+  ierr = VecDestroy(&cnt_local);CHKERRQ(ierr);
+  ierr = VecDestroy(&sum_global);CHKERRQ(ierr);
+  ierr = VecDestroy(&sum_local);CHKERRQ(ierr);
+  ierr = VecDestroy(&cellcoeff_local);CHKERRQ(ierr);
+  ierr = DMDestroy(&compat);CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
 /*
  Assign particles coordinates within all cells in the domain. Particle coordinates are assigned cell-wise
  

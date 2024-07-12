@@ -22,6 +22,12 @@ PetscErrorCode MPoint_ProjectQ1_arith_general(DM dmswarm,const char propname[],
                                               PetscInt stratrum_index, /* 0:(vertex) 1:(face) 2:(element) */
                                               PetscInt dof,Vec cellcoeff);
 
+PetscErrorCode MPoint_ProjectQ1_arith_general_AP(DM dmswarm,const char propname[],
+                                      DM dmstag,
+                                      DM dmcell,
+                                      PetscInt stratrum_index, /* 0:(vertex) 1:(face) 2:(element) */
+                                      PetscInt dof,Vec cellcoeff);
+
 PetscErrorCode MPointCoordLayout_DomainVolume(DM dmswarm,PetscReal factor,PetscInt points_per_dim,MPointCoordinateInsertMode mode);
 
 PetscErrorCode MPointCoordLayout_DomainVolumeWithCellList(DM dmswarm,
