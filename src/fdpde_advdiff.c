@@ -21,7 +21,8 @@ const char *AdvectSchemeTypeNames[] = {
   "adv_none",
   "adv_upwind",
   "adv_upwind2",
-  "adv_fromm"
+  "adv_fromm",
+  "adv_upwind_minmod"
 };
 
 const char *TimeStepSchemeTypeNames[] = {
@@ -355,8 +356,8 @@ PetscErrorCode FDPDEAdvDiffComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
   AdvDiffData    *ad;
   PetscScalar    domain_dt, global_dt, eps, dx, dz, cell_dt, cell_dt_x, cell_dt_z;
   PetscInt       iprev=-1, inext=-1;
-  PetscInt       i, j, sx, sz, nx, nz;
-  PetscScalar    **coordx, **coordz;
+  PetscInt       i, j, sx, sz, nx, nz, v_slot[4];
+  PetscScalar    **coordx, **coordz, ***_coeff;
   DM             dmcoeff;
   Vec            coefflocal;
   PetscErrorCode ierr;
@@ -371,40 +372,34 @@ PetscErrorCode FDPDEAdvDiffComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
 
   ierr = DMGetLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
-
-  // Check below not needed - because user can still calculate dt!
-  // // check time-step scheme
-  // if (ad->timesteptype == TS_UNINIT) {
-  //   SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"Time stepping scheme for the FD-PDE ADVDIFF was not set! Set with FDPDEAdvDiffSetTimeStepSchemeType()");
-  // }
-
-  // // return if not required
-  // if (ad->timesteptype == TS_NONE) PetscFunctionReturn(0);
+  ierr = DMStagVecGetArrayRead(dmcoeff,coefflocal,&_coeff);CHKERRQ(ierr);
 
   domain_dt = 1.0e32;
   eps = 1.0e-32; /* small shift to avoid dividing by zero */
 
   ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-
   ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_LEFT,&iprev);CHKERRQ(ierr); 
   ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
 
-  // Loop over elements - velocity is located on edge and c=1
+  // get location slots - velocity is located on edge and c=1
+  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, 1,&v_slot[0]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,1,&v_slot[1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   1,&v_slot[2]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, 1,&v_slot[3]);CHKERRQ(ierr);
+
+  // Loop over elements 
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
-      DMStagStencil point[4];
       PetscScalar   xx[4];
 
-      point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_LEFT;  point[0].c = 1;
-      point[1].i = i; point[1].j = j; point[1].loc = DMSTAG_RIGHT; point[1].c = 1;
-      point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_DOWN;  point[2].c = 1;
-      point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_UP;    point[3].c = 1;
+      xx[0] = _coeff[j][i][v_slot[0]];
+      xx[1] = _coeff[j][i][v_slot[1]];
+      xx[2] = _coeff[j][i][v_slot[2]];
+      xx[3] = _coeff[j][i][v_slot[3]];
 
-      ierr = DMStagVecGetValuesStencil(dmcoeff,coefflocal,4,point,xx); CHKERRQ(ierr);
-
-      dx = coordx[0][inext]-coordx[0][iprev];
-      dz = coordz[0][inext]-coordz[0][iprev];
+      dx = coordx[i][inext]-coordx[i][iprev];
+      dz = coordz[j][inext]-coordz[j][iprev];
 
       /* compute dx, dy for this cell */
       cell_dt_x = dx / PetscMax(PetscMax(PetscAbsScalar(xx[0]), PetscAbsScalar(xx[1])), eps);
@@ -419,6 +414,7 @@ PetscErrorCode FDPDEAdvDiffComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
 
   // Return vectors and arrays
   ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArrayRead(dmcoeff,coefflocal,&_coeff);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dmcoeff,&coefflocal); CHKERRQ(ierr);
 
   // Return value

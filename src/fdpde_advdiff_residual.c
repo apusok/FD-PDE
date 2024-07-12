@@ -131,11 +131,11 @@ PetscErrorCode AdvDiffResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Vec
 
   if (ad->timesteptype == TS_NONE) {
     // steady-state operator
-    ierr = AdvDiffSteadyStateOperator(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,bc_type,bc_val,dm_btype0,dm_btype1,&fval,&A); CHKERRQ(ierr);
+    ierr = AdvDiffSteadyStateOperator(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,ad->dt,bc_type,bc_val,dm_btype0,dm_btype1,&fval,&A); CHKERRQ(ierr);
   } else { 
     // time-dependent solution
-    ierr = AdvDiffSteadyStateOperator(dm,xprevlocal,dmcoeff,coeffprevlocal,coordx,coordz,i,j,ad->advtype,bc_type,bc_val,dm_btype0,dm_btype1,&fval0,&A0); CHKERRQ(ierr);
-    ierr = AdvDiffSteadyStateOperator(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,bc_type,bc_val,dm_btype0,dm_btype1,&fval1,&A1); CHKERRQ(ierr);
+    ierr = AdvDiffSteadyStateOperator(dm,xprevlocal,dmcoeff,coeffprevlocal,coordx,coordz,i,j,ad->advtype,ad->dt,bc_type,bc_val,dm_btype0,dm_btype1,&fval0,&A0); CHKERRQ(ierr);
+    ierr = AdvDiffSteadyStateOperator(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,ad->dt,bc_type,bc_val,dm_btype0,dm_btype1,&fval1,&A1); CHKERRQ(ierr);
 
     point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
     ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&point,&xx); CHKERRQ(ierr);
@@ -156,7 +156,7 @@ AdvDiffSteadyStateOperator - (ADVDIFF) calculates the steady state advdiff resid
 Use: internal
 @*/
 // ---------------------------------------
-PetscErrorCode AdvDiffSteadyStateOperator(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, AdvectSchemeType advtype,PetscInt bc_type, PetscScalar bc_val, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, PetscScalar *ff,PetscScalar *_A)
+PetscErrorCode AdvDiffSteadyStateOperator(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, PetscScalar **coordx, PetscScalar **coordz, PetscInt i, PetscInt j, AdvectSchemeType advtype, PetscScalar dt, PetscInt bc_type, PetscScalar bc_val, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, PetscScalar *ff,PetscScalar *_A)
 {
   PetscScalar    ffi;
   PetscInt       Nx, Nz, icenter;
@@ -262,7 +262,7 @@ PetscErrorCode AdvDiffSteadyStateOperator(DM dm, Vec xlocal, DM dmcoeff,Vec coef
   diff = dQ2dx/dx[2] + dQ2dz/dz[2];
 
   // Calculate diffadv residual
-  ierr = AdvectionResidual(u,xx,dx,dz,advtype,&adv); CHKERRQ(ierr);
+  ierr = AdvectionResidual(u,xx,dx,dz,dt,advtype,&adv); CHKERRQ(ierr);
   ffi  = A*adv - diff + C;
 
   *ff = ffi;

@@ -10,7 +10,7 @@
 // Struct definitions
 // ---------------------------------------
 // Advection type
-typedef enum { ADV_UNINIT = 0, ADV_NONE, ADV_UPWIND, ADV_UPWIND2, ADV_FROMM } AdvectSchemeType;
+typedef enum { ADV_UNINIT = 0, ADV_NONE, ADV_UPWIND, ADV_UPWIND2, ADV_FROMM, ADV_UPWIND_MINMOD } AdvectSchemeType;
 
 // Time-stepping type
 typedef enum { TS_UNINIT = 0, TS_NONE, TS_FORWARD_EULER, TS_BACKWARD_EULER, TS_CRANK_NICHOLSON } TimeStepSchemeType;
@@ -40,15 +40,16 @@ PetscErrorCode EnergyStencil(PetscInt,PetscInt,PetscInt,PetscInt,DMBoundaryType,
 // RESIDUAL
 PetscErrorCode FormFunction_AdvDiff(SNES,Vec,Vec,void*);
 PetscErrorCode AdvDiffResidual(DM,Vec,DM,Vec,Vec,Vec,PetscScalar**,PetscScalar**,AdvDiffData*,PetscInt,PetscInt,PetscInt,PetscScalar,DMBoundaryType,DMBoundaryType,PetscScalar*);
-PetscErrorCode AdvDiffSteadyStateOperator(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,AdvectSchemeType,PetscInt,PetscScalar,DMBoundaryType,DMBoundaryType,PetscScalar*,PetscScalar*);
+PetscErrorCode AdvDiffSteadyStateOperator(DM,Vec,DM,Vec,PetscScalar**,PetscScalar**,PetscInt,PetscInt,AdvectSchemeType,PetscScalar,PetscInt,PetscScalar,DMBoundaryType,DMBoundaryType,PetscScalar*,PetscScalar*);
 PetscErrorCode DMStagBCListApply_AdvDiff(DM,Vec,DM,Vec,Vec,Vec,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,AdvDiffData*,PetscInt,PetscInt,DMBoundaryType,DMBoundaryType,PetscScalar***);
 
 
 // ADVECTION
-PetscErrorCode AdvectionResidual(PetscScalar[],PetscScalar[],PetscScalar[],PetscScalar[],AdvectSchemeType,PetscScalar*);
+PetscErrorCode AdvectionResidual(PetscScalar[],PetscScalar[],PetscScalar[],PetscScalar[],PetscScalar,AdvectSchemeType,PetscScalar*);
 PetscScalar UpwindAdvection(PetscScalar[], PetscScalar[], PetscScalar[], PetscScalar[]);
 PetscScalar UpwindAdvection2(PetscScalar[], PetscScalar[], PetscScalar[], PetscScalar[]);
 PetscScalar FrommAdvection(PetscScalar[], PetscScalar[], PetscScalar[], PetscScalar[]);
+PetscScalar UpwindMinmodAdvection(PetscScalar[], PetscScalar[], PetscScalar[], PetscScalar[],PetscScalar);
 
 // Set Functions
 PetscErrorCode FDPDEAdvDiffSetAdvectSchemeType(FDPDE, AdvectSchemeType);

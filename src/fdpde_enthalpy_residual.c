@@ -1,6 +1,6 @@
 #include "fdpde_enthalpy.h"
 
-static char * EnthalpyErrorTypeNames(err) {
+static char * EnthalpyErrorTypeNames(int err) {
   switch (err) {
     case STATE_VALID:
     return "STATE_VALID";
@@ -665,8 +665,8 @@ PetscErrorCode EnthalpySteadyStateOperator_pack(EnthalpyPackCtx *pack,AdvectSche
   diff = dQ2dx/dx[2] + dQ2dz/dz[2];
   
   // Calculate adv residual
-  ierr = AdvectionResidual(v, xxTP,  dx,dz,advtype,&adv1); CHKERRQ(ierr);
-  ierr = AdvectionResidual(vs,xxPHIs,dx,dz,advtype,&adv2); CHKERRQ(ierr);
+  ierr = AdvectionResidual(v, xxTP,  dx,dz,pack->en->dt,advtype,&adv1); CHKERRQ(ierr);
+  ierr = AdvectionResidual(vs,xxPHIs,dx,dz,pack->en->dt,advtype,&adv2); CHKERRQ(ierr);
   
   ffi  = A1*adv1 +B1*adv2 + diff + D1;
   *ff = ffi;
@@ -833,8 +833,8 @@ PetscErrorCode BulkCompositionSteadyStateOperator_pack(EnthalpyPackCtx *pack,Adv
   diff = dQ2dx/dx[2] + dQ2dz/dz[2];
   
   // Calculate adv residual
-  ierr = AdvectionResidual(vs,f1,dx,dz,advtype,&adv1); CHKERRQ(ierr);
-  ierr = AdvectionResidual(vf,f2,dx,dz,advtype,&adv2); CHKERRQ(ierr);
+  ierr = AdvectionResidual(vs,f1,dx,dz,pack->en->dt,advtype,&adv1); CHKERRQ(ierr);
+  ierr = AdvectionResidual(vf,f2,dx,dz,pack->en->dt,advtype,&adv2); CHKERRQ(ierr);
   
   ffi  = A2*adv1 + B2*adv2 + diff + D2;
   *ff = ffi;
