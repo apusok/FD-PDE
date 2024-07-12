@@ -38,6 +38,7 @@ PetscErrorCode ZMomentumResidual_Darcy2Field(PetscInt,PetscInt,PetscScalar***,Pe
 
 // RESIDUAL
 PetscErrorCode FormFunction_StokesDarcy2Field(SNES, Vec, Vec, void*);
+PetscErrorCode FormFunctionSplit_StokesDarcy2Field(SNES snes, Vec x, Vec x2, Vec f, void *ctx);
 PetscErrorCode DMStagBCListApplyFace_StokesDarcy2Field(PetscScalar***,PetscScalar***,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscInt[],DMBoundaryType,DMBoundaryType,PetscScalar***);
 PetscErrorCode DMStagBCListApplyElement_StokesDarcy2Field(PetscScalar***,PetscScalar***,DMStagBC*,PetscInt,PetscScalar**,PetscScalar**,PetscInt[],PetscInt[],PetscInt[],PetscInt[],PetscInt[],DMBoundaryType,DMBoundaryType,PetscScalar***);
 
