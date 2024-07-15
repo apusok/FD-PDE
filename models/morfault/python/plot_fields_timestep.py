@@ -21,11 +21,11 @@ def sortTimesteps(tdir):
 
 # Parameters
 A.dimensional = 1 # 0-nd, 1-dim
-sim = 'run52_V_var_age_eta1e18_Vext1/'
-A.input_dir = '/Users/apusok/Documents/morfault/'+sim
-A.output_dir= '/Users/apusok/Documents/morfault/Figures/'+sim
+sim = 'ext02_age2_b1e-2_tM13_Vext0005/'
+A.input_dir = '/Users/apusok/Documents/morfault3/'+sim
+A.output_dir= '/Users/apusok/Documents/morfault3/Figures/'+sim
 
-istep = 0
+istep = 10000
 
 # Create directory
 vizB.make_dir(A.output_dir)
@@ -47,8 +47,15 @@ A.nx = A.grid.nx
 A.nz = A.grid.nz
 
 # plot entire domain
-istart = 60
-iend   = 140 #A.nx
+if ((A.nx == 200) & (A.nz == 100)):
+  istart = 60
+  iend   = 141
+elif ((A.nx == 400) & (A.nz == 200)):
+  istart = 120
+  iend   = 281
+else:
+  istart = 20
+  iend   = 181
 jstart = 0
 jend   = A.nz
 
@@ -113,6 +120,18 @@ A.lam = vizB.parse_Element_file('out_xstrain_ts'+str(istep),fdir)
 A.Vscx, A.Vscz, A.divVs = vizB.calc_center_velocities_div(A.Vsx,A.Vsz,A.grid.xv,A.grid.zv,A.nx,A.nz)
 
 # Plots
-vizB.plot_phi_eps_div_eta_zeta_lam(A,istart,iend,jstart,jend,A.output_dir,'out_phi_eps_div_eta_zeta_lam_ts'+str(istep),istep,A.dimensional)
+# vizB.plot_phi_eps_div_eta_zeta_lam(A,istart,iend,jstart,jend,A.output_dir,'out_phi_eps_div_eta_zeta_lam_ts'+str(istep),istep,A.dimensional)
+vizB.plot_phi_lam(A,istart,iend,jstart,jend,A.output_dir,'out_phi_lam_ts'+str(istep),istep,A.dimensional)
+# vizB.plot_phi_eps_div_lam_norm(A,istart,iend,jstart,jend,A.output_dir,'out_phi_eps_div_lam_norm_ts'+str(istep),istep,A.dimensional)
+
+# # Print
+# z_bdtz = -19.25
+# z_surf = -5
+# scalx = vizB.get_scaling(A,'x',1,1)
+# scaleta = vizB.get_scaling(A,'eta',1,0)
+# ibdtz = np.where(A.grid.zc*scalx>=z_bdtz)
+# isurf = np.where(A.grid.zc*scalx>z_surf)
+# print('Ductile: eta = '+str(np.average(A.matProp.eta[:ibdtz[0][0],0]*scaleta))+' zeta = '+str(np.average(A.matProp.zeta[:ibdtz[0][0],0]*scaleta)))
+# print('Brittle: eta = '+str(np.average(A.matProp.eta[ibdtz[0][0]:isurf[0][0]-1,0]*scaleta))+' zeta = '+str(np.average(A.matProp.zeta[ibdtz[0][0]:isurf[0][0]-1,0]*scaleta)))
 
 os.system('rm -r '+A.input_dir+'Timestep'+str(istep)+'/__pycache__')

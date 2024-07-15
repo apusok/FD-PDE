@@ -93,8 +93,8 @@ def load_data_ts(A,sdir,istep):
 #ts = [0, 600, 850, 1220, 1250, 1650, 1770, 2200]
 #sim = 'run43_01a_SD_setup6_Kphi1e-7_sigmabc1e-1/'
 
-ts = [0, 280, 800, 900, 920, 1000, 1500, 3000]
-sim = 'run43_01a_SD_setup6_Kphi1e-7_sigmabc1e-2_upwind/'
+# ts = [0, 280, 800, 900, 920, 1000, 1500, 3000]
+# sim = 'run43_01a_SD_setup6_Kphi1e-7_sigmabc1e-2_upwind/'
 
 #ts = [0, 500, 1000, 1080, 1140, 2000, 3000, 4000]
 #sim = 'run43_01a_SD_setup6_Kphi1e-7_sigmabc1e-3/'
@@ -132,8 +132,21 @@ sim = 'run43_01a_SD_setup6_Kphi1e-7_sigmabc1e-2_upwind/'
 #sdir = '/Users/apusok/Documents/morfault/'+sim
 #outdir = '/Users/apusok/Documents/morfault/Figures/'+sim
 
-sdir ='/Users/apusok/Documents/morfault/'+sim
-outdir='/Users/apusok/Documents/morfault/Figures/'+sim
+# ts = [2000, 9000, 12500, 12500, 12500, 12500, 12500, 12500]
+# ts = [2000, 9000, 12500]
+# sim = 'buoy00_age2_b1e-2/'
+
+# ts = [2000, 2900, 3200]
+# sim = 'm00_age2_Vext01_b1e-2/'
+
+# ts = [2000, 3800, 5100]
+# sim = 'm00_age2_Vext001_b1e-2/'
+
+ts = [2000, 4500, 5800]
+sim = 'm00_age2_Vext0001_b1e-2/'
+
+sdir ='/Users/apusok/Documents/morfault2/'+sim
+outdir='/Users/apusok/Documents/morfault2/Figures/'+sim
 
 print(' >> '+outdir)
 
@@ -142,20 +155,20 @@ vizB.make_dir(outdir)
 A1 = SimStruct()
 A2 = SimStruct()
 A3 = SimStruct()
-A4 = SimStruct()
-A5 = SimStruct()
-A6 = SimStruct()
-A7 = SimStruct()
-A8 = SimStruct()
+# A4 = SimStruct()
+# A5 = SimStruct()
+# A6 = SimStruct()
+# A7 = SimStruct()
+# A8 = SimStruct()
 
 A1 = load_data_ts(A1,sdir,ts[0])
 A2 = load_data_ts(A2,sdir,ts[1])
 A3 = load_data_ts(A3,sdir,ts[2])
-A4 = load_data_ts(A4,sdir,ts[3])
-A5 = load_data_ts(A5,sdir,ts[4])
-A6 = load_data_ts(A6,sdir,ts[5])
-A7 = load_data_ts(A7,sdir,ts[6])
-A8 = load_data_ts(A8,sdir,ts[7])
+# A4 = load_data_ts(A4,sdir,ts[3])
+# A5 = load_data_ts(A5,sdir,ts[4])
+# A6 = load_data_ts(A6,sdir,ts[5])
+# A7 = load_data_ts(A7,sdir,ts[6])
+# A8 = load_data_ts(A8,sdir,ts[7])
 
 # plot part/entire domain
 istart = 60
@@ -165,38 +178,78 @@ jend   = A1.nz
 
 # Plot fields
 print(' >> porosity')
-vizB.plot_8multiple_phi(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_phi')
-print(' >> epsII')
-vizB.plot_8multiple_epsII(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_epsII')
-print(' >> divvs')
-vizB.plot_8multiple_divvs(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_divvs')
+vizB.plot_3multiple_phi(A1,A2,A3,istart,iend,jstart,jend,outdir,'out_plot_3multiple_phi')
 print(' >> tauII')
-vizB.plot_8multiple_tauII(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_tauII')
+vizB.plot_3multiple_tauII(A1,A2,A3,istart,iend,jstart,jend,outdir,'out_plot_3multiple_tauII')
 print(' >> DP')
-vizB.plot_8multiple_DP(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_DP')
+vizB.plot_3multiple_DP(A1,A2,A3,istart,iend,jstart,jend,outdir,'out_plot_3multiple_DP')
+print(' >> epsII')
+vizB.plot_3multiple_epsII(A1,A2,A3,istart,iend,jstart,jend,outdir,'out_plot_3multiple_epsII')
+print(' >> divvs')
+vizB.plot_3multiple_divvs(A1,A2,A3,istart,iend,jstart,jend,outdir,'out_plot_3multiple_divvs')
 print(' >> dotlam')
-vizB.plot_8multiple_dotlam(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_dotlam')
+vizB.plot_3multiple_dotlam(A1,A2,A3,istart,iend,jstart,jend,outdir,'out_plot_3multiple_dotlam')
 print(' >> lam')
-vizB.plot_8multiple_lam(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_lam')
-print(' >> etaeff')
-vizB.plot_8multiple_etaeff(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_etaeff')
-print(' >> zetaeff')
-vizB.plot_8multiple_zetaeff(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_zetaeff')
-print(' >> PV')
-vizB.plot_8multiple_PV(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_PV')
-print(' >> Vfx')
-vizB.plot_8multiple_Vfx(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_Vfx')
-print(' >> Vfz')
-vizB.plot_8multiple_Vfz(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_Vfz')
-print(' >> epsV_II')
-vizB.plot_8multiple_epsVEVP_II(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_epsV_II',0)
-print(' >> epsE_II')
-vizB.plot_8multiple_epsVEVP_II(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_epsE_II',1)
-print(' >> epsVP_II')
-vizB.plot_8multiple_epsVEVP_II(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_epsVP_II',2)
+vizB.plot_3multiple_lam(A1,A2,A3,istart,iend,jstart,jend,outdir,'out_plot_3multiple_lam')
 print(' >> C_V')
-vizB.plot_8multiple_C_VEVP(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_C_V',0)
+vizB.plot_3multiple_C_VEVP(A1,A2,A3,istart,iend,jstart,jend,outdir,'out_plot_3multiple_C_V',0)
 print(' >> C_E')
-vizB.plot_8multiple_C_VEVP(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_C_E',1)
+vizB.plot_3multiple_C_VEVP(A1,A2,A3,istart,iend,jstart,jend,outdir,'out_plot_3multiple_C_E',1)
 print(' >> C_VP')
-vizB.plot_8multiple_C_VEVP(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_C_VP',2)
+vizB.plot_3multiple_C_VEVP(A1,A2,A3,istart,iend,jstart,jend,outdir,'out_plot_3multiple_C_VP',2)
+print(' >> epsV_II')
+vizB.plot_3multiple_epsVEVP_II(A1,A2,A3,istart,iend,jstart,jend,outdir,'out_plot_3multiple_epsV_II',0)
+print(' >> epsE_II')
+vizB.plot_3multiple_epsVEVP_II(A1,A2,A3,istart,iend,jstart,jend,outdir,'out_plot_3multiple_epsE_II',1)
+print(' >> epsVP_II')
+vizB.plot_3multiple_epsVEVP_II(A1,A2,A3,istart,iend,jstart,jend,outdir,'out_plot_3multiple_epsVP_II',2)
+
+
+# print(' >> etaeff')
+# vizB.plot_8multiple_etaeff(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_etaeff')
+# print(' >> zetaeff')
+# vizB.plot_8multiple_zetaeff(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_zetaeff')
+# print(' >> PV')
+# vizB.plot_8multiple_PV(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_PV')
+# print(' >> Vfx')
+# vizB.plot_8multiple_Vfx(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_Vfx')
+# print(' >> Vfz')
+# vizB.plot_8multiple_Vfz(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_Vfz')
+
+
+# print(' >> porosity')
+# vizB.plot_8multiple_phi(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_phi')
+# print(' >> epsII')
+# vizB.plot_8multiple_epsII(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_epsII')
+# print(' >> divvs')
+# vizB.plot_8multiple_divvs(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_divvs')
+# print(' >> tauII')
+# vizB.plot_8multiple_tauII(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_tauII')
+# print(' >> DP')
+# vizB.plot_8multiple_DP(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_DP')
+# print(' >> dotlam')
+# vizB.plot_8multiple_dotlam(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_dotlam')
+# print(' >> lam')
+# vizB.plot_8multiple_lam(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_lam')
+# print(' >> etaeff')
+# vizB.plot_8multiple_etaeff(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_etaeff')
+# print(' >> zetaeff')
+# vizB.plot_8multiple_zetaeff(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_zetaeff')
+# print(' >> PV')
+# vizB.plot_8multiple_PV(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_PV')
+# print(' >> Vfx')
+# vizB.plot_8multiple_Vfx(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_Vfx')
+# print(' >> Vfz')
+# vizB.plot_8multiple_Vfz(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_Vfz')
+# print(' >> epsV_II')
+# vizB.plot_8multiple_epsVEVP_II(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_epsV_II',0)
+# print(' >> epsE_II')
+# vizB.plot_8multiple_epsVEVP_II(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_epsE_II',1)
+# print(' >> epsVP_II')
+# vizB.plot_8multiple_epsVEVP_II(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_epsVP_II',2)
+# print(' >> C_V')
+# vizB.plot_8multiple_C_VEVP(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_C_V',0)
+# print(' >> C_E')
+# vizB.plot_8multiple_C_VEVP(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_C_E',1)
+# print(' >> C_VP')
+# vizB.plot_8multiple_C_VEVP(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,outdir,'out_plot_8multiple_C_VP',2)
