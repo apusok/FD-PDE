@@ -530,6 +530,9 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdT, void *ctx)
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xplast_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(usr->dmPlith,usr->xplast,fout);CHKERRQ(ierr);
 
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xstrain_ts%d",usr->par->fdir_out,usr->nd->istep);
+  ierr = DMStagViewBinaryPython(usr->dmPlith,usr->xstrain,fout);CHKERRQ(ierr);
+
   PetscFunctionReturn(0);
 }
 

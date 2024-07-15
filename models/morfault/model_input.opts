@@ -11,7 +11,7 @@
 -nz 50
 -ppcell 3
 
--tstep 11
+-tstep 1
 -tout 1
 -dt_out 1e10
 -tmax 10e6
@@ -19,11 +19,11 @@
 -ts_scheme 2
 -adv_scheme 2
 
--rheology 0
+-rheology 1 # 0-VEP 1-VEVP 
 
 -Vext 1.0
--Tbot 1523
--eta_K 1e19 # converged with 1e21-use this for initial guess/converged loop.
+-Tbot 1623.15
+-eta_K 1e20 # converged with 1e2
 -age 40
 
 -eta_min 1.0e15
@@ -47,6 +47,8 @@
 -mat0_G 1e20
 -mat0_Z0 1e40
 -mat0_C 1e10
+-mat0_sigmat 5e8
+-mat0_theta 30
 
 # sediments - weak seed
 -mat1_rho0 3300
@@ -58,6 +60,8 @@
 -mat1_G 1e20
 -mat1_Z0 1e40
 -mat1_C 1e10
+-mat1_sigmat 5e8
+-mat1_theta 30
 
 # upper crust (basalt)
 -mat2_rho0 3300
@@ -69,6 +73,8 @@
 -mat2_G 6.7e10
 -mat2_Z0 1e40
 -mat2_C 1e6
+-mat2_sigmat 5e6
+-mat2_theta 30
 
 # lower crust (gabbro)
 -mat3_rho0 3300
@@ -80,6 +86,8 @@
 -mat3_G 6.7e10
 -mat3_Z0 1e40
 -mat3_C 1e6
+-mat3_sigmat 5e6
+-mat3_theta 30
 
 # lithospheric mantle
 -mat4_rho0 3300
@@ -91,6 +99,8 @@
 -mat4_G 6.7e10
 -mat4_Z0 1e40
 -mat4_C 1e6
+-mat4_sigmat 5e6
+-mat4_theta 30
 
 # asthenosphere
 -mat5_rho0 3300
@@ -102,6 +112,8 @@
 -mat5_G 6.7e10
 -mat5_Z0 1e40
 -mat5_C 1e6
+-mat5_sigmat 5e6
+-mat5_theta 30
 
 # solver options
 -t_pc_type lu 

@@ -100,6 +100,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   usr->xDP_old = NULL;
   usr->xplast = NULL;
   usr->xmatProp = NULL;
+  usr->xstrain = NULL;
 
   usr->plasticity = PETSC_FALSE;
 
@@ -161,6 +162,8 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->eta_max, 1.0e25, "eta_max", "Cutoff maximum shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->phi_min, PHI_CUTOFF, "phi_min", "Cutoff minimum porosity"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta_K, 1e22, "eta_K", "Shear viscosity of the Kelvin VP dashpot"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->tf_tol, 1e-8, "tf_tol", "Function tolerance for solving yielding stresses"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->Nmax, 25, "Nmax", "Max Newton iteration for plasticity"); CHKERRQ(ierr);
 
   // material phases for markers (markers carry only phase id)
   ierr = PetscBagRegisterInt(bag, &par->marker_phases, 6, "marker_phases", "Number of marker phases [-]"); CHKERRQ(ierr);
@@ -289,7 +292,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->tmax, 1.0e6, "tmax", "Maximum time [yr]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->dtmax, 1.0e3, "dtmax", "Maximum time step size [yr]"); CHKERRQ(ierr);
 
-  ierr = PetscBagRegisterInt(bag, &par->rheology,0, "rheology", "0-VEP (AveragePhase)"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->rheology,0, "rheology", "0-VEP 1-VEVP (AveragePhase)"); CHKERRQ(ierr);
   
   // boolean options
   ierr = PetscBagRegisterBool(bag, &par->log_info,PETSC_FALSE, "model_log_info", "Output profiling data (T/F)"); CHKERRQ(ierr);

@@ -466,8 +466,8 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
   PetscInt       i, j, sx, sz, nx, nz, iprev, inext, icenter, Nx, Nz;
   PetscScalar    **coordx, **coordz, ***c, ***xx, ***xwt; 
   PetscScalar    ***_Tc, ***_phic, ***_Plith, ***_eps, ***_tauold, ***_DPold, ***_tau, ***_DP;
-  PetscScalar     ***_plast, ***_matProp;
-  Vec            coefflocal, xlocal, xTlocal, xMPhaselocal, xtaulocal, xDPlocal;
+  PetscScalar     ***_plast, ***_matProp, ***_strain;
+  Vec            coefflocal, xlocal, xTlocal, xMPhaselocal, xtaulocal, xDPlocal, xstrainlocal;
   Vec            xphilocal, xPlithlocal, xepslocal, xtauoldlocal, xDPoldlocal, xplastlocal, xmatProplocal;
   PetscScalar    k_hat[4];
   PetscErrorCode ierr;
@@ -536,6 +536,10 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
   ierr = DMGetLocalVector(usr->dmPlith, &xplastlocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (usr->dmPlith, usr->xplast, INSERT_VALUES, xplastlocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArrayRead(usr->dmPlith,xplastlocal,&_plast);CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(usr->dmPlith, &xstrainlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (usr->dmPlith, usr->xstrain, INSERT_VALUES, xstrainlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayRead(usr->dmPlith,xstrainlocal,&_strain);CHKERRQ(ierr);
 
   // get material phase fractions
   ierr = DMCreateLocalVector(usr->dmMPhase, &xMPhaselocal); CHKERRQ(ierr);
@@ -899,6 +903,9 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
   ierr = DMLocalToGlobalEnd  (usr->dmPlith,xplastlocal,INSERT_VALUES,usr->xplast); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(usr->dmPlith,&xplastlocal); CHKERRQ(ierr);
 
+  ierr = DMStagVecRestoreArrayRead(usr->dmPlith,xstrainlocal,&_strain);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(usr->dmPlith,&xstrainlocal); CHKERRQ(ierr);
+
   ierr = DMStagVecRestoreArray(usr->dmmatProp,xmatProplocal,&_matProp);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(usr->dmmatProp,xmatProplocal,INSERT_VALUES,usr->xmatProp); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (usr->dmmatProp,xmatProplocal,INSERT_VALUES,usr->xmatProp); CHKERRQ(ierr);
@@ -955,7 +962,8 @@ PetscErrorCode RheologyPointwise(PetscInt i, PetscInt j, PetscScalar ***xwt, Pet
   PetscFunctionBeginUser;
 
   if (usr->par->rheology==0) { ierr = RheologyPointwise_VEP(i,j,xwt,iwt,T,phi,P,eps,tauold,ix,res,usr);CHKERRQ(ierr); }
-  if (usr->par->rheology==1) { ierr = RheologyPointwise_VE_VP(i,j,xwt,iwt,T,phi,P,eps,tauold,ix,res,usr);CHKERRQ(ierr); }
+  // if (usr->par->rheology==1) { ierr = RheologyPointwise_VEVP_DominantPhase(i,j,xwt,iwt,T,phi,P,eps,tauold,ix,res,usr);CHKERRQ(ierr); }
+  if (usr->par->rheology==1) { ierr = RheologyPointwise_VEVP(i,j,xwt,iwt,T,phi,P,eps,tauold,ix,res,usr);CHKERRQ(ierr); }
 
   PetscFunctionReturn(0);
 }
@@ -1117,17 +1125,354 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
 }
 
 // ---------------------------------------
-// RheologyPointwise_VE_VP
+// RheologyPointwise_VEVP
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "RheologyPointwise_VE_VP"
-PetscErrorCode RheologyPointwise_VE_VP(PetscInt i, PetscInt j, PetscScalar ***xwt, PetscInt *iwt, PetscScalar T, PetscScalar phi, PetscScalar *P, 
+#define __FUNCT__ "RheologyPointwise_VEVP"
+PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt, PetscInt *iwt, PetscScalar T, PetscScalar phi, PetscScalar *P, 
                                  PetscScalar *eps, PetscScalar *tauold, PetscInt *ix, PetscScalar *res, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
+  PetscInt       iph;
+  PetscScalar    dt, tf_tol, p, Plith, DPold, Tdim, phis, dotlam;
+  PetscScalar    eta_v, zeta_v, eta_e, zeta_e, eta_ve, zeta_ve, eta, zeta, chip, chis; // eta_p, zeta_p,
+
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
 
+  dt = usr->nd->dt;
+  tf_tol = usr->par->tf_tol;
+
+  p = P[0]; Plith = P[1]; DPold = P[2];
+  Tdim = dim_paramT(T,usr->par->Ttop,usr->scal->DT);
+  phis = 1.0 - phi;
+
+  // get epsII, epsp, epspII - tau_old, dP
+  PetscScalar exx, ezz, exz, eII, told_xx, told_zz, told_xz, told_II, Pf;
+  PetscScalar exxp, ezzp, exzp, div13, divp, eIIp;
+  PetscScalar txxt, tzzt, txzt, tIIt, dpt;
+  PetscScalar aP,theta_rad;
+
+  exx = eps[0]; told_xx = tauold[0]; 
+  ezz = eps[1]; told_zz = tauold[1];
+  exz = eps[2]; told_xz = tauold[2];
+  eII = eps[3]; told_II = tauold[3];
+  div13 = (exx + ezz)/3.0;
+  Pf    = p + Plith;
+
+  // get marker phase and properties
+  PetscScalar  wt[6], meta_v[6], mzeta_v[6], meta_e[6], mzeta_e[6], meta_ve[6], mzeta_ve[6], mC[6], mZ[6], mG[6], msigmat[6],mtheta[6];
+  PetscScalar  inv_meta_v[6], inv_meta_e[6], inv_mzeta_v[6], inv_mzeta_e[6];
+  PetscScalar  meta[6], mzeta[6], mchis[6], mchip[6], meta_VEP[6], mzeta_VEP[6], mdotlam[6]; //meta_p[6], mzeta_p[6],
+
+  ierr = GetMatPhaseFraction(i,j,xwt,iwt,usr->nph,wt); CHKERRQ(ierr);
+
+  for (iph = 0; iph < usr->nph; iph++) {
+    meta_v[iph]  = ShearViscosity(usr->mat_nd[iph].eta0,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->lambda,usr->mat_nd[iph].eta_func);
+    mzeta_v[iph] = CompactionViscosity(usr->mat_nd[iph].zeta0,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->phi_min,usr->par->zetaExp,usr->mat_nd[iph].zeta_func); 
+    
+    meta_v[iph] = ViscosityHarmonicAvg(meta_v[iph],usr->nd->eta_min,usr->nd->eta_max);
+    mzeta_v[iph]= ViscosityHarmonicAvg(mzeta_v[iph],usr->nd->eta_min,usr->nd->eta_max);
+
+    inv_meta_v[iph]  = 1.0/meta_v[iph];
+    inv_mzeta_v[iph] = 1.0/mzeta_v[iph];
+
+    meta_e[iph]  = usr->mat_nd[iph].G*dt;
+    mzeta_e[iph] = usr->mat_nd[iph].Z0*dt; // PoroElasticModulus(usr->mat_nd[iph].Z0,phi)*dt;
+
+    inv_meta_e[iph]  = 1.0/meta_e[iph];
+    inv_mzeta_e[iph] = 1.0/mzeta_e[iph];
+
+    // visco-elastic 
+    meta_ve[iph]  = PetscPowScalar(inv_meta_v[iph]+inv_meta_e[iph],-1.0);
+    mzeta_ve[iph] = PetscPowScalar(inv_mzeta_v[iph]+inv_mzeta_e[iph],-1.0);
+
+    // meta_ve[iph] = ViscosityHarmonicAvg(meta_ve[iph],usr->nd->eta_min,usr->nd->eta_max);
+    // mzeta_ve[iph]= ViscosityHarmonicAvg(mzeta_ve[iph],usr->nd->eta_min,usr->nd->eta_max);
+
+    // elastic and plastic parameters
+    mZ[iph] = usr->mat_nd[iph].Z0;
+    mG[iph] = usr->mat_nd[iph].G;
+    mC[iph] = usr->mat_nd[iph].C;
+    msigmat[iph] = usr->mat_nd[iph].sigmat;
+    mtheta[iph]  = usr->mat_nd[iph].theta;
+
+    // add softening to cohesion and friction angle
+
+    // effective deviatoric and volumetric strain rates
+    exxp = ((exx-div13) + 0.5*told_xx*inv_meta_e[iph]);
+    ezzp = ((ezz-div13) + 0.5*told_zz*inv_meta_e[iph]);
+    exzp = (exz + 0.5*told_xz*inv_meta_e[iph]);
+    eIIp = TensorSecondInvariant(exxp,ezzp,exzp);
+    divp = ((exx+ezz) - DPold*inv_mzeta_e[iph]);
+
+    // trial stress
+    txxt = 2*meta_ve[iph]*exxp;
+    tzzt = 2*meta_ve[iph]*ezzp;
+    txzt = 2*meta_ve[iph]*exzp;
+    tIIt = TensorSecondInvariant(txxt,tzzt,txzt);
+    dpt = -mzeta_ve[iph] * divp;
+
+    // plastic viscosity
+    if (usr->plasticity) { 
+      // Fluid pressure 
+      // aP = Pf*AlphaP(phi,usr->par->phi_min)/phis;
+      aP = Plith;
+      theta_rad = PETSC_PI*mtheta[iph]/180;
+
+      // plasticity F = (Y,lambdadot,tauII,dP)
+      PetscScalar xve[4], stressSol[3];
+      xve[0] = tIIt;
+      xve[1] = dpt;
+      xve[2] = meta_ve[iph];
+      xve[3] = mzeta_ve[iph];
+
+      ierr = Plastic_LocalSolver(xve,mC[iph],msigmat[iph],theta_rad,aP,phi,usr,stressSol); CHKERRQ(ierr);
+      mdotlam[iph] = stressSol[2];
+
+      // effective viscosities
+      if (mdotlam[iph] > tf_tol) { 
+        meta_VEP[iph] = 0.5*stressSol[0]/eIIp * phis; 
+        if (divp==0.0) mzeta_VEP[iph] = usr->nd->eta_max;
+        else           mzeta_VEP[iph] = -stressSol[1]/divp * phis;
+      } else { 
+        meta_VEP[iph] = meta_ve[iph]*phis; 
+        mzeta_VEP[iph]= mzeta_ve[iph]*phis;
+      }
+    } else { 
+      meta_VEP[iph] = meta_ve[iph]*phis; 
+      mzeta_VEP[iph]= mzeta_ve[iph]*phis;
+      mdotlam[iph] = 0.0;
+    }
+
+    // effective viscosities
+    meta[iph] = ViscosityHarmonicAvg(meta_VEP[iph],usr->nd->eta_min,usr->nd->eta_max);
+    mzeta[iph]= ViscosityHarmonicAvg(mzeta_VEP[iph],usr->nd->eta_min,usr->nd->eta_max);
+
+    // elastic stress evolution parameter
+    mchis[iph] = meta[iph]*inv_meta_e[iph];
+    mchip[iph] = mzeta[iph]*inv_meta_e[iph];
+  }
+
+  eta_v  = WeightAverageValue(meta_v,wt,usr->nph); 
+  zeta_v = WeightAverageValue(mzeta_v,wt,usr->nph); 
+  eta_e  = WeightAverageValue(meta_e,wt,usr->nph); 
+  zeta_e = WeightAverageValue(mzeta_e,wt,usr->nph); 
+  eta_ve = WeightAverageValue(meta_ve,wt,usr->nph); 
+  zeta_ve= WeightAverageValue(mzeta_ve,wt,usr->nph); 
+  eta    = WeightAverageValue(meta,wt,usr->nph); 
+  zeta   = WeightAverageValue(mzeta,wt,usr->nph); 
+  chis   = WeightAverageValue(mchis,wt,usr->nph); 
+  chip   = WeightAverageValue(mchip,wt,usr->nph); 
+  dotlam = WeightAverageValue(mdotlam,wt,usr->nph); 
+
+  PetscScalar C, G, Z, sigmat, theta;
+  G      = WeightAverageValue(mG,wt,usr->nph); 
+  Z      = WeightAverageValue(mZ,wt,usr->nph); 
+  C      = WeightAverageValue(mC,wt,usr->nph); 
+  sigmat = WeightAverageValue(msigmat,wt,usr->nph); 
+  theta  = WeightAverageValue(mtheta,wt,usr->nph); 
+
+  // update effective deviatoric and volumetric strain rates with Marker PhaseAverage
+  exxp = ((exx-div13) + 0.5*told_xx/eta_e);
+  ezzp = ((ezz-div13) + 0.5*told_zz/eta_e);
+  exzp = (exz + 0.5*told_xz/eta_e);
+  divp = ((exx+ezz) - DPold/zeta_e);
+
+  // shear and volumetric stresses
+  PetscScalar txx, tzz, txz, tII, DP;
+  txx = 2*eta*exxp/phis;
+  tzz = 2*eta*ezzp/phis;
+  txz = 2*eta*exzp/phis;
+  tII = TensorSecondInvariant(txx,tzz,txz);
+  DP = -zeta*divp/phis;
+
+  // return values
+  res[0]  = eta;
+  res[1]  = eta_v;
+  res[2]  = eta_e;
+  res[3]  = eta;
+  res[4]  = zeta;
+  res[5]  = zeta_v;
+  res[6]  = zeta_e;
+  res[7]  = zeta;
+  res[8]  = chis;
+  res[9]  = chip;
+  res[10] = txx;
+  res[11] = tzz;
+  res[12] = txz;
+  res[13] = tII;
+  res[14] = DP;
+  res[15] = dotlam;
+  res[16] = Z;
+  res[17] = G;
+  res[18] = C;
+  res[19] = sigmat;
+  res[20] = theta;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// RheologyPointwise_VEVP_DominantPhase
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "RheologyPointwise_VEVP_DominantPhase"
+PetscErrorCode RheologyPointwise_VEVP_DominantPhase(PetscInt i, PetscInt j, PetscScalar ***xwt, PetscInt *iwt, PetscScalar T, PetscScalar phi, PetscScalar *P, 
+                                 PetscScalar *eps, PetscScalar *tauold, PetscInt *ix, PetscScalar *res, void *ctx)
+{
+  UsrData        *usr = (UsrData*)ctx;
+  PetscInt       iph, ii;
+  PetscScalar    dt, tf_tol, p, Plith, DPold, Tdim, phis, dotlam, maxwt;
+  PetscScalar    eta_v, zeta_v, eta_e, zeta_e, eta_ve, zeta_ve, eta, zeta, chip, chis, eta_VEP, zeta_VEP;
+  PetscScalar    inv_eta_v, inv_zeta_v, inv_eta_e, inv_zeta_e, G, Z, C, sigmat, theta;
+  PetscErrorCode ierr;
+  PetscFunctionBeginUser;
+  
+  dt = usr->nd->dt;
+  tf_tol = usr->par->tf_tol;
+
+  p = P[0]; Plith = P[1]; DPold = P[2];
+  Tdim = dim_paramT(T,usr->par->Ttop,usr->scal->DT);
+  phis = 1.0 - phi;
+
+  // get epsII, epsp, epspII - tau_old, dP
+  PetscScalar exx, ezz, exz, eII, told_xx, told_zz, told_xz, told_II, Pf;
+  PetscScalar exxp, ezzp, exzp, div13, divp, eIIp;
+  PetscScalar txxt, tzzt, txzt, tIIt, dpt;
+  PetscScalar aP,theta_rad;
+
+  exx = eps[0]; told_xx = tauold[0]; 
+  ezz = eps[1]; told_zz = tauold[1];
+  exz = eps[2]; told_xz = tauold[2];
+  eII = eps[3]; told_II = tauold[3];
+  div13 = (exx + ezz)/3.0;
+  Pf    = p + Plith;
+
+  // get dominant marker phase and properties
+  maxwt = 0.0;
+  for (ii = 0; ii < usr->nph; ii++) {
+    if (xwt[j][i][iwt[ii]]>maxwt) {
+      maxwt = xwt[j][i][iwt[ii]];
+      iph = ii;
+    }
+  }
+
+  eta_v  = ShearViscosity(usr->mat_nd[iph].eta0,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->lambda,usr->mat_nd[iph].eta_func);
+  zeta_v = CompactionViscosity(usr->mat_nd[iph].zeta0,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->phi_min,usr->par->zetaExp,usr->mat_nd[iph].zeta_func); 
+  
+  eta_v = ViscosityHarmonicAvg(eta_v,usr->nd->eta_min,usr->nd->eta_max);
+  zeta_v= ViscosityHarmonicAvg(zeta_v,usr->nd->eta_min,usr->nd->eta_max);
+
+  inv_eta_v  = 1.0/eta_v;
+  inv_zeta_v = 1.0/zeta_v;
+
+  eta_e  = usr->mat_nd[iph].G*dt;
+  zeta_e = usr->mat_nd[iph].Z0*dt; // PoroElasticModulus(usr->mat_nd[iph].Z0,phi)*dt;
+
+  inv_eta_e  = 1.0/eta_e;
+  inv_zeta_e = 1.0/zeta_e;
+
+  // visco-elastic 
+  eta_ve  = PetscPowScalar(inv_eta_v+inv_eta_e,-1.0);
+  zeta_ve = PetscPowScalar(inv_zeta_v+inv_zeta_e,-1.0);
+
+  // eta_ve = ViscosityHarmonicAvg(eta_ve,usr->nd->eta_min,usr->nd->eta_max);
+  // zeta_ve= ViscosityHarmonicAvg(zeta_ve,usr->nd->eta_min,usr->nd->eta_max);
+
+  // elastic and plastic parameters
+  Z = usr->mat_nd[iph].Z0;
+  G = usr->mat_nd[iph].G;
+  C = usr->mat_nd[iph].C;
+  sigmat = usr->mat_nd[iph].sigmat;
+  theta  = usr->mat_nd[iph].theta;
+
+  // add softening to cohesion and friction angle
+
+  // effective deviatoric and volumetric strain rates
+  exxp = ((exx-div13) + 0.5*told_xx*inv_eta_e);
+  ezzp = ((ezz-div13) + 0.5*told_zz*inv_eta_e);
+  exzp = (exz + 0.5*told_xz*inv_eta_e);
+  eIIp = TensorSecondInvariant(exxp,ezzp,exzp);
+  divp = ((exx+ezz) - DPold*inv_zeta_e);
+
+  // trial stress
+  txxt = 2*eta_ve*exxp;
+  tzzt = 2*eta_ve*ezzp;
+  txzt = 2*eta_ve*exzp;
+  tIIt = TensorSecondInvariant(txxt,tzzt,txzt);
+  dpt = -zeta_ve * divp;
+
+  // plastic viscosity
+  if (usr->plasticity) { 
+    // Fluid pressure 
+    // aP = Pf*AlphaP(phi,usr->par->phi_min)/phis;
+    aP = Plith;
+    theta_rad = PETSC_PI*theta/180;
+
+    // plasticity F = (Y,lambdadot,tauII,dP)
+    PetscScalar xve[4], stressSol[3];
+    xve[0] = tIIt;
+    xve[1] = dpt;
+    xve[2] = eta_ve;
+    xve[3] = zeta_ve;
+
+    ierr = Plastic_LocalSolver(xve,C,sigmat,theta_rad,aP,phi,usr,stressSol); CHKERRQ(ierr);
+    dotlam = stressSol[2];
+
+    // effective viscosities
+    if (dotlam > tf_tol) { 
+      eta_VEP = 0.5*stressSol[0]/eIIp*phis; 
+      if (divp==0.0) zeta_VEP = usr->nd->eta_max;
+      else           zeta_VEP = -stressSol[1]/divp*phis;
+    } else { 
+      eta_VEP = eta_ve*phis; 
+      zeta_VEP= zeta_ve*phis;
+    }
+  } else { 
+    eta_VEP = eta_ve*phis; 
+    zeta_VEP= zeta_ve*phis;
+    dotlam = 0.0;
+  }
+
+  // effective viscosities
+  eta = ViscosityHarmonicAvg(eta_VEP,usr->nd->eta_min,usr->nd->eta_max);
+  zeta= ViscosityHarmonicAvg(zeta_VEP,usr->nd->eta_min,usr->nd->eta_max);
+
+  // elastic stress evolution parameter
+  chis = eta*inv_eta_e;
+  chip = zeta*inv_eta_e;
+
+  // shear and volumetric stresses
+  PetscScalar txx, tzz, txz, tII, DP;
+  txx = 2*eta*exxp/phis;
+  tzz = 2*eta*ezzp/phis;
+  txz = 2*eta*exzp/phis;
+  tII = TensorSecondInvariant(txx,tzz,txz);
+  DP = -zeta*divp/phis;
+
+  // return values
+  res[0]  = eta;
+  res[1]  = eta_v;
+  res[2]  = eta_e;
+  res[3]  = eta;
+  res[4]  = zeta;
+  res[5]  = zeta_v;
+  res[6]  = zeta_e;
+  res[7]  = zeta;
+  res[8]  = chis;
+  res[9]  = chip;
+  res[10] = txx;
+  res[11] = tzz;
+  res[12] = txz;
+  res[13] = tII;
+  res[14] = DP;
+  res[15] = dotlam;
+  res[16] = Z;
+  res[17] = G;
+  res[18] = C;
+  res[19] = sigmat;
+  res[20] = theta;
 
   PetscFunctionReturn(0);
 }

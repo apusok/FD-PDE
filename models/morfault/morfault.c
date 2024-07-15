@@ -223,6 +223,10 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = DMCreateGlobalVector(usr->dmPlith,&usr->xplast); CHKERRQ(ierr);
   ierr = VecSet(usr->xDP_old,0.0); CHKERRQ(ierr);
 
+  // Create vec for plastic strain
+  ierr = DMCreateGlobalVector(usr->dmPlith, &usr->xstrain); CHKERRQ(ierr);
+  ierr = VecZeroEntries(usr->xstrain); CHKERRQ(ierr);
+
   // Create dmMPhase for marker phase fractions (lithology)
   PetscInt nm = usr->nph;
   ierr = DMStagCreateCompatibleDMStag(usr->dmPV,nm,nm,nm,0,&usr->dmMPhase); CHKERRQ(ierr);
@@ -288,7 +292,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = VecDestroy(&xPV);CHKERRQ(ierr);
 
     // Integrate the plastic strain
-    // ierr = IntegratePlasticStrain(usr->dmPlith,usr->strain,usr->xplast,usr); CHKERRQ(ierr);
+    ierr = IntegratePlasticStrain(usr->dmPlith,usr->xstrain,usr->xplast,usr); CHKERRQ(ierr);
 
     // Update fluid velocity
     ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmPlith,usr->xPlith,usr->dmT,usr->xphi,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
@@ -366,6 +370,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = VecDestroy(&usr->xDP);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xDP_old);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xplast);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->xstrain);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xmatProp);CHKERRQ(ierr);
 
   ierr = DMDestroy(&usr->dmPV);CHKERRQ(ierr);
