@@ -356,6 +356,9 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = VecCopy(xphi,usr->xphi);CHKERRQ(ierr);
     ierr = VecDestroy(&xphi);CHKERRQ(ierr);
 
+    // Correct porosity at the free surface
+    ierr = CorrectPorosityFreeSurface(usr->dmphi,usr->xphi,usr->dmMPhase,usr->xMPhase);CHKERRQ(ierr);
+
     // Solve energy
     PetscPrintf(PETSC_COMM_WORLD,"\n# (T) Energy Solver \n");
     converged = PETSC_FALSE;

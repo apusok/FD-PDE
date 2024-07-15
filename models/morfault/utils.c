@@ -1520,6 +1520,50 @@ PetscErrorCode IntegratePlasticStrain(DM dm, Vec lam, Vec dotlam, void *ctx)
 }
 
 // ---------------------------------------
+// CorrectPorosityFreeSurface
+// ---------------------------------------
+PetscErrorCode CorrectPorosityFreeSurface(DM dm, Vec x, DM dmphase, Vec xphase)
+{
+  PetscInt       i, j, sx, sz, nx, nz, iE, isurf;
+  PetscScalar    ***xx, ***xxphase;
+  Vec            xlocal, xphaselocal;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &iE); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmphase, ELEMENT, 0, &isurf); CHKERRQ(ierr);
+
+  ierr = DMCreateLocalVector(dm, &xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+
+  ierr = DMCreateLocalVector(dmphase, &xphaselocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmphase, xphase, INSERT_VALUES, xphaselocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmphase, xphaselocal, &xxphase); CHKERRQ(ierr);
+  
+  // Loop over local domain
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      PetscScalar phi;
+      phi = 1.0 - xx[j][i][iE];
+      if (xxphase[j][i][isurf]>0.0 && phi>0.0) xx[j][i][iE] = 1.0;
+    }
+  }
+
+  // Restore arrays
+  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
+
+  ierr = DMStagVecRestoreArray(dmphase,xphaselocal,&xxphase); CHKERRQ(ierr);
+  ierr = VecDestroy(&xphaselocal); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
 // GetMatPhaseFraction
 // ---------------------------------------
 PetscErrorCode GetMatPhaseFraction(PetscInt i, PetscInt j, PetscScalar ***xwt, PetscInt *iwtc, PetscInt n, PetscScalar *wt)
