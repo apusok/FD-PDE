@@ -544,12 +544,12 @@ PetscErrorCode UpdateLithostaticPressure(DM dm, Vec x, void *ctx)
       PetscInt    iph;
       PetscScalar rho;
       // solid material density
-      for (iph = 0; iph < usr->nph; iph++) { rho0[iph] = Density(usr->mat[iph].rho0,usr->mat[iph].rho_func); }
+      for (iph = 0; iph < usr->nph; iph++) { rho0[iph] = Density(usr->mat_nd[iph].rho0,usr->mat[iph].rho_func); }
 
       // get material phase fraction
       ierr = GetMatPhaseFraction(i,j,xwt,iwtc,usr->nph,wt); CHKERRQ(ierr);
       rho = WeightAverageValue(rho0,wt,usr->nph); 
-      xx[j][i][idx] = LithostaticPressure(rho,usr->scal->rho,coordz[j][icenter]); 
+      xx[j][i][idx] = LithostaticPressure(rho,coordz[j][icenter]); 
     }
   }
 
@@ -675,7 +675,7 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmPlith, Vec xPl
 {
   UsrData       *usr = (UsrData*) ctx;
   PetscInt       i, j, ii, sx, sz, nx, nz, Nx, Nz, iprev,inext,icenter;
-  PetscScalar    ***xx, dx, dz, k_hat[4], A;
+  PetscScalar    ***xx, dx, dz, k_hat[4], i_hat[4], A;
   PetscScalar    **coordx,**coordz;
   Vec            xVellocal,xPVlocal,xphilocal,xPlithlocal;
   PetscScalar    ***_xPVlocal,***_xphilocal, ***_xPlithlocal;
@@ -689,7 +689,12 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmPlith, Vec xPl
   k_hat[1] = 0.0;
   k_hat[2] = usr->par->k_hat;
   k_hat[3] = usr->par->k_hat;
-  A = usr->scal->kphi*usr->scal->eta/(usr->scal->x*usr->scal->x*usr->par->mu);
+
+  i_hat[0] = 1.0;
+  i_hat[1] = 1.0;
+  i_hat[2] = 0.0;
+  i_hat[3] = 0.0;
+  A = usr->nd->R*usr->nd->R;
 
   ierr = DMStagGetGlobalSizes(dmVel,&Nx,&Nz,NULL);CHKERRQ(ierr);
   ierr = DMStagGetCorners(dmVel,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL); CHKERRQ(ierr);
@@ -719,22 +724,22 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmPlith, Vec xPl
   iP = 0; iPlith = 1;
   iL = 2; iR  = 3;
   iD = 4; iU  = 5;
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_ELEMENT,PV_ELEMENT_P, &pv_slot[iP]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmPlith,DMSTAG_ELEMENT,0, &pv_slot[iPlith]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_LEFT,   PV_FACE_VS,   &pv_slot[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_RIGHT,  PV_FACE_VS,   &pv_slot[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_DOWN,   PV_FACE_VS,   &pv_slot[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_UP,     PV_FACE_VS,   &pv_slot[iU]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmphi,DMSTAG_ELEMENT,0,&phi_slot);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPV,ELEMENT,PV_ELEMENT_P, &pv_slot[iP]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPlith,ELEMENT,0, &pv_slot[iPlith]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPV,LEFT,   PV_FACE_VS,   &pv_slot[iL]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPV,RIGHT,  PV_FACE_VS,   &pv_slot[iR]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPV,DOWN,   PV_FACE_VS,   &pv_slot[iD]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmPV,UP,     PV_FACE_VS,   &pv_slot[iU]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmphi,ELEMENT,0,&phi_slot);CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_LEFT,  VEL_FACE_VF, &v_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_RIGHT, VEL_FACE_VF, &v_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_DOWN,  VEL_FACE_VF, &v_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_UP,    VEL_FACE_VF, &v_slot[3]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_LEFT,  VEL_FACE_V,  &v_slot[4]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_RIGHT, VEL_FACE_V,  &v_slot[5]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_DOWN,  VEL_FACE_V,  &v_slot[6]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_UP,    VEL_FACE_V,  &v_slot[7]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmVel,LEFT,  VEL_FACE_VF, &v_slot[0]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmVel,RIGHT, VEL_FACE_VF, &v_slot[1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmVel,DOWN,  VEL_FACE_VF, &v_slot[2]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmVel,UP,    VEL_FACE_VF, &v_slot[3]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmVel,LEFT,  VEL_FACE_V,  &v_slot[4]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmVel,RIGHT, VEL_FACE_V,  &v_slot[5]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmVel,DOWN,  VEL_FACE_V,  &v_slot[6]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmVel,UP,    VEL_FACE_V,  &v_slot[7]);CHKERRQ(ierr);
 
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
@@ -770,12 +775,10 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmPlith, Vec xPl
       if (j == 0   ) jm = j; else jm = j-1; p[3] = _xPlithlocal[jm][i][pv_slot[iPlith]];
       if (j == Nz-1) jm = j; else jm = j+1; p[4] = _xPlithlocal[jm][i][pv_slot[iPlith]];
 
-      gradPlith[0] = (p[0]-p[1])/dx;
-      gradPlith[1] = (p[2]-p[0])/dx;
-      // gradPlith[2] = (p[0]-p[3])/dz;
-      // gradPlith[3] = (p[4]-p[0])/dz;
-      gradPlith[2] = 0.0;
-      gradPlith[3] = 0.0;
+      gradPlith[0] = (p[0]-p[1])/dx*i_hat[0];
+      gradPlith[1] = (p[2]-p[0])/dx*i_hat[1];
+      gradPlith[2] = (p[0]-p[3])/dz*i_hat[2];
+      gradPlith[3] = (p[4]-p[0])/dz*i_hat[3];
 
       // get porosity - from solid porosity
       Q[0] = 1.0 - _xphilocal[j][i][phi_slot];
@@ -794,12 +797,8 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmPlith, Vec xPl
         // permeability
         Kphi = Permeability(phi[ii],usr->par->n);
 
-        // fluid buoyancy - revise for more complex density model
-        // Bf = usr->par->rhof/usr->scal->rho*k_hat[ii]; // orig
-        Bf = k_hat[ii]; 
-
-        // fluid velocity
-        vf = FluidVelocity(A,Kphi,vs[ii],phi[ii],gradP[ii],gradPlith[ii],Bf);
+        // fluid velocity A = R^2
+        vf = LiquidVelocity(A,Kphi,vs[ii],phi[ii],gradP[ii],gradPlith[ii],k_hat[ii]);
         xx[j][i][v_slot[ii]] = vf;
 
         // bulk velocity
@@ -854,14 +853,14 @@ PetscErrorCode LiquidVelocityExplicitTimestep(DM dm, Vec x, PetscScalar *dt)
 
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev);CHKERRQ(ierr); 
-  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,LEFT,&iprev);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,RIGHT,&inext);CHKERRQ(ierr); 
 
   // get slots
-  ierr = DMStagGetLocationSlot(dm,DMSTAG_LEFT,  VEL_FACE_VF, &v_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dm,DMSTAG_RIGHT, VEL_FACE_VF, &v_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dm,DMSTAG_DOWN,  VEL_FACE_VF, &v_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dm,DMSTAG_UP,    VEL_FACE_VF, &v_slot[3]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm,LEFT,  VEL_FACE_VF, &v_slot[0]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm,RIGHT, VEL_FACE_VF, &v_slot[1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm,DOWN,  VEL_FACE_VF, &v_slot[2]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm,UP,    VEL_FACE_VF, &v_slot[3]);CHKERRQ(ierr);
 
   // Loop over elements - velocity is located on edge and c=1
   for (j = sz; j<sz+nz; j++) {
@@ -1125,7 +1124,7 @@ PetscErrorCode LoadParametersFromFile(void *ctx)
   ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->Ra,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
   ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->Gamma,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
 
-  // material properties ?
+  // material properties
   
   // save timestep
   PetscInt    tstep, tout;

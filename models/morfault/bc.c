@@ -148,8 +148,8 @@ PetscErrorCode FormBCList_PV_Stokes(DM dm, Vec x, DMStagBCList bclist, void *ctx
   // ierr = DMStagVecGetArray(usr->dmMPhase, xMPhaselocal, &xwt); CHKERRQ(ierr);
 
   // PetscInt iwtl,iwtr;
-  // ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 0, &iwtl); CHKERRQ(ierr);
-  // ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 0, &iwtr); CHKERRQ(ierr);
+  // ierr = DMStagGetLocationSlot(usr->dmMPhase, LEFT, 0, &iwtl); CHKERRQ(ierr);
+  // ierr = DMStagGetLocationSlot(usr->dmMPhase, RIGHT, 0, &iwtr); CHKERRQ(ierr);
 
   // Vx  
   // DOWN Boundary: dVx/dz = 0

@@ -8,13 +8,13 @@
 PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
-  PetscInt       i, j, sx, sz, nx, nz, iprev, inext, icenter, Nx, Nz;
+  PetscInt       i, j, ii, sx, sz, nx, nz, iprev, inext, icenter, Nx, Nz;
   PetscScalar    **coordx, **coordz, ***c, ***xx, ***xwt; 
   PetscScalar    ***_Tc, ***_phic, ***_Plith, ***_eps, ***_tauold, ***_DPold, ***_tau, ***_DP;
   PetscScalar     ***_plast, ***_matProp, ***_strain;
   Vec            coefflocal, xlocal, xTlocal, xMPhaselocal, xtaulocal, xDPlocal, xstrainlocal;
   Vec            xphilocal, xPlithlocal, xepslocal, xtauoldlocal, xDPoldlocal, xplastlocal, xmatProplocal;
-  PetscScalar    k_hat[4];
+  PetscScalar    k_hat[4], i_hat[4];
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
 
@@ -23,6 +23,11 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
   k_hat[1] = 0.0;
   k_hat[2] = usr->par->k_hat;
   k_hat[3] = usr->par->k_hat;
+
+  i_hat[0] = 1.0;
+  i_hat[1] = 1.0;
+  i_hat[2] = 0.0;
+  i_hat[3] = 0.0;
 
   // Get coefficient
   ierr = DMStagGetGlobalSizes(dmcoeff, &Nx, &Nz,NULL);CHKERRQ(ierr);
@@ -99,104 +104,54 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
 
   // get location slots
   PetscInt  iE,iP;
-  ierr = DMStagGetLocationSlot(usr->dmT,DMSTAG_ELEMENT,T_ELEMENT,&iE);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmPlith,DMSTAG_ELEMENT,0,&iP);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(usr->dmT,ELEMENT,T_ELEMENT,&iE);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(usr->dmPlith,ELEMENT,0,&iP);CHKERRQ(ierr);
 
   PetscInt iPV;
-  ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,PV_ELEMENT_P,&iPV);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm,ELEMENT,PV_ELEMENT_P,&iPV);CHKERRQ(ierr);
 
   PetscInt  e_slot[3],av_slot[4],b_slot[4],d2_slot[4],d3_slot[4],iL,iR,iU,iD,iC,iA,iD1;
   iL = 0; iR = 1; iD = 2; iU  = 3;
   iC = 0; iA = 1; iD1= 2;
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,   PVCOEFF_ELEMENT_C,   &e_slot[iC]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,   PVCOEFF_ELEMENT_A,   &e_slot[iA]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,   PVCOEFF_ELEMENT_D1,  &e_slot[iD1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,ELEMENT,   PVCOEFF_ELEMENT_C,   &e_slot[iC]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,ELEMENT,   PVCOEFF_ELEMENT_A,   &e_slot[iA]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,ELEMENT,   PVCOEFF_ELEMENT_D1,  &e_slot[iD1]);CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN_LEFT, PVCOEFF_VERTEX_A,&av_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN_RIGHT,PVCOEFF_VERTEX_A,&av_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP_LEFT,   PVCOEFF_VERTEX_A,&av_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP_RIGHT,  PVCOEFF_VERTEX_A,&av_slot[3]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,DOWN_LEFT, PVCOEFF_VERTEX_A,&av_slot[0]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,DOWN_RIGHT,PVCOEFF_VERTEX_A,&av_slot[1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,UP_LEFT,   PVCOEFF_VERTEX_A,&av_slot[2]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,UP_RIGHT,  PVCOEFF_VERTEX_A,&av_slot[3]);CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,   PVCOEFF_FACE_B,   &b_slot[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,  PVCOEFF_FACE_B,   &b_slot[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,   PVCOEFF_FACE_B,   &b_slot[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,     PVCOEFF_FACE_B,   &b_slot[iU]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,LEFT,   PVCOEFF_FACE_B,   &b_slot[iL]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,RIGHT,  PVCOEFF_FACE_B,   &b_slot[iR]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,DOWN,   PVCOEFF_FACE_B,   &b_slot[iD]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,UP,     PVCOEFF_FACE_B,   &b_slot[iU]);CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,   PVCOEFF_FACE_D2,   &d2_slot[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,  PVCOEFF_FACE_D2,   &d2_slot[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,   PVCOEFF_FACE_D2,   &d2_slot[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,     PVCOEFF_FACE_D2,   &d2_slot[iU]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,LEFT,   PVCOEFF_FACE_D2,   &d2_slot[iL]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,RIGHT,  PVCOEFF_FACE_D2,   &d2_slot[iR]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,DOWN,   PVCOEFF_FACE_D2,   &d2_slot[iD]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,UP,     PVCOEFF_FACE_D2,   &d2_slot[iU]);CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,   PVCOEFF_FACE_D3,   &d3_slot[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,  PVCOEFF_FACE_D3,   &d3_slot[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,   PVCOEFF_FACE_D3,   &d3_slot[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,     PVCOEFF_FACE_D3,   &d3_slot[iU]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,LEFT,   PVCOEFF_FACE_D3,   &d3_slot[iL]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,RIGHT,  PVCOEFF_FACE_D3,   &d3_slot[iR]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,DOWN,   PVCOEFF_FACE_D3,   &d3_slot[iD]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,UP,     PVCOEFF_FACE_D3,   &d3_slot[iU]);CHKERRQ(ierr);
 
-  PetscInt iwtc[6],iwtl[6],iwtr[6],iwtd[6],iwtu[6], iwtld[6],iwtrd[6],iwtlu[6],iwtru[6];
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 0, &iwtc[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 1, &iwtc[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 2, &iwtc[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 3, &iwtc[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 4, &iwtc[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 5, &iwtc[5]); CHKERRQ(ierr);
+  PetscInt iwtc[MAX_MAT_PHASE],iwtl[MAX_MAT_PHASE],iwtr[MAX_MAT_PHASE],iwtd[MAX_MAT_PHASE],iwtu[MAX_MAT_PHASE];
+  PetscInt iwtld[MAX_MAT_PHASE],iwtrd[MAX_MAT_PHASE],iwtlu[MAX_MAT_PHASE],iwtru[MAX_MAT_PHASE];
+  for (ii = 0; ii < usr->nph; ii++) { 
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT,    ii, &iwtc[ii]); CHKERRQ(ierr); 
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, LEFT,       ii, &iwtl[ii]); CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, RIGHT,      ii, &iwtr[ii]); CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN,       ii, &iwtd[ii]); CHKERRQ(ierr); 
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, UP,         ii, &iwtu[ii]); CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT,  ii, &iwtld[ii]); CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, ii, &iwtrd[ii]); CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT,    ii, &iwtlu[ii]); CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT,   ii, &iwtru[ii]); CHKERRQ(ierr);
+  }
 
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 0, &iwtl[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 1, &iwtl[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 2, &iwtl[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 3, &iwtl[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 4, &iwtl[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 5, &iwtl[5]); CHKERRQ(ierr);
-
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 0, &iwtr[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 1, &iwtr[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 2, &iwtr[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 3, &iwtr[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 4, &iwtr[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 5, &iwtr[5]); CHKERRQ(ierr);
-
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 0, &iwtd[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 1, &iwtd[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 2, &iwtd[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 3, &iwtd[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 4, &iwtd[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 5, &iwtd[5]); CHKERRQ(ierr);
-  
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 0, &iwtu[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 1, &iwtu[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 2, &iwtu[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 3, &iwtu[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 4, &iwtu[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 5, &iwtu[5]); CHKERRQ(ierr);
-
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 0, &iwtld[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 1, &iwtld[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 2, &iwtld[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 3, &iwtld[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 4, &iwtld[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 5, &iwtld[5]); CHKERRQ(ierr);
-
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 0, &iwtrd[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 1, &iwtrd[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 2, &iwtrd[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 3, &iwtrd[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 4, &iwtrd[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 5, &iwtrd[5]); CHKERRQ(ierr);
-
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 0, &iwtlu[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 1, &iwtlu[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 2, &iwtlu[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 3, &iwtlu[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 4, &iwtlu[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 5, &iwtlu[5]); CHKERRQ(ierr);
-
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 0, &iwtru[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 1, &iwtru[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 2, &iwtru[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 3, &iwtru[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 4, &iwtru[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 5, &iwtru[5]); CHKERRQ(ierr);
-
-  PetscInt ii, ixx, izz, ixz, iII, ixxn[4], izzn[4], ixzn[4], iIIn[4];
+  PetscInt ixx, izz, ixz, iII, ixxn[4], izzn[4], ixzn[4], iIIn[4];
   ierr = DMStagGetLocationSlot(usr->dmeps, ELEMENT, 0, &ixx); CHKERRQ(ierr);
   ierr = DMStagGetLocationSlot(usr->dmeps, ELEMENT, 1, &izz); CHKERRQ(ierr);
   ierr = DMStagGetLocationSlot(usr->dmeps, ELEMENT, 2, &ixz); CHKERRQ(ierr);
@@ -228,7 +183,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
   // Loop over local domain - set initial density and viscosity
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
-      PetscScalar   phic[9], pc[9], Plc[9], Tc[9], DPoldc[9], strain[9], gradPlith[4], dx, dz;
+      PetscScalar   phic[9], pc[9], Plc[9], Tc[9], DPoldc[9], strain[9], dx, dz;
       PetscInt      iph, ii, im, jm, ip, jp;
 
       if (i == 0   ) im = i; else im = i-1;
@@ -248,20 +203,12 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
       ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_DPold,DPoldc);CHKERRQ(ierr);
       ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_strain,strain);CHKERRQ(ierr);
 
-      // correct for liquid porosity - not the same as phic[ii] = 1.0e-4; 
+      // correct for liquid porosity
       for (ii = 0; ii < 9; ii++) { 
         // phic[ii] = usr->par->phi0;
         phic[ii] = 1.0 - phic[ii]; 
         if (phic[ii]<0.0) phic[ii] = 0.0;
       }
-
-      gradPlith[0] = (Plc[0]-Plc[1])/dx;
-      gradPlith[1] = (Plc[2]-Plc[0])/dx;
-      gradPlith[2] = (Plc[0]-Plc[3])/dz;
-      gradPlith[3] = (Plc[4]-Plc[0])/dz;
-
-      if (j==Nz-1) gradPlith[3] = gradPlith[2]; // top domain
-      if (j==0   ) gradPlith[2] = gradPlith[3]; // assumes same gradient as in previous cell
 
       // Prepare for pointwise rheology calculation
       PetscScalar eta_eff[9], zeta_eff[9], chis[9], chip[9], txx[9], tzz[9], txz[9], tII[9], DP[9], dotlam[9];
@@ -354,15 +301,25 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
       }
 
       { // face
-        PetscScalar   phi[4], K[4], B[4], D2[4], D3[4], rho0[6], rhof[4], rhos[4], rhog[4], wt[6];
-        PetscScalar   divchitau[4],gradchidp[4], bf[4];
-        PetscInt      idx[6];
+        PetscScalar   phi[4], K[4], B[4], D2[4], D3[4];
+        PetscScalar   divchitau[4],gradchidp[4], gradPlith[4];
 
         // porosity on edges - not for variable grid spacing
         phi[0] = (phic[0]+phic[1])*0.5;
         phi[1] = (phic[0]+phic[2])*0.5;
         phi[2] = (phic[0]+phic[3])*0.5;
         phi[3] = (phic[0]+phic[4])*0.5;
+
+        gradPlith[0] = (Plc[0]-Plc[1])/dx;
+        gradPlith[1] = (Plc[2]-Plc[0])/dx;
+        gradPlith[2] = (Plc[0]-Plc[3])/dz;
+        gradPlith[3] = (Plc[4]-Plc[0])/dz;
+
+        // on boundaries assume same gradient as in previous cell
+        if (i==Nx-1) gradPlith[1] = gradPlith[0]; 
+        if (i==0   ) gradPlith[0] = gradPlith[1]; 
+        if (j==Nz-1) gradPlith[3] = gradPlith[2]; 
+        if (j==0   ) gradPlith[2] = gradPlith[3]; 
 
         gradchidp[0] = (chip[0]*_DPold[j ][i ][iP] - chip[1]*_DPold[j ][im][iP])/dx;
         gradchidp[1] = (chip[2]*_DPold[j ][ip][iP] - chip[0]*_DPold[j ][i ][iP])/dx;
@@ -377,32 +334,10 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
 
         for (ii = 0; ii < 4; ii++) {
           K[ii]  = Permeability(phi[ii],usr->par->n); // assumed uniform for all materials
-          rhof[ii] = usr->par->rhof/usr->scal->rho; // should be function of T, C
-
-          // solid material density - can be function of T, location
-          for (iph = 0; iph < usr->nph; iph++) { rho0[iph] = Density(usr->mat_nd[iph].rho0,usr->mat[iph].rho_func); }
-
-          // get material phase fraction
-          if (ii == 0 ) { idx[0] = iwtl[0]; idx[1] = iwtl[1]; idx[2] = iwtl[2]; idx[3] = iwtl[3]; idx[4] = iwtl[4]; idx[5] = iwtl[5]; }
-          if (ii == 1 ) { idx[0] = iwtr[0]; idx[1] = iwtr[1]; idx[2] = iwtr[2]; idx[3] = iwtr[3]; idx[4] = iwtr[4]; idx[5] = iwtr[5];}
-          if (ii == 2 ) { idx[0] = iwtd[0]; idx[1] = iwtd[1]; idx[2] = iwtd[2]; idx[3] = iwtd[3]; idx[4] = iwtd[4]; idx[5] = iwtd[5];}
-          if (ii == 3 ) { idx[0] = iwtu[0]; idx[1] = iwtu[1]; idx[2] = iwtu[2]; idx[3] = iwtu[3]; idx[4] = iwtu[4]; idx[5] = iwtu[5];}
-
-          ierr = GetMatPhaseFraction(i,j,xwt,idx,usr->nph,wt); CHKERRQ(ierr);
-          rhos[ii] = WeightAverageValue(rho0,wt,usr->nph); 
-          rhog[ii] = Mixture(rhos[ii],rhof[ii],phi[ii])*k_hat[ii];
-
-          // bf[ii] = gradPlith[ii]-rhog[ii]; // original
-          if (ii<2) bf[ii] = gradPlith[ii];
-          else      bf[ii] = phi[ii]*k_hat[ii];
-          
-          B[ii] = bf[ii]-divchitau[ii]+gradchidp[ii];
+          // add buoyancy terms here
+          B[ii] = -divchitau[ii]+gradchidp[ii] + gradPlith[ii]*i_hat[ii] - phi[ii]*k_hat[ii];
           D2[ii] = -K[ii]*usr->nd->R*usr->nd->R;
-
-          // D3[ii] = -K[ii]*usr->nd->R*usr->nd->R*(gradPlith[ii]-rhof[ii]*k_hat[ii]); // original
-          if (ii<2) bf[ii] = gradPlith[ii];
-          else      bf[ii] = k_hat[ii];
-          D3[ii] = -K[ii]*usr->nd->R*usr->nd->R*bf[ii];
+          D3[ii] = -K[ii]*usr->nd->R*usr->nd->R*(gradPlith[ii]*i_hat[ii] - k_hat[ii]);
 
           // B = body force+elasticity (edges, c=0)
           c[j][i][b_slot[ii]] = B[ii];
@@ -424,13 +359,13 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
       _DP[j][i][iP]    = DP[0];
       _plast[j][i][iP] = dotlam[0];
 
-      // get density element
-      PetscScalar rho0[6],rho,wt[6];
+      // get density (center)
+      PetscScalar rho0[MAX_MAT_PHASE],rho,wt[MAX_MAT_PHASE];
       for (iph = 0; iph < usr->nph; iph++) { rho0[iph] = Density(usr->mat_nd[iph].rho0,usr->mat[iph].rho_func); }
       ierr = GetMatPhaseFraction(i,j,xwt,iwtc,usr->nph,wt); CHKERRQ(ierr);
-      rho = WeightAverageValue(rho0,wt,usr->nph);
+      rho  = WeightAverageValue(rho0,wt,usr->nph);
 
-      // get permeability element
+      // get permeability (center)
       PetscScalar Kphi;
       Kphi  = Permeability(phic[0],usr->par->n);
 
@@ -514,13 +449,13 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
 PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
-  PetscInt       i, j, sx, sz, nx, nz, iprev, inext, icenter, Nx, Nz;
+  PetscInt       i, j, ii, sx, sz, nx, nz, iprev, inext, icenter, Nx, Nz;
   PetscScalar    **coordx, **coordz, ***c, ***xx, ***xwt; 
   PetscScalar    ***_Tc, ***_phic, ***_Plith, ***_eps, ***_tauold, ***_DPold, ***_tau, ***_DP;
   PetscScalar     ***_plast, ***_matProp, ***_strain;
   Vec            coefflocal, xlocal, xTlocal, xMPhaselocal, xtaulocal, xDPlocal, xstrainlocal;
   Vec            xphilocal, xPlithlocal, xepslocal, xtauoldlocal, xDPoldlocal, xplastlocal, xmatProplocal;
-  PetscScalar    k_hat[4];
+  PetscScalar    k_hat[4], i_hat[4];
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
 
@@ -529,6 +464,11 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
   k_hat[1] = 0.0;
   k_hat[2] = usr->par->k_hat;
   k_hat[3] = usr->par->k_hat;
+
+  i_hat[0] = 1.0;
+  i_hat[1] = 1.0;
+  i_hat[2] = 0.0;
+  i_hat[3] = 0.0;
 
   // Get coefficient
   ierr = DMStagGetGlobalSizes(dmcoeff, &Nx, &Nz,NULL);CHKERRQ(ierr);
@@ -605,93 +545,43 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
 
   // get location slots
   PetscInt  iE,iP;
-  ierr = DMStagGetLocationSlot(usr->dmT,DMSTAG_ELEMENT,T_ELEMENT,&iE);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmPlith,DMSTAG_ELEMENT,0,&iP);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(usr->dmT,ELEMENT,T_ELEMENT,&iE);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(usr->dmPlith,ELEMENT,0,&iP);CHKERRQ(ierr);
 
   PetscInt iPV;
-  ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,PV_ELEMENT_P,&iPV);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm,ELEMENT,PV_ELEMENT_P,&iPV);CHKERRQ(ierr);
 
   PetscInt  e_slot[3],av_slot[4],b_slot[4],d2_slot[4],d3_slot[4],iL,iR,iU,iD,iC,iA,iD1;
   iL = 0; iR = 1; iD = 2; iU  = 3;
   iC = 0; iA = 1; iD1= 2;
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,   PVCOEFF_ELEMENT_C,   &e_slot[iC]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,   PVCOEFF_ELEMENT_A,   &e_slot[iA]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,ELEMENT,   PVCOEFF_ELEMENT_C,   &e_slot[iC]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,ELEMENT,   PVCOEFF_ELEMENT_A,   &e_slot[iA]);CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN_LEFT, PVCOEFF_VERTEX_A,&av_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN_RIGHT,PVCOEFF_VERTEX_A,&av_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP_LEFT,   PVCOEFF_VERTEX_A,&av_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP_RIGHT,  PVCOEFF_VERTEX_A,&av_slot[3]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,DOWN_LEFT, PVCOEFF_VERTEX_A,&av_slot[0]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,DOWN_RIGHT,PVCOEFF_VERTEX_A,&av_slot[1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,UP_LEFT,   PVCOEFF_VERTEX_A,&av_slot[2]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,UP_RIGHT,  PVCOEFF_VERTEX_A,&av_slot[3]);CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,   PVCOEFF_FACE_B,   &b_slot[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,  PVCOEFF_FACE_B,   &b_slot[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,   PVCOEFF_FACE_B,   &b_slot[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,     PVCOEFF_FACE_B,   &b_slot[iU]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,LEFT,   PVCOEFF_FACE_B,   &b_slot[iL]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,RIGHT,  PVCOEFF_FACE_B,   &b_slot[iR]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,DOWN,   PVCOEFF_FACE_B,   &b_slot[iD]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,UP,     PVCOEFF_FACE_B,   &b_slot[iU]);CHKERRQ(ierr);
 
-  PetscInt iwtc[6],iwtl[6],iwtr[6],iwtd[6],iwtu[6], iwtld[6],iwtrd[6],iwtlu[6],iwtru[6];
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 0, &iwtc[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 1, &iwtc[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 2, &iwtc[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 3, &iwtc[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 4, &iwtc[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 5, &iwtc[5]); CHKERRQ(ierr);
+  PetscInt iwtc[MAX_MAT_PHASE],iwtl[MAX_MAT_PHASE],iwtr[MAX_MAT_PHASE],iwtd[MAX_MAT_PHASE],iwtu[MAX_MAT_PHASE];
+  PetscInt iwtld[MAX_MAT_PHASE],iwtrd[MAX_MAT_PHASE],iwtlu[MAX_MAT_PHASE],iwtru[MAX_MAT_PHASE];
+  for (ii = 0; ii < usr->nph; ii++) { 
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT,    ii, &iwtc[ii]); CHKERRQ(ierr); 
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, LEFT,       ii, &iwtl[ii]); CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, RIGHT,      ii, &iwtr[ii]); CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN,       ii, &iwtd[ii]); CHKERRQ(ierr); 
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, UP,         ii, &iwtu[ii]); CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT,  ii, &iwtld[ii]); CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, ii, &iwtrd[ii]); CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT,    ii, &iwtlu[ii]); CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT,   ii, &iwtru[ii]); CHKERRQ(ierr);
+  }
 
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 0, &iwtl[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 1, &iwtl[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 2, &iwtl[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 3, &iwtl[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 4, &iwtl[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 5, &iwtl[5]); CHKERRQ(ierr);
-
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 0, &iwtr[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 1, &iwtr[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 2, &iwtr[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 3, &iwtr[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 4, &iwtr[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 5, &iwtr[5]); CHKERRQ(ierr);
-
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 0, &iwtd[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 1, &iwtd[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 2, &iwtd[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 3, &iwtd[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 4, &iwtd[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 5, &iwtd[5]); CHKERRQ(ierr);
-  
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 0, &iwtu[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 1, &iwtu[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 2, &iwtu[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 3, &iwtu[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 4, &iwtu[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 5, &iwtu[5]); CHKERRQ(ierr);
-
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 0, &iwtld[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 1, &iwtld[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 2, &iwtld[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 3, &iwtld[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 4, &iwtld[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 5, &iwtld[5]); CHKERRQ(ierr);
-
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 0, &iwtrd[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 1, &iwtrd[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 2, &iwtrd[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 3, &iwtrd[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 4, &iwtrd[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 5, &iwtrd[5]); CHKERRQ(ierr);
-
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 0, &iwtlu[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 1, &iwtlu[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 2, &iwtlu[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 3, &iwtlu[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 4, &iwtlu[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 5, &iwtlu[5]); CHKERRQ(ierr);
-
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 0, &iwtru[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 1, &iwtru[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 2, &iwtru[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 3, &iwtru[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 4, &iwtru[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 5, &iwtru[5]); CHKERRQ(ierr);
-
-  PetscInt ii, ixx, izz, ixz, iII, ixxn[4], izzn[4], ixzn[4], iIIn[4];
+  PetscInt ixx, izz, ixz, iII, ixxn[4], izzn[4], ixzn[4], iIIn[4];
   ierr = DMStagGetLocationSlot(usr->dmeps, ELEMENT, 0, &ixx); CHKERRQ(ierr);
   ierr = DMStagGetLocationSlot(usr->dmeps, ELEMENT, 1, &izz); CHKERRQ(ierr);
   ierr = DMStagGetLocationSlot(usr->dmeps, ELEMENT, 2, &ixz); CHKERRQ(ierr);
@@ -723,7 +613,7 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
   // Loop over local domain - set initial density and viscosity
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
-      PetscScalar   phic[9], pc[9], Plc[9], Tc[9], DPoldc[9], strain[9], gradPlith[4], dx, dz;
+      PetscScalar   phic[9], pc[9], Plc[9], Tc[9], DPoldc[9], strain[9], dx, dz;
       PetscInt      iph, ii, im, jm, ip, jp;
 
       if (i == 0   ) im = i; else im = i-1;
@@ -743,16 +633,8 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
       ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_DPold,DPoldc);CHKERRQ(ierr);
       ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_strain,strain);CHKERRQ(ierr);
 
-      // correct for liquid porosity
+      // set porosity phi = 0
       for (ii = 0; ii < 9; ii++) { phic[ii] = 0.0; }
-
-      gradPlith[0] = (Plc[0]-Plc[1])/dx;
-      gradPlith[1] = (Plc[2]-Plc[0])/dx;
-      gradPlith[2] = (Plc[0]-Plc[3])/dz;
-      gradPlith[3] = (Plc[4]-Plc[0])/dz;
-
-      if (j==Nz-1) gradPlith[3] = gradPlith[2]; // top domain
-      if (j==0   ) gradPlith[2] = gradPlith[3]; // assumes same gradient as in previous cell
 
       // Prepare for pointwise rheology calculation
       PetscScalar eta_eff[9], zeta_eff[9], chis[9], chip[9], txx[9], tzz[9], txz[9], tII[9], DP[9], dotlam[9];
@@ -842,15 +724,24 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
       }
       
       { // face
-        PetscScalar   phi[4], K[4], B[4], D2[4], D3[4], rho0[6], rhof[4], rhos[4], rhog[4], wt[6];
-        PetscScalar   divchitau[4],gradchidp[4],bf[4];
-        PetscInt      idx[6];
+        PetscScalar   phi[4], B[4], divchitau[4],gradchidp[4],gradPlith[4];
 
         // porosity on edges - not for variable grid spacing
         phi[0] = (phic[0]+phic[1])*0.5;
         phi[1] = (phic[0]+phic[2])*0.5;
         phi[2] = (phic[0]+phic[3])*0.5;
         phi[3] = (phic[0]+phic[4])*0.5;
+
+        gradPlith[0] = (Plc[0]-Plc[1])/dx;
+        gradPlith[1] = (Plc[2]-Plc[0])/dx;
+        gradPlith[2] = (Plc[0]-Plc[3])/dz;
+        gradPlith[3] = (Plc[4]-Plc[0])/dz;
+
+        // on boundaries assume same gradient as in previous cell
+        if (i==Nx-1) gradPlith[1] = gradPlith[0]; 
+        if (i==0   ) gradPlith[0] = gradPlith[1]; 
+        if (j==Nz-1) gradPlith[3] = gradPlith[2]; 
+        if (j==0   ) gradPlith[2] = gradPlith[3]; 
 
         gradchidp[0] = (chip[0]*_DPold[j ][i ][iP] - chip[1]*_DPold[j ][im][iP])/dx;
         gradchidp[1] = (chip[2]*_DPold[j ][ip][iP] - chip[0]*_DPold[j ][i ][iP])/dx;
@@ -864,27 +755,7 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
         divchitau[3] = (chis[8]*_tauold[j][i][ixzn[3]]-chis[7]*_tauold[j][i][ixzn[2]])/dx + (chis[4]*_tauold[jp][i][izz] - chis[0]*_tauold[j ][i][izz])/dz;
 
         for (ii = 0; ii < 4; ii++) {
-          K[ii]  = Permeability(phi[ii],usr->par->n); // assumed uniform for all materials
-          rhof[ii] = usr->par->rhof/usr->scal->rho; // should be function of T, C
-
-          // solid material density - can be function of T, location
-          for (iph = 0; iph < usr->nph; iph++) { rho0[iph] = Density(usr->mat_nd[iph].rho0,usr->mat[iph].rho_func); }
-
-          // get material phase fraction
-          if (ii == 0 ) { idx[0] = iwtl[0]; idx[1] = iwtl[1]; idx[2] = iwtl[2]; idx[3] = iwtl[3]; idx[4] = iwtl[4]; idx[5] = iwtl[5]; }
-          if (ii == 1 ) { idx[0] = iwtr[0]; idx[1] = iwtr[1]; idx[2] = iwtr[2]; idx[3] = iwtr[3]; idx[4] = iwtr[4]; idx[5] = iwtr[5];}
-          if (ii == 2 ) { idx[0] = iwtd[0]; idx[1] = iwtd[1]; idx[2] = iwtd[2]; idx[3] = iwtd[3]; idx[4] = iwtd[4]; idx[5] = iwtd[5];}
-          if (ii == 3 ) { idx[0] = iwtu[0]; idx[1] = iwtu[1]; idx[2] = iwtu[2]; idx[3] = iwtu[3]; idx[4] = iwtu[4]; idx[5] = iwtu[5];}
-
-          ierr = GetMatPhaseFraction(i,j,xwt,idx,usr->nph,wt); CHKERRQ(ierr);
-          rhos[ii] = WeightAverageValue(rho0,wt,usr->nph); 
-          rhog[ii] = Mixture(rhos[ii],rhof[ii],phi[ii])*k_hat[ii];
-
-          bf[ii] = gradPlith[ii]-rhog[ii]; // original
-          // if (ii<2) bf[ii] = gradPlith[ii];
-          // else      bf[ii] = 0.0;
-
-          B[ii] = bf[ii]-divchitau[ii]+gradchidp[ii];
+          B[ii] = -divchitau[ii]+gradchidp[ii] + gradPlith[ii]*i_hat[ii] - phi[ii]*k_hat[ii];
 
           // B = body force+elasticity (edges, c=0)
           c[j][i][b_slot[ii]] = B[ii];
@@ -901,12 +772,12 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
       _plast[j][i][iP] = dotlam[0];
 
       // get density element
-      PetscScalar rho0[6],rho,wt[6];
+      PetscScalar rho0[MAX_MAT_PHASE],rho,wt[MAX_MAT_PHASE];
       for (iph = 0; iph < usr->nph; iph++) { rho0[iph] = Density(usr->mat_nd[iph].rho0,usr->mat[iph].rho_func); }
       ierr = GetMatPhaseFraction(i,j,xwt,iwtc,usr->nph,wt); CHKERRQ(ierr);
-      rho = WeightAverageValue(rho0,wt,usr->nph);
+      rho  = WeightAverageValue(rho0,wt,usr->nph);
 
-      // get permeability element
+      // get permeability element - zero
       PetscScalar Kphi;
       Kphi  = Permeability(phic[0],usr->par->n);
 
@@ -1066,21 +937,24 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
   Pf    = p + Plith;
 
   // get marker phase and properties
-  PetscScalar  wt[6], meta_v[6], mzeta_v[6], meta_e[6], mzeta_e[6], meta_ve[6], mzeta_ve[6], mC[6], mZ[6], mG[6], msigmat[6],mtheta[6];
-  PetscScalar  inv_meta_v[6], inv_meta_e[6], inv_mzeta_v[6], inv_mzeta_e[6];
-  PetscScalar  meta[6], mzeta[6], mchis[6], mchip[6], meta_p[6], meta_VEP[6], mzeta_p[6], mzeta_VEP[6];
+  PetscScalar  wt[MAX_MAT_PHASE], meta_v[MAX_MAT_PHASE], mzeta_v[MAX_MAT_PHASE], meta_e[MAX_MAT_PHASE], mzeta_e[MAX_MAT_PHASE];
+  PetscScalar  meta_ve[MAX_MAT_PHASE], mzeta_ve[MAX_MAT_PHASE], mC[MAX_MAT_PHASE], mZ[MAX_MAT_PHASE], mG[MAX_MAT_PHASE];
+  PetscScalar  msigmat[MAX_MAT_PHASE],mtheta[MAX_MAT_PHASE];
+  PetscScalar  inv_meta_v[MAX_MAT_PHASE], inv_meta_e[MAX_MAT_PHASE], inv_mzeta_v[MAX_MAT_PHASE], inv_mzeta_e[MAX_MAT_PHASE];
+  PetscScalar  meta[MAX_MAT_PHASE], mzeta[MAX_MAT_PHASE], mchis[MAX_MAT_PHASE], mchip[MAX_MAT_PHASE], meta_p[MAX_MAT_PHASE];
+  PetscScalar  meta_VEP[MAX_MAT_PHASE], mzeta_p[MAX_MAT_PHASE], mzeta_VEP[MAX_MAT_PHASE];
 
   ierr = GetMatPhaseFraction(i,j,xwt,iwt,usr->nph,wt); CHKERRQ(ierr);
 
   for (iph = 0; iph < usr->nph; iph++) {
-    meta_v[iph]  = ShearViscosity(usr->mat_nd[iph].eta0,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->lambda,usr->mat_nd[iph].eta_func);
+    meta_v[iph]  = ShearViscosity(usr->mat_nd[iph].eta0,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->beta,usr->mat_nd[iph].eta_func);
     mzeta_v[iph] = CompactionViscosity(usr->mat_nd[iph].zeta0,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->phi_min,usr->par->zetaExp,usr->mat_nd[iph].zeta_func); 
     
     inv_meta_v[iph]  = 1.0/meta_v[iph];
     inv_mzeta_v[iph] = 1.0/mzeta_v[iph];
 
     meta_e[iph]  = usr->mat_nd[iph].G*dt;
-    mzeta_e[iph] = usr->mat_nd[iph].Z0*dt; // PoroElasticModulus(usr->mat_nd[iph].Z0,phi)*dt;
+    mzeta_e[iph] = usr->mat_nd[iph].Z0*dt; // PoroElasticModulus(usr->mat_nd[iph].Z0,usr->nd->Zmax,phi)*dt;
 
     inv_meta_e[iph]  = 1.0/meta_e[iph];
     inv_mzeta_e[iph] = 1.0/mzeta_e[iph];
@@ -1096,12 +970,7 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
     msigmat[iph] = usr->mat_nd[iph].sigmat;
     mtheta[iph]  = usr->mat_nd[iph].theta;
 
-    // // add softening to cohesion and friction angle - need to add dotlam calculation here
-    // PetscScalar xsoft, noise;
-    // xsoft = strain/usr->par->strain_max;
-    // noise = 0.0;
-    // mC[iph]     = mC[iph]     * (1.0+noise) * PetscMax((1.0-usr->par->hcc*xsoft),usr->par->hcc);
-    // mtheta[iph] = mtheta[iph] * (1.0+noise) * PetscMax((1.0-usr->par->hcc*xsoft),usr->par->hcc);
+    // add softening to cohesion and friction angle - need to add dotlam calculation here
 
     // effective deviatoric and volumetric strain rates
     exxp = ((exx-div13) + 0.5*told_xx*inv_meta_e[iph]);
@@ -1254,117 +1123,135 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
   Pf    = p + Plith;
 
   // get marker phase and properties
-  PetscScalar  wt[6], meta_v[6], mzeta_v[6], meta_e[6], mzeta_e[6], meta_p[6], mzeta_p[6], meta_ve[6], mzeta_ve[6];
-  PetscScalar  mC[6], mZ[6], mG[6], msigmat[6], mtheta[6];
-  PetscScalar  inv_meta_v[6], inv_meta_e[6], inv_mzeta_v[6], inv_mzeta_e[6];
-  PetscScalar  meta[6], mzeta[6], mchis[6], mchip[6], meta_VEP[6], mzeta_VEP[6], mdotlam[6];
+  PetscScalar  wt[MAX_MAT_PHASE], meta_v[MAX_MAT_PHASE], mzeta_v[MAX_MAT_PHASE], meta_e[MAX_MAT_PHASE], mzeta_e[MAX_MAT_PHASE];
+  PetscScalar  meta_p[MAX_MAT_PHASE], mzeta_p[MAX_MAT_PHASE], meta_ve[MAX_MAT_PHASE], mzeta_ve[MAX_MAT_PHASE];
+  PetscScalar  mC[MAX_MAT_PHASE], mZ[MAX_MAT_PHASE], mG[MAX_MAT_PHASE], msigmat[MAX_MAT_PHASE], mtheta[MAX_MAT_PHASE];
+  PetscScalar  inv_meta_v[MAX_MAT_PHASE], inv_meta_e[MAX_MAT_PHASE], inv_mzeta_v[MAX_MAT_PHASE], inv_mzeta_e[MAX_MAT_PHASE];
+  PetscScalar  meta[MAX_MAT_PHASE], mzeta[MAX_MAT_PHASE], mchis[MAX_MAT_PHASE], mchip[MAX_MAT_PHASE];
+  PetscScalar  meta_VEP[MAX_MAT_PHASE], mzeta_VEP[MAX_MAT_PHASE], mdotlam[MAX_MAT_PHASE];
 
   ierr = GetMatPhaseFraction(i,j,xwt,iwt,usr->nph,wt); CHKERRQ(ierr);
 
   for (iph = 0; iph < usr->nph; iph++) {
-    // viscous rheology
-    meta_v[iph]  = ShearViscosity(usr->mat_nd[iph].eta0,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->lambda,usr->mat_nd[iph].eta_func);
-    mzeta_v[iph] = CompactionViscosity(usr->mat_nd[iph].zeta0,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->phi_min,usr->par->zetaExp,usr->mat_nd[iph].zeta_func); 
-    
-    meta_v[iph] = ViscosityHarmonicAvg(meta_v[iph],usr->nd->eta_min,usr->nd->eta_max);
-    mzeta_v[iph]= ViscosityHarmonicAvg(mzeta_v[iph],usr->nd->eta_min,usr->nd->eta_max);
-
-    // meta_v[iph]  = ShearViscosity_harmonic(usr->mat_nd[iph].eta0,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->lambda,usr->mat_nd[iph].eta_func,usr->nd->eta_min,usr->nd->eta_max);
-    // mzeta_v[iph] = CompactionViscosity_harmonic(usr->mat_nd[iph].zeta0,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->phi_min,usr->par->zetaExp,usr->mat_nd[iph].zeta_func,usr->nd->eta_min,usr->nd->eta_max); 
-
-    inv_meta_v[iph]  = 1.0/meta_v[iph];
-    inv_mzeta_v[iph] = 1.0/mzeta_v[iph];
-
-    // elastic rheology
-    meta_e[iph]  = usr->mat_nd[iph].G*dt;
-    mzeta_e[iph] = usr->mat_nd[iph].Z0*dt;
-    // mzeta_e[iph] = usr->mat_nd[iph].Z0*PetscPowScalar(phi,-0.5)*dt;
-
-    inv_meta_e[iph]  = 1.0/meta_e[iph];
-    inv_mzeta_e[iph] = 1.0/mzeta_e[iph];
-
-    // visco-elastic 
-    meta_ve[iph]  = PetscPowScalar(inv_meta_v[iph]+inv_meta_e[iph],-1.0);
-    mzeta_ve[iph] = PetscPowScalar(inv_mzeta_v[iph]+inv_mzeta_e[iph],-1.0);
-
-    // store elastic and plastic parameters
-    mZ[iph] = usr->mat_nd[iph].Z0;
-    mG[iph] = usr->mat_nd[iph].G;
-    mC[iph] = usr->mat_nd[iph].C;
-    msigmat[iph] = usr->mat_nd[iph].sigmat;
-    mtheta[iph]  = usr->mat_nd[iph].theta;
-
-    // add softening to cohesion and friction angle
-    PetscScalar xsoft, noise;
-    xsoft = strain/usr->par->strain_max;
-    noise = 0.0;
-    mC[iph]     = mC[iph]     * (1.0+noise) * PetscMax((1.0-usr->par->hcc*xsoft),usr->par->hcc);
-    mtheta[iph] = mtheta[iph] * (1.0+noise) * PetscMax((1.0-usr->par->hcc*xsoft),usr->par->hcc);
-
-    // effective deviatoric and volumetric strain rates
-    exxp = ((exx-div13) + 0.5*told_xx*inv_meta_e[iph]);
-    ezzp = ((ezz-div13) + 0.5*told_zz*inv_meta_e[iph]);
-    exzp = (exz + 0.5*told_xz*inv_meta_e[iph]);
-    eIIp = TensorSecondInvariant(exxp,ezzp,exzp);
-    divp = ((exx+ezz) - DPold*inv_mzeta_e[iph]);
-
-    // trial stress
-    txxt = 2*meta_ve[iph]*exxp;
-    tzzt = 2*meta_ve[iph]*ezzp;
-    txzt = 2*meta_ve[iph]*exzp;
-    tIIt = TensorSecondInvariant(txxt,tzzt,txzt);
-    dpt = -mzeta_ve[iph] * divp;
-
-    // plastic viscosity
-    if ((usr->plasticity) & (wt[iph]>0.0)) { 
-      theta_rad = PETSC_PI*mtheta[iph]/180;
-
-      // Fluid pressure 
-      aP = Pf*PetscExpScalar(-phi/usr->par->phi_min)/phis;
-
-      // plasticity F = (Y,lambdadot,tauII,dP)
-      PetscScalar xve[4], stressSol[3], cdl;
-      cdl    = PetscExpScalar(-usr->par->phi_min/phi);
-      xve[0] = tIIt;
-      xve[1] = dpt;
-      xve[2] = meta_ve[iph];
-      xve[3] = cdl*mzeta_ve[iph];
-
-      ierr = Plastic_LocalSolver(xve,mC[iph],msigmat[iph],theta_rad,aP,phi,usr,stressSol); CHKERRQ(ierr);
-      mdotlam[iph] = stressSol[2];
-
-      // effective viscosities
-      if (eIIp > tf_tol) { meta_VEP[iph] = 0.5*stressSol[0]/eIIp * phis; } 
-      else               { meta_VEP[iph] = meta_ve[iph]*phis; }
-
-      if (divp > tf_tol) { mzeta_VEP[iph] = -stressSol[1]/divp * phis; } 
-      else               { mzeta_VEP[iph]= mzeta_ve[iph]*phis; }
-      
-      // visco-plastic viscosity
-      PetscScalar aa;
-      aa = mC[iph]*PetscCosScalar(theta_rad) - msigmat[iph]*PetscSinScalar(theta_rad);
-      if (mdotlam[iph]>0.0) { meta_p[iph]   = PetscPowScalar(stressSol[0]*stressSol[0]+aa*aa, 0.5)/mdotlam[iph]; } 
-      else                  { meta_p[iph]    = usr->nd->eta_max; }
-        
-      if ((mdotlam[iph]>0.0) & (stressSol[1]<0.0)) { mzeta_p[iph]  = -stressSol[1]/(mdotlam[iph]*cdl*PetscSinScalar(theta_rad)); } 
-      else                                         { mzeta_p[iph]   = usr->nd->eta_max; }
-
-    } else { 
-      meta_VEP[iph] = meta_ve[iph]*phis; 
-      mzeta_VEP[iph]= mzeta_ve[iph]*phis;
+    if (wt[iph]==0.0) { // do not solve rheology if material phase not present
+      meta_v[iph]  = 0.0;
+      mzeta_v[iph] = 0.0;
+      meta_e[iph]  = 0.0;
+      mzeta_e[iph] = 0.0;
+      meta_p[iph]  = 0.0;
+      mzeta_p[iph] = 0.0;
+      meta[iph]    = 0.0;
+      mzeta[iph]   = 0.0;
+      meta_v[iph]  = 0.0;
+      mchis[iph]   = 0.0;
+      mchip[iph]   = 0.0;
       mdotlam[iph] = 0.0;
+      mG[iph]      = 0.0;
+      mZ[iph]      = 0.0;
+      mC[iph]      = 0.0;
+      msigmat[iph] = 0.0;
+      mtheta[iph]  = 0.0;
+    } else {
+      // viscous rheology
+      meta_v[iph]  = ShearViscosity(usr->mat_nd[iph].eta0,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->beta,usr->mat_nd[iph].eta_func);
+      mzeta_v[iph] = CompactionViscosity(usr->mat_nd[iph].zeta0,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->phi_min,usr->par->zetaExp,usr->mat_nd[iph].zeta_func); 
+      
+      meta_v[iph] = ViscosityHarmonicAvg(meta_v[iph],usr->nd->eta_min,usr->nd->eta_max);
+      mzeta_v[iph]= ViscosityHarmonicAvg(mzeta_v[iph],usr->nd->eta_min,usr->nd->eta_max);
 
-      meta_p[iph]    = usr->nd->eta_max;
-      mzeta_p[iph]   = usr->nd->eta_max;
+      inv_meta_v[iph]  = 1.0/meta_v[iph];
+      inv_mzeta_v[iph] = 1.0/mzeta_v[iph];
+
+      // elastic and plastic parameters
+      mZ[iph] = PoroElasticModulus(usr->mat_nd[iph].Z0,usr->nd->Zmax,phi);
+      mG[iph] = ElasticShearModulus(usr->mat_nd[iph].G,phi);
+      mC[iph] = usr->mat_nd[iph].C;
+      mtheta[iph]  = usr->mat_nd[iph].theta;
+    
+      // elastic rheology
+      meta_e[iph]  = mG[iph]*dt;
+      mzeta_e[iph] = mZ[iph]*dt;
+
+      inv_meta_e[iph]  = 1.0/meta_e[iph];
+      inv_mzeta_e[iph] = 1.0/mzeta_e[iph];
+
+      // visco-elastic 
+      meta_ve[iph]  = PetscPowScalar(inv_meta_v[iph]+inv_meta_e[iph],-1.0);
+      mzeta_ve[iph] = PetscPowScalar(inv_mzeta_v[iph]+inv_mzeta_e[iph],-1.0);
+
+      // add softening to cohesion and friction angle
+      PetscScalar xsoft, noise;
+      xsoft = strain/usr->par->strain_max;
+      noise = 0.0;
+      mC[iph]     = mC[iph]     * (1.0+noise) * PetscMax((1.0-usr->par->hcc*xsoft),usr->par->hcc);
+      mtheta[iph] = mtheta[iph] * (1.0+noise) * PetscMax((1.0-usr->par->hcc*xsoft),usr->par->hcc);
+
+      // tensile strength
+      msigmat[iph] = TensileStrength(mC[iph],4.0,usr->mat_nd[iph].sigmat,0); 
+      // msigmat[iph] = TensileStrength(mC[iph],4.0,usr->mat_nd[iph].sigmat,1); // user defined sigmat
+
+      // modified deviatoric and volumetric strain rates
+      exxp = ((exx-div13) + 0.5*phis*told_xx*inv_meta_e[iph]);
+      ezzp = ((ezz-div13) + 0.5*phis*told_zz*inv_meta_e[iph]);
+      exzp = (exz + 0.5*phis*told_xz*inv_meta_e[iph]);
+      eIIp = TensorSecondInvariant(exxp,ezzp,exzp);
+      divp = ((exx+ezz) - phis*DPold*inv_mzeta_e[iph]);
+
+      // trial stress
+      txxt = 2*meta_ve[iph]*exxp/phis;
+      tzzt = 2*meta_ve[iph]*ezzp/phis;
+      txzt = 2*meta_ve[iph]*exzp/phis;
+      tIIt = TensorSecondInvariant(txxt,tzzt,txzt);
+      dpt = -mzeta_ve[iph] * divp/phis;
+
+      // visco-plastic
+      if (usr->plasticity) { 
+        theta_rad = PETSC_PI*mtheta[iph]/180;
+
+        PetscScalar xve[4], stressSol[3];
+        xve[0] = tIIt;
+        xve[1] = dpt;
+        xve[2] = meta_ve[iph];
+        xve[3] = mzeta_ve[iph];
+
+        ierr = Plastic_LocalSolver(xve,mC[iph],msigmat[iph],theta_rad,Pf,phi,usr,stressSol); CHKERRQ(ierr);
+        mdotlam[iph] = stressSol[2];
+
+        // effective viscosities
+        if (eIIp > tf_tol) { meta_VEP[iph] = 0.5 * phis * stressSol[0]/eIIp; } 
+        else               { meta_VEP[iph] = meta_ve[iph]; }
+
+        if (divp > tf_tol) { mzeta_VEP[iph] = - phis * stressSol[1]/divp; } 
+        else               { mzeta_VEP[iph] = mzeta_ve[iph]; }
+        
+        // visco-plastic viscosity - for output
+        PetscScalar aa, cdl;
+        cdl = PetscExpScalar(-usr->par->phi_min/phi);
+        aa  = mC[iph]*PetscCosScalar(theta_rad) - msigmat[iph]*PetscSinScalar(theta_rad);
+        if (mdotlam[iph]>0.0) { meta_p[iph] = phis * PetscPowScalar(stressSol[0]*stressSol[0]+aa*aa, 0.5)/mdotlam[iph]; } 
+        else                  { meta_p[iph] = usr->nd->eta_max; }
+          
+        if ((mdotlam[iph]>0.0) & (stressSol[1]<0.0) & (cdl>0.0)) { 
+          mzeta_p[iph] = -phis * stressSol[1]/(mdotlam[iph]*cdl*PetscSinScalar(theta_rad)); 
+        } else { mzeta_p[iph] = usr->nd->eta_max; }
+
+      } else { 
+        meta_VEP[iph] = meta_ve[iph]; 
+        mzeta_VEP[iph]= mzeta_ve[iph];
+        mdotlam[iph]  = 0.0;
+
+        meta_p[iph]   = usr->nd->eta_max;
+        mzeta_p[iph]  = usr->nd->eta_max;
+      }
+
+      // effective viscosities - check cutoff
+      meta[iph] = ViscosityHarmonicAvg(meta_VEP[iph],usr->nd->eta_min,usr->nd->eta_max);
+      mzeta[iph]= ViscosityHarmonicAvg(mzeta_VEP[iph],usr->nd->eta_min,usr->nd->eta_max);
+
+      // elastic stress evolution parameter
+      mchis[iph] = phis * meta[iph]*inv_meta_e[iph];
+      mchip[iph] = phis * mzeta[iph]*inv_meta_e[iph];
     }
-
-    // effective viscosities
-    meta[iph] = ViscosityHarmonicAvg(meta_VEP[iph],usr->nd->eta_min,usr->nd->eta_max);
-    mzeta[iph]= ViscosityHarmonicAvg(mzeta_VEP[iph],usr->nd->eta_min,usr->nd->eta_max);
-
-    // elastic stress evolution parameter
-    mchis[iph] = meta[iph]*inv_meta_e[iph];
-    mchip[iph] = mzeta[iph]*inv_meta_e[iph];
   }
 
   eta_v  = WeightAverageValue(meta_v,wt,usr->nph); 
@@ -1387,10 +1274,10 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
   theta  = WeightAverageValue(mtheta,wt,usr->nph); 
 
   // update effective deviatoric and volumetric strain rates with Marker PhaseAverage
-  exxp = ((exx-div13) + 0.5*told_xx/eta_e);
-  ezzp = ((ezz-div13) + 0.5*told_zz/eta_e);
-  exzp = (exz + 0.5*told_xz/eta_e);
-  divp = ((exx+ezz) - DPold/zeta_e);
+  exxp = ((exx-div13) + 0.5*phis*told_xx/eta_e);
+  ezzp = ((ezz-div13) + 0.5*phis*told_zz/eta_e);
+  exzp = (exz + 0.5*phis*told_xz/eta_e);
+  divp = ((exx+ezz) - phis*DPold/zeta_e);
 
   // shear and volumetric stresses
   PetscScalar txx, tzz, txz, tII, DP;
@@ -1434,7 +1321,7 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
 PetscErrorCode FormCoefficient_T(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
-  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
+  PetscInt       i, j, ii, sx, sz, nx, nz, Nx, Nz;
   DM             dmPV = NULL;
   Vec            coefflocal;
   PetscScalar    ***c, ***_xPVlocal, ***xwt;
@@ -1470,55 +1357,34 @@ PetscErrorCode FormCoefficient_T(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, 
   PetscInt  pv_slot[4],iL,iR,iU,iD;
   iL = 0; iR  = 1;
   iD = 2; iU  = 3;
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_LEFT,   PV_FACE_VS,   &pv_slot[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_RIGHT,  PV_FACE_VS,   &pv_slot[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_DOWN,   PV_FACE_VS,   &pv_slot[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_UP,     PV_FACE_VS,   &pv_slot[iU]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(usr->dmPV,LEFT,   PV_FACE_VS,   &pv_slot[iL]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(usr->dmPV,RIGHT,  PV_FACE_VS,   &pv_slot[iR]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(usr->dmPV,DOWN,   PV_FACE_VS,   &pv_slot[iD]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(usr->dmPV,UP,     PV_FACE_VS,   &pv_slot[iU]);CHKERRQ(ierr);
 
   PetscInt  e_slot[2],iA,iC;
   iA = 0; iC = 1;
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,TCOEFF_ELEMENT_A, &e_slot[iA]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,TCOEFF_ELEMENT_C, &e_slot[iC]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,ELEMENT,TCOEFF_ELEMENT_A, &e_slot[iA]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,ELEMENT,TCOEFF_ELEMENT_C, &e_slot[iC]); CHKERRQ(ierr);
 
   PetscInt  B_slot[4],u_slot[4];
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, TCOEFF_FACE_B,&B_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,TCOEFF_FACE_B,&B_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, TCOEFF_FACE_B,&B_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   TCOEFF_FACE_B,&B_slot[3]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,LEFT, TCOEFF_FACE_B,&B_slot[0]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,RIGHT,TCOEFF_FACE_B,&B_slot[1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,DOWN, TCOEFF_FACE_B,&B_slot[2]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,UP,   TCOEFF_FACE_B,&B_slot[3]);CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, TCOEFF_FACE_u,&u_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,TCOEFF_FACE_u,&u_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, TCOEFF_FACE_u,&u_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   TCOEFF_FACE_u,&u_slot[3]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,LEFT, TCOEFF_FACE_u,&u_slot[0]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,RIGHT,TCOEFF_FACE_u,&u_slot[1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,DOWN, TCOEFF_FACE_u,&u_slot[2]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,UP,   TCOEFF_FACE_u,&u_slot[3]);CHKERRQ(ierr);
 
-  PetscInt iwtl[6],iwtr[6],iwtd[6],iwtu[6]; 
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 0, &iwtl[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 1, &iwtl[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 2, &iwtl[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 3, &iwtl[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 4, &iwtl[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 5, &iwtl[5]); CHKERRQ(ierr);
-
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 0, &iwtr[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 1, &iwtr[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 2, &iwtr[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 3, &iwtr[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 4, &iwtr[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 5, &iwtr[5]); CHKERRQ(ierr);
-
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 0, &iwtd[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 1, &iwtd[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 2, &iwtd[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 3, &iwtd[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 4, &iwtd[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 5, &iwtd[5]); CHKERRQ(ierr);
-  
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 0, &iwtu[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 1, &iwtu[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 2, &iwtu[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 3, &iwtu[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 4, &iwtu[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 5, &iwtu[5]); CHKERRQ(ierr);
+  PetscInt iwtl[MAX_MAT_PHASE],iwtr[MAX_MAT_PHASE],iwtd[MAX_MAT_PHASE],iwtu[MAX_MAT_PHASE]; 
+  for (ii = 0; ii < usr->nph; ii++) { 
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, LEFT, ii, &iwtl[ii]); CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, RIGHT,ii, &iwtr[ii]); CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN, ii, &iwtd[ii]); CHKERRQ(ierr); 
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, UP,   ii, &iwtu[ii]); CHKERRQ(ierr);
+  }
 
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
@@ -1533,16 +1399,15 @@ PetscErrorCode FormCoefficient_T(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, 
       }
 
       { // B = 1/Ra*kappa (edge)
-        PetscInt ii;
         for (ii = 0; ii < 4; ii++) {
-          PetscScalar rho0[6], cp0[6], kT0[6], kappa0[6], kappa, kappa_dim, wt[6];
-          PetscInt    iph, idx[6];
+          PetscScalar rho0[MAX_MAT_PHASE], cp0[MAX_MAT_PHASE], kT0[MAX_MAT_PHASE], kappa0[MAX_MAT_PHASE], kappa, wt[MAX_MAT_PHASE];
+          PetscInt    iph, idx[MAX_MAT_PHASE];
 
-          // solid material density - can be function of T, location
+          // solid material density
           for (iph = 0; iph < usr->nph; iph++) { 
-            rho0[iph] = Density(usr->mat[iph].rho0,usr->mat[iph].rho_func); 
-            cp0[iph] = usr->mat[iph].cp;
-            kT0[iph] = usr->mat[iph].kT;
+            rho0[iph] = Density(usr->mat_nd[iph].rho0,usr->mat[iph].rho_func); 
+            cp0[iph] = usr->mat_nd[iph].cp;
+            kT0[iph] = usr->mat_nd[iph].kT;
             kappa0[iph] = kT0[iph]/(rho0[iph]*cp0[iph]);
           }
          // get material phase fractions
@@ -1551,15 +1416,13 @@ PetscErrorCode FormCoefficient_T(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, 
           if (ii == 2 ) { idx[0] = iwtd[0]; idx[1] = iwtd[1]; idx[2] = iwtd[2]; idx[3] = iwtd[3]; idx[4] = iwtd[4]; idx[5] = iwtd[5];}
           if (ii == 3 ) { idx[0] = iwtu[0]; idx[1] = iwtu[1]; idx[2] = iwtu[2]; idx[3] = iwtu[3]; idx[4] = iwtu[4]; idx[5] = iwtu[5];}
           ierr = GetMatPhaseFraction(i,j,xwt,idx,usr->nph,wt); CHKERRQ(ierr);
-          kappa_dim = WeightAverageValue(kappa0,wt,usr->nph); 
-          kappa = nd_param(kappa_dim,usr->scal->kappa);
+          kappa= WeightAverageValue(kappa0,wt,usr->nph); 
           c[j][i][B_slot[ii]] = 1.0/usr->nd->Ra*kappa;
         }
       }
 
       { // u = velocity (edge) - StokesDarcy vs velocity
         PetscScalar   vs[4];
-        PetscInt      ii;
         vs[0] = _xPVlocal[j][i][pv_slot[iL]]; 
         vs[1] = _xPVlocal[j][i][pv_slot[iR]];
         vs[2] = _xPVlocal[j][i][pv_slot[iD]];
@@ -1597,7 +1460,7 @@ PetscErrorCode FormCoefficient_T(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, 
 PetscErrorCode FormCoefficient_phi(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
-  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz;
+  PetscInt       i, j, ii, sx, sz, nx, nz, Nx, Nz;
   DM             dmPV = NULL;
   Vec            coefflocal;
   PetscScalar    ***c, ***_xPVlocal, ***xwt;
@@ -1632,40 +1495,37 @@ PetscErrorCode FormCoefficient_phi(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff
    // get location slots
   PetscInt  pv_slot[4],iL,iR,iU,iD;
   iL = 0; iR  = 1; iD = 2; iU  = 3;
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_LEFT,   PV_FACE_VS,   &pv_slot[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_RIGHT,  PV_FACE_VS,   &pv_slot[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_DOWN,   PV_FACE_VS,   &pv_slot[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_UP,     PV_FACE_VS,   &pv_slot[iU]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(usr->dmPV,LEFT,   PV_FACE_VS,   &pv_slot[iL]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(usr->dmPV,RIGHT,  PV_FACE_VS,   &pv_slot[iR]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(usr->dmPV,DOWN,   PV_FACE_VS,   &pv_slot[iD]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(usr->dmPV,UP,     PV_FACE_VS,   &pv_slot[iU]);CHKERRQ(ierr);
   
     PetscInt  e_slot[2],iA,iC;
   iA = 0; iC = 1;
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,TCOEFF_ELEMENT_A, &e_slot[iA]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,TCOEFF_ELEMENT_C, &e_slot[iC]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,ELEMENT,TCOEFF_ELEMENT_A, &e_slot[iA]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,ELEMENT,TCOEFF_ELEMENT_C, &e_slot[iC]); CHKERRQ(ierr);
 
   PetscInt  B_slot[4],u_slot[4];
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, TCOEFF_FACE_B,&B_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,TCOEFF_FACE_B,&B_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, TCOEFF_FACE_B,&B_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   TCOEFF_FACE_B,&B_slot[3]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,LEFT, TCOEFF_FACE_B,&B_slot[0]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,RIGHT,TCOEFF_FACE_B,&B_slot[1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,DOWN, TCOEFF_FACE_B,&B_slot[2]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,UP,   TCOEFF_FACE_B,&B_slot[3]);CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, TCOEFF_FACE_u,&u_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,TCOEFF_FACE_u,&u_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, TCOEFF_FACE_u,&u_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   TCOEFF_FACE_u,&u_slot[3]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,LEFT, TCOEFF_FACE_u,&u_slot[0]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,RIGHT,TCOEFF_FACE_u,&u_slot[1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,DOWN, TCOEFF_FACE_u,&u_slot[2]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcoeff,UP,   TCOEFF_FACE_u,&u_slot[3]);CHKERRQ(ierr);
 
-  PetscInt iwtc[6]; 
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 0, &iwtc[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 1, &iwtc[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 2, &iwtc[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 3, &iwtc[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 4, &iwtc[4]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 5, &iwtc[5]); CHKERRQ(ierr);
+  PetscInt iwtc[MAX_MAT_PHASE]; 
+  for (ii = 0; ii < usr->nph; ii++) { 
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, ii, &iwtc[ii]); CHKERRQ(ierr); 
+  }
 
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
-      PetscScalar rho0[6], wt[6], rhos;
-      PetscInt ii, iph;
+      PetscScalar rho0[MAX_MAT_PHASE], wt[MAX_MAT_PHASE], rhos;
+      PetscInt iph;
 
       { // element
         // A = 1.0

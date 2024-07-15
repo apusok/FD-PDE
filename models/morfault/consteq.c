@@ -15,9 +15,9 @@ PetscScalar HalfSpaceCoolingTemp(PetscScalar Tm, PetscScalar T0, PetscScalar z, 
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "LithostaticPressure"
-PetscScalar LithostaticPressure(PetscScalar rho, PetscScalar scal_rho, PetscScalar z)
+PetscScalar LithostaticPressure(PetscScalar rho, PetscScalar z)
 {
-  return -rho*z/scal_rho;
+  return -rho*z;
 }
 
 // ---------------------------------------
@@ -51,13 +51,12 @@ PetscScalar Mixture(PetscScalar as, PetscScalar af, PetscScalar phi)
   return af*phi + as*(1.0-phi);
 }
 
-
 // ---------------------------------------
-// FluidVelocity
+// LiquidVelocity
 // ---------------------------------------
 #undef __FUNCT__
-#define __FUNCT__ "FluidVelocity"
-PetscScalar FluidVelocity(PetscScalar A, PetscScalar Kphi, PetscScalar vs, PetscScalar phi, PetscScalar gradP, PetscScalar gradPlith, PetscScalar Bf) 
+#define __FUNCT__ "LiquidVelocity"
+PetscScalar LiquidVelocity(PetscScalar A, PetscScalar Kphi, PetscScalar vs, PetscScalar phi, PetscScalar gradP, PetscScalar gradPlith, PetscScalar Bf) 
 { 
   if (Kphi == 0.0) return 0.0;
   else             return vs-A*Kphi/phi*(gradP+gradPlith-Bf);
@@ -68,20 +67,17 @@ PetscScalar FluidVelocity(PetscScalar A, PetscScalar Kphi, PetscScalar vs, Petsc
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "ShearViscosity"
-PetscScalar ShearViscosity(PetscScalar eta0, PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar lambda, PetscInt func) 
+PetscScalar ShearViscosity(PetscScalar eta0, PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar beta, PetscInt func) 
 { 
-  PetscScalar eta, eta_arr;
+  PetscScalar eta;
   // constant 
   if (func == 0) { eta = eta0; } 
 
   // phi-dependent, with harmonic averaging
-  if (func == 1) { eta = eta0*exp(-lambda*phi); } 
+  if (func == 1) { eta = eta0*exp(-beta*phi); } 
 
   // T,phi-dep, with harmonic averaging
-  if (func == 2) { 
-    eta_arr = eta0*ArrheniusTerm_Viscosity(T,EoR,Teta0)*exp(-lambda*phi);
-    eta = eta_arr;
-  }
+  if (func == 2) { eta = eta0*ArrheniusTerm_Viscosity(T,EoR,Teta0)*exp(-beta*phi); }
   return eta;
 }
 
@@ -94,7 +90,7 @@ PetscScalar ArrheniusTerm_Viscosity(PetscScalar T, PetscScalar EoR, PetscScalar 
 // ---------------------------------------
 PetscScalar CompactionViscosity(PetscScalar zeta0, PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar phi_min, PetscScalar zetaExp, PetscInt func) 
 { 
-  PetscScalar zeta, zeta_arr;
+  PetscScalar zeta;
   // constant
   if (func == 0) { zeta = zeta0; }  
 
@@ -102,48 +98,31 @@ PetscScalar CompactionViscosity(PetscScalar zeta0, PetscScalar T, PetscScalar ph
   if (func == 1) { zeta = zeta0*pow(phi+phi_min,zetaExp); }
 
   // T,phi-dep, with harmonic averaging and with 1/(phi+phi_min)
-  if (func == 2) { 
-    zeta_arr = zeta0*pow(phi+phi_min,zetaExp)*ArrheniusTerm_Viscosity(T,EoR,Teta0);
-    zeta = zeta_arr;
-  }
+  if (func == 2) { zeta = zeta0*pow(phi+phi_min,zetaExp)*ArrheniusTerm_Viscosity(T,EoR,Teta0); }
   return zeta;
 }
 
 // ---------------------------------------
-PetscScalar ShearViscosity_harmonic(PetscScalar eta0, PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar lambda, PetscInt func, PetscScalar eta_min, PetscScalar eta_max) 
+// TensileStrength - can add user function to switch 
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "TensileStrength"
+PetscScalar TensileStrength(PetscScalar C, PetscScalar factor, PetscScalar sigmat_user, PetscInt func) 
 { 
-  PetscScalar eta, eta_arr;
-  // constant 
-  if (func == 0) { eta = eta0; } 
-
-  // phi-dependent, with harmonic averaging
-  if (func == 1) { eta = eta0*exp(-lambda*phi); } 
-
-  // T,phi-dep, with harmonic averaging
-  if (func == 2) { 
-    eta_arr = eta0*ArrheniusTerm_Viscosity(T,EoR,Teta0);
-    eta_arr = 1.0/(1.0/eta_arr + 1.0/eta_max) + eta_min;
-    eta = eta_arr*exp(-lambda*phi);
-  }
-  return eta;
+  PetscScalar sigmat;
+  if (func == 0) { sigmat = C/factor; }  
+  if (func == 1) { sigmat = sigmat_user; } // user defined sigmat
+  return sigmat;
 }
 
-PetscScalar CompactionViscosity_harmonic(PetscScalar zeta0, PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar phi_min, PetscScalar zetaExp, PetscInt func, PetscScalar eta_min, PetscScalar eta_max) 
+// ---------------------------------------
+// Elastic shear modulus
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "ElasticShearModulus"
+PetscScalar ElasticShearModulus(PetscScalar G0, PetscScalar phi) 
 { 
-  PetscScalar zeta, zeta_arr;
-  // constant
-  if (func == 0) { zeta = zeta0; }  
-
-  // phi-dependent, with 1/(phi+phi_min)
-  if (func == 1) { zeta = zeta0*pow(phi+phi_min,zetaExp); }
-
-  // T,phi-dep, with harmonic averaging and with 1/(phi+phi_min)
-  if (func == 2) { 
-    zeta_arr = zeta0*ArrheniusTerm_Viscosity(T,EoR,Teta0);
-    zeta_arr = 1.0/(1.0/zeta_arr + 1.0/eta_max) + eta_min;
-    zeta = zeta_arr*pow(phi+phi_min,zetaExp);
-  }
-  return zeta;
+  return G0*(1.0-phi);
 }
 
 // ---------------------------------------
@@ -151,10 +130,10 @@ PetscScalar CompactionViscosity_harmonic(PetscScalar zeta0, PetscScalar T, Petsc
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "PoroElasticModulus"
-PetscScalar PoroElasticModulus(PetscScalar Z0, PetscScalar phi) 
+PetscScalar PoroElasticModulus(PetscScalar Z0, PetscScalar Zmax, PetscScalar phi) 
 { 
   if (phi == 0.0) return Z0;
-  else            return Z0*PetscPowScalar(phi,-0.5);
+  else            return PetscMin((1.0-phi)*Z0*PetscPowScalar(phi,-0.5),Zmax);
 }
 
 // ---------------------------------------
@@ -178,36 +157,37 @@ PetscScalar ViscosityHarmonicAvg(PetscScalar eta, PetscScalar eta_min, PetscScal
 }
 
 // ---------------------------------------
-static PetscErrorCode tau_a(PetscScalar tauIIp, PetscScalar DPt, PetscScalar eta_ve, PetscScalar cdl_zeta_ve, PetscScalar C, PetscScalar sigmat, PetscScalar aP, PetscScalar theta, PetscScalar eta_K, PetscScalar a[5])
+static PetscErrorCode tau_a(PetscScalar tauIIp, PetscScalar DPt, PetscScalar eta_ve, PetscScalar zeta_ve, 
+                            PetscScalar Pf, PetscScalar alphaP, PetscScalar cdl, PetscScalar phi, PetscScalar C, 
+                            PetscScalar sigmat, PetscScalar theta, PetscScalar eta_K, PetscScalar a[5])
 {
   PetscFunctionBegin;
   a[0] = C*PetscCosScalar(theta) - sigmat*PetscSinScalar(theta);
-  a[1] = C*PetscCosScalar(theta) + aP*PetscSinScalar(theta);
-  a[2] = (cdl_zeta_ve*PetscPowScalar(PetscSinScalar(theta),2) + eta_K)/eta_ve;
+  a[1] = C*PetscCosScalar(theta) + (1.0-alphaP)*Pf*PetscSinScalar(theta);
+  a[2] = (1.0-phi)/eta_ve*(cdl*zeta_ve/(1.0-phi)*PetscPowScalar(PetscSinScalar(theta),2) + eta_K);
   a[3] = a[1] + DPt * PetscSinScalar(theta);
   a[4] = a[0]*(a[2] + 1.0) - a[3] - a[2]*tauIIp;
   PetscFunctionReturn(0);
 }
 
 static PetscScalar ftau(PetscScalar a[5], PetscScalar tauIIt, PetscScalar x)
-{ PetscScalar y1, y2, aa;
+{ PetscScalar aa, result;
   aa = PetscPowScalar(x*x + a[0]*a[0], 0.5);
-  y1 = a[2]*tauIIt*aa/x;
-  y2 = (a[2]+1.0)*aa - a[3];
-  return y1 - y2;
+  result = a[2]*tauIIt*aa/x - (a[2]+1.0)*aa + a[3];
+  return result;
 }
 
 static PetscScalar dftau(PetscScalar a[5], PetscScalar tauIIt, PetscScalar x)
 { PetscScalar aa, result;
   aa = PetscPowScalar(x*x + a[0]*a[0], 0.5);
-  result = a[2]*tauIIt*(1/aa - aa/(x*x)) -(a[2]+1.0)*x/aa;
+  result = a[2]*tauIIt*(1.0/aa - aa/(x*x)) -(a[2]+1.0)*x/aa;
   return result;
 }
 
-static PetscScalar lamtau(PetscScalar a[5], PetscScalar x, PetscScalar DPt, PetscScalar sint, PetscScalar cdl_zeta_ve, PetscScalar eta_K)
+static PetscScalar lamtau(PetscScalar a[5], PetscScalar x, PetscScalar DPt, PetscScalar sint, PetscScalar zeta_ve, PetscScalar cdl, PetscScalar phi, PetscScalar eta_K)
 { PetscScalar aa, result;
   aa = PetscPowScalar(x*x + a[0]*a[0], 0.5);
-  result = (aa - a[1] - DPt*sint)/(cdl_zeta_ve*sint*sint + eta_K);
+  result = (aa - a[1] - DPt*sint)/(cdl*zeta_ve/(1.0-phi)*sint*sint + eta_K);
   return result;
 }
 
@@ -271,29 +251,32 @@ static PetscScalar VEVP_hyper_tau(PetscScalar a[5],PetscScalar tauIIt, PetscScal
 // ---------------------------------------
 // Plastic yielding - return tauII, DP and dotlam with/out plastic yielding
 // ---------------------------------------
-// input: xve[0] = tau_ve, xve[1] = DP_ve, xve[2] = eta_ve, xve[3] = zeta_ve, C, sigmat, theta (rad), aP, phi, usr
+// input: xve[0] = tau_ve, xve[1] = DP_ve, xve[2] = eta_ve, xve[3] = zeta_ve, C, sigmat, theta (rad), Pf, phi, usr
 // output: xsol[0] = tauII, xsol[1] = DP, xsol[2] = dotlam
 // // case 1: F < 0, tauII = tau_ve, deltap = DP_ve, dotlam = 0.0
 // // case 2: F > 0 and xve[0]  = 0, analytical solution with tauII =0
 // // case 3: F > 0 and xve[0] != 0, numerical solution
 #undef __FUNCT__
 #define __FUNCT__ "Plastic_LocalSolver"
-PetscErrorCode Plastic_LocalSolver(PetscScalar *xve,PetscScalar C, PetscScalar sigmat, PetscScalar theta, PetscScalar aP, PetscScalar phi, void *ctx, PetscScalar xsol[3])
+PetscErrorCode Plastic_LocalSolver(PetscScalar *xve,PetscScalar C, PetscScalar sigmat, PetscScalar theta, PetscScalar Pf, PetscScalar phi, void *ctx, PetscScalar xsol[3])
 { 
   UsrData        *usr = (UsrData*)ctx;
-  PetscScalar     F,a[5],tauIIt,DPt,cdl_zeta_ve,eta_ve,eta_K, sint;
+  PetscScalar     F,a[5],tauIIt,DPt,zeta_ve,eta_ve,eta_K,sint,alphaP,cdl;
   PetscErrorCode  ierr;
   PetscFunctionBegin;
 
   tauIIt      = xve[0];
   DPt         = xve[1];
   eta_ve      = xve[2];
-  cdl_zeta_ve = xve[3];
+  zeta_ve     = xve[3];
+
   eta_K  = usr->nd->eta_K;
   sint   = PetscSinScalar(theta);
+  alphaP = PetscExpScalar(-usr->par->phi_min/phi);
+  cdl    = PetscExpScalar(-usr->par->phi_min/phi);
 
   // get coefficients A
-  ierr = tau_a(tauIIt,DPt,eta_ve,cdl_zeta_ve,C,sigmat,aP,theta,eta_K,a); CHKERRQ(ierr);
+  ierr = tau_a(tauIIt,DPt,eta_ve,zeta_ve,Pf,alphaP,cdl,phi,C,sigmat,theta,eta_K,a); CHKERRQ(ierr);
 
   // trial solution
   xsol[0] = tauIIt; // tauII
@@ -306,12 +289,12 @@ PetscErrorCode Plastic_LocalSolver(PetscScalar *xve,PetscScalar C, PetscScalar s
   if (F>0) { // yield
     if (xsol[0] < usr->par->tf_tol) { // case 2
       xsol[0] = 0.0; 
-      xsol[2] = (a[0]-a[1]-DPt*sint)/(cdl_zeta_ve*sint*sint + eta_K);
-      xsol[1] = DPt + cdl_zeta_ve * sint * xsol[2]; 
+      xsol[2] = (a[0]-a[1]-DPt*sint)/(cdl*zeta_ve/(1.0-phi)*sint*sint + eta_K);
+      xsol[1] = DPt + cdl*zeta_ve/(1.0-phi) * sint * xsol[2]; 
     } else { // case 3
       xsol[0] = VEVP_hyper_tau(a, tauIIt, usr->par->tf_tol, usr->par->Nmax); CHKERRQ(ierr);
-      xsol[2] = lamtau(a,xsol[0],DPt,sint,cdl_zeta_ve,eta_K);
-      xsol[1] = DPt + cdl_zeta_ve * sint * xsol[2]; 
+      xsol[2] = lamtau(a,xsol[0],DPt,sint,zeta_ve,cdl,phi,eta_K);
+      xsol[1] = DPt + cdl*zeta_ve/(1.0-phi) * sint * xsol[2]; 
     }
     //PetscPrintf(PETSC_COMM_WORLD, "TEST, tau = %1.6f, dp = %1.6f, lam = %1.6f\n", xsol[0], xsol[1], xsol[2]);
   }

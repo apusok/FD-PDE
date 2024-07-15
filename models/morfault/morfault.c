@@ -313,8 +313,6 @@ PetscErrorCode Numerical_solution(void *ctx)
     dt     = PetscMin(dt_T,dt_phi);
     dt     = PetscMin(dt,dt_vf);
     nd->dt = PetscMin(dt,nd->dtmax);
-    // ierr   = FDPDEAdvDiffSetTimestep(fdT,nd->dt); CHKERRQ(ierr);
-    // ierr   = FDPDEAdvDiffSetTimestep(fdphi,nd->dt); CHKERRQ(ierr);
 
     PetscPrintf(PETSC_COMM_WORLD,"# Time-step (non-dimensional): dt_T = %1.12e dt_phi = %1.12e dt_vf = %1.12e dtmax = %1.12e \n",dt_T,dt_phi,dt_vf,nd->dtmax);
 
@@ -346,7 +344,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     // Update fluid velocity
     ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmPlith,usr->xPlith,usr->dmphi,usr->xphi,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
 
-    // set timestep
+    // Set timestep for T-phi
     ierr   = FDPDEAdvDiffSetTimestep(fdT,nd->dt); CHKERRQ(ierr);
     ierr   = FDPDEAdvDiffSetTimestep(fdphi,nd->dt); CHKERRQ(ierr);
 
@@ -385,8 +383,7 @@ PetscErrorCode Numerical_solution(void *ctx)
         // ierr = FDPDEAdvDiffSetTimestep(fdT,nd->dt); CHKERRQ(ierr);
       }
     }
-    // PetscPrintf(PETSC_COMM_WORLD,"# Time-step (non-dimensional): dt = %1.12e dtmax = %1.12e dtmax_grid = %1.12e\n",nd->dt,nd->dtmax,dt);
-
+  
     // Get solution
     ierr = FDPDEGetSolution(fdT,&xT);CHKERRQ(ierr);
     ierr = VecCopy(xT,usr->xT);CHKERRQ(ierr);

@@ -129,10 +129,10 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   ierr = PetscBagRegisterScalar(bag, &par->L, 200.0e3, "L", "Length of domain in x-dir [m]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->H, 100.0e3, "H", "Height of domain in z-dir [m]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->Hs,20.0e3, "Hs", "Free-surface height [m]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->Hs,10.0e3, "Hs", "Free-surface height [m]"); CHKERRQ(ierr);
 
   // physical and material parameters
-  ierr = PetscBagRegisterScalar(bag, &par->k_hat, -1.0, "k_hat", "Direction of unit vertical vector [-]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->k_hat, 1.0, "k_hat", "Direction of unit vertical vector [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->g, 9.8, "g", "Gravitational acceleration [m^2/s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->Ttop, T_KELVIN, "Ttop", "Temperature on top boundary [K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->Tbot, 1523.15, "Tbot", "Temperature on bottom boundary - also potential T [K]"); CHKERRQ(ierr);
@@ -153,7 +153,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->n, 3.0, "n", "Exponent in porosity-permeability relationship [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->kphi0, 1.0e-7, "kphi0", "Permeability prefactor [m^2]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mu, 1.0, "mu", "Reference magma viscosity [Pa.s]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->lambda, 27, "lambda", "Porosity weakening of shear viscosity [-]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->beta, 27, "beta", "Porosity weakening of shear viscosity [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->EoR, 3.6e4, "EoR", "Activation energy divided by gas constant [K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->q, -0.5, "q", "Exponent of the porosity-dependent relation of poro-elastic modulus"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->zetaExp, -1.0, "zetaExp", "Porosity exponent in bulk viscosity [-]"); CHKERRQ(ierr);
@@ -166,6 +166,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->phi_min, PHI_CUTOFF, "phi_min", "Cutoff minimum porosity"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->phi0, 1e-4, "phi0", "Reference background porosity"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta_K, 1e22, "eta_K", "Shear viscosity of the Kelvin VP dashpot"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->Zmax, 100e9, "Zmax", "Maximum value for poro-elastic modulus [Pa]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->tf_tol, 1e-8, "tf_tol", "Function tolerance for solving yielding stresses"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->Nmax, 25, "Nmax", "Max Newton iteration for plasticity"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->strain_max, 0.1, "strain_max", "Total plastic strain for softening"); CHKERRQ(ierr);
@@ -177,6 +178,8 @@ PetscErrorCode InputParameters(UsrData **_usr)
   // material phases for markers (markers carry only phase id)
   ierr = PetscBagRegisterInt(bag, &par->marker_phases, 6, "marker_phases", "Number of marker phases [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->matid_default, 5, "matid_default", "Default material phase for scaling [-]"); CHKERRQ(ierr);
+
+  if (par->marker_phases > MAX_MAT_PHASE) SETERRQ2(usr->comm,PETSC_ERR_USER,"Number of marker_phases = %d is higher than allowed MAX_MAT_PHASE = %d",par->marker_phases,MAX_MAT_PHASE);
 
   ierr = PetscBagRegisterInt(bag, &par->mat0_id, 0, "mat0_id", "Material phase 0 [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterString(bag,&par->mat0_name,FNAME_LENGTH,"mat0_name","stick-water","Name for material phase 0"); CHKERRQ(ierr);
@@ -582,6 +585,7 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   nd->eta_min = nd_param(par->eta_min,scal->eta);
   nd->eta_max = nd_param(par->eta_max,scal->eta);
   nd->eta_K   = nd_param(par->eta_K ,scal->eta);
+  nd->Zmax    = nd_param(par->Zmax,scal->tau);
 
   nd->tmax  = nd_param(nd->tmax,scal->t);
   nd->dtmax = nd_param(nd->dtmax,scal->t);

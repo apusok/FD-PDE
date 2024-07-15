@@ -16,7 +16,7 @@
 #define SEC_YEAR      31536000 //3600.00*24.00*365.00
 #define T_KELVIN      273.15
 #define PHI_CUTOFF    1e-12
-#define MAX_MAT_PHASE 10
+#define MAX_MAT_PHASE 6
 
 // define convenient names for DMStagStencilLocation
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
@@ -74,7 +74,7 @@ typedef struct {
   PetscInt       nx, nz;
   PetscScalar    L, H, Hs, xmin, zmin;
   PetscScalar    k_hat, g, Ttop, Tbot, R, Vext, rhof, q, age, Gamma;
-  PetscScalar    hs_factor, drho, kphi0, n, mu, eta_min, eta_max, phi_min, phi0, eta_K, lambda, EoR, Teta0, zetaExp;
+  PetscScalar    hs_factor, drho, kphi0, n, mu, eta_min, eta_max, phi_min, phi0, eta_K, Zmax, beta, EoR, Teta0, zetaExp;
   PetscInt       ts_scheme, adv_scheme, tout, tstep, ppcell, Nmax, rheology, two_phase, model_setup, restart;
   PetscScalar    dt_out, tmax, dtmax, tf_tol, strain_max, hcc, phi_max_bc, sigma_bc;
   PetscScalar    incl_x, incl_z, incl_r, incl_dT;
@@ -104,7 +104,7 @@ typedef struct {
 } ScalParams;
 
 typedef struct {
-  PetscScalar    L, H, Hs, xmin, zmin, Vext, Vin, R, delta, eta_min, eta_max, eta_K;
+  PetscScalar    L, H, Hs, xmin, zmin, Vext, Vin, R, delta, eta_min, eta_max, eta_K, Zmax;
   PetscScalar    Tbot, Ttop, Ra, Gamma;
   PetscScalar    tmax, dtmax, t, dt, dt_out, dzin;
   PetscInt       istep;
@@ -164,21 +164,20 @@ PetscErrorCode FormBCList_phi(DM, Vec, DMStagBCList, void*);
 
 // constitutive equations
 PetscScalar HalfSpaceCoolingTemp(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
-PetscScalar LithostaticPressure(PetscScalar,PetscScalar,PetscScalar);
+PetscScalar LithostaticPressure(PetscScalar,PetscScalar);
 PetscScalar Density(PetscScalar,PetscInt);
 PetscScalar Permeability(PetscScalar,PetscScalar);
 PetscScalar ShearViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt); 
 PetscScalar CompactionViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt);
 PetscScalar ArrheniusTerm_Viscosity(PetscScalar,PetscScalar,PetscScalar); 
-PetscScalar FluidVelocity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
+PetscScalar LiquidVelocity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 PetscScalar Mixture(PetscScalar,PetscScalar,PetscScalar);
-PetscScalar PoroElasticModulus(PetscScalar,PetscScalar);
+PetscScalar TensileStrength(PetscScalar,PetscScalar,PetscScalar,PetscInt); 
+PetscScalar ElasticShearModulus(PetscScalar,PetscScalar); 
+PetscScalar PoroElasticModulus(PetscScalar,PetscScalar,PetscScalar);
 PetscScalar TensorSecondInvariant(PetscScalar,PetscScalar,PetscScalar);
 PetscScalar ViscosityHarmonicAvg(PetscScalar,PetscScalar,PetscScalar); 
 PetscErrorCode Plastic_LocalSolver(PetscScalar*,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,void*,PetscScalar[]);
-
-PetscScalar ShearViscosity_harmonic(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt,PetscScalar,PetscScalar); 
-PetscScalar CompactionViscosity_harmonic(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt,PetscScalar,PetscScalar);
 
 // utils
 PetscErrorCode SetSwarmInitialCondition(DM,void*);
@@ -189,7 +188,7 @@ PetscErrorCode SetInitialPorosityField(void*);
 PetscErrorCode UpdateMarkerPhaseFractions(DM,DM,Vec,void*);
 PetscErrorCode UpdateLithostaticPressure(DM,Vec,void*);
 PetscErrorCode DoOutput(FDPDE,FDPDE,FDPDE,void*);
-PetscErrorCode UpdateStrainRates(DM,Vec,void*); // need optimization
+PetscErrorCode UpdateStrainRates(DM,Vec,void*);
 PetscErrorCode IntegratePlasticStrain(DM,Vec,Vec,void*);
 PetscErrorCode ComputeFluidAndBulkVelocity(DM,Vec,DM,Vec,DM,Vec,DM,Vec,void*);
 PetscErrorCode LiquidVelocityExplicitTimestep(DM,Vec,PetscScalar*);
