@@ -13,6 +13,7 @@ import importlib
 import os
 from matplotlib.colors import ListedColormap
 from cmcrameri import cm
+import cmasher as cmr
 
 # Some new font
 rc('font',**{'family':'serif','serif':['Times new roman']})
@@ -3277,4 +3278,150 @@ def plot_rho_full_ridge_100_400_time_dep(A,istart,iend,jstart,jend,fname,istep,d
   # ax.set_title(lbl+' time = '+str(round(t/1.0e3,0))+' [kyr]')
 
   plt.savefig(fname+'.pdf', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_youtube_full_ridge(A,istart,iend,jstart,jend,fname,istep,dim,iplot,beta):
+  # plt.clf()
+
+  matplotlib.rcParams.update({'font.size': 30})
+  fig = plt.figure(1,figsize=(30,20)) 
+  matplotlib.rcParams.update({'axes.facecolor': 'black', 'axes.edgecolor':'white',
+  'axes.labelcolor':'white','axes.titlecolor':'white',
+  'xtick.color':'white','ytick.color':'white','savefig.facecolor': 'black'})
+
+  sdensity = 10
+  sstart = -99
+  send = 200
+  
+  scal = get_scaling(A,'rho',dim,0)
+  scalx = get_scaling(A,'x',dim,1)
+  scalv = get_scaling(A,'v',dim,1)
+  scalt = get_scaling(A,'t',dim,1)
+
+  rho0 = 3000
+
+  lbl  = get_label(A,'rho',dim)
+  lblx = get_label(A,'x',dim)
+  lblz = get_label(A,'z',dim)
+  extentE =[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zc[jstart:jend  ])*scalx, max(A.grid.zc[jstart:jend  ])*scalx]
+
+  # -----------------------
+  # 1. porosity
+  # -----------------------
+  # transform zero porosity
+  A.Enth.phi[A.Enth.phi==0] = 1e-10
+
+  ax = plt.subplot(2,1,1)
+  cmap1 = plt.cm.get_cmap('inferno', 20)
+  im = ax.imshow(np.log10(A.Enth.phi[jstart:jend  ,istart:iend  ]),extent=extentE,cmap=cmap1,origin='lower')
+  im.set_clim(-4,-1)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9)
+  cbar.ax.set_title(r'log$_{10}\phi$')
+
+  xa = A.grid.xc[istart:iend:4]*scalx
+  xa = np.arange(sstart,send,8)
+  stream_points = []
+  for xi in xa:
+    stream_points.append([xi,A.grid.zc[jstart]*scalx])
+
+  # solid streamlines
+  stream = ax.streamplot(A.grid.xc[istart:iend  ]*scalx,A.grid.zc[jstart:jend  ]*scalx, A.Vscx[jstart:jend  ,istart:iend  ]*scalv, A.Vscz[jstart:jend  ,istart:iend  ]*scalv,
+        color='grey',linewidth=1.1, start_points=stream_points, density=sdensity, minlength=0.5, arrowstyle='-')
+  
+  # temperature contour
+  levels = [250, 500, 750, 1000, 1200, 1300,]
+  fmt = r'%0.0f $^o$C'
+  T = scale_TC(A,'Enth.T','T',dim,1)
+  ts = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, T[jstart:jend  ,istart:iend  ], levels=levels,linewidths=(2.0,), extend='both')
+  ax.clabel(ts, fmt=fmt, fontsize=20)
+
+  # solidus contour
+  if (istep>0):
+    cs = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, A.Enth.phi[jstart:jend  ,istart:iend  ], levels=[1e-8,], colors = ('w',),linewidths=(0.8,), extend='both')
+
+  # MOR marker [km]
+  t = A.nd.t*scalt
+  xdist = A.nd.U0*scalv*t*1.0e-5
+  if (A.grid.xc[0]<0.0):
+    xdist_full = -xdist
+  else: 
+    xdist_full = xdist
+
+  zdist = A.grid.zc[-1]*scalx
+  if (xdist<=A.grid.xc[iend-1]*scalx):
+    ax.plot(xdist,zdist,'v',color='grey',linewidth=0.1,mfc='grey', markersize=15,clip_on=False)
+  if (xdist_full>=A.grid.xc[istart]*scalx):
+    ax.plot(xdist_full,zdist,'v',color='grey',linewidth=0.1,mfc='grey', markersize=15,clip_on=False)
+
+  ax.axis('image')
+  # ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  # ax.set_title(r'Porosity, $U_0 = 4$ cm/yr, time = '+str(round(t/1.0e6,2))+' Myr')
+  plt.title(r'time = '+str(round(t/1.0e6,2))+' Myr', loc='left')
+  plt.title(r'Porosity')
+  plt.title(r'$U_0 = 4$ cm/yr', loc='right')
+
+  # -----------------------
+  # 2. density
+  # -----------------------
+  ax = plt.subplot(2,1,2)
+
+  # MOR marker [km]
+  t = A.nd.t*scalt
+  xdist = A.nd.U0*scalv*t*1.0e-5
+  if (A.grid.xc[0]<0.0):
+    xdist_full = -xdist
+  else:
+    xdist_full = xdist
+
+  # cmap1 = cm.broc
+  # cmap1 = cm.lisbon
+  # cmap1 = cmr.iceburn
+  cmap1 = cmr.wildfire
+  X = A.matProp.rho
+
+  nrho = -125
+  divnorm=colors.TwoSlopeNorm(vmin=nrho, vcenter=0., vmax=50)
+  im = ax.imshow(X[jstart:jend+1,istart:iend  ]*scal-rho0,extent=extentE,cmap=cmap1,origin='lower', norm=divnorm)
+  # nrho = -125
+  cbar = fig.colorbar(im,ax=ax, shrink=0.9,ticks=np.arange(nrho, 50.1,25))
+  cbar.ax.set_title(r'$\overline{\rho}-\rho_0$ [kg/m]$^3$')
+
+  # solidus contour
+  if (istep>0):
+    cs = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, A.Enth.phi[jstart:jend  ,istart:iend  ], levels=[1e-8,], colors = ('w',),linewidths=(0.8,), extend='both')
+
+  # fluid streamlines
+  mask = np.zeros(A.Vfcx.shape, dtype=bool)
+  mask[np.where(A.Enth.phi<1e-8)] = True
+  Vfx = np.ma.array(A.Vfcx, mask=mask)
+  Vfz = np.ma.array(A.Vfcz, mask=mask)
+
+  nind_factor = int(A.nz/100)
+  nind = 5*nind_factor
+  maxVf = 100
+  if (istep>0):
+    Q  = ax.quiver(A.grid.xc[istart:iend:nind]*scalx, A.grid.zc[jstart:jend:nind]*scalx, Vfx[jstart:jend:nind,istart:iend:nind]*scalv/maxVf, Vfz[jstart:jend:nind,istart:iend:nind]*scalv/maxVf, 
+      color='black', scale_units='xy', scale=0.15, units='width', pivot='tail', width=0.004, headwidth=3, headaxislength=5, minlength=0)
+
+  # temperature contour
+  levels = [250, 500, 750, 1000, 1200, 1300,]
+  fmt = r'%0.0f $^o$C'
+  T = scale_TC(A,'Enth.T','T',dim,1)
+  ts = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, T[jstart:jend  ,istart:iend  ], levels=levels,linewidths=(2.0,), extend='both')
+  ax.clabel(ts, fmt=fmt, fontsize=20)
+
+  zdist = A.grid.zc[-1]*scalx
+  if (xdist<=A.grid.xc[iend-1]*scalx):
+    ax.plot(xdist,zdist,'v',color='grey',linewidth=0.1,mfc='grey', markersize=15,clip_on=False)
+  if (xdist_full>=A.grid.xc[istart]*scalx):
+    ax.plot(xdist_full,zdist,'v',color='grey',linewidth=0.1,mfc='grey', markersize=15,clip_on=False)
+  ax.axis('image')
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  lbl = 'Residual buoyancy'
+  ax.set_title(lbl)
+
+  plt.savefig(fname+'.png', bbox_inches = 'tight')
   plt.close()
