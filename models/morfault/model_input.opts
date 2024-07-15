@@ -20,9 +20,9 @@
 -adv_scheme 2
 
 -two_phase 1 # 0-single 1-twophase
--rheology 1 # 0-VEP 1-VEVP (Avg) 2-VEVP (Dom)
--model_setup 4 # 0-mechanical seed 1-thermal seed 2-var age 3-const age 4-const T
--Tinit 1023
+-rheology 2 # -1-VEP (legacy), 0-V, 1-VE, 2-VEVP
+-model_setup 0 # 0-const age, 1-variable age
+-model_setup_phi 0 # 0-interior source, 1-bottom boundary source
 
 -Vext 1.0
 -Tbot 1623.15
@@ -38,11 +38,6 @@
 
 -phi_max_bc 5e-3
 -sigma_bc 1e-3
-
--incl_x 0e3
--incl_z -60e3
--incl_r 10e3
--incl_dT 50
 
 # Marker phases
 -marker_phases 6

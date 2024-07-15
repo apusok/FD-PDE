@@ -130,7 +130,6 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKESDARCY2FIELD,&fdPV);CHKERRQ(ierr);
     ierr = FDPDESetUp(fdPV);CHKERRQ(ierr);
     ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV,bc_description_PV,usr); CHKERRQ(ierr);
-    // ierr = FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV,coeff_description_PV,usr); CHKERRQ(ierr);
     ierr = FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV_DPL,coeff_description_PV,usr); CHKERRQ(ierr);
   }
 
@@ -139,7 +138,6 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKES,&fdPV);CHKERRQ(ierr);
     ierr = FDPDESetUp(fdPV);CHKERRQ(ierr);
     ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV_Stokes,bc_description_PV,usr); CHKERRQ(ierr);
-    // ierr = FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV_Stokes,coeff_description_PV,usr); CHKERRQ(ierr);
     ierr = FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV_Stokes_DPL,coeff_description_PV,usr); CHKERRQ(ierr);
     usr->par->phi0 = 0.0;
   }
@@ -187,8 +185,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = SNESSetOptionsPrefix(fdphi->snes,"phi_"); CHKERRQ(ierr);
   fdphi->output_solver_failure_report = PETSC_FALSE;
 
-  // ierr = FDPDEAdvDiffSetAdvectSchemeType(fdphi,advtype);CHKERRQ(ierr);
-  ierr = FDPDEAdvDiffSetAdvectSchemeType(fdphi,ADV_UPWIND_MINMOD);CHKERRQ(ierr);
+  ierr = FDPDEAdvDiffSetAdvectSchemeType(fdphi,advtype);CHKERRQ(ierr);
   ierr = FDPDEAdvDiffSetTimeStepSchemeType(fdphi,timesteptype);CHKERRQ(ierr);
   ierr = FDPDEView(fdphi); CHKERRQ(ierr);
 
@@ -311,11 +308,10 @@ PetscErrorCode Numerical_solution(void *ctx)
     // Get a guess for timestep
     ierr   = FDPDEAdvDiffComputeExplicitTimestep(fdT,&dt_T);CHKERRQ(ierr);
     ierr   = FDPDEAdvDiffComputeExplicitTimestep(fdphi,&dt_phi);CHKERRQ(ierr);
-    // ierr   = LiquidVelocityExplicitTimestep(usr->dmVel,usr->xVel,&dt_vf);CHKERRQ(ierr);
-    dt_vf = dt_phi;
+    ierr   = LiquidVelocityExplicitTimestep(usr->dmVel,usr->xVel,&dt_vf);CHKERRQ(ierr);
 
     dt     = PetscMin(dt_T,dt_phi);
-    dt     = PetscMin(dt,dt_vf);
+    // dt     = PetscMin(dt,dt_vf);
     nd->dt = PetscMin(dt,nd->dtmax);
 
     PetscPrintf(PETSC_COMM_WORLD,"# Time-step (non-dimensional): dt_T = %1.12e dt_phi = %1.12e dt_vf = %1.12e dtmax = %1.12e \n",dt_T,dt_phi,dt_vf,nd->dtmax);
@@ -323,7 +319,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     // Update lithostatic pressure 
     ierr = UpdateLithostaticPressure(usr->dmPlith,usr->xPlith,usr);CHKERRQ(ierr);
 
-    // Iterate PV,phis until phis requires no correction
+    // Iterate PV, phis until phis requires no correction
     masscons = PETSC_FALSE;
     iterPVphi = 0;
     while (!masscons) {

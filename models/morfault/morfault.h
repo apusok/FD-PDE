@@ -75,11 +75,10 @@
 typedef struct {
   PetscInt       nx, nz;
   PetscScalar    L, H, Hs, xmin, zmin;
-  PetscScalar    k_hat, g, Ttop, Tbot, R, Vext, uT, rhof, q, age, Gamma, Tinit;
+  PetscScalar    k_hat, g, Ttop, Tbot, R, Vext, uT, rhof, q, age, Gamma;
   PetscScalar    hs_factor, drho, kphi0, n, mu, eta_min, eta_max, phi_min, phi0, eta_K, Zmax, beta, EoR, Teta0, zetaExp;
-  PetscInt       ts_scheme, adv_scheme, tout, tstep, ppcell, Nmax, rheology, two_phase, model_setup, restart, inflow_bc;
-  PetscScalar    dt_out, tmax, dtmax, tf_tol, strain_max, hcc, phi_max_bc, sigma_bc;
-  PetscScalar    incl_x, incl_z, incl_r, incl_dT;
+  PetscInt       ts_scheme, adv_scheme, tout, tstep, ppcell, Nmax, rheology, two_phase, model_setup, model_setup_phi, restart, inflow_bc;
+  PetscScalar    dt_out, tmax, dtmax, tf_tol, strain_max, hcc, phi_max_bc, sigma_bc, sigma_bc_h;
   PetscInt       mat0_id, mat1_id, mat2_id, mat3_id, mat4_id, mat5_id, marker_phases, matid_default;
   PetscScalar    mat0_rho0, mat0_alpha, mat0_cp, mat0_kT, mat0_kappa; 
   PetscScalar    mat1_rho0, mat1_alpha, mat1_cp, mat1_kT, mat1_kappa; 
@@ -148,19 +147,15 @@ PetscErrorCode NondimensionalizeParameters(UsrData*);
 
 // physics
 PetscErrorCode Numerical_solution(void*);
-PetscErrorCode FormCoefficient_PV(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormCoefficient_PV_DPL(FDPDE, DM, Vec, DM, Vec, void*);
-PetscErrorCode FormCoefficient_PV_Stokes(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormCoefficient_PV_Stokes_DPL(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormCoefficient_T(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormCoefficient_phi(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode RheologyPointwise(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
 PetscErrorCode RheologyPointwise_VEP(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
-PetscErrorCode RheologyPointwise_VEVP(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
+PetscErrorCode RheologyPointwise_V(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
+PetscErrorCode RheologyPointwise_VE(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
 PetscErrorCode RheologyPointwise_DPL(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
-PetscErrorCode DecompactRheologyVars(PetscInt,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,
-                                     PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,
-                                     PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*);
 PetscErrorCode DecompactRheologyVars_DPL(PetscInt,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,
                                      PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,
                                      PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*);
@@ -179,7 +174,7 @@ PetscScalar Permeability(PetscScalar,PetscScalar);
 PetscScalar ShearViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt); 
 PetscScalar CompactionViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt);
 PetscScalar ArrheniusTerm_Viscosity(PetscScalar,PetscScalar,PetscScalar); 
-PetscScalar LiquidVelocity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
+PetscScalar LiquidVelocity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar); 
 PetscScalar Mixture(PetscScalar,PetscScalar,PetscScalar);
 PetscScalar TensileStrength(PetscScalar,PetscScalar,PetscScalar,PetscInt); 
 PetscScalar ElasticShearModulus(PetscScalar,PetscScalar); 
@@ -198,7 +193,6 @@ PetscErrorCode SetInitialPorosityField(void*);
 PetscErrorCode UpdateMarkerPhaseFractions(DM,DM,Vec,void*);
 PetscErrorCode UpdateLithostaticPressure(DM,Vec,void*);
 PetscErrorCode DoOutput(FDPDE,FDPDE,FDPDE,void*);
-PetscErrorCode UpdateStrainRates(DM,Vec,void*);
 PetscErrorCode UpdateStrainRates_Array(DM,Vec,void*);
 PetscErrorCode IntegratePlasticStrain(DM,Vec,Vec,void*);
 PetscErrorCode ComputeFluidAndBulkVelocity(DM,Vec,DM,Vec,DM,Vec,DM,Vec,void*);

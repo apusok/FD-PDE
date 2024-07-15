@@ -144,14 +144,6 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->rhof, 2500, "rhof", "Liquid density [kg/m3]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->age, 40.0, "age", "Initial lithospheric age [Myr]"); CHKERRQ(ierr);
 
-  // initial perturbation
-  ierr = PetscBagRegisterScalar(bag, &par->incl_x, 0e3, "incl_x", "Inclusion X-start point [m]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->incl_z, -120e3, "incl_z", "Inclusion Z-start point [m]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->incl_r, 20e3, "incl_r", "Inclusion radius [m]"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->incl_dT, 10, "incl_dT", "Inclusion T perturbation [K]"); CHKERRQ(ierr);
-  // constant initial T with model_setup 4
-  ierr = PetscBagRegisterScalar(bag, &par->Tinit, 1023.0, "Tinit", "Constant initial temperature [K]"); CHKERRQ(ierr);
-
   // two-phase flow parameters
   ierr = PetscBagRegisterScalar(bag, &par->n, 3.0, "n", "Exponent in porosity-permeability relationship [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->kphi0, 1.0e-7, "kphi0", "Permeability prefactor [m^2]"); CHKERRQ(ierr);
@@ -175,8 +167,9 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->strain_max, 0.1, "strain_max", "Total plastic strain for softening"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->hcc, 0.5, "hcc", "Relative reduction for cohesion and friction angle during strain softening"); CHKERRQ(ierr);
 
-  ierr = PetscBagRegisterScalar(bag, &par->phi_max_bc, 1e-3, "phi_max_bc", "Amplitude of porosity pulse on bottom BC"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->sigma_bc, 0.1, "sigma_bc", "Width of porosity pulse on bottom BC"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->phi_max_bc, 1e-3, "phi_max_bc", "Amplitude of initial porosity pulse"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->sigma_bc, 1e-3, "sigma_bc", "Width of initial porosity pulse"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->sigma_bc_h, 1e-3, "sigma_bc_h", "Height of initial porosity pulse"); CHKERRQ(ierr);
 
   // material phases for markers (markers carry only phase id)
   ierr = PetscBagRegisterInt(bag, &par->marker_phases, 6, "marker_phases", "Number of marker phases [-]"); CHKERRQ(ierr);
@@ -300,17 +293,18 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   // time stepping and advection parameters
   ierr = PetscBagRegisterInt(bag, &par->ts_scheme,2, "ts_scheme", "Time stepping scheme 0-forward euler, 1-backward euler, 2-crank-nicholson"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->adv_scheme,2, "adv_scheme", "Advection scheme 0-upwind (FOU), 1-upwind2 (SOU) 2-fromm"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->adv_scheme,2, "adv_scheme", "Advection scheme 0-upwind (FOU), 1-upwind2 (SOU) 2-fromm 3-upwind-minmod"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->tout,1, "tout", "Output every tout time step"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->tstep,0, "tstep", "Maximum no of time steps"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->dt_out, 1.0e3, "dt_out", "Output every dt_out time [yr]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->tmax, 1.0e6, "tmax", "Maximum time [yr]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->dtmax, 1.0e3, "dtmax", "Maximum time step size [yr]"); CHKERRQ(ierr);
 
-  ierr = PetscBagRegisterInt(bag, &par->rheology,0, "rheology", "0-VEP 1-VEVP (AveragePhase)"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->rheology,2, "rheology", "-1-VEP (legacy), 0-V, 1-VE, 2-VEVP"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->two_phase,0, "two_phase", "0-single (Stokes) 1-two_phase (StokesDarcy)"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->model_setup,0, "model_setup", "0-mechanical seed, 1-thermal seed, 2-var age, 3-const age, 4-const T, 5-source, const age, 6-source, age, 10-column"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->inflow_bc,0, "inflow_bc", "0-bottom, 1-top and bottom"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->model_setup,2, "model_setup", "0-const age, 1-variable age"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->model_setup_phi,0, "model_setup_phi", "0-interior source, 1-bottom boundary source"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->inflow_bc,1, "inflow_bc", "0-bottom, 1-top and bottom"); CHKERRQ(ierr);
   
   // boolean options
   ierr = PetscBagRegisterBool(bag, &par->log_info,PETSC_FALSE, "model_log_info", "Output profiling data (T/F)"); CHKERRQ(ierr);

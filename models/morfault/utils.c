@@ -22,8 +22,7 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ct
 
   // initialize constant solid porosity field
   ierr = VecSet(usr->xphi,1.0-usr->par->phi0); CHKERRQ(ierr);
-
-  if ((usr->par->model_setup==5) || (usr->par->model_setup==6) || (usr->par->model_setup==10)) {
+  if (usr->par->model_setup_phi==0) {
     ierr = SetInitialPorosityField(usr);CHKERRQ(ierr);
   }
   
@@ -119,33 +118,17 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
   ierr = DMCreateLocalVector(dm, &xlocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
   
-  PetscScalar xs, zs, r;
-  xs = usr->par->incl_x;
-  zs = usr->par->incl_z;
-  r = usr->par->incl_r;
-
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
-      PetscScalar age, T, nd_T, xp, zp, rp;
+      PetscScalar age, T, nd_T;
       
-      if ((usr->par->model_setup<=1) || (usr->par->model_setup==3) || (usr->par->model_setup==5) || (usr->par->model_setup==10)) age = usr->par->age*1.0e6*SEC_YEAR; // constant age in Myr
+      if (usr->par->model_setup==0) age = usr->par->age*1.0e6*SEC_YEAR; // constant age in Myr
       else age  = usr->par->age*1.0e6*SEC_YEAR + dim_param(fabs(coordx[i][icenter]),usr->scal->x)/dim_param(usr->nd->uT,usr->scal->v); // age varying with distance from axis + initial age
 
       // half-space cooling temperature - take into account free surface
       T = HalfSpaceCoolingTemp(Tm,Ts,-Hs-dim_param(coordz[j][icenter],usr->scal->x),usr->scal->kappa,age,usr->par->hs_factor); 
       if (T-Ts<0.0) T = Ts;
-
-      // add initial T perturbation
-      if (usr->par->model_setup==1) {
-        xp = dim_param(coordx[i][icenter],usr->scal->x)-xs;
-        zp = dim_param(coordz[j][icenter],usr->scal->x)-zs;
-        rp = PetscSqrtScalar(xp*xp+zp*zp);
-        if (rp<=r) {T += (r-rp)/r*usr->par->incl_dT;}
-      }
-
-      // constant initial T
-      if (usr->par->model_setup==4) { T = usr->par->Tinit; }
 
       // nd_T = (T - usr->par->T0)/usr->par->DT;
       nd_T = nd_paramT(T,Ts,usr->scal->DT);
@@ -184,9 +167,7 @@ PetscErrorCode SetInitialPorosityField(void *ctx)
 
   phi_max = usr->par->phi_max_bc; // 1e-3;
   sigma   = usr->par->sigma_bc;   // 0.1 - 0.001;
-  sigma_v = 1e-3;
-
-  // if (usr->par->model_setup==10) sigma_v = 1e-4;
+  sigma_v = usr->par->sigma_bc_h; 
 
   xc = 0.0;
   zc = usr->nd->zmin+usr->nd->H*0.2; 
@@ -208,8 +189,6 @@ PetscErrorCode SetInitialPorosityField(void *ctx)
       zp = coordz[j][icenter] - zc;
       phi = usr->par->phi0 + phi_max*PetscExpScalar(-xp*xp/sigma - zp*zp/sigma_v);
 
-      // if (usr->par->model_setup==10) phi = usr->par->phi0 + phi_max*PetscExpScalar(- zp*zp/sigma_v);
-
       xx[j][i][iE] = 1.0-phi; 
 
     }
@@ -226,7 +205,8 @@ PetscErrorCode SetInitialPorosityField(void *ctx)
 }
 
 // ---------------------------------------
-// SetSwarmInitialCondition
+// SetSwarmInitialCondition - can set different lithologies; 
+// Default: sticky-air and a rock layer
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "SetSwarmInitialCondition"
@@ -249,11 +229,6 @@ PetscErrorCode SetSwarmInitialCondition(DM dmswarm, void *ctx)
   ierr = DMSwarmGetField(dmswarm,"id3",NULL,NULL,(void**)&pfield3);CHKERRQ(ierr);
   ierr = DMSwarmGetField(dmswarm,"id4",NULL,NULL,(void**)&pfield4);CHKERRQ(ierr);
   ierr = DMSwarmGetField(dmswarm,"id5",NULL,NULL,(void**)&pfield5);CHKERRQ(ierr);
-
-  PetscScalar xs, zs, r, xp, zp, rp;
-  xs = usr->par->incl_x;
-  zs = usr->par->incl_z;
-  r = usr->par->incl_r;
 
   for (p=0; p<npoints; p++) {
     PetscScalar xcoor,zcoor, h, dh;
@@ -308,14 +283,6 @@ PetscErrorCode SetSwarmInitialCondition(DM dmswarm, void *ctx)
     dh = nd_param(5e3,usr->scal->x);
     if ((zcoor>=ztop-h-dh) && (zcoor<ztop-h)) pfield[p] = usr->par->mat4_id; 
 
-    // weak seed
-    if (usr->par->model_setup==0) {
-      xp = dim_param(xcoor,usr->scal->x)-xs;
-      zp = dim_param(zcoor,usr->scal->x)-zs;
-      rp = PetscSqrtScalar(xp*xp+zp*zp);
-      if (rp<=r) { pfield[p] = usr->par->mat1_id; }
-    }
-
     // update binary representation
     if (pfield[p]==0) pfield0[p] = 1;
     if (pfield[p]==1) pfield1[p] = 1;
@@ -355,13 +322,10 @@ PetscErrorCode AddMarkerInflux(DM dmswarm, void *ctx)
   dzcell = usr->nd->H/usr->par->nz/usr->par->ppcell;
 
   // influx
-  // usr->nd->dzin += usr->nd->Vin*usr->nd->dt;
   usr->nd->dzin += usr->nd->Vin_rock*usr->nd->dt;
   mx = (int)(usr->nd->L/dxcell);
   mz = (int)(usr->nd->dzin/dzcell);
   nmark_in = mx*mz;
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK ROCK %1.12e %1.12e %d %d %d #\n",usr->nd->dzin,usr->nd->Vin_rock,mx,mz,nmark_in);
 
   if (nmark_in==0) { PetscFunctionReturn(0); }
   
@@ -451,8 +415,6 @@ PetscErrorCode AddMarkerInflux_FreeSurface(DM dmswarm, void *ctx)
   mx = (int)(usr->nd->L/dxcell);
   mz = (int)(usr->nd->dzin_fs/dzcell);
   nmark_in = mx*mz;
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK FREE %1.12e %1.12e %d %d %d #\n",usr->nd->dzin_fs,usr->nd->Vin_free,mx,mz,nmark_in);
 
   if (nmark_in==0) { PetscFunctionReturn(0); }
   
@@ -731,7 +693,7 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdT, FDPDE fdphi,void *ctx)
   const char     *fieldname[] = {"id"};
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_pic_ts%d.xmf",usr->par->fdir_out,usr->nd->istep);
   ierr = DMSwarmViewFieldsXDMF(usr->dmswarm,fout,1,fieldname); CHKERRQ(ierr);
-  // ierr = DMSwarmViewXDMF(usr->dmswarm,fout);CHKERRQ(ierr);
+  // ierr = DMSwarmViewXDMF(usr->dmswarm,fout);CHKERRQ(ierr); // output all swarm (to be avoided)
 
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xMPhase_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(usr->dmMPhase,usr->xMPhase,fout);CHKERRQ(ierr);
@@ -767,7 +729,7 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdT, FDPDE fdphi,void *ctx)
   ierr = DMStagViewBinaryPython(usr->dmphi,xphiguess,fout);CHKERRQ(ierr);
   ierr = VecDestroy(&xphiguess);CHKERRQ(ierr);
 
-  // material properties - eta, zeta, G, Z, permeability, density
+  // material properties
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_matProp_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(usr->dmmatProp,usr->xmatProp,fout);CHKERRQ(ierr);
 
@@ -917,10 +879,10 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmPlith, Vec xPl
       if (j == 0   ) jm = j; else jm = j-1; p[3] = _xPlithlocal[jm][i][pv_slot[iPlith]];
       if (j == Nz-1) jm = j; else jm = j+1; p[4] = _xPlithlocal[jm][i][pv_slot[iPlith]];
 
-      gradPlith[0] = (p[0]-p[1])/dx*i_hat[0];
-      gradPlith[1] = (p[2]-p[0])/dx*i_hat[1];
-      gradPlith[2] = (p[0]-p[3])/dz*i_hat[2];
-      gradPlith[3] = (p[4]-p[0])/dz*i_hat[3];
+      gradPlith[0] = (p[0]-p[1])/dx;
+      gradPlith[1] = (p[2]-p[0])/dx;
+      gradPlith[2] = (p[0]-p[3])/dz;
+      gradPlith[3] = (p[4]-p[0])/dz;
 
       // get porosity - from solid porosity
       Q[0] = 1.0 - _xphilocal[j][i][phi_slot];
@@ -939,11 +901,8 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmPlith, Vec xPl
         // correct for negative porosity
         if (phi[ii]<0.0) phi[ii] = 0.0;
 
-        // permeability
-        Kphi = Permeability(phi[ii],usr->par->n);
-
         // fluid velocity A = R^2
-        vf = LiquidVelocity(A,Kphi,vs[ii],phi[ii],gradP[ii],gradPlith[ii],k_hat[ii]);
+        vf = LiquidVelocity(A,vs[ii],phi[ii],usr->par->n,gradP[ii],gradPlith[ii],usr->nd->rhof*k_hat[ii]);
         xx[j][i][v_slot[ii]] = vf;
 
         // bulk velocity
@@ -1216,7 +1175,6 @@ PetscErrorCode OutputParameters(void *ctx)
   // }
 
   // Note: readBag() in PetscBinaryIO.py is not yet implemented, so will close the python file without reading bag
-  // output bag
   ierr = PetscBagView(usr->bag,viewer);CHKERRQ(ierr);
 
   fprintf(fp,"    return data\n\n");
@@ -1429,7 +1387,6 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ctx
   ierr = VecCopy(usr->xphi,xphiprev);CHKERRQ(ierr);
   
   ierr = FDPDEGetSolutionGuess(fdphi,&xphiguess);CHKERRQ(ierr);
-  // ierr = VecCopy(usr->xphi,xphiguess);CHKERRQ(ierr);
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xphiguess_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
   ierr = VecCopy(x,xphiguess);CHKERRQ(ierr);
@@ -1585,139 +1542,6 @@ PetscErrorCode DMSwarmReadBinaryXDMF_Seq(DM dmswarm, const char *fout, PetscInt 
 // ---------------------------------------
 // UpdateStrainRates
 // ---------------------------------------
-PetscErrorCode UpdateStrainRates(DM dm, Vec x, void *ctx)
-{
-  UsrData        *usr = (UsrData*) ctx;
-  DM             dmeps;
-  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, idx, ii;
-  PetscInt       iprev, inext, icenter;
-  PetscScalar    ***xx;
-  PetscScalar    **coordx,**coordz;
-  Vec            xeps, xepslocal,xlocal;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-
-  dmeps = usr->dmeps;
-  xeps  = usr->xeps;
-
-  // Local vectors
-  ierr = DMCreateLocalVector (dmeps,&xepslocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dmeps,xepslocal,&xx); CHKERRQ(ierr);
-
-  ierr = DMGetLocalVector(dm,&xlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal); CHKERRQ(ierr);
-
-  // Get domain corners
-  ierr = DMStagGetGlobalSizes(dmeps, &Nx, &Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dmeps, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-
-  // Get dm coordinates array
-  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dm,LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dm,RIGHT,&inext);CHKERRQ(ierr);
-
-  // Loop over local domain
-  for (j = sz; j < sz+nz; j++) {
-    for (i = sx; i <sx+nx; i++) {
-      DMStagStencil  pointC, pointN[4];
-      PetscScalar    epsIIc, exxc, ezzc, exzc, epsIIn[4], exxn[4], ezzn[4], exzn[4];
-
-      // Strain rates: center
-      pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
-      ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
-
-      ierr = DMStagGetLocationSlot(dmeps,ELEMENT,0,&idx); CHKERRQ(ierr); xx[j][i][idx] = exxc;
-      ierr = DMStagGetLocationSlot(dmeps,ELEMENT,1,&idx); CHKERRQ(ierr); xx[j][i][idx] = ezzc;
-      ierr = DMStagGetLocationSlot(dmeps,ELEMENT,2,&idx); CHKERRQ(ierr); xx[j][i][idx] = exzc;
-      ierr = DMStagGetLocationSlot(dmeps,ELEMENT,3,&idx); CHKERRQ(ierr); xx[j][i][idx] = epsIIc;
-
-      // Strain rates: corner
-      pointN[0].i = i; pointN[0].j = j; pointN[0].loc = DOWN_LEFT;  pointN[0].c = 0;
-      pointN[1].i = i; pointN[1].j = j; pointN[1].loc = DOWN_RIGHT; pointN[1].c = 0;
-      pointN[2].i = i; pointN[2].j = j; pointN[2].loc = UP_LEFT;    pointN[2].c = 0;
-      pointN[3].i = i; pointN[3].j = j; pointN[3].loc = UP_RIGHT;   pointN[3].c = 0;
-      ierr = DMStagGetPointStrainRates(dm,xlocal,4,pointN,epsIIn,exxn,ezzn,exzn); CHKERRQ(ierr);
-
-      if (i==0) { // boundaries
-        pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
-        // ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
-        ezzn[0] = ezzc;
-        exxn[0] = exxc;
-      }
-
-      if (i==Nx-1) { // boundaries
-        pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
-        // ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
-        ezzn[1] = ezzc;
-        exxn[1] = exxc;
-      }
-
-      if (j==0) { // boundaries
-        pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
-        // ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
-        exxn[0] = exxc;
-        ezzn[0] = ezzc;
-      }
-
-      if (j==Nz-1) { // boundaries
-        pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
-        // ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
-        exxn[2] = exxc;
-        ezzn[2] = ezzc;
-      }
-
-      if ((i==Nx-1) && (j==Nz-1)) { // boundaries
-        pointC.i = i; pointC.j = j; pointC.loc = ELEMENT; pointC.c = 0;
-        // ierr = DMStagGetPointStrainRates(dm,xlocal,1,&pointC,&epsIIc,&exxc,&ezzc,&exzc); CHKERRQ(ierr);
-        exxn[3] = exxc;
-        ezzn[3] = ezzc;
-      }
-
-      if ((i==0) || (i==Nx-1) || (j==0) || (j==Nz-1)) { // boundaries
-        for (ii = 0; ii < 4; ii++) {
-          epsIIn[ii] = PetscPowScalar(0.5*(exxn[ii]*exxn[ii] + ezzn[ii]*ezzn[ii] + 2.0*exzn[ii]*exzn[ii]),0.5);
-        }
-      }
-
-      ierr = DMStagGetLocationSlot(dmeps,DOWN_LEFT,0,&idx); CHKERRQ(ierr); xx[j][i][idx] = exxn[0];
-      ierr = DMStagGetLocationSlot(dmeps,DOWN_LEFT,1,&idx); CHKERRQ(ierr); xx[j][i][idx] = ezzn[0];
-      ierr = DMStagGetLocationSlot(dmeps,DOWN_LEFT,2,&idx); CHKERRQ(ierr); xx[j][i][idx] = exzn[0];
-      ierr = DMStagGetLocationSlot(dmeps,DOWN_LEFT,3,&idx); CHKERRQ(ierr); xx[j][i][idx] = epsIIn[0];
-
-      ierr = DMStagGetLocationSlot(dmeps,DOWN_RIGHT,0,&idx); CHKERRQ(ierr); xx[j][i][idx] = exxn[1];
-      ierr = DMStagGetLocationSlot(dmeps,DOWN_RIGHT,1,&idx); CHKERRQ(ierr); xx[j][i][idx] = ezzn[1];
-      ierr = DMStagGetLocationSlot(dmeps,DOWN_RIGHT,2,&idx); CHKERRQ(ierr); xx[j][i][idx] = exzn[1];
-      ierr = DMStagGetLocationSlot(dmeps,DOWN_RIGHT,3,&idx); CHKERRQ(ierr); xx[j][i][idx] = epsIIn[1];
-
-      ierr = DMStagGetLocationSlot(dmeps,UP_LEFT,0,&idx); CHKERRQ(ierr); xx[j][i][idx] = exxn[2];
-      ierr = DMStagGetLocationSlot(dmeps,UP_LEFT,1,&idx); CHKERRQ(ierr); xx[j][i][idx] = ezzn[2];
-      ierr = DMStagGetLocationSlot(dmeps,UP_LEFT,2,&idx); CHKERRQ(ierr); xx[j][i][idx] = exzn[2];
-      ierr = DMStagGetLocationSlot(dmeps,UP_LEFT,3,&idx); CHKERRQ(ierr); xx[j][i][idx] = epsIIn[2];
-
-      ierr = DMStagGetLocationSlot(dmeps,UP_RIGHT,0,&idx); CHKERRQ(ierr); xx[j][i][idx] = exxn[3];
-      ierr = DMStagGetLocationSlot(dmeps,UP_RIGHT,1,&idx); CHKERRQ(ierr); xx[j][i][idx] = ezzn[3];
-      ierr = DMStagGetLocationSlot(dmeps,UP_RIGHT,2,&idx); CHKERRQ(ierr); xx[j][i][idx] = exzn[3];
-      ierr = DMStagGetLocationSlot(dmeps,UP_RIGHT,3,&idx); CHKERRQ(ierr); xx[j][i][idx] = epsIIn[3];
-    }
-  }
-
-  // Restore arrays
-  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-
-  // Restore and map local to global
-  ierr = DMStagVecRestoreArray(dmeps,xepslocal,&xx); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dmeps,xepslocal,INSERT_VALUES,xeps); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dmeps,xepslocal,INSERT_VALUES,xeps); CHKERRQ(ierr);
-  ierr = VecDestroy(&xepslocal); CHKERRQ(ierr);
-
-  ierr = DMRestoreLocalVector(dm, &xlocal ); CHKERRQ(ierr);
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
 PetscErrorCode UpdateStrainRates_Array(DM dm, Vec x, void *ctx)
 /* dm - dmstag, x - solution PV vector */
 {
@@ -1844,7 +1668,7 @@ PetscErrorCode IntegratePlasticStrain(DM dm, Vec lam, Vec dotlam, void *ctx)
   PetscScalar    ***_lam, ***_dotlam;
   PetscErrorCode ierr;
 
-  dt = usr->nd->dt; // dim or nd?
+  dt = usr->nd->dt; 
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   // Create local vector
   ierr = DMCreateLocalVector(dm, &lamlocal); CHKERRQ(ierr);
@@ -1977,9 +1801,6 @@ PetscErrorCode CorrectPorosityFreeSurface(DM dm, Vec x, DM dmphase, Vec xphase)
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
-      PetscScalar phi;
-      phi = 1.0 - xx[j][i][iE];
-      // if (xxphase[j][i][isurf]>0.0 && phi>0.0) xx[j][i][iE] = 1.0;
       if (xxphase[j][i][isurf]>0.0) xx[j][i][iE] = 1.0;
     }
   }
@@ -2025,7 +1846,7 @@ PetscErrorCode Get9PointCenterValues(PetscInt i, PetscInt j, PetscInt idx, Petsc
 {
   PetscInt  im, jm, ip, jp;
   PetscFunctionBegin;
-    // get porosity, p, Plith, T - center
+    // get property in center
     if (i == 0   ) im = i; else im = i-1;
     if (i == Nx-1) ip = i; else ip = i+1;
     if (j == 0   ) jm = j; else jm = j-1;

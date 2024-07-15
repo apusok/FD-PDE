@@ -56,10 +56,10 @@ PetscScalar Mixture(PetscScalar as, PetscScalar af, PetscScalar phi)
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "LiquidVelocity"
-PetscScalar LiquidVelocity(PetscScalar A, PetscScalar Kphi, PetscScalar vs, PetscScalar phi, PetscScalar gradP, PetscScalar gradPlith, PetscScalar Bf) 
+PetscScalar LiquidVelocity(PetscScalar A, PetscScalar vs, PetscScalar phi, PetscScalar n, PetscScalar gradP, PetscScalar gradPlith, PetscScalar Bf) 
 { 
-  if (Kphi == 0.0) return 0.0;
-  else             return vs-A*Kphi/phi*(gradP+gradPlith-Bf);
+  if (phi == 0.0) return vs;
+  else            return vs-A*pow(phi,n-1)*(gradP+gradPlith+Bf);
 }
 
 // ---------------------------------------
@@ -202,10 +202,6 @@ static PetscScalar ResF(PetscScalar xsol[3], PetscScalar *a,PetscScalar theta,Pe
   return F;
 }
 
-// // ---------------------------------------
-// PetscScalar AlphaP(PetscScalar phi, PetscScalar phia) 
-// { return PetscExpScalar(-phi/phia); }
-
 // ---------------------------------------
 //VEVP_hyper_tau: find the solution of tauII
 // - a[5], five constants in the local Newton iterative, the output from tau_a
@@ -272,7 +268,8 @@ PetscErrorCode Plastic_LocalSolver(PetscScalar *xve,PetscScalar C, PetscScalar s
   eta_K  = usr->nd->eta_K;
   sint   = PetscSinScalar(theta);
   // alphaP = PetscExpScalar(-usr->par->phi_min/phi);
-  alphaP = 0.0;
+
+  alphaP = 0.0; // binary
   if (phi>=usr->par->phi_min) alphaP = 1.0;
   cdl    = PetscExpScalar(-usr->par->phi_min/phi);
 
@@ -297,11 +294,6 @@ PetscErrorCode Plastic_LocalSolver(PetscScalar *xve,PetscScalar C, PetscScalar s
       xsol[2] = lamtau(a,xsol[0],DPt,sint,zeta_ve,cdl,phi,eta_K);
       xsol[1] = DPt + cdl*zeta_ve/(1.0-phi) * sint * xsol[2]; 
     }
-    //PetscPrintf(PETSC_COMM_WORLD, "TEST, tau = %1.6f, dp = %1.6f, lam = %1.6f\n", xsol[0], xsol[1], xsol[2]);
-
-    // check sign of DP to avoid negative compaction viscosity
-    // if (PetscAbs(xsol[1]-DPt) > PetscAbs(xsol[1])-PetscAbs(DPt)) xsol[1] = DPt;
-
   }
   PetscFunctionReturn(0);
 }

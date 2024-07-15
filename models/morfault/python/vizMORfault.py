@@ -302,66 +302,6 @@ def parse_parameters_file(fname,fdir):
     return 0.0
 
 # ---------------------------------
-def create_scaling():
-  try: 
-    # Sort data
-    scal = EmptyStruct()
-    scal.SEC_YEAR = 31536000
-    scal.T_KELVIN = 273.15
-    scal.g = 9.8
-
-    scal.x = 100e3
-    scal.rho = 500
-    scal.eta = 1e18
-    scal.v = scal.rho*scal.g*scal.x**2/scal.eta
-    scal.t = scal.x/scal.v
-    scal.eps = scal.v/scal.x
-    scal.Kphi = 1.0e-7
-    scal.P = scal.eta*scal.v/scal.x
-    scal.T0 = scal.T_KELVIN
-    scal.DT = 1523.15 - scal.T_KELVIN
-
-    nd = EmptyStruct()
-    nd.L = 200e3/scal.x
-    nd.H = 1.0
-    nd.xmin = -200e3/2/scal.x
-    nd.zmin = -1.0
-    # nd.U0 = data['U0'][0]
-    # nd.visc_ratio = data['visc_ratio'][0]
-    # nd.eta_min = data['eta_min'][0]
-    # nd.eta_max = data['eta_max'][0]
-    # nd.istep = data['istep'][0]
-    # nd.t = data['t'][0]
-    # nd.dt = data['dt'][0]
-    # nd.tmax = data['tmax'][0]
-    # nd.dtmax = data['dtmax'][0]
-
-    # nd.delta = data['delta'][0]
-    # nd.alpha_s = data['alpha_s'][0]
-    # nd.beta_s = data['beta_s'][0]
-    # nd.A = data['A'][0]
-    # nd.S = data['S'][0]
-    # nd.PeT = data['PeT'][0]
-    # nd.PeC = data['PeC'][0]
-    # nd.thetaS = data['thetaS'][0]
-    # nd.G = data['G'][0]
-    # nd.RM = data['RM'][0]
-
-    # geoscal
-    geoscal = EmptyStruct()
-    geoscal.x  = 1e-3 # km
-    geoscal.P  = 1e-6 # MPa
-    geoscal.v  = 1.0e2*scal.SEC_YEAR # cm/yr
-    geoscal.T  = scal.T_KELVIN # deg C
-    geoscal.Gamma= 1000*scal.SEC_YEAR # g/m3/yr
-    geoscal.t  = 1.0/scal.SEC_YEAR
-
-    return scal, nd, geoscal
-  except OSError:
-    print('Cannot open: '+fdir+'/'+fname+'.py')
-    return 0.0
-
-# ---------------------------------
 def create_labels():
   try: 
     # Create data object
@@ -393,18 +333,11 @@ def create_labels():
     lbl.nd.C = r'$C$ [-]'
     lbl.nd.sigmat = r'$\sigma_T$ [-]'
     lbl.nd.theta = r'$\theta$ [-]'
-    # lbl.nd.H = r'$H$ [-]'
-    # lbl.nd.phi = r'$\phi$ [-]'
     lbl.nd.T = r'$\tilde{\theta}$ [-]'
-    # lbl.nd.TP = r'$\theta$ [-]'
-    # lbl.nd.Cf = r'$\Theta_f$ [-]'
-    # lbl.nd.Cs = r'$\Theta_s$ [-]'
     lbl.nd.Plith = r'$P_{lith}$ [-]'
     lbl.nd.resP = r'res $P$ [-]'
     lbl.nd.resvsx= r'res $V_s^x$ [-]'
     lbl.nd.resvsz= r'res $V_s^z$ [-]'
-    # lbl.nd.resC = r'res $\Theta$ [-]'
-    # lbl.nd.resH = r'res $H$ [-]'
     lbl.nd.eta = r'$\eta$ [-]'
     lbl.nd.zeta = r'$\zeta$ [-]'
     lbl.nd.Kphi = r'$K_\phi$ [-]'
@@ -413,8 +346,8 @@ def create_labels():
     lbl.nd.rhos = r'$\rho_s$ [-]'
     lbl.nd.Z = r'$Z$ [-]'
     lbl.nd.G = r'$G$ [-]'
-    # lbl.nd.Gamma = r'$\Gamma$ [-]'
-    # lbl.nd.divmass = r'$\nabla\cdot(v)$ [-]'
+    lbl.nd.Gamma = r'$\Gamma$ [-]'
+    lbl.nd.divmass = r'$\nabla\cdot(v)$ [-]'
 
     # Units and labels - dimensional
     lbl.dim.P = r'$P$ [MPa]'
@@ -437,19 +370,11 @@ def create_labels():
     lbl.dim.tauzz=r'$\tau_{zz}$ [MPa]'
     lbl.dim.tauxz=r'$\tau_{xz}$ [MPa]'
     lbl.dim.tauII=r'$\tau_{II}$ [MPa]'
-    # lbl.dim.H = r'$H$ [J/kg]'
-    # lbl.dim.C = r'$C$ [wt. frac.]'
-    # lbl.dim.Cf = r'$C_f$ [wt. frac.]'
-    # lbl.dim.Cs = r'$C_s$ [wt. frac.]'
     lbl.dim.T = r'$T$ $[^oC]$'
-    # lbl.dim.TP = r'$T$ potential $[^oC]$'
     lbl.dim.Plith = r'$P_{lith}$ [MPa]'
-    # lbl.dim.phi = r'$\phi$ '
     lbl.dim.resP = r'res $P$ [MPa]'
     lbl.dim.resvsx= r'res $V_s^x$ [cm/yr]'
     lbl.dim.resvsz= r'res $V_s^z$ [cm/yr]'
-    # lbl.dim.resC = r'res $C$ [wt. frac.]'
-    # lbl.dim.resH = r'res $H$ [J/kg]'
     lbl.dim.eta = r'$\eta$ [Pa.s]'
     lbl.dim.zeta = r'$\zeta$ [Pa.s]'
     lbl.dim.Kphi = r'$K_\phi$ [m2]'
@@ -461,8 +386,8 @@ def create_labels():
     lbl.dim.C = r'$C$ [MPa]'
     lbl.dim.sigmat = r'$\sigma_T$ [MPa]'
     lbl.dim.theta = r'$\theta$ [-]'
-    # lbl.dim.Gamma = r'$\Gamma$ [g/m$^3$/yr]'
-    # lbl.dim.divmass = r'$\nabla\cdot v$ [/s]'
+    lbl.dim.Gamma = r'$\Gamma$ [g/m$^3$/yr]'
+    lbl.dim.divmass = r'$\nabla\cdot v$ [/s]'
 
     return lbl
   except OSError:
@@ -577,8 +502,6 @@ def parse_marker_file(fname,fdir):
     mark.x = np.zeros(n)
     mark.z = np.zeros(n)
     mark.id = np.zeros(n)
-
-    # print(mark.n)
 
     # load binary data
     # print(fdir+'/'+fdata)
@@ -880,7 +803,7 @@ def parse_matProp_file(fname,fdir):
     matProp.zeta = data_c[4::dof].reshape(nz,nx)
     matProp.zetaV = data_c[5::dof].reshape(nz,nx)
     matProp.zetaE = data_c[6::dof].reshape(nz,nx)
-    matProp.zetaP = data_c[7::dof].reshape(nz,nx)
+    matProp.DPdl = data_c[7::dof].reshape(nz,nx)
     matProp.Z = data_c[8::dof].reshape(nz,nx)
     matProp.G = data_c[9::dof].reshape(nz,nx)
     matProp.C = data_c[10::dof].reshape(nz,nx)
@@ -983,7 +906,6 @@ def calc_center_velocities_div(vx,vz,xv,zv,nx,nz):
 
 # ---------------------------------
 def calc_dom_rheology_mechanism(A):
-  # A.eps,A.tau,A.tauold,A.DP,A.DPold,A.matProp,A.dotlam,A.grid.xc,A.grid.zc,A.nx,A.nz
 
   rheol = EmptyStruct()
   rheol.epsV_xx = 0.5*A.tau.xx_center/A.matProp.etaV
@@ -1003,7 +925,7 @@ def calc_dom_rheology_mechanism(A):
 
   rheol.volV = -A.DP/A.matProp.zetaV
   rheol.volE = -(A.DP-A.DPold)/A.matProp.zetaE
-  rheol.volP = -A.DP/A.matProp.zetaP
+  # rheol.volP = -A.DP/A.matProp.zetaP
 
   # difference 
   rheol.epsP2_II = A.eps.II_center-rheol.epsV_II-rheol.epsE_II
@@ -1585,6 +1507,7 @@ def plot_matProp(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
 
   ax = plt.subplot(4,4,1)
   scal = get_scaling(A,'eta',dim,0)
+  scalP = get_scaling(A,'P',dim,1)
   lbl  = get_label(A,'eta',dim)
   plot_standard(fig,ax,np.log10(A.matProp.eta[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 '+lbl+' tstep = '+str(istep),lblx,lblz,0,0)
 
@@ -1601,13 +1524,7 @@ def plot_matProp(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
   plot_standard(fig,ax,np.log10(A.matProp.etaP[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 P '+lbl,lblx,lblz,0,0)
 
   X = A.matProp.zeta*scal
-  # xi = X[X<=1e15]
-  # for i in range(0,A.nx):
-  #   for j in range(0,A.nz):
-  #     if (X[j,i]==xi):
-  #       print(j,i)
-
-  print(X[X<=1e15])
+  # print(X[X<=1e15])
   
   lbl  = get_label(A,'zeta',dim)
   ax = plt.subplot(4,4,5)
@@ -1623,7 +1540,7 @@ def plot_matProp(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
     plot_standard(fig,ax,np.log10(A.matProp.zetaE[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 E '+lbl,lblx,lblz,0,0)
 
   ax = plt.subplot(4,4,8)
-  plot_standard(fig,ax,np.log10(A.matProp.zetaP[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 P '+lbl,lblx,lblz,0,0)
+  plot_standard(fig,ax,A.matProp.DPdl[jstart:jend  ,istart:iend  ]*scalP,extentE,'DPdl [MPa]',lblx,lblz,0,0)
 
   ax = plt.subplot(4,4,9)
   lbl  = get_label(A,'Z',dim)

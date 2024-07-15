@@ -18,7 +18,7 @@ PetscErrorCode FormBCList_PV(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   vext = usr->nd->Vext;
 
-    if (usr->par->inflow_bc>0) { // top and bottom inflow
+  if (usr->par->inflow_bc>0) { // top and bottom inflow
     ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
     ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
     ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -101,19 +101,17 @@ PetscErrorCode FormBCList_PV(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  // DOWN Boundary: Vz = Vin
+  // DOWN Boundary: Vz = Vin_rock
   ierr = DMStagBCListGetValues(bclist,'s','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    // value_bc[k] = usr->nd->Vin;
     value_bc[k] = usr->nd->Vin_rock;
     type_bc[k] = BC_DIRICHLET;
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  // UP Boundary: Vz = 0
+  // UP Boundary: Vz = Vin_free_surface
   ierr = DMStagBCListGetValues(bclist,'n','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    // value_bc[k] = 0.0;
     value_bc[k] = -usr->nd->Vin_free;
     type_bc[k] = BC_DIRICHLET;
   }
@@ -252,10 +250,9 @@ PetscErrorCode FormBCList_PV_Stokes(DM dm, Vec x, DMStagBCList bclist, void *ctx
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  // DOWN Boundary: Vz = Vin
+  // DOWN Boundary: Vz = Vin_rock
   ierr = DMStagBCListGetValues(bclist,'s','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    // value_bc[k] = usr->nd->Vin;
     value_bc[k] = usr->nd->Vin_rock;
     type_bc[k] = BC_DIRICHLET;
   }
@@ -264,7 +261,6 @@ PetscErrorCode FormBCList_PV_Stokes(DM dm, Vec x, DMStagBCList bclist, void *ctx
   // UP Boundary: Vz = -Vin_free
   ierr = DMStagBCListGetValues(bclist,'n','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    // value_bc[k] = 0.0;
     value_bc[k] = -usr->nd->Vin_free;
     type_bc[k] = BC_DIRICHLET;
   }
@@ -313,18 +309,13 @@ PetscErrorCode FormBCList_T(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 
   // DOWN: T = Tbot
   ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
-  for (k=0; k<n_bc; k++) {
-    // value_bc[k] = usr->nd->Tbot;
-    
-    if ((usr->par->model_setup<=1) || (usr->par->model_setup==3) || (usr->par->model_setup==5) || (usr->par->model_setup==10)) age = usr->par->age*1.0e6*SEC_YEAR; // constant age
+  for (k=0; k<n_bc; k++) {    
+    if (usr->par->model_setup==0) age = usr->par->age*1.0e6*SEC_YEAR; // constant age
     else age  = usr->par->age*1.0e6*SEC_YEAR + dim_param(fabs(x_bc[2*k]),usr->scal->x)/dim_param(usr->nd->uT,usr->scal->v); // variable age
 
     Tbot = HalfSpaceCoolingTemp(usr->par->Tbot,usr->par->Ttop,usr->par->H-usr->par->Hs,usr->scal->kappa,age,usr->par->hs_factor); 
-    
-    // constant initial T
-    if (usr->par->model_setup==4) { Tbot = usr->par->Tinit;}
-
     nd_T = nd_paramT(Tbot,usr->par->Ttop,usr->scal->DT);
+
     value_bc[k] = nd_T;
     type_bc[k] = BC_DIRICHLET_STAG;
   }
@@ -377,22 +368,17 @@ PetscErrorCode FormBCList_phi(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   // DOWN: phis = 1.0 - func(phi0)
   ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    // phi = usr->par->phi0;
-    if (usr->par->model_setup<5) phi = usr->par->phi0 + phi_max*PetscExpScalar(-x_bc[2*k]*x_bc[2*k]/sigma);
-    else phi = 0.0;
+    if (usr->par->model_setup_phi==1) phi = usr->par->phi0 + phi_max*PetscExpScalar(-x_bc[2*k]*x_bc[2*k]/sigma);
+    else phi = usr->par->phi0;
     value_bc[k] = 1.0 - phi;
     type_bc[k] = BC_DIRICHLET_STAG;
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  // UP: dphis/dz = 0 
+  // UP: phi = 0 
   ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
-  // for (k=0; k<n_bc; k++) {
-  //   value_bc[k] = 0.0;
-  //   type_bc[k] = BC_NEUMANN;
-  // }
   for (k=0; k<n_bc; k++) {
-    value_bc[k] = 1.0;
+    value_bc[k] = 1.0 - usr->par->phi0;
     type_bc[k] = BC_DIRICHLET_STAG;
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);

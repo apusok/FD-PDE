@@ -84,14 +84,56 @@ def load_data_ts(A,sdir,istep):
 # ---------------------------------
 # Main script
 # ---------------------------------
-ts = [0, 2000, 2300, 2360, 2520, 2700, 2780, 3000]
+#ts = [0, 2000, 2300, 2360, 2520, 2700, 2780, 3000]
+#sim = 'run41_01_SD_setup6_sigmabc1e-2/'
 
-sim = 'run41_01_SD_setup6_sigmabc1e-2/'
+#ts = [0, 700, 830, 860, 900, 930, 1000, 1200]
+#sim = 'run41_01_SD_setup2_phibc5e-3_sigmabc1e-2_phimin1e-4/'
+
+#ts = [0, 600, 850, 1220, 1250, 1650, 1770, 2200]
+#sim = 'run43_01a_SD_setup6_Kphi1e-7_sigmabc1e-1/'
+
+ts = [0, 280, 800, 900, 920, 1000, 1500, 3000]
+sim = 'run43_01a_SD_setup6_Kphi1e-7_sigmabc1e-2_upwind/'
+
+#ts = [0, 500, 1000, 1080, 1140, 2000, 3000, 4000]
+#sim = 'run43_01a_SD_setup6_Kphi1e-7_sigmabc1e-3/'
+
+#ts = [0, 4000, 6000, 6850, 7000, 7220, 7300, 7500]
+#sim = 'run43_01a_SD_setup6_Kphi1e-8_sigmabc1e-1/'
+
+#ts = [0, 3000, 3690, 3900, 4500, 6000, 7000, 7500]
+#sim = 'run43_01a_SD_setup6_Kphi1e-8_sigmabc1e-2/'
+
+#ts = [0, 500, 670, 690, 750, 1370, 1420, 2000]
+#sim = 'run43_01b_SD_setup2_Kphi1e-7_sigmabc1e-2/'
+
+#ts = [0, 700, 890, 910, 930, 1100, 1800, 2000]
+#sim = 'run43_01b_SD_setup2_Kphi1e-7_sigmabc1e-3/'
+
+#ts = [0, 3000, 3630, 4000, 4780, 5000, 6000, 7000]
+#sim = 'run43_01b_SD_setup2_Kphi1e-8_sigmabc1e-2/'
+
+#ts = [0, 3000, 4160, 4180, 4500, 5000, 6000, 7000]
+#sim = 'run43_01b_SD_setup2_Kphi1e-8_sigmabc1e-3/'
+
+#ts = [0, 2000, 3000, 4000, 5000, 6000, 7000, 8000]
+#sim = 'run43_00_S_age2/'
+
+# ts = [0, 2000, 3000, 4000, 5000, 6000, 7000, 8000]
+# sim = 'run43_00_S_age5/'
+
+#ts = [0, 2000, 3000, 4000, 5000, 6000, 7000, 8000]
+#sim = 'run43_00_S_age10/'
+
 # sdir = '/Users/Adina/Bitbucket/riftomat-private/models/morfault/'+sim
 # outdir = '../Figures/'+sim
 
-sdir = '/Users/apusok/Documents/morfault/'+sim
-outdir = '/Users/apusok/Documents/morfault/Figures/'+sim
+#sdir = '/Users/apusok/Documents/morfault/'+sim
+#outdir = '/Users/apusok/Documents/morfault/Figures/'+sim
+
+sdir ='/Users/apusok/Documents/morfault/'+sim
+outdir='/Users/apusok/Documents/morfault/Figures/'+sim
 
 print(' >> '+outdir)
 
