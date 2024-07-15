@@ -1511,7 +1511,14 @@ def plot_matProp(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
   plot_standard(fig,ax,np.log10(A.matProp.etaP[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 P '+lbl,lblx,lblz,0,0)
 
   X = A.matProp.zeta*scal
+  # xi = X[X<=1e15]
+  # for i in range(0,A.nx):
+  #   for j in range(0,A.nz):
+  #     if (X[j,i]==xi):
+  #       print(j,i)
+
   print(X[X<=1e15])
+  
   lbl  = get_label(A,'zeta',dim)
   ax = plt.subplot(4,4,5)
   plot_standard(fig,ax,np.log10(A.matProp.zeta[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 '+lbl,lblx,lblz,0,0)

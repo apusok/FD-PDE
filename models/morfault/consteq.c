@@ -73,10 +73,10 @@ PetscScalar ShearViscosity(PetscScalar eta0, PetscScalar T, PetscScalar phi, Pet
   // constant 
   if (func == 0) { eta = eta0; } 
 
-  // phi-dependent, with harmonic averaging
+  // phi-dependent
   if (func == 1) { eta = eta0*exp(-beta*phi); } 
 
-  // T,phi-dep, with harmonic averaging
+  // T,phi-dep
   if (func == 2) { eta = eta0*ArrheniusTerm_Viscosity(T,EoR,Teta0)*exp(-beta*phi); }
   return eta;
 }
@@ -97,7 +97,7 @@ PetscScalar CompactionViscosity(PetscScalar zeta0, PetscScalar T, PetscScalar ph
   // phi-dependent, with 1/(phi+phi_min)
   if (func == 1) { zeta = zeta0*pow(phi+phi_min,zetaExp); }
 
-  // T,phi-dep, with harmonic averaging and with 1/(phi+phi_min)
+  // T,phi-dep with 1/(phi+phi_min)
   if (func == 2) { zeta = zeta0*pow(phi+phi_min,zetaExp)*ArrheniusTerm_Viscosity(T,EoR,Teta0); }
   return zeta;
 }
