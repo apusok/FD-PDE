@@ -3862,3 +3862,36 @@ def plot_8multiple_C_VEVP(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,fdir,f
   # plt.tight_layout()
   plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
   plt.close()
+
+# ---------------------------------
+def plot_compaction_length(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
+  fig = plt.figure(1,figsize=(7,5))
+
+  markx = A.mark.x[A.mark.id==0]
+  markz = A.mark.z[A.mark.id==0]
+
+  scal_eta = get_scaling(A,'eta',dim,0)
+  scal_K = get_scaling(A,'Kphi',dim,0)
+  mu = 1.0
+
+  delta = ((A.matProp.zetaV+4.0/3.0*A.matProp.etaV)*scal_eta*scal_K/mu)**0.5
+  print('log10(delta): min = '+str(np.min(np.log10(delta)))+' max = '+str(np.max(np.log10(delta))))
+
+  scalx = get_scaling(A,'x',dim,1)
+  lblx = get_label(A,'x',dim)
+  lblz = get_label(A,'z',dim)
+  extentE=[min(A.grid.xc[istart:iend])*scalx, max(A.grid.xc[istart:iend])*scalx, min(A.grid.zc[jstart:jend])*scalx, max(A.grid.zc[jstart:jend])*scalx]
+
+  ax = plt.subplot(1,1,1)
+  im = ax.imshow(np.log10(delta[jstart:jend  ,istart:iend  ]),extent=extentE,origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.60)
+  ax.axis('image')
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  ax.set_title(r'log$_{10}\delta$ [m]'+' tstep = '+str(istep))
+
+  # plt.tight_layout() 
+  plt.savefig(fdir+fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
+  plt.close()
