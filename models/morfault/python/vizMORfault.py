@@ -9,6 +9,7 @@ matplotlib.use('pdf')
 from matplotlib import rc
 import importlib
 import os
+from cmcrameri import cm
 
 # Some new font
 rc('font',**{'family':'serif','serif':['Times new roman']})
@@ -103,56 +104,121 @@ def parse_solver_log_file(fname):
     # parse number of PV and T SNES iterations
     iPV=0
     iT =0
+    iphi = 0
     PVsolver = 0
     Tsolver  = 0
+    phisolver  = 0
     f = open(fname, 'r')
     for line in f:
       if '# (PV) Mechanics' in line: 
         PVsolver = 1
         Tsolver  = 0
+        phisolver = 0
       if '# (T) Energy' in line: 
         PVsolver = 0
         Tsolver  = 1
+        phisolver = 0
+      if '# (phi) Porosity' in line: 
+        PVsolver = 0
+        Tsolver  = 0
+        phisolver = 1
       if 'SNES Function norm' in line:
         if (PVsolver==1):
           iPV+=1
         if (Tsolver==1):
           iT+=1
+        if (phisolver==1):
+          iphi+=1
     f.close()
 
     # Convergence 
     sol = EmptyStruct()
     sol.iPV = iPV
     sol.iT  = iT
+    sol.iphi  = iphi
     sol.tstep = tstep
-    sol.PVres  = np.zeros(iPV)
-    sol.PViter = np.zeros(iPV)
-    sol.Tres  = np.zeros(iT)
-    sol.Titer = np.zeros(iT)
-    #add dt, runtime
+    sol.runtime  = np.zeros(sol.tstep)
+    sol.dt  = np.zeros(sol.tstep)
+
+    sol.PV_ts_res  = np.zeros(sol.tstep)
+    sol.PV_n_it  = np.zeros(sol.tstep)
+    sol.PV_it_res  = np.zeros(iPV)
+    sol.PV_iter = np.zeros(iPV)
+    sol.PV_ts_diverged = np.zeros(sol.tstep)
+
+    sol.T_ts_res  = np.zeros(sol.tstep)
+    sol.T_n_it  = np.zeros(sol.tstep)
+    sol.T_it_res  = np.zeros(iT)
+    sol.T_iter = np.zeros(iT)
+    sol.T_ts_diverged = np.zeros(sol.tstep)
+
+    sol.phi_ts_res  = np.zeros(sol.tstep)
+    sol.phi_n_it  = np.zeros(sol.tstep)
+    sol.phi_it_res  = np.zeros(iphi)
+    sol.phi_iter = np.zeros(iphi)
+    sol.phi_ts_diverged = np.zeros(sol.tstep)
 
     # Parse output and save residual info
+    i0 =-1
     iPV=0
     iT =0
+    iphi=0
     PVsolver = 0
     Tsolver  = 0
+    phisolver  = 0
     f = open(fname, 'r')
     for line in f:
+      if '# TIMESTEP' in line:
+        i0+=1
+        niPV=0
+        niT =0
+        niphi=0
+      if '# Timestep runtime:' in line:
+        ij = line.find('(')
+        sol.runtime[i0]  = float(line[20:ij-1])
+      if '# TIME:' in line:
+        sol.dt[i0] = float(line[44:62])
       if '# (PV) Mechanics' in line: 
         PVsolver = 1
         Tsolver  = 0
+        phisolver = 0
       if '# (T) Energy' in line: 
         PVsolver = 0
         Tsolver  = 1
+        phisolver = 0
+      if '# (phi) Porosity' in line: 
+        PVsolver = 0
+        Tsolver  = 0
+        phisolver = 1
+      if 'Nonlinear pv_ solve did not converge' in line:
+        sol.PV_ts_diverged[i0] = i0
+      if 'Nonlinear t_ solve did not converge' in line:
+        sol.T_ts_diverged[i0] = i0
+      if 'Nonlinear phi_ solve did not converge' in line:
+        sol.phi_ts_diverged[i0] = i0
       if 'SNES Function norm' in line:
         if (PVsolver==1):
-          sol.PVres[iPV]  = float(line[23:41])
-          sol.PViter[iPV] = float(line[0:4])
+          sol.PV_ts_res[i0]  = float(line[23:41])
+          sol.PV_it_res[iPV]  = float(line[23:41])
+          sol.PV_iter[iPV] = float(line[0:4])
           iPV+=1
+          niPV+=1
+          sol.PV_n_it[i0]  = niPV
         if (Tsolver==1):
-          sol.Tres[iT]  = float(line[23:41])
-          sol.Titer[iT] = float(line[0:4])
+          sol.T_ts_res[i0]  = float(line[23:41])
+          sol.T_it_res[iT]  = float(line[23:41])
+          sol.T_iter[iT] = float(line[0:4])
           iT+=1
+          niT+=1
+          sol.T_n_it[i0]   = niT
+        if (phisolver==1):
+          sol.phi_ts_res[i0]  = float(line[23:41])
+          sol.phi_it_res[iphi]  = float(line[23:41])
+          sol.phi_iter[iphi] = float(line[0:4])
+          iphi+=1
+          niphi+=1
+          sol.phi_n_it[i0] = niphi
+
     f.close()
 
     return sol
@@ -957,21 +1023,82 @@ def plot_standard(fig,ax,X,extent,title,lblx,lblz,cmin,cmax):
 # ---------------------------------
 def plot_solver_residuals(A,fname):
 
-  fig = plt.figure(1,figsize=(10,10))
+  fig = plt.figure(1,figsize=(30,15))
 
-  ax = plt.subplot(2,1,1)
-  pl = ax.plot(np.log10(A.sol.PVres), linewidth=0.1)
-  # ax.plot(np.log10(A.sol.PVres_diverged[1:-1]), 'r*')
+  ax = plt.subplot(3,4,1)
+  pl = ax.plot(np.log10(A.sol.PV_it_res), linewidth=0.1)
   plt.grid(True)
   ax.set_xlabel('Iteration')
   ax.set_ylabel('log10(PV residual)')
 
-  ax = plt.subplot(2,1,2)
-  ax.plot(np.log10(A.sol.Tres), linewidth=0.1)
-  # ax.plot(np.log10(A.sol.Tres_diverged[1:-1]), 'r*')
+  ax = plt.subplot(3,4,5)
+  ax.plot(np.log10(A.sol.T_it_res), linewidth=0.1)
   plt.grid(True)
   ax.set_xlabel('Iteration')
   ax.set_ylabel('log10(T residual)')
+
+  ax = plt.subplot(3,4,9)
+  ax.plot(np.log10(A.sol.phi_it_res), linewidth=0.1)
+  plt.grid(True)
+  ax.set_xlabel('Iteration')
+  ax.set_ylabel('log10(phi residual)')
+
+  ax = plt.subplot(3,4,2)
+  pl = ax.plot(np.log10(A.sol.PV_ts_res), linewidth=0.1)
+  for i in range(0,A.sol.tstep):
+    if (A.sol.PV_ts_diverged[i]>0):
+      ax.plot(i,np.log10(A.sol.PV_ts_res[i]), 'r*')
+  plt.grid(True)
+  ax.set_xlabel('Timestep')
+  ax.set_ylabel('log10(PV residual)')
+
+  ax = plt.subplot(3,4,6)
+  ax.plot(np.log10(A.sol.T_ts_res), linewidth=0.5)
+  for i in range(0,A.sol.tstep):
+    if (A.sol.T_ts_diverged[i]>0):
+      ax.plot(i,np.log10(A.sol.T_ts_res[i]), 'r*')
+  plt.grid(True)
+  ax.set_xlabel('Timestep')
+  ax.set_ylabel('log10(T residual)')
+
+  ax = plt.subplot(3,4,10)
+  ax.plot(np.log10(A.sol.phi_ts_res), linewidth=0.5)
+  for i in range(0,A.sol.tstep):
+    if (A.sol.phi_ts_diverged[i]>0):
+      ax.plot(i,np.log10(A.sol.phi_ts_res[i]), 'r*')
+  plt.grid(True)
+  ax.set_xlabel('Timestep')
+  ax.set_ylabel('log10(phi residual)')
+
+  ax = plt.subplot(3,4,3)
+  pl = ax.plot(A.sol.PV_n_it, '*-', linewidth=0.1)
+  plt.grid(True)
+  ax.set_xlabel('Timestep')
+  ax.set_ylabel('PV iter')
+
+  ax = plt.subplot(3,4,7)
+  pl = ax.plot(A.sol.T_n_it, '*-', linewidth=0.1)
+  plt.grid(True)
+  ax.set_xlabel('Timestep')
+  ax.set_ylabel('T iter')
+
+  ax = plt.subplot(3,4,11)
+  pl = ax.plot(A.sol.phi_n_it, '*-', linewidth=0.1)
+  plt.grid(True)
+  ax.set_xlabel('Timestep')
+  ax.set_ylabel('phi iter')
+
+  ax = plt.subplot(3,4,4)
+  pl = ax.plot(A.sol.runtime, '*-', linewidth=0.1)
+  plt.grid(True)
+  ax.set_xlabel('Timestep')
+  ax.set_ylabel('Runtime (s)')
+
+  ax = plt.subplot(3,4,8)
+  pl = ax.plot(np.log10(A.sol.dt), linewidth=1.0)
+  plt.grid(True)
+  ax.set_xlabel('Timestep')
+  ax.set_ylabel('log10(dt)')
 
   plt.savefig(fname+'.pdf', bbox_inches = 'tight')
   plt.close()
@@ -1812,6 +1939,93 @@ def plot_mark_eta_eps_tau_T_phi(A,istart,iend,jstart,jend,fname,istep,dim):
   scal = get_scaling(A,'P',dim,1)
   X4 = A.tau.II_corner*scal
   plot_standard(fig,ax,X4,extentV,'CORNER: '+lblII+' tstep = '+str(istep),lblx,lblz,0,0)
+
+  # plt.tight_layout() 
+  plt.savefig(fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_mark_eps_phi(A,istart,iend,jstart,jend,fname,istep,dim):
+  
+  fig = plt.figure(1,figsize=(21,4))
+
+  scalx = get_scaling(A,'x',dim,1)
+  scalv = get_scaling(A,'v',dim,1)
+  lblx = get_label(A,'x',dim)
+  lblz = get_label(A,'z',dim)
+  scalt = get_scaling(A,'t',dim,1)
+  t = A.nd.t*scalt
+  
+  markx = A.mark.x[A.mark.id==0]
+  markz = A.mark.z[A.mark.id==0]
+
+  extentE=[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zc[jstart:jend  ])*scalx, max(A.grid.zc[jstart:jend  ])*scalx]
+  extentV=[min(A.grid.xv[istart:iend+1])*scalx, max(A.grid.xv[istart:iend+1])*scalx, min(A.grid.zv[jstart:jend+1])*scalx, max(A.grid.zv[jstart:jend+1])*scalx]
+
+  ax = plt.subplot(1,3,1)
+  # cmap1 = 'cividis'
+  # cmap1 = 'viridis'
+  cmap1 = 'binary_r'
+  im = ax.scatter(A.mark.x*scalx,A.mark.z*scalx,c=A.mark.id,s=0.5,linewidths=None,cmap=cmap1)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.70)
+  cbar.ax.set_title('id')
+  ax.set_xlim(min(A.grid.xv[istart:iend]*scalx), max(A.grid.xv[istart:iend]*scalx))
+  ax.set_ylim(min(A.grid.zv[istart:iend]*scalx), max(A.grid.zv[istart:iend]*scalx))
+  ax.set_aspect('equal')
+  ax.set_title('PIC'+' tstep = '+str(istep)+' time = '+str(round(t/1.0e3,0))+' [kyr]', fontweight='bold')
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+
+  maxV = 1
+  nind = 10 # 10 for high res/ 5 for low res
+  Q  = ax.quiver(A.grid.xc[istart:iend:nind]*scalx, A.grid.zc[jstart:jend:nind]*scalx, A.Vscx[jstart:jend:nind,istart:iend:nind]*scalv/maxV, A.Vscz[jstart:jend:nind,istart:iend:nind]*scalv/maxV, 
+      color='black', scale_units='xy', scale=0.25, units='width', pivot='tail', width=0.003, headwidth=5, headaxislength=5, minlength=0)
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+
+
+  ax = plt.subplot(1,3,2)
+  lblII  = get_label(A,'epsII',dim)
+  scal = get_scaling(A,'eps',dim,0)
+  # cmap1 = cm.broc_r
+  X4 = A.eps.II_corner*scal
+  # plot_standard(fig,ax,X4,extentV,'CORNER: '+lblII+' tstep = '+str(istep),lblx,lblz,0,0)
+  # im = ax.imshow(np.log10(X4[jstart:jend  ,istart:iend  ]),extent=extentV,cmap='seismic',origin='lower')
+  im = ax.imshow(X4[jstart:jend  ,istart:iend  ],extent=extentV,cmap='seismic',origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  # im.set_clim(-16,-13)
+  im.set_clim(1e-16,1e-13)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.70)
+  ax.axis('image')
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  # ax.set_title('log10 '+lblII)
+  ax.set_title(lblII)
+
+  ax = plt.subplot(1,3,3)
+  X = 1.0 - A.phis
+  X[X<1e-10] = 1e-10
+  # X[X>1e-10] = 1e-10
+  cmap1 = plt.cm.get_cmap('inferno', 20)
+  im = ax.imshow(np.log10(X[jstart:jend  ,istart:iend  ]),extent=extentE,cmap=cmap1,origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(-6,-1)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.70)
+  ax.axis('image')
+  ax.set_xlim([-100,100])
+  ax.set_ylim([-100,0])
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  ax.set_title(r'log$_{10}\phi$')
+
+  # temperature contour
+  X = scale_TC(A,'T','T',dim,1)
+  cmap1 = plt.cm.get_cmap('binary',10)
+
+  if (dim):
+    levels = [0, 250, 500, 750, 1000, 1300, 1500]
+    fmt = r'%0.0f $^o$C'
+    ts = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, X[jstart:jend  ,istart:iend  ], levels=levels,linewidths=(1.0,), extend='both',cmap=cmap1)
+    ax.clabel(ts, fmt=fmt, fontsize=10)
 
   # plt.tight_layout() 
   plt.savefig(fname+'.png', bbox_inches = 'tight')

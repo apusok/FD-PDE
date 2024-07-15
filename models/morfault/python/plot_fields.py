@@ -21,7 +21,7 @@ def sortTimesteps(tdir):
 
 # Parameters
 A.dimensional = 1 # 0-nd, 1-dim
-sim = 'run28_04_phi00_phimax1e-3_HR_dt1e2/'
+sim = 'run28_06_phi00_phimax1e-3_pulse2_phimax5e-3_HR/'
 A.input = '../'+sim
 A.output_path_dir = '../Figures/'+sim
 A.path_dir = './'
@@ -54,6 +54,7 @@ for ii in range(0,nt):
 
 # Create directories
 A.input_dir = A.path_dir+A.input
+# A.output_dir = A.output_path_dir+'fields_pic_eps_phi/'
 A.output_dir = A.output_path_dir+'fields/'
 
 try:
@@ -109,7 +110,17 @@ if (flg_output):
   # Loop over timesteps
   for istep in time_list:
     fdir  = A.input_dir+'Timestep'+str(istep)
-    print(fdir)
+
+    # check if timestep is output or not
+    flg_output_ts = False
+    for s in fout_list:
+      if 'ts'+str(istep) in s:
+        flg_output_ts = True
+
+    if (flg_output_ts):
+      continue
+
+    print('  >> >> '+'Timestep'+str(istep))
 
     vizB.correct_path_load_data(fdir+'/parameters.py')
     A.nd.istep, A.nd.dt, A.nd.t = vizB.parse_time_info_parameters_file('parameters',fdir)
@@ -157,7 +168,7 @@ if (flg_output):
     A.eps = vizB.parse_Tensor_file('out_xeps_ts'+str(istep),fdir)
     A.tau = vizB.parse_Tensor_file('out_xtau_ts'+str(istep),fdir)
     A.tauold = vizB.parse_Tensor_file('out_xtauold_ts'+str(istep),fdir)
-    A.PVcoeff = vizB.parse_PVcoeff_file('out_xPVcoeff_ts'+str(istep),fdir)
+    # A.PVcoeff = vizB.parse_PVcoeff_file('out_xPVcoeff_ts'+str(istep),fdir)
     # A.PVcoeff = vizB.parse_PVcoeff_Stokes_file('out_xPVcoeff_ts'+str(istep),fdir)
     A.matProp = vizB.parse_matProp_file('out_matProp_ts'+str(istep),fdir)
     A.Vfx, A.Vfz, A.Vx, A.Vz = vizB.parse_Vel_file('out_xVel_ts'+str(istep),fdir)
@@ -177,6 +188,7 @@ if (flg_output):
     # vizB.plot_mark_eta_eps_tau2(A,istart,iend,jstart,jend,A.output_dir+'out_mark_eta_eps_tau2_ts'+str(istep),istep,A.dimensional)
     vizB.plot_mark_eta_eps_tau_T_phi(A,istart,iend,jstart,jend,A.output_dir+'out_mark_eta_eps_tau_T_phi_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_def_mechanisms(A,istart,iend,jstart,jend,A.output_dir+'out_def_mechanisms_ts'+str(istep),istep,A.dimensional)
+    # vizB.plot_mark_eps_phi(A,istart,iend,jstart,jend,A.output_dir+'out_mark_eps_phi_ts'+str(istep),istep,A.dimensional)
 
     # vizB.plot_T(A,istart,iend,jstart,jend,A.output_dir+'out_xT_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_MPhase(A,istart,iend,jstart,jend,A.output_dir+'out_xMPhase_ts'+str(istep),istep,A.dimensional)

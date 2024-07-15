@@ -171,6 +171,9 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->strain_max, 0.1, "strain_max", "Total plastic strain for softening"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->hcc, 0.5, "hcc", "Relative reduction for cohesion and friction angle during strain softening"); CHKERRQ(ierr);
 
+  ierr = PetscBagRegisterScalar(bag, &par->phi_max_bc, 1e-3, "phi_max_bc", "Amplitude of porosity pulse on bottom BC"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->sigma_bc, 0.1, "sigma_bc", "Width of porosity pulse on bottom BC"); CHKERRQ(ierr);
+
   // material phases for markers (markers carry only phase id)
   ierr = PetscBagRegisterInt(bag, &par->marker_phases, 6, "marker_phases", "Number of marker phases [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->matid_default, 5, "matid_default", "Default material phase for scaling [-]"); CHKERRQ(ierr);

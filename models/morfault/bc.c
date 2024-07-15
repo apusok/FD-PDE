@@ -323,13 +323,13 @@ PetscErrorCode FormBCList_phi(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
   UsrData     *usr = (UsrData*)ctx;
   PetscInt    k,n_bc,*idx_bc;
-  PetscScalar *value_bc,*x_bc, phi, phi_max;
+  PetscScalar *value_bc,*x_bc, phi, phi_max,sigma;
   BCType      *type_bc;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  phi_max = 1.0e-3;
-  // phi_max = 0.0;
+  phi_max = usr->par->phi_max_bc; // 1e-3;
+  sigma   = usr->par->sigma_bc;   // 0.1 - 0.001;
   
   // Left: dphis/dx = 0
   ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -351,7 +351,7 @@ PetscErrorCode FormBCList_phi(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     // phi = usr->par->phi0;
-    phi = usr->par->phi0 + phi_max*PetscExpScalar(-x_bc[2*k]*x_bc[2*k]/0.1);
+    phi = usr->par->phi0 + phi_max*PetscExpScalar(-x_bc[2*k]*x_bc[2*k]/sigma);
     value_bc[k] = 1.0 - phi;
     type_bc[k] = BC_DIRICHLET_STAG;
   }

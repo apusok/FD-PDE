@@ -16,11 +16,11 @@ class SimStruct:
 # ---------------------------------------
 A = SimStruct()
 
-sim = 'run23_VEVP_01_SD_debug_plastic/'
+sim = 'run29_01_SD_phimax5e-3_sigma1e-3_HR/'
 A.input = '../'+sim
 A.output_path_dir = '../Figures/'+sim
 A.path_dir = './'
-log_file ='log_out_mine.out'
+log_file ='log_out.out'
 
 # Create directories
 A.input_dir = A.path_dir+A.input
