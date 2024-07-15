@@ -98,12 +98,12 @@ PetscErrorCode Numerical_solution(void *ctx)
   UsrData        *usr = (UsrData*) ctx;
   NdParams       *nd;
   Params         *par;
-  PetscInt       nx, nz; 
+  PetscInt       nx, nz, iterPVphi; 
   PetscScalar    xmin, xmax, zmin, zmax, dt, dt_phi, dt_vf, dt_T;
   FDPDE          fdPV, fdT, fdphi;
   DM             dmPV, dmT, dmphi, dmswarm, dmTcoeff, dmphicoeff;
   Vec            xPV, xT, xphi, xTprev, xTcoeff, xTcoeffprev, xphiprev, xphicoeff, xphicoeffprev;
-  PetscBool      converged;
+  PetscBool      converged, masscons;
   char           fout[FNAME_LENGTH];
   PetscLogDouble start_time, end_time;
   PetscErrorCode ierr;
@@ -186,7 +186,8 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = SNESSetOptionsPrefix(fdphi->snes,"phi_"); CHKERRQ(ierr);
   fdphi->output_solver_failure_report = PETSC_FALSE;
 
-  ierr = FDPDEAdvDiffSetAdvectSchemeType(fdphi,advtype);CHKERRQ(ierr);
+  // ierr = FDPDEAdvDiffSetAdvectSchemeType(fdphi,advtype);CHKERRQ(ierr);
+  ierr = FDPDEAdvDiffSetAdvectSchemeType(fdphi,ADV_UPWIND);CHKERRQ(ierr);
   ierr = FDPDEAdvDiffSetTimeStepSchemeType(fdphi,timesteptype);CHKERRQ(ierr);
   ierr = FDPDEView(fdphi); CHKERRQ(ierr);
 
@@ -321,57 +322,72 @@ PetscErrorCode Numerical_solution(void *ctx)
     // Update lithostatic pressure 
     ierr = UpdateLithostaticPressure(usr->dmPlith,usr->xPlith,usr);CHKERRQ(ierr);
 
-    // Solve PV
-    PetscPrintf(PETSC_COMM_WORLD,"# (PV) Mechanics Solver - Stokes-Darcy2Field \n");
-    SNESConvergedReason reason;
-    converged = PETSC_FALSE;
-    while (!converged) {
-      PetscPrintf(PETSC_COMM_WORLD,"# (PV) Time-step (iteration): dt = %1.12e \n",nd->dt);
-      ierr = FDPDESolve(fdPV,&converged);CHKERRQ(ierr);
-      ierr = SNESGetConvergedReason(fdPV->snes,&reason); CHKERRQ(ierr);
-      if (!converged) { 
-        // break; 
-        nd->dt *= 0.5; // reduce timestep
+    // Iterate PV,phis until phis requires no correction
+    masscons = PETSC_FALSE;
+    iterPVphi = 0;
+    while (!masscons) {
+      PetscPrintf(PETSC_COMM_WORLD,"\n# ITERATION PV-phi %d \n",iterPVphi);
+
+      // Solve PV
+      PetscPrintf(PETSC_COMM_WORLD,"# (PV) Mechanics Solver - Stokes-Darcy2Field \n");
+      SNESConvergedReason reason;
+      converged = PETSC_FALSE;
+      while (!converged) {
+        PetscPrintf(PETSC_COMM_WORLD,"# (PV) Time-step (iteration): dt = %1.12e \n",nd->dt);
+        ierr = FDPDESolve(fdPV,&converged);CHKERRQ(ierr);
+        ierr = SNESGetConvergedReason(fdPV->snes,&reason); CHKERRQ(ierr);
+        if (!converged) { 
+          // break; 
+          nd->dt *= 0.5; // reduce timestep
+        }
+      }
+
+      ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
+      ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
+      ierr = VecDestroy(&xPV);CHKERRQ(ierr);
+
+      // Update fluid velocity
+      ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmPlith,usr->xPlith,usr->dmphi,usr->xphi,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
+
+      // Porosity Solver 
+      ierr   = FDPDEAdvDiffSetTimestep(fdphi,nd->dt); CHKERRQ(ierr);
+      PetscPrintf(PETSC_COMM_WORLD,"\n# (phi) Porosity Solver \n");
+      converged = PETSC_FALSE;
+      while (!converged) {
+        // PetscPrintf(PETSC_COMM_WORLD,"# (phi) Time-step (iteration): dt = %1.12e \n",nd->dt);
+        ierr = FDPDESolve(fdphi,&converged);CHKERRQ(ierr);
+        ierr = SNESGetConvergedReason(fdphi->snes,&reason); CHKERRQ(ierr);
+        if (!converged) { 
+          break; 
+        }
+      }
+
+      // Get solution
+      ierr = FDPDEGetSolution(fdphi,&xphi);CHKERRQ(ierr);
+      ierr = VecCopy(xphi,usr->xphi);CHKERRQ(ierr);
+      ierr = VecDestroy(&xphi);CHKERRQ(ierr);
+
+      // Check negative porosity
+      // ierr = CheckNegativePorosity(usr->dmphi,usr->xphi,&masscons);CHKERRQ(ierr);
+      
+      if (!masscons) { 
+        break; 
+        // nd->dt *= 0.5; // reduce timestep
+        // iterPVphi += 1;
       }
     }
-
-    // Get solution
-    ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
-    ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
-    ierr = VecDestroy(&xPV);CHKERRQ(ierr);
 
     // Integrate the plastic strain
     ierr = IntegratePlasticStrain(usr->dmPlith,usr->xstrain,usr->xplast,usr); CHKERRQ(ierr);
-
-    // Update fluid velocity
-    ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmPlith,usr->xPlith,usr->dmphi,usr->xphi,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
-
-    // Set timestep for T-phi
-    ierr   = FDPDEAdvDiffSetTimestep(fdT,nd->dt); CHKERRQ(ierr);
-    ierr   = FDPDEAdvDiffSetTimestep(fdphi,nd->dt); CHKERRQ(ierr);
-
-    // Porosity Solver
-    PetscPrintf(PETSC_COMM_WORLD,"\n# (phi) Porosity Solver \n");
-    converged = PETSC_FALSE;
-    while (!converged) {
-      // PetscPrintf(PETSC_COMM_WORLD,"# (phi) Time-step (iteration): dt = %1.12e \n",nd->dt);
-      ierr = FDPDESolve(fdphi,&converged);CHKERRQ(ierr);
-      ierr = SNESGetConvergedReason(fdphi->snes,&reason); CHKERRQ(ierr);
-      if (!converged) { 
-        break; 
-      }
-    }
-
-    // Get solution
-    ierr = FDPDEGetSolution(fdphi,&xphi);CHKERRQ(ierr);
-    ierr = VecCopy(xphi,usr->xphi);CHKERRQ(ierr);
-    ierr = VecDestroy(&xphi);CHKERRQ(ierr);
 
     // Correct negative porosity
     ierr = CorrectNegativePorosity(usr->dmphi,usr->xphi);CHKERRQ(ierr);
 
     // Correct porosity at the free surface
     ierr = CorrectPorosityFreeSurface(usr->dmphi,usr->xphi,usr->dmMPhase,usr->xMPhase);CHKERRQ(ierr);
+
+    // Set timestep for T
+    ierr   = FDPDEAdvDiffSetTimestep(fdT,nd->dt); CHKERRQ(ierr);
 
     // Solve energy
     PetscPrintf(PETSC_COMM_WORLD,"\n# (T) Energy Solver \n");

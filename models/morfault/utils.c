@@ -1908,6 +1908,47 @@ PetscErrorCode CorrectNegativePorosity(DM dm, Vec x)
 }
 
 // ---------------------------------------
+// CheckNegativePorosity
+// ---------------------------------------
+PetscErrorCode CheckNegativePorosity(DM dm, Vec x, PetscBool *masscons)
+{
+  PetscInt       i, j, sx, sz, nx, nz, iE;
+  PetscScalar    ***xx;
+  Vec            xlocal;
+  PetscBool      flag;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &iE); CHKERRQ(ierr);
+
+  ierr = DMCreateLocalVector(dm, &xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+
+  flag = PETSC_TRUE;
+  // Loop over local domain
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      if (xx[j][i][iE]>1.0) {
+        flag = PETSC_FALSE;
+        break;
+      }
+    }
+  }
+
+  // Restore arrays
+  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
+
+  *masscons = flag;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
 // CorrectPorosityFreeSurface
 // ---------------------------------------
 PetscErrorCode CorrectPorosityFreeSurface(DM dm, Vec x, DM dmphase, Vec xphase)
