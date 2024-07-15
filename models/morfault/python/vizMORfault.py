@@ -7,8 +7,10 @@ import matplotlib
 matplotlib.use('pdf')
 
 from matplotlib import rc
+from matplotlib import colors
 import importlib
 import os
+import math
 from cmcrameri import cm
 
 # Some new font
@@ -1011,6 +1013,38 @@ def calc_dom_rheology_mechanism(A):
   # print(rheol.epsP_II-rheol.epsP2_II)
   # print(rheol.volP)
   # print(rheol.volP-rheol.volP2)
+
+  return rheol
+
+# ---------------------------------
+def calc_VEVP_strain_rates(A):
+
+  rheol = EmptyStruct()
+  rheol.epsV_xx = 0.5*A.phis*A.tau.xx_center/A.matProp.etaV
+  rheol.epsV_zz = 0.5*A.phis*A.tau.zz_center/A.matProp.etaV
+  rheol.epsV_xz = 0.5*A.phis*A.tau.xz_center/A.matProp.etaV
+  rheol.epsV_II = (0.5*(rheol.epsV_xx**2 + rheol.epsV_zz**2)+rheol.epsV_xz**2)**0.5
+
+  rheol.epsE_xx = 0.5*A.phis*(A.tau.xx_center-A.tauold.xx_center)/A.matProp.etaE
+  rheol.epsE_zz = 0.5*A.phis*(A.tau.zz_center-A.tauold.zz_center)/A.matProp.etaE
+  rheol.epsE_xz = 0.5*A.phis*(A.tau.xz_center-A.tauold.xz_center)/A.matProp.etaE
+  rheol.epsE_II = (0.5*(rheol.epsE_xx**2 + rheol.epsE_zz**2)+rheol.epsE_xz**2)**0.5
+
+  a1 = A.matProp.C*np.cos(A.matProp.theta*math.pi/180)-A.matProp.sigmat*np.sin(A.matProp.theta*math.pi/180)
+  tauIIa1 = np.sqrt(A.tau.II_center**2+a1**2)
+
+  rheol.epsVP_xx = 0.5*A.dotlam*A.tau.xx_center/tauIIa1
+  rheol.epsVP_zz = 0.5*A.dotlam*A.tau.zz_center/tauIIa1
+  rheol.epsVP_xz = 0.5*A.dotlam*A.tau.xz_center/tauIIa1
+  rheol.epsVP_II = (0.5*(rheol.epsVP_xx**2 + rheol.epsVP_zz**2)+rheol.epsVP_xz**2)**0.5
+
+  phi_min = 1e-4
+  phi = 1.0-A.phis
+  phi[phi<0.0] = 0.0
+  cdl = np.exp(-phi_min/phi)
+  rheol.volV = -A.phis*A.DP/A.matProp.zetaV
+  rheol.volE = -A.phis*(A.DP-A.DPold)/A.matProp.zetaE
+  rheol.volVP = A.dotlam*cdl*np.sin(A.matProp.theta*math.pi/180)
 
   return rheol
 
@@ -2330,5 +2364,1328 @@ def plot_def_mechanisms(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
   plot_standard(fig,ax,C,extentE,'VOL tstep = '+str(istep),lblx,lblz,0,2)
 
   # plt.tight_layout() 
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_8ind_phi(fig,ax,A1,istart,iend,jstart,jend,xaxis,yaxis):
+
+  A = A1
+  dim = A.dimensional
+  scalx = get_scaling(A1,'x',dim,1)
+  lblx = get_label(A1,'x',dim)
+  lblz = get_label(A1,'z',dim)
+  scalt = get_scaling(A1,'t',dim,1)
+    
+  extentE=[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zc[jstart:jend  ])*scalx, max(A.grid.zc[jstart:jend  ])*scalx]
+    
+  cmap1 = plt.cm.get_cmap('inferno', 20)
+  cmapT = plt.cm.get_cmap('binary',10)
+  
+  X = 1.0 - A.phis
+  X[X<1e-10] = 1e-10
+  t = A.nd.t*scalt
+  markx = A.mark.x[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  markz = A.mark.z[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  im = ax.imshow(np.log10(X[jstart:jend  ,istart:iend  ]),extent=extentE,cmap=cmap1,origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(-6,-1)
+  
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+
+  if (xaxis):
+    ax.set_xlabel(lblx)
+    
+  if (yaxis):
+    ax.set_ylabel(lblz)
+    
+  ax.set_title('ts = '+str(A.nd.istep)+'  t = '+str(round(t/1.0e3,0))+' [kyr]')
+
+  # temperature contour
+  X = scale_TC(A,'T','T',dim,1)
+  if (dim):
+    levels = [0, 250, 500, 750, 1000, 1300, 1500]
+    fmt = r'%0.0f $^o$C'
+    ts = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, X[jstart:jend  ,istart:iend  ], levels=levels,linewidths=(1.0,), extend='both',cmap=cmapT)
+    if (A.nd.istep==0):
+      ax.clabel(ts, fmt=fmt, fontsize=10)
+  
+  return im
+
+# ---------------------------------
+def plot_8ind_epsII(fig,ax,A1,istart,iend,jstart,jend,xaxis,yaxis):
+
+  A = A1
+  dim = A.dimensional
+  scalx = get_scaling(A1,'x',dim,1)
+  lblx = get_label(A1,'x',dim)
+  lblz = get_label(A1,'z',dim)
+  scalt = get_scaling(A1,'t',dim,1)
+  scal = get_scaling(A,'eps',dim,0)
+
+  extentV=[min(A.grid.xv[istart:iend])*scalx, max(A.grid.xv[istart:iend])*scalx, min(A.grid.zv[jstart:jend])*scalx, max(A.grid.zv[jstart:jend])*scalx]
+  
+  X = A.eps.II_corner*scal
+  t = A.nd.t*scalt
+  markx = A.mark.x[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  markz = A.mark.z[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentV,cmap='seismic',origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(1e-16,1e-13)
+  
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+
+  if (xaxis):
+    ax.set_xlabel(lblx)
+    
+  if (yaxis):
+    ax.set_ylabel(lblz)
+    
+  # ax.set_title('ts = '+str(A.nd.istep)+'  t = '+str(round(t/1.0e3,0))+' [kyr]')
+  if (yaxis):
+    lblII  = get_label(A,'epsII',dim)
+    ax.set_title(lblII+' ts = '+str(A.nd.istep))
+  else:
+    ax.set_title('ts = '+str(A.nd.istep))
+  
+  return im
+
+# ---------------------------------
+def plot_8ind_divvs(fig,ax,A1,istart,iend,jstart,jend,xaxis,yaxis):
+
+  A = A1
+  dim = A.dimensional
+  scalx = get_scaling(A1,'x',dim,1)
+  lblx = get_label(A1,'x',dim)
+  lblz = get_label(A1,'z',dim)
+  scalt = get_scaling(A1,'t',dim,1)
+  
+  scal_v_ms = get_scaling(A,'v',dim,0)
+  scal_x_m = get_scaling(A,'x',dim,0)
+  scal = 1e-14
+
+  extentC=[min(A.grid.xc[istart:iend])*scalx, max(A.grid.xc[istart:iend])*scalx, min(A.grid.zc[jstart:jend])*scalx, max(A.grid.zc[jstart:jend])*scalx]
+
+  X = A.divVs*scal_v_ms/scal_x_m/scal
+  t = A.nd.t*scalt
+  # markx = A.mark.x[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  # markz = A.mark.z[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentC,cmap='seismic',origin='lower')
+  # im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(-4,4)
+  
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+
+  if (xaxis):
+    ax.set_xlabel(lblx)
+    
+  if (yaxis):
+    ax.set_ylabel(lblz)
+    
+  # ax.set_title('ts = '+str(A.nd.istep)+'  t = '+str(round(t/1.0e3,0))+' [kyr]')
+  if (yaxis):
+    ax.set_title(r'$\nabla\cdot v_s$ [$\times 10^{-14}$ 1/s] ts = '+str(A.nd.istep))
+  else:
+    ax.set_title('ts = '+str(A.nd.istep))
+  
+  return im
+
+# ---------------------------------
+def plot_8ind_tauII(fig,ax,A1,istart,iend,jstart,jend,xaxis,yaxis):
+
+  A = A1
+  dim = A.dimensional
+  scalx = get_scaling(A1,'x',dim,1)
+  lblx = get_label(A1,'x',dim)
+  lblz = get_label(A1,'z',dim)
+  scalt = get_scaling(A1,'t',dim,1)
+  scal = get_scaling(A,'P',dim,1)
+
+  extentV=[min(A.grid.xv[istart:iend])*scalx, max(A.grid.xv[istart:iend])*scalx, min(A.grid.zv[jstart:jend])*scalx, max(A.grid.zv[jstart:jend])*scalx]
+  
+  X = A.tau.II_corner*scal
+  t = A.nd.t*scalt
+  markx = A.mark.x[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  markz = A.mark.z[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentV,cmap='seismic',origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(0,200)
+  
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+
+  if (xaxis):
+    ax.set_xlabel(lblx)
+    
+  if (yaxis):
+    ax.set_ylabel(lblz)
+    
+  # ax.set_title('ts = '+str(A.nd.istep)+'  t = '+str(round(t/1.0e3,0))+' [kyr]')
+  if (yaxis):
+    lblII  = get_label(A,'tauII',dim)
+    ax.set_title(lblII+' ts = '+str(A.nd.istep))
+  else:
+    ax.set_title('ts = '+str(A.nd.istep))
+  
+  return im
+
+# ---------------------------------
+def plot_8ind_DP(fig,ax,A1,istart,iend,jstart,jend,xaxis,yaxis):
+
+  A = A1
+  dim = A.dimensional
+  scalx = get_scaling(A1,'x',dim,1)
+  lblx = get_label(A1,'x',dim)
+  lblz = get_label(A1,'z',dim)
+  scalt = get_scaling(A1,'t',dim,1)
+  scalP = get_scaling(A,'P',dim,1)
+
+  extentC=[min(A.grid.xc[istart:iend])*scalx, max(A.grid.xc[istart:iend])*scalx, min(A.grid.zc[jstart:jend])*scalx, max(A.grid.zc[jstart:jend])*scalx]
+
+  X = A.DP*scalP
+  t = A.nd.t*scalt
+  # markx = A.mark.x[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  # markz = A.mark.z[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentC,cmap='seismic',origin='lower')
+  # im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(-100,100)
+  
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+
+  if (xaxis):
+    ax.set_xlabel(lblx)
+    
+  if (yaxis):
+    ax.set_ylabel(lblz)
+    
+  # ax.set_title('ts = '+str(A.nd.istep)+'  t = '+str(round(t/1.0e3,0))+' [kyr]')
+  if (yaxis):
+    ax.set_title(r'$\Delta P$ [MPa]'+' ts = '+str(A.nd.istep))
+  else:
+    ax.set_title('ts = '+str(A.nd.istep))
+  
+  return im
+
+# ---------------------------------
+def plot_8ind_dotlam(fig,ax,A1,istart,iend,jstart,jend,xaxis,yaxis):
+
+  A = A1
+  dim = A.dimensional
+  scalx = get_scaling(A1,'x',dim,1)
+  lblx = get_label(A1,'x',dim)
+  lblz = get_label(A1,'z',dim)
+  scalt = get_scaling(A1,'t',dim,1)
+  
+  scal_v_ms = get_scaling(A,'v',dim,0)
+  scal_x_m = get_scaling(A,'x',dim,0)
+  scal = 1e-14
+
+  extentC=[min(A.grid.xc[istart:iend])*scalx, max(A.grid.xc[istart:iend])*scalx, min(A.grid.zc[jstart:jend])*scalx, max(A.grid.zc[jstart:jend])*scalx]
+
+  X = A.dotlam*scal_v_ms/scal_x_m/scal
+  t = A.nd.t*scalt
+  # markx = A.mark.x[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  # markz = A.mark.z[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentC,cmap='binary',origin='lower')
+  # im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(0,150)
+  
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+
+  if (xaxis):
+    ax.set_xlabel(lblx)
+    
+  if (yaxis):
+    ax.set_ylabel(lblz)
+    
+  # ax.set_title('ts = '+str(A.nd.istep)+'  t = '+str(round(t/1.0e3,0))+' [kyr]')
+  if (yaxis):
+    ax.set_title(r'$\dot{\lambda}$ [$\times 10^{-14}$ 1/s]'+' ts = '+str(A.nd.istep))
+  else:
+    ax.set_title('ts = '+str(A.nd.istep))
+  
+  return im
+
+# ---------------------------------
+def plot_8ind_lam(fig,ax,A1,istart,iend,jstart,jend,xaxis,yaxis):
+
+  A = A1
+  dim = A.dimensional
+  scalx = get_scaling(A1,'x',dim,1)
+  lblx = get_label(A1,'x',dim)
+  lblz = get_label(A1,'z',dim)
+  scalt = get_scaling(A1,'t',dim,1)
+
+  scal = 1
+  extentC=[min(A.grid.xc[istart:iend])*scalx, max(A.grid.xc[istart:iend])*scalx, min(A.grid.zc[jstart:jend])*scalx, max(A.grid.zc[jstart:jend])*scalx]
+
+  X = A.lam*scal
+  t = A.nd.t*scalt
+  # markx = A.mark.x[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  # markz = A.mark.z[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentC,cmap='binary',origin='lower')
+  # im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(0,3)
+  
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+
+  if (xaxis):
+    ax.set_xlabel(lblx)
+    
+  if (yaxis):
+    ax.set_ylabel(lblz)
+    
+  # ax.set_title('ts = '+str(A.nd.istep)+'  t = '+str(round(t/1.0e3,0))+' [kyr]')
+  if (yaxis):
+    ax.set_title(r'$\lambda$ [-]'+' ts = '+str(A.nd.istep))
+  else:
+    ax.set_title('ts = '+str(A.nd.istep))
+  
+  return im
+
+# ---------------------------------
+def plot_8ind_etaeff(fig,ax,A1,istart,iend,jstart,jend,xaxis,yaxis):
+
+  A = A1
+  dim = A.dimensional
+  scalx = get_scaling(A1,'x',dim,1)
+  lblx = get_label(A1,'x',dim)
+  lblz = get_label(A1,'z',dim)
+  scalt = get_scaling(A1,'t',dim,1)
+  scal = get_scaling(A,'eta',dim,0)
+
+  extentC=[min(A.grid.xc[istart:iend])*scalx, max(A.grid.xc[istart:iend])*scalx, min(A.grid.zc[jstart:jend])*scalx, max(A.grid.zc[jstart:jend])*scalx]
+
+  X = np.log10(A.matProp.eta*scal)
+  t = A.nd.t*scalt
+  # markx = A.mark.x[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  # markz = A.mark.z[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentC,origin='lower')
+  # im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(np.log10(A.nd.eta_min*scal)+3,np.log10(A.nd.eta_max*scal)-4.5)
+  
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+
+  if (xaxis):
+    ax.set_xlabel(lblx)
+    
+  if (yaxis):
+    ax.set_ylabel(lblz)
+    
+  # ax.set_title('ts = '+str(A.nd.istep)+'  t = '+str(round(t/1.0e3,0))+' [kyr]')
+  if (yaxis):
+    ax.set_title(r'$\log_{10}\eta_{eff}$ [Pa.s]'+' ts = '+str(A.nd.istep))
+  else:
+    ax.set_title('ts = '+str(A.nd.istep))
+  
+  return im
+
+# ---------------------------------
+def plot_8ind_zetaeff(fig,ax,A1,istart,iend,jstart,jend,xaxis,yaxis):
+
+  A = A1
+  dim = A.dimensional
+  scalx = get_scaling(A1,'x',dim,1)
+  lblx = get_label(A1,'x',dim)
+  lblz = get_label(A1,'z',dim)
+  scalt = get_scaling(A1,'t',dim,1)
+  scal = get_scaling(A,'eta',dim,0)
+
+  extentC=[min(A.grid.xc[istart:iend])*scalx, max(A.grid.xc[istart:iend])*scalx, min(A.grid.zc[jstart:jend])*scalx, max(A.grid.zc[jstart:jend])*scalx]
+
+  X = np.log10(A.matProp.zeta*scal)
+  t = A.nd.t*scalt
+  # markx = A.mark.x[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  # markz = A.mark.z[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentC,origin='lower')
+  # im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  # im.set_clim(np.log10(A.nd.eta_min*scal)+3,np.log10(A.nd.eta_max*scal)-4.5)
+  im.set_clim(19,20.5)
+  
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+
+  if (xaxis):
+    ax.set_xlabel(lblx)
+    
+  if (yaxis):
+    ax.set_ylabel(lblz)
+    
+  # ax.set_title('ts = '+str(A.nd.istep)+'  t = '+str(round(t/1.0e3,0))+' [kyr]')
+  if (yaxis):
+    ax.set_title(r'$\log_{10}\zeta_{eff}$ [Pa.s]'+' ts = '+str(A.nd.istep))
+  else:
+    ax.set_title('ts = '+str(A.nd.istep))
+  
+  return im
+
+# ---------------------------------
+def plot_8ind_PV(fig,ax,A1,istart,iend,jstart,jend,xaxis,yaxis):
+
+  A = A1
+  dim = A.dimensional
+  scalx = get_scaling(A1,'x',dim,1)
+  lblx = get_label(A1,'x',dim)
+  lblz = get_label(A1,'z',dim)
+  scalt = get_scaling(A1,'t',dim,1)
+  scalP = get_scaling(A,'P',dim,1)
+  scalv = get_scaling(A,'v',dim,1)
+
+  extentC=[min(A.grid.xc[istart:iend])*scalx, max(A.grid.xc[istart:iend])*scalx, min(A.grid.zc[jstart:jend])*scalx, max(A.grid.zc[jstart:jend])*scalx]
+
+  X = A.P*scalP
+  t = A.nd.t*scalt
+  markx = A.mark.x[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  markz = A.mark.z[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  
+  divnorm=colors.TwoSlopeNorm(vmin=-200, vcenter=0., vmax=100)
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentC,cmap='seismic',origin='lower',norm=divnorm)
+  im.set_clim(-200,100)
+
+  maxV = 1
+  nind = 10 # 10 for high res/ 5 for low res
+  Q  = ax.quiver(A.grid.xc[istart:iend:nind]*scalx, A.grid.zc[jstart:jend:nind]*scalx, A.Vscx[jstart:jend:nind,istart:iend:nind]*scalv/maxV, A.Vscz[jstart:jend:nind,istart:iend:nind]*scalv/maxV, 
+      color='black', scale_units='xy', scale=0.25, units='width', pivot='tail', width=0.008, headwidth=5, headaxislength=5, minlength=0)
+  
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+
+  if (xaxis):
+    ax.set_xlabel(lblx)
+    
+  if (yaxis):
+    ax.set_ylabel(lblz)
+    
+  # ax.set_title('ts = '+str(A.nd.istep)+'  t = '+str(round(t/1.0e3,0))+' [kyr]')
+  if (yaxis):
+    ax.set_title(r'$P$ [MPa]'+' ts = '+str(A.nd.istep))
+  else:
+    ax.set_title('ts = '+str(A.nd.istep))
+  
+  return im
+
+# ---------------------------------
+def plot_8ind_Vfx(fig,ax,A1,istart,iend,jstart,jend,xaxis,yaxis):
+
+  A = A1
+  dim = A.dimensional
+  scalx = get_scaling(A1,'x',dim,1)
+  lblx = get_label(A1,'x',dim)
+  lblz = get_label(A1,'z',dim)
+  scalt = get_scaling(A1,'t',dim,1)
+  scalv = get_scaling(A,'v',dim,1)
+
+  extentC=[min(A.grid.xc[istart:iend])*scalx, max(A.grid.xc[istart:iend])*scalx, min(A.grid.zc[jstart:jend])*scalx, max(A.grid.zc[jstart:jend])*scalx]
+
+  X = A.Vfx*scalv
+  t = A.nd.t*scalt
+  # markx = A.mark.x[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  # markz = A.mark.z[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  
+  # divnorm=colors.TwoSlopeNorm(vmin=-200, vcenter=0., vmax=100)
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentC,cmap='seismic',origin='lower')
+  # im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(-10,10)
+
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+
+  if (xaxis):
+    ax.set_xlabel(lblx)
+    
+  if (yaxis):
+    ax.set_ylabel(lblz)
+    
+  # ax.set_title('ts = '+str(A.nd.istep)+'  t = '+str(round(t/1.0e3,0))+' [kyr]')
+  if (yaxis):
+    ax.set_title(r'$V_\ell^x$ [cm/yr]'+' ts = '+str(A.nd.istep))
+  else:
+    ax.set_title('ts = '+str(A.nd.istep))
+  
+  return im
+
+# ---------------------------------
+def plot_8ind_Vfz(fig,ax,A1,istart,iend,jstart,jend,xaxis,yaxis):
+
+  A = A1
+  dim = A.dimensional
+  scalx = get_scaling(A1,'x',dim,1)
+  lblx = get_label(A1,'x',dim)
+  lblz = get_label(A1,'z',dim)
+  scalt = get_scaling(A1,'t',dim,1)
+  scalv = get_scaling(A,'v',dim,1)
+
+  extentC=[min(A.grid.xc[istart:iend])*scalx, max(A.grid.xc[istart:iend])*scalx, min(A.grid.zc[jstart:jend])*scalx, max(A.grid.zc[jstart:jend])*scalx]
+
+  X = A.Vfz*scalv
+  t = A.nd.t*scalt
+  # markx = A.mark.x[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  # markz = A.mark.z[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  
+  divnorm=colors.TwoSlopeNorm(vmin=-20, vcenter=0., vmax=50)
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentC,cmap='seismic',origin='lower',norm=divnorm)
+  # im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(-20,50)
+
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+
+  if (xaxis):
+    ax.set_xlabel(lblx)
+    
+  if (yaxis):
+    ax.set_ylabel(lblz)
+    
+  # ax.set_title('ts = '+str(A.nd.istep)+'  t = '+str(round(t/1.0e3,0))+' [kyr]')
+  if (yaxis):
+    ax.set_title(r'$V_\ell^z$ [cm/yr]'+' ts = '+str(A.nd.istep))
+  else:
+    ax.set_title('ts = '+str(A.nd.istep))
+  
+  return im
+
+# ---------------------------------
+def plot_8ind_epsVEVP_II(fig,ax,A1,istart,iend,jstart,jend,xaxis,yaxis,iplot):
+
+  A = A1
+  dim = A.dimensional
+  scalx = get_scaling(A1,'x',dim,1)
+  lblx = get_label(A1,'x',dim)
+  lblz = get_label(A1,'z',dim)
+  scalt = get_scaling(A1,'t',dim,1)
+  scal = get_scaling(A,'eps',dim,0)
+
+  extentV=[min(A.grid.xv[istart:iend])*scalx, max(A.grid.xv[istart:iend])*scalx, min(A.grid.zv[jstart:jend])*scalx, max(A.grid.zv[jstart:jend])*scalx]
+  
+  if (iplot==0):
+    X = A.rheol.epsV_II*scal
+  elif (iplot==1):
+    X = A.rheol.epsE_II*scal
+  else:
+    X = A.rheol.epsVP_II*scal
+  t = A.nd.t*scalt
+  markx = A.mark.x[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  markz = A.mark.z[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentV,cmap='seismic',origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+
+  if (iplot==0):
+    im.set_clim(1e-16,5e-14)
+  elif (iplot==1):
+    im.set_clim(1e-16,1e-14)
+  else:
+    im.set_clim(1e-16,1e-13)
+
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+
+  if (xaxis):
+    ax.set_xlabel(lblx)
+    
+  if (yaxis):
+    ax.set_ylabel(lblz)
+    
+  # ax.set_title('ts = '+str(A.nd.istep)+'  t = '+str(round(t/1.0e3,0))+' [kyr]')
+  if (yaxis):
+    if (iplot==0):
+      ax.set_title(r'$\dot{\epsilon}_{II}^V$ [1/s]'+' ts = '+str(A.nd.istep))
+    elif (iplot==1):
+      ax.set_title(r'$\dot{\epsilon}_{II}^E$ [1/s]'+' ts = '+str(A.nd.istep))
+    else:
+      ax.set_title(r'$\dot{\epsilon}_{II}^{VP}$ [1/s]'+' ts = '+str(A.nd.istep))
+  else:
+    ax.set_title('ts = '+str(A.nd.istep))
+  
+  return im
+
+# ---------------------------------
+def plot_8ind_C_VEVP(fig,ax,A1,istart,iend,jstart,jend,xaxis,yaxis,iplot):
+
+  A = A1
+  dim = A.dimensional
+  scalx = get_scaling(A1,'x',dim,1)
+  lblx = get_label(A1,'x',dim)
+  lblz = get_label(A1,'z',dim)
+  scalt = get_scaling(A1,'t',dim,1)
+  scal_v_ms = get_scaling(A,'v',dim,0)
+  scal_x_m = get_scaling(A,'x',dim,0)
+  scal = 1e-14
+
+  extentV=[min(A.grid.xv[istart:iend])*scalx, max(A.grid.xv[istart:iend])*scalx, min(A.grid.zv[jstart:jend])*scalx, max(A.grid.zv[jstart:jend])*scalx]
+  
+  if (iplot==0):
+    X = A.rheol.volV*scal_v_ms/scal_x_m/scal
+  elif (iplot==1):
+    X = A.rheol.volE*scal_v_ms/scal_x_m/scal
+  else:
+    X = A.rheol.volVP*scal_v_ms/scal_x_m/scal
+  t = A.nd.t*scalt
+  # markx = A.mark.x[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  # markz = A.mark.z[(A.mark.id==0) & (A.mark.x>=A.grid.xv[istart]) & (A.mark.x<=A.grid.xv[iend]) & (A.mark.z>=A.grid.zv[jstart]) & (A.mark.z<=A.grid.zv[jend])]
+  
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentV,cmap='seismic',origin='lower')
+  # im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+
+  if (iplot==0):
+    im.set_clim(-0.1,0.1)
+  elif (iplot==1):
+    im.set_clim(-4,4)
+  else:
+    im.set_clim(-4,4)
+
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+
+  if (xaxis):
+    ax.set_xlabel(lblx)
+    
+  if (yaxis):
+    ax.set_ylabel(lblz)
+    
+  # ax.set_title('ts = '+str(A.nd.istep)+'  t = '+str(round(t/1.0e3,0))+' [kyr]')
+  if (yaxis):
+    if (iplot==0):
+      ax.set_title(r'$\mathcal{C}^V$ [$\times 10^{-14}$ 1/s]'+' ts = '+str(A.nd.istep))
+    elif (iplot==1):
+      ax.set_title(r'$\mathcal{C}^E$ [$\times 10^{-14}$ 1/s]'+' ts = '+str(A.nd.istep))
+    else:
+      ax.set_title(r'$\mathcal{C}^{VP}$ [$\times 10^{-14}$ 1/s]'+' ts = '+str(A.nd.istep))
+  else:
+    ax.set_title('ts = '+str(A.nd.istep))
+  
+  return im
+
+# ---------------------------------
+def plot_8multiple_phi(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,fdir,fname):
+
+  make_dir(fdir)
+  
+  fig = plt.figure(1,figsize=(21,4))
+  nx = 8
+  nz = 1
+  iplot = 0
+
+  # Porosity
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_phi(fig,ax,A1,istart,iend,jstart,jend,1,1)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_phi(fig,ax,A2,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_phi(fig,ax,A3,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_phi(fig,ax,A4,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_phi(fig,ax,A5,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_phi(fig,ax,A6,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_phi(fig,ax,A7,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_phi(fig,ax,A8,istart,iend,jstart,jend,1,0)
+  
+  fig.subplots_adjust(bottom=0.25, right=0.9, top=0.75)
+  cbar_ax = fig.add_axes([0.91, 0.25, 0.007, 0.50])
+  cbar = fig.colorbar(im, cax=cbar_ax)
+  cbar.ax.set_title(r'log$_{10}\phi$')
+
+  # plt.tight_layout()
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_8multiple_epsII(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,fdir,fname):
+
+  make_dir(fdir)
+  
+  fig = plt.figure(1,figsize=(21,4))
+  nx = 8
+  nz = 1
+  iplot = 0
+
+  # epsII
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_epsII(fig,ax,A1,istart,iend,jstart,jend,1,1)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_epsII(fig,ax,A2,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_epsII(fig,ax,A3,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_epsII(fig,ax,A4,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_epsII(fig,ax,A5,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_epsII(fig,ax,A6,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_epsII(fig,ax,A7,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_epsII(fig,ax,A8,istart,iend,jstart,jend,1,0)
+  
+  # lblII  = get_label(A1,'epsII',A1.dimensional)
+  fig.subplots_adjust(bottom=0.25, right=0.9, top=0.75)
+  cbar_ax = fig.add_axes([0.91, 0.25, 0.007, 0.50])
+  cbar = fig.colorbar(im, cax=cbar_ax)
+  # cbar.ax.set_title(lblII)
+
+  # plt.tight_layout()
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_8multiple_divvs(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,fdir,fname):
+
+  make_dir(fdir)
+  
+  fig = plt.figure(1,figsize=(21,4))
+  nx = 8
+  nz = 1
+  iplot = 0
+
+  # divvs
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_divvs(fig,ax,A1,istart,iend,jstart,jend,1,1)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_divvs(fig,ax,A2,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_divvs(fig,ax,A3,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_divvs(fig,ax,A4,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_divvs(fig,ax,A5,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_divvs(fig,ax,A6,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_divvs(fig,ax,A7,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_divvs(fig,ax,A8,istart,iend,jstart,jend,1,0)
+  
+  # lblII  = get_label(A1,'epsII',A1.dimensional)
+  fig.subplots_adjust(bottom=0.25, right=0.9, top=0.75)
+  cbar_ax = fig.add_axes([0.91, 0.25, 0.007, 0.50])
+  cbar = fig.colorbar(im, cax=cbar_ax)
+  # cbar.ax.set_title(lblII)
+
+  # plt.tight_layout()
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_8multiple_tauII(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,fdir,fname):
+
+  make_dir(fdir)
+  
+  fig = plt.figure(1,figsize=(21,4))
+  nx = 8
+  nz = 1
+  iplot = 0
+
+  # tauII
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_tauII(fig,ax,A1,istart,iend,jstart,jend,1,1)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_tauII(fig,ax,A2,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_tauII(fig,ax,A3,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_tauII(fig,ax,A4,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_tauII(fig,ax,A5,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_tauII(fig,ax,A6,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_tauII(fig,ax,A7,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_tauII(fig,ax,A8,istart,iend,jstart,jend,1,0)
+  
+  fig.subplots_adjust(bottom=0.25, right=0.9, top=0.75)
+  cbar_ax = fig.add_axes([0.91, 0.25, 0.007, 0.50])
+  cbar = fig.colorbar(im, cax=cbar_ax)
+
+  # plt.tight_layout()
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_8multiple_DP(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,fdir,fname):
+
+  make_dir(fdir)
+  
+  fig = plt.figure(1,figsize=(21,4))
+  nx = 8
+  nz = 1
+  iplot = 0
+
+  # DP
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_DP(fig,ax,A1,istart,iend,jstart,jend,1,1)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_DP(fig,ax,A2,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_DP(fig,ax,A3,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_DP(fig,ax,A4,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_DP(fig,ax,A5,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_DP(fig,ax,A6,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_DP(fig,ax,A7,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_DP(fig,ax,A8,istart,iend,jstart,jend,1,0)
+  
+  fig.subplots_adjust(bottom=0.25, right=0.9, top=0.75)
+  cbar_ax = fig.add_axes([0.91, 0.25, 0.007, 0.50])
+  cbar = fig.colorbar(im, cax=cbar_ax)
+
+  # plt.tight_layout()
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_8multiple_dotlam(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,fdir,fname):
+
+  make_dir(fdir)
+  
+  fig = plt.figure(1,figsize=(21,4))
+  nx = 8
+  nz = 1
+  iplot = 0
+
+  # dotlam
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_dotlam(fig,ax,A1,istart,iend,jstart,jend,1,1)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_dotlam(fig,ax,A2,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_dotlam(fig,ax,A3,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_dotlam(fig,ax,A4,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_dotlam(fig,ax,A5,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_dotlam(fig,ax,A6,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_dotlam(fig,ax,A7,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_dotlam(fig,ax,A8,istart,iend,jstart,jend,1,0)
+  
+  fig.subplots_adjust(bottom=0.25, right=0.9, top=0.75)
+  cbar_ax = fig.add_axes([0.91, 0.25, 0.007, 0.50])
+  cbar = fig.colorbar(im, cax=cbar_ax)
+
+  # plt.tight_layout()
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_8multiple_lam(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,fdir,fname):
+
+  make_dir(fdir)
+  
+  fig = plt.figure(1,figsize=(21,4))
+  nx = 8
+  nz = 1
+  iplot = 0
+
+  # lam
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_lam(fig,ax,A1,istart,iend,jstart,jend,1,1)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_lam(fig,ax,A2,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_lam(fig,ax,A3,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_lam(fig,ax,A4,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_lam(fig,ax,A5,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_lam(fig,ax,A6,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_lam(fig,ax,A7,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_lam(fig,ax,A8,istart,iend,jstart,jend,1,0)
+  
+  fig.subplots_adjust(bottom=0.25, right=0.9, top=0.75)
+  cbar_ax = fig.add_axes([0.91, 0.25, 0.007, 0.50])
+  cbar = fig.colorbar(im, cax=cbar_ax)
+
+  # plt.tight_layout()
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_8multiple_etaeff(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,fdir,fname):
+
+  make_dir(fdir)
+  
+  fig = plt.figure(1,figsize=(21,4))
+  nx = 8
+  nz = 1
+  iplot = 0
+
+  # etaeff
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_etaeff(fig,ax,A1,istart,iend,jstart,jend,1,1)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_etaeff(fig,ax,A2,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_etaeff(fig,ax,A3,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_etaeff(fig,ax,A4,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_etaeff(fig,ax,A5,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_etaeff(fig,ax,A6,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_etaeff(fig,ax,A7,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_etaeff(fig,ax,A8,istart,iend,jstart,jend,1,0)
+  
+  fig.subplots_adjust(bottom=0.25, right=0.9, top=0.75)
+  cbar_ax = fig.add_axes([0.91, 0.25, 0.007, 0.50])
+  cbar = fig.colorbar(im, cax=cbar_ax)
+
+  # plt.tight_layout()
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_8multiple_zetaeff(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,fdir,fname):
+
+  make_dir(fdir)
+  
+  fig = plt.figure(1,figsize=(21,4))
+  nx = 8
+  nz = 1
+  iplot = 0
+
+  # zetaeff
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_zetaeff(fig,ax,A1,istart,iend,jstart,jend,1,1)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_zetaeff(fig,ax,A2,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_zetaeff(fig,ax,A3,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_zetaeff(fig,ax,A4,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_zetaeff(fig,ax,A5,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_zetaeff(fig,ax,A6,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_zetaeff(fig,ax,A7,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_zetaeff(fig,ax,A8,istart,iend,jstart,jend,1,0)
+  
+  fig.subplots_adjust(bottom=0.25, right=0.9, top=0.75)
+  cbar_ax = fig.add_axes([0.91, 0.25, 0.007, 0.50])
+  cbar = fig.colorbar(im, cax=cbar_ax)
+
+  # plt.tight_layout()
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_8multiple_PV(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,fdir,fname):
+
+  make_dir(fdir)
+  
+  fig = plt.figure(1,figsize=(21,4))
+  nx = 8
+  nz = 1
+  iplot = 0
+
+  # dynamic P,V
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_PV(fig,ax,A1,istart,iend,jstart,jend,1,1)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_PV(fig,ax,A2,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_PV(fig,ax,A3,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_PV(fig,ax,A4,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_PV(fig,ax,A5,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_PV(fig,ax,A6,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_PV(fig,ax,A7,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_PV(fig,ax,A8,istart,iend,jstart,jend,1,0)
+  
+  fig.subplots_adjust(bottom=0.25, right=0.9, top=0.75)
+  cbar_ax = fig.add_axes([0.91, 0.25, 0.007, 0.50])
+  cbar = fig.colorbar(im, cax=cbar_ax)
+
+  # plt.tight_layout()
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_8multiple_Vfx(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,fdir,fname):
+
+  make_dir(fdir)
+  
+  fig = plt.figure(1,figsize=(21,4))
+  nx = 8
+  nz = 1
+  iplot = 0
+
+  # Vfx
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_Vfx(fig,ax,A1,istart,iend,jstart,jend,1,1)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_Vfx(fig,ax,A2,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_Vfx(fig,ax,A3,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_Vfx(fig,ax,A4,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_Vfx(fig,ax,A5,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_Vfx(fig,ax,A6,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_Vfx(fig,ax,A7,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_Vfx(fig,ax,A8,istart,iend,jstart,jend,1,0)
+  
+  fig.subplots_adjust(bottom=0.25, right=0.9, top=0.75)
+  cbar_ax = fig.add_axes([0.91, 0.25, 0.007, 0.50])
+  cbar = fig.colorbar(im, cax=cbar_ax)
+
+  # plt.tight_layout()
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_8multiple_Vfz(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,fdir,fname):
+
+  make_dir(fdir)
+  
+  fig = plt.figure(1,figsize=(21,4))
+  nx = 8
+  nz = 1
+  iplot = 0
+
+  # Vfz
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_Vfz(fig,ax,A1,istart,iend,jstart,jend,1,1)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_Vfz(fig,ax,A2,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_Vfz(fig,ax,A3,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_Vfz(fig,ax,A4,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_Vfz(fig,ax,A5,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_Vfz(fig,ax,A6,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_Vfz(fig,ax,A7,istart,iend,jstart,jend,1,0)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_Vfz(fig,ax,A8,istart,iend,jstart,jend,1,0)
+  
+  fig.subplots_adjust(bottom=0.25, right=0.9, top=0.75)
+  cbar_ax = fig.add_axes([0.91, 0.25, 0.007, 0.50])
+  cbar = fig.colorbar(im, cax=cbar_ax)
+
+  # plt.tight_layout()
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_8multiple_epsVEVP_II(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,fdir,fname,ii):
+
+  make_dir(fdir)
+  
+  fig = plt.figure(1,figsize=(21,4))
+  nx = 8
+  nz = 1
+  iplot = 0
+
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_epsVEVP_II(fig,ax,A1,istart,iend,jstart,jend,1,1,ii)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_epsVEVP_II(fig,ax,A2,istart,iend,jstart,jend,1,0,ii)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_epsVEVP_II(fig,ax,A3,istart,iend,jstart,jend,1,0,ii)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_epsVEVP_II(fig,ax,A4,istart,iend,jstart,jend,1,0,ii)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_epsVEVP_II(fig,ax,A5,istart,iend,jstart,jend,1,0,ii)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_epsVEVP_II(fig,ax,A6,istart,iend,jstart,jend,1,0,ii)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_epsVEVP_II(fig,ax,A7,istart,iend,jstart,jend,1,0,ii)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_epsVEVP_II(fig,ax,A8,istart,iend,jstart,jend,1,0,ii)
+  
+  fig.subplots_adjust(bottom=0.25, right=0.9, top=0.75)
+  cbar_ax = fig.add_axes([0.91, 0.25, 0.007, 0.50])
+  cbar = fig.colorbar(im, cax=cbar_ax)
+
+  # plt.tight_layout()
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_8multiple_C_VEVP(A1,A2,A3,A4,A5,A6,A7,A8,istart,iend,jstart,jend,fdir,fname,ii):
+
+  make_dir(fdir)
+  
+  fig = plt.figure(1,figsize=(21,4))
+  nx = 8
+  nz = 1
+  iplot = 0
+
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_C_VEVP(fig,ax,A1,istart,iend,jstart,jend,1,1,ii)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_C_VEVP(fig,ax,A2,istart,iend,jstart,jend,1,0,ii)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_C_VEVP(fig,ax,A3,istart,iend,jstart,jend,1,0,ii)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_C_VEVP(fig,ax,A4,istart,iend,jstart,jend,1,0,ii)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_C_VEVP(fig,ax,A5,istart,iend,jstart,jend,1,0,ii)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_C_VEVP(fig,ax,A6,istart,iend,jstart,jend,1,0,ii)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_C_VEVP(fig,ax,A7,istart,iend,jstart,jend,1,0,ii)
+  
+  iplot = iplot+1
+  ax = plt.subplot(nz,nx,iplot)
+  im = plot_8ind_C_VEVP(fig,ax,A8,istart,iend,jstart,jend,1,0,ii)
+  
+  fig.subplots_adjust(bottom=0.25, right=0.9, top=0.75)
+  cbar_ax = fig.add_axes([0.91, 0.25, 0.007, 0.50])
+  cbar = fig.colorbar(im, cax=cbar_ax)
+
+  # plt.tight_layout()
   plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
   plt.close()
