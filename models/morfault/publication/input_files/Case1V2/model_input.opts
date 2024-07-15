@@ -1,0 +1,183 @@
+# Run: ./morfault.app -log_view -options_file model_input.opts > log_out.out
+
+# domain parameters
+-L 100.0e3
+-H 50.0e3
+-xmin -50e3
+-zmin -50e3
+-Hs 5e3
+
+-nx 400
+-nz 200
+-ppcell 3
+
+-tstep 20000
+-tout 10
+-dt_out 1e10
+-tmax 10e6
+-dtmax 1e2 # diverge for larger dt=1e4
+-ts_scheme 2
+-adv_scheme 2
+
+-two_phase 1 # 0-single 1-twophase
+-rheology 2 # -1-VEP (legacy), 0-V, 1-VE, 2-VEVP
+-model_setup 1 # 0-const age, 1-variable age
+-model_setup_phi 0 # 0-interior source, 1-bottom boundary source
+-model_energy 0 # 0-no melt/cryst, 1-one comp
+-inflow_bc 1
+
+-Vext 0.0
+-uT 10.0
+-Tbot 1623.15
+-eta_K 1e20
+-age 2
+-strain_max 1.0
+-hcc 0.5
+-phi0 0.0
+-Zmax 10e9
+-rhof 2700
+
+-eta_min 1.0e15
+-eta_max 1.0e25
+-phi_min 1e-4
+
+-zbc -40e3
+-phi_max_bc 5e-3
+-sigma_bc 1e-2
+-sigma_bc_h 1e-3
+
+# Marker phases
+-marker_phases 6
+
+# water
+-mat0_rho0 1
+-mat0_rho_function 0  # Density function: 0-constant
+-mat0_eta0 1e18
+-mat0_eta_function 0  # Eta function: 0-constant
+-mat0_zeta0 1e18
+-mat0_zeta_function 0  # Zeta function: 0-constant
+-mat0_G 6.7e10
+-mat0_Z0 1e10
+-mat0_C 1e10
+-mat0_theta 30
+-mat0_cp 4200
+-mat0_kT 500
+
+# sediments - weak seed
+-mat1_rho0 3200
+-mat1_rho_function 0  # Density function: 0-constant
+-mat1_eta0 1e18
+-mat1_eta_function 2  # Eta function: 0-constant
+-mat1_zeta0 1e19
+-mat1_zeta_function 2  # Zeta function: 0-constant
+-mat1_G 1e11
+-mat1_Z0 1e10
+-mat1_C 1e7
+-mat1_theta 30
+
+# upper crust (basalt)
+-mat2_rho0 3200
+-mat2_rho_function 0  # Density function: 0-constant
+-mat2_eta0 1e18
+-mat2_eta_function 2  # Eta function: 0-constant
+-mat2_zeta0 1e19
+-mat2_zeta_function 2  # Zeta function: 0-constant
+-mat2_G 1e11
+-mat2_Z0 1e10
+-mat2_C 1e7
+-mat2_theta 30
+
+# lower crust (gabbro)
+-mat3_rho0 3200
+-mat3_rho_function 0  # Density function: 0-constant
+-mat3_eta0 1e18
+-mat3_eta_function 2  # Eta function: 0-constant
+-mat3_zeta0 1e19
+-mat3_zeta_function 2  # Zeta function: 0-constant
+-mat3_G 1e11
+-mat3_Z0 1e10
+-mat3_C 1e7
+-mat3_theta 30
+
+# lithospheric mantle
+-mat4_rho0 3200
+-mat4_rho_function 0  # Density function: 0-constant
+-mat4_eta0 1e18
+-mat4_eta_function 2  # Eta function: 0-constant
+-mat4_zeta0 1e19
+-mat4_zeta_function 2  # Zeta function: 0-constant
+-mat4_G 1e11
+-mat4_Z0 1e10
+-mat4_C 1e7
+-mat4_theta 30
+
+# asthenosphere
+-mat5_rho0 3200
+-mat5_rho_function 0  # Density function: 0-constant
+-mat5_eta0 1e18
+-mat5_eta_function 2  # Eta function: 0-constant
+-mat5_zeta0 1e19
+-mat5_zeta_function 2  # Zeta function: 0-constant
+-mat5_G 1e11
+-mat5_Z0 1e10
+-mat5_C 1e7
+-mat5_theta 30
+
+# solver options
+-t_pc_type lu 
+#-t_pc_factor_mat_solver_type mumps
+-t_pc_factor_mat_solver_type umfpack 
+-t_pc_factor_mat_ordering_type external
+-t_snes_atol 1e-8 
+-t_snes_rtol 1e-20
+-t_snes_monitor
+-t_snes_converged_reason 
+-t_ksp_converged_reason 
+-t_ksp_monitor
+
+-phi_pc_type lu 
+#-phi_pc_factor_mat_solver_type mumps
+-phi_pc_factor_mat_solver_type umfpack 
+-phi_pc_factor_mat_ordering_type external
+-phi_snes_atol 1e-8 
+-phi_snes_rtol 1e-20
+-phi_snes_monitor
+-phi_snes_converged_reason 
+-phi_ksp_converged_reason 
+-phi_ksp_monitor
+
+-log_view
+
+# #-pv_snes_mf_operator
+# -pv_pc_type lu 
+# #-pv_pc_factor_mat_solver_type mumps
+# -pv_pc_factor_mat_solver_type umfpack 
+# -pv_pc_factor_mat_ordering_type external
+# -pv_snes_atol 1e-10
+# -pv_snes_rtol 1e-20
+# -pv_snes_stol 1e-10
+# -pv_snes_max_it 50
+# -pv_snes_monitor
+# -pv_snes_converged_reason 
+# -pv_ksp_converged_reason 
+# -pv_ksp_monitor
+
+-pv_pc_factor_mat_solver_type umfpack
+-pv_pc_factor_mat_ordering_type external
+-pv_pc_type lu
+-pv_snes_linesearch_type bt
+-pv_snes_linesearch_monitor
+-pv_snes_atol 1e-8
+-pv_snes_rtol 1e-50
+-pv_snes_stol 1e-8
+-pv_snes_max_it 15
+-pv_snes_monitor
+# -pv_snes_view
+-pv_snes_monitor_true_residual
+-pv_ksp_monitor_true_residual
+-pv_ksp_gmres_restart 300
+-pv_ksp_max_it 100
+-pv_snes_converged_reason
+-pv_ksp_converged_reason
+-pv_ksp_type fgmres
+-pv_snes_mf_operator

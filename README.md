@@ -17,8 +17,11 @@ The goal of the RIFT-O-MAT project is to create analytical and numerical tools t
 - `src/`: source code for FD-PDE framework
 - `tests/`: tests for FD-PDE framework
 - `models/`: model applications using the FD-PDE Framework
+- `models/morfault/`: lithosphere extension and magma extraction model (in prep.)
 - `models/mbuoy3/`: mid-ocean ridge code used in Pusok et al. (GJI, 2022)
 - `utils/`: python routines for I/O of PETSc objects
+
+Models are described in detail below. 
 
 ## Description
 The **FD-PDE framework** uses finite difference staggered grids for solving partial differential equations (PDEs) for single-/two-phase flow magma dynamics. 
@@ -42,11 +45,11 @@ Configure options (change `<PATH>` accordingly):
 
 DEBUG:
 
-`./configure --prefix=<PATH_DEBUG> --download-fblaslapack --download-hdf5 --download-mumps --download-scalapack --download-parmetis --download-metis --download-cmake --with-debugging --download-mpich --enable-shared --download-pastix --download-ptscotch --with-cxx-dialect=C++11 --download-superlu_dist --download-spooles --download-suitesparse --download-ml --download-hypre --download-hwloc --download-mpi4py --download-petsc4py --download-make`
+`./configure --prefix=<PATH_DEBUG> --download-fblaslapack --download-hdf5 --download-mumps --download-scalapack --download-parmetis --download-metis --download-cmake --with-debugging --download-mpich --enable-shared --download-pastix --download-ptscotch --with-cxx-dialect=C++11 --download-superlu_dist --download-spooles --download-suitesparse --download-ml --download-hypre --download-hwloc --download-make`
 
 OPTIMIZED:
 
-`./configure --prefix=<PATH_OPT> --FOPTFLAGS=-O2 --CXXOPTFLAGS=-O2 --COPTFLAGS=-O2 --download-fblaslapack --download-hdf5 --download-mumps --download-scalapack --download-parmetis --download-metis --download-cmake --with-debugging=0 --download-mpich --enable-shared --download-pastix --download-ptscotch --with-cxx-dialect=C++11 --download-superlu_dist --download-spooles --download-suitesparse --download-ml --download-hypre --download-hwloc --download-mpi4py --download-petsc4py --download-make`
+`./configure --prefix=<PATH_OPT> --FOPTFLAGS=-O2 --CXXOPTFLAGS=-O2 --COPTFLAGS=-O2 --download-fblaslapack --download-hdf5 --download-mumps --download-scalapack --download-parmetis --download-metis --download-cmake --with-debugging=0 --download-mpich --enable-shared --download-pastix --download-ptscotch --with-cxx-dialect=C++11 --download-superlu_dist --download-spooles --download-suitesparse --download-ml --download-hypre --download-hwloc --download-make`
 
 Specify PETSc environment variable for bash (can be specified in `~/.bashrc` or `~/.bash_profile`):
 
@@ -54,9 +57,7 @@ Specify PETSc environment variable for bash (can be specified in `~/.bashrc` or 
 
 ### Python
 
-We use python for testing and post-processing. A default 3.x python installation should be enough for tests.
-
-Preferred way to install python is through [anaconda3](https://www.anaconda.com) (multi-platform), which will install all the right executables (especially conda, which is similar to brew/port). The executables should be installed in `/Users/user/anaconda3/bin/`. Check: `which python`
+Python3 is used for testing and post-processing. Preferred way to install python is through [anaconda3](https://www.anaconda.com) (multi-platform), which will install all the right executables (especially conda, which is similar to brew/port). The executables should be installed in `/Users/user/anaconda3/bin/`. Check: `which python`
 and `which conda`.
 
 Update anaconda (occasionally) with: `conda update --all`
@@ -75,16 +76,32 @@ In `FD-PDE/src/`:
 
 
 # Models
-## mbuoy3
+
+## `morfault`
+
+**Publication: in prep.** 
+
+**morfault** is a 2-D lithosphere extension and magma extraction model. It couples magma transport with visco-elasto-viscoplastic rheology. 
+
+To compile the code, in `FD-PDE/models/morfault/`:
+- Clean executable: `make clean_all`
+- Make executable: `make all`
+
+Running the model: `./morfault -options_file model_input.opts > log_out.out`
+
+The input files are located in `FD-PDE/models/morfault/publication/input_files`. 
+
+Post-processing and visualization scripts are located in `morfault/python` run:
+* `python plot_fields.py`
+* `plot_fields_3panels.py`
+
+More output routines can be found in `vizMORfault.py`, which can be loaded as a module in any new script. Warning: paths need to be updated locally. 
+
+## `mbuoy3`
+
+**Publication:** A.E. Pusok, R.F. Katz, D.A. May, Y. Li, Chemical heterogeneity, convection and asymmetry beneath mid-ocean ridges, *Geophysical Journal International*, Volume 231, Issue 3, December 2022, Pages 2055–2078, [DOI:10.1093/gji/ggac309](https://doi.org/10.1093/gji/ggac309)
+
 **mbuoy3** is a 2-D mid-ocean ridge, two-phase flow model with buoyancy forces (porous, compositional, thermal). 
-
-Publication: *Chemical heterogeneity, convection and asymmetry beneath mid-ocean ridges*
-
-Authors: Adina E. Pusok<sup>1</sup>, Richard F. Katz<sup>1</sup>, Dave A. May<sup>2</sup>, Yuan Li<sup>1</sup>
-
-Affiliation: 
-(1) Department of Earth Sciences, University of Oxford, Oxford, United Kingdom
-(2) Scripps Institution of Oceanography, UC San Diego, La Jolla, CA, USA
 
 To compile the code, in `FD-PDE/models/mbuoy3/`:
 - Clean executable: `make clean_all`
