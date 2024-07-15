@@ -21,6 +21,12 @@ class EmptyStruct:
 # ---------------------------------
 # Definitions
 # ---------------------------------
+def make_dir(output_dir):
+  try:
+    os.mkdir(output_dir)
+  except OSError:
+    pass
+
 def correct_path_load_data(fname):
   try: # try to open file .py file
     fname_new = fname[:-3]+'_new.py'
@@ -1104,7 +1110,8 @@ def plot_solver_residuals(A,fname):
   plt.close()
 
 # ---------------------------------
-def plot_T(A,istart,iend,jstart,jend,fname,istep,dim):
+def plot_T(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
   fig = plt.figure(1,figsize=(7,5))
 
   scalx = get_scaling(A,'x',dim,1)
@@ -1126,11 +1133,12 @@ def plot_T(A,istart,iend,jstart,jend,fname,istep,dim):
     ax.clabel(ts, fmt=fmt, fontsize=14)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_marker_id(A,istart,iend,jstart,jend,fname,istep,dim):
+def plot_marker_id(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
   fig = plt.figure(1,figsize=(6,5))
   ax = plt.subplot(1,1,1)
 
@@ -1149,11 +1157,12 @@ def plot_marker_id(A,istart,iend,jstart,jend,fname,istep,dim):
   ax.set_ylabel(lblz)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_MPhase(A,istart,iend,jstart,jend,fname,istep,dim):
+def plot_MPhase(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
   fig = plt.figure(1,figsize=(21,10))
 
   scalx = get_scaling(A,'x',dim,1)
@@ -1180,11 +1189,12 @@ def plot_MPhase(A,istart,iend,jstart,jend,fname,istep,dim):
   plot_standard(fig,ax,A.MPhase.CornerPh5[jstart:jend,istart:iend],extentV,'Corner Ph=5 tstep = '+str(istep),lblx,lblz,0,0)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_P(A,istart,iend,jstart,jend,fname,istep,dim,iplot):
+def plot_P(A,istart,iend,jstart,jend,fdir,fname,istep,dim,iplot):
+  make_dir(fdir)
   if (iplot==1):
     figsize=(7,5)
   if (iplot==2):
@@ -1222,11 +1232,12 @@ def plot_P(A,istart,iend,jstart,jend,fname,istep,dim,iplot):
     plot_standard(fig,ax,A.DPold[jstart:jend,istart:iend]*scalP,extentC,lblP+':DPold tstep = '+str(istep),lblx,lblz,0,0)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_plastic(A,istart,iend,jstart,jend,fname,istep,dim):
+def plot_plastic(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
   figsize=(21,5)
   fig = plt.figure(1,figsize=figsize)
 
@@ -1245,11 +1256,12 @@ def plot_plastic(A,istart,iend,jstart,jend,fname,istep,dim):
   plot_standard(fig,ax,A.lam[jstart:jend,istart:iend],extentC,r'$\lambda$ [-] tstep = '+str(istep),lblx,lblz,0,0)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_PV(A,istart,iend,jstart,jend,fname,istep,dim,iplot):
+def plot_PV(A,istart,iend,jstart,jend,fdir,fname,istep,dim,iplot):
+  make_dir(fdir)
   fig = plt.figure(1,figsize=(21,5))
 
   # return scaling params and labels
@@ -1294,11 +1306,12 @@ def plot_PV(A,istart,iend,jstart,jend,fname,istep,dim,iplot):
   plot_standard(fig,ax,X3,extentVz,lbl3,lblx,lblz,0,0)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_Tensor(A,istart,iend,jstart,jend,fname,istep,dim,iplot):
+def plot_Tensor(A,istart,iend,jstart,jend,fdir,fname,istep,dim,iplot):
+  make_dir(fdir)
   fig = plt.figure(1,figsize=(28,10))
 
   # return scaling params and labels
@@ -1385,12 +1398,12 @@ def plot_Tensor(A,istart,iend,jstart,jend,fname,istep,dim,iplot):
   plot_standard(fig,ax,X4_c,extentE,lblII,lblx,lblz,0,0)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_PVcoeff(A,istart,iend,jstart,jend,fname,istep,dim):
-
+def plot_PVcoeff(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
   fig = plt.figure(1,figsize=(28,15))
 
   scalx = get_scaling(A,'x',dim,1)
@@ -1433,12 +1446,12 @@ def plot_PVcoeff(A,istart,iend,jstart,jend,fname,istep,dim):
   plot_standard(fig,ax,A.PVcoeff.D3z[jstart:jend+1,istart:iend  ],extentFz,'D3z face',lblx,lblz,0,0)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_PVcoeff_Stokes(A,istart,iend,jstart,jend,fname,istep,dim):
-
+def plot_PVcoeff_Stokes(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
   fig = plt.figure(1,figsize=(21,10))
 
   scalx = get_scaling(A,'x',dim,1)
@@ -1466,12 +1479,12 @@ def plot_PVcoeff_Stokes(A,istart,iend,jstart,jend,fname,istep,dim):
   plot_standard(fig,ax,A.PVcoeff.Bz[jstart:jend+1,istart:iend  ],extentFz,'Bz face',lblx,lblz,0,0)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_matProp(A,istart,iend,jstart,jend,fname,istep,dim):
-
+def plot_matProp(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
   fig = plt.figure(1,figsize=(28,20))
 
   scalx = get_scaling(A,'x',dim,1)
@@ -1547,12 +1560,12 @@ def plot_matProp(A,istart,iend,jstart,jend,fname,istep,dim):
   im = plot_standard(fig,ax,A.matProp.theta[jstart:jend  ,istart:iend  ],extentE,lbl,lblx,lblz,0,0)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_Vel(A,istart,iend,jstart,jend,fname,istep,dim):
-
+def plot_Vel(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
   fig = plt.figure(1,figsize=(14,10))
 
   scalv = get_scaling(A,'v',dim,1)
@@ -1580,12 +1593,12 @@ def plot_Vel(A,istart,iend,jstart,jend,fname,istep,dim):
   plot_standard(fig,ax,A.Vz[jstart:jend+1,istart:iend  ]*scalv,extentVz,lbl,lblx,lblz,0,0)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_Tcoeff(A,istart,iend,jstart,jend,fname,istep,dim,iplot):
-
+def plot_Tcoeff(A,istart,iend,jstart,jend,fdir,fname,istep,dim,iplot):
+  make_dir(fdir)
   fig = plt.figure(1,figsize=(14,15))
 
   scalx = get_scaling(A,'x',dim,1)
@@ -1630,11 +1643,12 @@ def plot_Tcoeff(A,istart,iend,jstart,jend,fname,istep,dim,iplot):
   plot_standard(fig,ax,X6[jstart:jend+1,istart:iend  ],extentFz,'uz face',lblx,lblz,0,0)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_individual_eps(A,istart,iend,jstart,jend,fname,istep,dim):
+def plot_individual_eps(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
   fig = plt.figure(1,figsize=(28,25))
 
   # return scaling params and labels
@@ -1720,11 +1734,12 @@ def plot_individual_eps(A,istart,iend,jstart,jend,fname,istep,dim):
   plot_standard(fig,ax,X4,extentE,'volP',lblx,lblz,0,0)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_phi(A,istart,iend,jstart,jend,fname,istep,dim):
+def plot_phi(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
   fig = plt.figure(1,figsize=(7,5))
 
   scalx = get_scaling(A,'x',dim,1)
@@ -1751,12 +1766,12 @@ def plot_phi(A,istart,iend,jstart,jend,fname,istep,dim):
   ax.set_title(r'log$_{10}\phi$'+' tstep = '+str(istep))
 
   # plt.tight_layout() 
-  plt.savefig(fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,fname,istep,dim):
-
+def plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
   fig = plt.figure(1,figsize=(28,5))
   
 
@@ -1804,12 +1819,12 @@ def plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,fname,istep,dim):
   plot_standard(fig,ax,X4,extentV,'CORNER: '+lblII+' tstep = '+str(istep),lblx,lblz,0,0)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_mark_eta_eps_tau2(A,istart,iend,jstart,jend,fname,istep,dim):
-  
+def plot_mark_eta_eps_tau2(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
   fig = plt.figure(1,figsize=(14,10))
 
   scalx = get_scaling(A,'x',dim,1)
@@ -1863,12 +1878,12 @@ def plot_mark_eta_eps_tau2(A,istart,iend,jstart,jend,fname,istep,dim):
   plot_standard(fig,ax,X4,extentV,'CORNER: '+lblII+' tstep = '+str(istep),lblx,lblz,0,0)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_mark_eta_eps_tau_T_phi(A,istart,iend,jstart,jend,fname,istep,dim):
-  
+def plot_mark_eta_eps_tau_T_phi(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
   fig = plt.figure(1,figsize=(21,8))
 
   scalx = get_scaling(A,'x',dim,1)
@@ -1946,12 +1961,12 @@ def plot_mark_eta_eps_tau_T_phi(A,istart,iend,jstart,jend,fname,istep,dim):
   plot_standard(fig,ax,X4,extentV,'CORNER: '+lblII+' tstep = '+str(istep),lblx,lblz,0,0)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_mark_eps_phi(A,istart,iend,jstart,jend,fname,istep,dim):
-  
+def plot_mark_eps_phi(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
   fig = plt.figure(1,figsize=(21,4))
 
   scalx = get_scaling(A,'x',dim,1)
@@ -2033,12 +2048,12 @@ def plot_mark_eps_phi(A,istart,iend,jstart,jend,fname,istep,dim):
     ax.clabel(ts, fmt=fmt, fontsize=10)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
-def plot_def_mechanisms(A,istart,iend,jstart,jend,fname,istep,dim):
-
+def plot_def_mechanisms(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
   fig = plt.figure(1,figsize=(14,5))
 
   scalx = get_scaling(A,'x',dim,1)
@@ -2079,5 +2094,5 @@ def plot_def_mechanisms(A,istart,iend,jstart,jend,fname,istep,dim):
   plot_standard(fig,ax,C,extentE,'VOL tstep = '+str(istep),lblx,lblz,0,2)
 
   # plt.tight_layout() 
-  plt.savefig(fname+'.png', bbox_inches = 'tight')
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
   plt.close()

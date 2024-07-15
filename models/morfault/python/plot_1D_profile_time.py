@@ -27,7 +27,7 @@ def sortTimesteps(tdir):
 # Parameters
 A.dimensional = 1 # 0-nd, 1-dim
 # sim = 'run28_03_phi00_phimax1e-3_Stokes/'
-sim = 'run29_00_Stokes/'
+sim = 'run29_00_Stokes_Vz0/'
 A.input = '../'+sim
 A.output_path_dir = '../Figures/'+sim
 A.path_dir = './'
@@ -188,7 +188,7 @@ for istep in time_list:
     topo[i] = ztopo
 
   ax1.plot(A.grid.xc*scalx,topo,color=color[itime])
-  # print('min='+str(min(topo))+' max='+str(max(topo)))
+  print('min='+str(min(topo))+' max='+str(max(topo)))
 
   X = 1.0 - A.phis
   X[X<0.0] = 0.0
@@ -203,7 +203,7 @@ for istep in time_list:
 ax1.grid(True)
 ax1.set_xlabel('x [km]')
 ax1.set_ylabel('z [km]')
-ax1.set_ylim([-30,-10])
+ax1.set_ylim([-20,0])
 ax1.set_title(r'Surface')
 
 ax2.grid(True)
