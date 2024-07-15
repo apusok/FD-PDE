@@ -88,7 +88,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   NdParams       *nd;
   Params         *par;
   PetscInt       nx, nz; 
-  PetscScalar    xmin, xmax, zmin, zmax, dt;
+  PetscScalar    xmin, xmax, zmin, zmax, dt, phi0;
   FDPDE          fdPV, fdT;
   DM             dmPV, dmT, dmswarm, dmTcoeff;
   Vec            xPV, xPVguess, xT, xTprev,xTcoeff, xTcoeffprev;
@@ -114,17 +114,23 @@ PetscErrorCode Numerical_solution(void *ctx)
 
   // Set up mechanics - Stokes-Darcy system (PV)
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-  // PetscPrintf(PETSC_COMM_WORLD,"# Set-up MECHANICS: FD-PDE StokesDarcy2Field (PV)\n");
-  // ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKESDARCY2FIELD,&fdPV);CHKERRQ(ierr);
-  // ierr = FDPDESetUp(fdPV);CHKERRQ(ierr);
-  // ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV,bc_description_PV,usr); CHKERRQ(ierr);
-  // ierr = FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV,coeff_description_PV,usr); CHKERRQ(ierr);
+  if (usr->par->two_phase == 1) {
+    PetscPrintf(PETSC_COMM_WORLD,"# Set-up MECHANICS: FD-PDE StokesDarcy2Field (PV)\n");
+    ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKESDARCY2FIELD,&fdPV);CHKERRQ(ierr);
+    ierr = FDPDESetUp(fdPV);CHKERRQ(ierr);
+    ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV,bc_description_PV,usr); CHKERRQ(ierr);
+    ierr = FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV,coeff_description_PV,usr); CHKERRQ(ierr);
+    phi0 = 1.0e-12;
+  }
 
-  PetscPrintf(PETSC_COMM_WORLD,"# Set-up MECHANICS: FD-PDE STOKES (PV)\n");
-  ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKES,&fdPV);CHKERRQ(ierr);
-  ierr = FDPDESetUp(fdPV);CHKERRQ(ierr);
-  ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV_Stokes,bc_description_PV,usr); CHKERRQ(ierr);
-  ierr = FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV_Stokes,coeff_description_PV,usr); CHKERRQ(ierr);
+  if (usr->par->two_phase == 0) {
+    PetscPrintf(PETSC_COMM_WORLD,"# Set-up MECHANICS: FD-PDE STOKES (PV)\n");
+    ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKES,&fdPV);CHKERRQ(ierr);
+    ierr = FDPDESetUp(fdPV);CHKERRQ(ierr);
+    ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV_Stokes,bc_description_PV,usr); CHKERRQ(ierr);
+    ierr = FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV_Stokes,coeff_description_PV,usr); CHKERRQ(ierr);
+    phi0 = 0.0;
+  }
 
   ierr = SNESSetFromOptions(fdPV->snes); CHKERRQ(ierr);
   ierr = SNESSetOptionsPrefix(fdPV->snes,"pv_"); CHKERRQ(ierr);
@@ -187,8 +193,8 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = FDPDEGetSolution(fdT,&xT);CHKERRQ(ierr);
   ierr = VecDuplicate(xT,&usr->xT);CHKERRQ(ierr);
   ierr = VecDuplicate(xT,&usr->xphi);CHKERRQ(ierr); 
-  // ---------- SET POROSITY ZERO -------------
-  ierr = VecSet(usr->xphi,0.0); CHKERRQ(ierr);
+  // ---------- SET CONSTANT POROSITY -------------
+  ierr = VecSet(usr->xphi,phi0); CHKERRQ(ierr);
   // ------------------------------------------
   ierr = VecDestroy(&xT);CHKERRQ(ierr);
 

@@ -73,7 +73,7 @@ typedef struct {
   PetscScalar    L, H, Hs, xmin, zmin;
   PetscScalar    k_hat, g, Ttop, Tbot, R, Vext, rhof, q, age;
   PetscScalar    hs_factor, drho, kphi0, n, mu, eta_min, eta_max, phi_min, eta_K, lambda, EoR, Teta0, zetaExp;
-  PetscInt       ts_scheme, adv_scheme, tout, tstep, ppcell, Nmax, rheology;
+  PetscInt       ts_scheme, adv_scheme, tout, tstep, ppcell, Nmax, rheology, two_phase;
   PetscScalar    dt_out, tmax, dtmax, tf_tol;
   PetscScalar    incl_x, incl_z, incl_r, incl_dT;
   PetscInt       mat0_id, mat1_id, mat2_id, mat3_id, mat4_id, mat5_id, marker_phases, matid_default;
@@ -143,7 +143,7 @@ PetscErrorCode NondimensionalizeParameters(UsrData*);
 
 // physics
 PetscErrorCode Numerical_solution(void*);
-// PetscErrorCode FormCoefficient_PV(FDPDE, DM, Vec, DM, Vec, void*);
+PetscErrorCode FormCoefficient_PV(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormCoefficient_PV_Stokes(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormCoefficient_T(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode RheologyPointwise(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
