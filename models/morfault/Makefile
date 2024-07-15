@@ -45,11 +45,11 @@ all:
 	-$(PCC) $(CFLAGS) -O2 -o $@ -c $< $(PETSC_CC_INCLUDES)
 
 morfault: morfault.o $(FDPDE_OBJ) ${MODEL_OBJ}
-	${RM} morfault.app
-	-${CLINKER} -O2 -o morfault.app morfault.o $(FDPDE_OBJ) ${MODEL_OBJ} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
+	${RM} morfault
+	-${CLINKER} -O2 -o morfault morfault.o $(FDPDE_OBJ) ${MODEL_OBJ} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
 
 clean_all:
 	@echo "# -------------------------------- #"
 	@echo "#            Full clean            #"
 	@echo "# -------------------------------- #"
-	@rm -rf $(FDPDE_OBJ) $(MODEL_OBJ) morfault.app
+	@rm -rf $(FDPDE_OBJ) $(MODEL_OBJ) morfault
