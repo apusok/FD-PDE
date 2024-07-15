@@ -271,7 +271,9 @@ PetscErrorCode Plastic_LocalSolver(PetscScalar *xve,PetscScalar C, PetscScalar s
 
   eta_K  = usr->nd->eta_K;
   sint   = PetscSinScalar(theta);
-  alphaP = PetscExpScalar(-usr->par->phi_min/phi);
+  // alphaP = PetscExpScalar(-usr->par->phi_min/phi);
+  alphaP = 0.0;
+  if (phi>=usr->par->phi_min) alphaP = 1.0;
   cdl    = PetscExpScalar(-usr->par->phi_min/phi);
 
   // get coefficients A
@@ -298,7 +300,7 @@ PetscErrorCode Plastic_LocalSolver(PetscScalar *xve,PetscScalar C, PetscScalar s
     //PetscPrintf(PETSC_COMM_WORLD, "TEST, tau = %1.6f, dp = %1.6f, lam = %1.6f\n", xsol[0], xsol[1], xsol[2]);
 
     // check sign of DP to avoid negative compaction viscosity
-    if (PetscAbs(xsol[1]-DPt) > PetscAbs(xsol[1])-PetscAbs(DPt)) xsol[1] = DPt;
+    // if (PetscAbs(xsol[1]-DPt) > PetscAbs(xsol[1])-PetscAbs(DPt)) xsol[1] = DPt;
 
   }
   PetscFunctionReturn(0);

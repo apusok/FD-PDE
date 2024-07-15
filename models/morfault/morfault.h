@@ -149,13 +149,19 @@ PetscErrorCode NondimensionalizeParameters(UsrData*);
 // physics
 PetscErrorCode Numerical_solution(void*);
 PetscErrorCode FormCoefficient_PV(FDPDE, DM, Vec, DM, Vec, void*);
+PetscErrorCode FormCoefficient_PV_DPL(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormCoefficient_PV_Stokes(FDPDE, DM, Vec, DM, Vec, void*);
+PetscErrorCode FormCoefficient_PV_Stokes_DPL(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormCoefficient_T(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormCoefficient_phi(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode RheologyPointwise(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
 PetscErrorCode RheologyPointwise_VEP(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
 PetscErrorCode RheologyPointwise_VEVP(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
+PetscErrorCode RheologyPointwise_DPL(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
 PetscErrorCode DecompactRheologyVars(PetscInt,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,
+                                     PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,
+                                     PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*);
+PetscErrorCode DecompactRheologyVars_DPL(PetscInt,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,
                                      PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,
                                      PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*);
 

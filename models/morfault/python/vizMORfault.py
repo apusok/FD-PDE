@@ -1106,7 +1106,7 @@ def plot_solver_residuals(A,fname):
   ax.set_xlabel('Timestep')
   ax.set_ylabel('log10(dt)')
 
-  plt.savefig(fname+'.pdf', bbox_inches = 'tight')
+  plt.savefig(fname+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
@@ -1254,6 +1254,62 @@ def plot_plastic(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
 
   ax = plt.subplot(1,3,3)
   plot_standard(fig,ax,A.lam[jstart:jend,istart:iend],extentC,r'$\lambda$ [-] tstep = '+str(istep),lblx,lblz,0,0)
+
+  # plt.tight_layout() 
+  plt.savefig(fdir+fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_plastic_v2(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
+  figsize=(21,5)
+  fig = plt.figure(1,figsize=figsize)
+
+  scalx = get_scaling(A,'x',dim,1)
+  lblx = get_label(A,'x',dim)
+  lblz = get_label(A,'z',dim)
+  extentC=[min(A.grid.xc[istart:iend])*scalx, max(A.grid.xc[istart:iend])*scalx, min(A.grid.zc[jstart:jend])*scalx, max(A.grid.zc[jstart:jend])*scalx]
+
+  markx = A.mark.x[A.mark.id==0]
+  markz = A.mark.z[A.mark.id==0]
+
+  ax = plt.subplot(1,3,1)
+  scal_v_ms = get_scaling(A,'v',dim,0)
+  scal_x_m = get_scaling(A,'x',dim,0)
+  scal = 1e-14
+  X4 = A.divVs*scal_v_ms/scal_x_m/scal
+
+  im = ax.imshow(X4[jstart:jend  ,istart:iend  ],extent=extentC,cmap='seismic',origin='lower')
+  # im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(-4,4)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.70)
+  ax.axis('image')
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  ax.set_title(r'$\nabla\cdot v_s$ [$\times 10^{-14}$ 1/s] tstep = '+str(istep))
+
+  ax = plt.subplot(1,3,2)
+  X = A.dotlam*scal_v_ms/scal_x_m/scal
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentC,cmap='binary',origin='lower')
+  im.set_clim(0,100)
+  # plot_standard(fig,ax,X[jstart:jend,istart:iend],extentC,r'$\dot{\lambda}$ [1/s] tstep = '+str(istep),lblx,lblz,0,0)
+  # im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.70)
+  ax.axis('image')
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  ax.set_title(r'$\dot{\lambda}$ [1/s] tstep = '+str(istep))
+
+  ax = plt.subplot(1,3,3)
+  im = ax.imshow(A.lam[jstart:jend  ,istart:iend  ],extent=extentC,cmap='binary',origin='lower')
+  # plot_standard(fig,ax,A.lam[jstart:jend,istart:iend],extentC,r'$\lambda$ [-] tstep = '+str(istep),lblx,lblz,0,0)
+  # im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.70)
+  im.set_clim(0,5)
+  ax.axis('image')
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  ax.set_title(r'$\lambda$ [-] tstep = '+str(istep))
 
   # plt.tight_layout() 
   plt.savefig(fdir+fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
@@ -1766,7 +1822,7 @@ def plot_phi(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
 
   ax = plt.subplot(1,1,1)
   im = ax.imshow(np.log10(X[jstart:jend  ,istart:iend  ]),extent=extentE,cmap=cmap1,origin='lower')
-  im.set_clim(-6,-1)
+  im.set_clim(-6,0)
   # im.set_clim(-10,-1)
   cbar = fig.colorbar(im,ax=ax, shrink=0.60)
   ax.axis('image')
@@ -1933,7 +1989,7 @@ def plot_mark_eta_eps_tau_T_phi(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
   X[X<1e-10] = 1e-10
   cmap1 = plt.cm.get_cmap('inferno', 20)
   im = ax.imshow(np.log10(X[jstart:jend  ,istart:iend  ]),extent=extentE,cmap=cmap1,origin='lower')
-  im.set_clim(-6,-1)
+  im.set_clim(-6,0)
   cbar = fig.colorbar(im,ax=ax, shrink=0.70)
   ax.axis('image')
   ax.set_xlabel(lblx)
@@ -2037,7 +2093,7 @@ def plot_mark_eps_phi(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
   cmap1 = plt.cm.get_cmap('inferno', 20)
   im = ax.imshow(np.log10(X[jstart:jend  ,istart:iend  ]),extent=extentE,cmap=cmap1,origin='lower')
   im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
-  im.set_clim(-6,-1)
+  im.set_clim(-6,0)
   cbar = fig.colorbar(im,ax=ax, shrink=0.70)
   ax.axis('image')
   ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
@@ -2121,7 +2177,7 @@ def plot_mark_divs_phi(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
   cmap1 = plt.cm.get_cmap('inferno', 20)
   im = ax.imshow(np.log10(X[jstart:jend  ,istart:iend  ]),extent=extentE,cmap=cmap1,origin='lower')
   im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
-  im.set_clim(-6,-1)
+  im.set_clim(-6,0)
   cbar = fig.colorbar(im,ax=ax, shrink=0.70)
   ax.axis('image')
   ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
@@ -2208,7 +2264,7 @@ def plot_mark_eps_phi_column3(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
   cmap1 = plt.cm.get_cmap('inferno', 20)
   im = ax.imshow(np.log10(X[jstart:jend  ,istart:iend  ]),extent=extentE,cmap=cmap1,origin='lower')
   im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
-  im.set_clim(-6,-1)
+  im.set_clim(-6,0)
   cbar = fig.colorbar(im,ax=ax, shrink=0.70)
   ax.axis('image')
   ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
