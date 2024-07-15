@@ -307,13 +307,14 @@ PetscErrorCode Numerical_solution(void *ctx)
     // Get a guess for timestep
     ierr   = FDPDEAdvDiffComputeExplicitTimestep(fdT,&dt_T);CHKERRQ(ierr);
     ierr   = FDPDEAdvDiffComputeExplicitTimestep(fdphi,&dt_phi);CHKERRQ(ierr);
-    ierr   = LiquidVelocityExplicitTimestep(usr->dmVel,usr->xVel,&dt_vf);CHKERRQ(ierr);
+    // ierr   = LiquidVelocityExplicitTimestep(usr->dmVel,usr->xVel,&dt_vf);CHKERRQ(ierr);
+    dt_vf = dt_phi;
 
     dt     = PetscMin(dt_T,dt_phi);
     dt     = PetscMin(dt,dt_vf);
     nd->dt = PetscMin(dt,nd->dtmax);
-    ierr   = FDPDEAdvDiffSetTimestep(fdT,nd->dt); CHKERRQ(ierr);
-    ierr   = FDPDEAdvDiffSetTimestep(fdphi,nd->dt); CHKERRQ(ierr);
+    // ierr   = FDPDEAdvDiffSetTimestep(fdT,nd->dt); CHKERRQ(ierr);
+    // ierr   = FDPDEAdvDiffSetTimestep(fdphi,nd->dt); CHKERRQ(ierr);
 
     PetscPrintf(PETSC_COMM_WORLD,"# Time-step (non-dimensional): dt_T = %1.12e dt_phi = %1.12e dt_vf = %1.12e dtmax = %1.12e \n",dt_T,dt_phi,dt_vf,nd->dtmax);
 
@@ -325,11 +326,12 @@ PetscErrorCode Numerical_solution(void *ctx)
     SNESConvergedReason reason;
     converged = PETSC_FALSE;
     while (!converged) {
-      // PetscPrintf(PETSC_COMM_WORLD,"# (PV) Time-step (iteration): dt = %1.12e \n",nd->dt);
+      PetscPrintf(PETSC_COMM_WORLD,"# (PV) Time-step (iteration): dt = %1.12e \n",nd->dt);
       ierr = FDPDESolve(fdPV,&converged);CHKERRQ(ierr);
       ierr = SNESGetConvergedReason(fdPV->snes,&reason); CHKERRQ(ierr);
       if (!converged) { 
-        break; 
+        // break; 
+        nd->dt *= 0.5; // reduce timestep
       }
     }
 
@@ -343,6 +345,10 @@ PetscErrorCode Numerical_solution(void *ctx)
 
     // Update fluid velocity
     ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmPlith,usr->xPlith,usr->dmphi,usr->xphi,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
+
+    // set timestep
+    ierr   = FDPDEAdvDiffSetTimestep(fdT,nd->dt); CHKERRQ(ierr);
+    ierr   = FDPDEAdvDiffSetTimestep(fdphi,nd->dt); CHKERRQ(ierr);
 
     // Porosity Solver
     PetscPrintf(PETSC_COMM_WORLD,"\n# (phi) Porosity Solver \n");

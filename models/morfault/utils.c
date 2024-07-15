@@ -1234,6 +1234,12 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ctx
   ierr = VecCopy(x,usr->xstrain);CHKERRQ(ierr);
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
+
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xVel_ts%d",usr->par->fdir_out,usr->nd->istep);
+  ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
+  ierr = VecCopy(x,usr->xVel);CHKERRQ(ierr);
+  ierr = VecDestroy(&x); CHKERRQ(ierr);
+  ierr = DMDestroy(&dm); CHKERRQ(ierr);
   
   // markers - read XDMF file
   const char     *fieldname[] = {"id"};
