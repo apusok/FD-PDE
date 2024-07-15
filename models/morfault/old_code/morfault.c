@@ -1,6 +1,6 @@
 // ---------------------------------------
 // Mid-ocean ridge model using theory of two-phase flow and visco-elasto-viscoplastic rheology
-// run: ./morfault.app -log_view -options_file model_input.opts 
+// run: ./morfault.app -log_view -nx 160 -nz 80 -options_file model_input.opts 
 // ---------------------------------------
 static char help[] = "Mid-ocean ridge model using theory of two-phase flow and visco-elasto-viscoplastic rheology \n\n";
 
@@ -16,7 +16,7 @@ const char coeff_description_PV[] =
 "  C = 0 \n"
 "  D1 = zeta_eff-2/3 eta_eff \n"
 "  D2 = -R^2*k_phi \n"
-"  D3 = -R^2*k_phi(grad(Plith)-rho_ell*k_hat) \n";
+"  D3 = -R^2*k_phi(grad(Plith)-rho_ell/drho*k_hat) \n";
 
 const char coeff_description_T[] =
 "  << Energy (AdvDiff) Coefficients >> \n"
@@ -39,9 +39,6 @@ const char bc_description_T[] =
 "  DOWN: T = Tbot \n"
 "  UP: T = Ttop \n";
 
-// ---------------------------------------
-// MAIN
-// ---------------------------------------
 // ---------------------------------------
 // MAIN
 // ---------------------------------------
@@ -223,6 +220,19 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = DMCreateGlobalVector(usr->dmPlith,&usr->xplast); CHKERRQ(ierr);
   ierr = VecSet(usr->xDP_old,0.0); CHKERRQ(ierr);
 
+  // Initialise the random noise field
+  PetscRandom  rctx;
+  ierr = DMCreateGlobalVector(usr->dmPlith, &usr->noise); CHKERRQ(ierr);
+  ierr = PetscRandomCreate(PETSC_COMM_WORLD, &rctx); CHKERRQ(ierr);
+  ierr = PetscRandomSetInterval(rctx, -usr->par->noise_max, usr->par->noise_max);CHKERRQ(ierr);
+  ierr = VecSetRandom(usr->noise, rctx); CHKERRQ(ierr);
+  //ierr = VecZeroEntries(usr->noise); CHKERRQ(ierr);
+  ierr = PetscRandomDestroy(&rctx);
+
+  // Create vec for plastic strain
+  ierr = DMCreateGlobalVector(usr->dmPlith, &usr->strain); CHKERRQ(ierr);
+  ierr = VecZeroEntries(usr->strain); CHKERRQ(ierr);
+
   // Create dmMPhase for marker phase fractions (lithology)
   PetscInt nm = usr->nph;
   ierr = DMStagCreateCompatibleDMStag(usr->dmPV,nm,nm,nm,0,&usr->dmMPhase); CHKERRQ(ierr);
@@ -269,15 +279,25 @@ PetscErrorCode Numerical_solution(void *ctx)
 
     // Solve PV
     PetscPrintf(PETSC_COMM_WORLD,"# (PV) Mechanics Solver - Stokes-Darcy2Field \n");
+    // PetscInt rmax;
+    // ierr = MaxRheologyIndicator(usr,&rmax);CHKERRQ(ierr);
+    // if (rmax==0) PetscPrintf(PETSC_COMM_WORLD,"# (PV) Rheology: VISCOUS \n");
+    // if (rmax==1) PetscPrintf(PETSC_COMM_WORLD,"# (PV) Rheology: VISCO-ELASTIC \n");
+    // if (rmax==2) PetscPrintf(PETSC_COMM_WORLD,"# (PV) Rheology: VISCO-ELASTO-(VISCO-PLASTIC) \n");
+    // ierr = FDPDESolve(fdPV,NULL);CHKERRQ(ierr);
     SNESConvergedReason reason;
     converged = PETSC_FALSE;
     while (!converged) {
+      // PetscPrintf(PETSC_COMM_WORLD,"# (PV) Rheology: eta_vp = %1.12e \n",nd->eta_vp);
       PetscPrintf(PETSC_COMM_WORLD,"# (PV) Time-step (iteration): dt = %1.12e \n",nd->dt);
       ierr = FDPDESolve(fdPV,&converged);CHKERRQ(ierr);
       ierr = SNESGetConvergedReason(fdPV->snes,&reason); CHKERRQ(ierr);
       if (!converged) { 
-        break; 
+        break; // terminate loop if error
       }
+      // if (!converged) { // Reduce dt if not converged
+      //   nd->dt *= 1e-1;
+      // }
     }
 
     ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
@@ -288,7 +308,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = VecDestroy(&xPV);CHKERRQ(ierr);
 
     // Integrate the plastic strain
-    // ierr = IntegratePlasticStrain(usr->dmPlith,usr->strain,usr->xplast,usr); CHKERRQ(ierr);
+    ierr = IntegratePlasticStrain(usr->dmPlith,usr->strain,usr->xplast,usr); CHKERRQ(ierr);
 
     // Update fluid velocity
     ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmPlith,usr->xPlith,usr->dmT,usr->xphi,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
@@ -321,6 +341,9 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = DMSwarmGetSize(usr->dmswarm,&nmark2);CHKERRQ(ierr);
     ierr = UpdateMarkerPhaseFractions(usr->dmswarm,usr->dmMPhase,usr->xMPhase,usr);CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"# (DMSWARM) Marker number: Initial = %d After advection = %d After influx = %d \n",nmark0,nmark1,nmark2);
+
+    // Update melting rate and copy 
+  //   ierr = ComputeGamma(usr->dmmatProp,usr->xmatProp,usr->dmPV,usr->xPV,usr->dmEnth,usr->xEnth,usr->xEnthold,usr); CHKERRQ(ierr);
 
     // Prepare data for next time-step
     ierr = FDPDEAdvDiffGetPrevSolution(fdT,&xTprev);CHKERRQ(ierr);
@@ -367,6 +390,8 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = VecDestroy(&usr->xDP_old);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xplast);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xmatProp);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->noise);CHKERRQ(ierr);
+  ierr = VecDestroy(&usr->strain);CHKERRQ(ierr);
 
   ierr = DMDestroy(&usr->dmPV);CHKERRQ(ierr);
   ierr = DMDestroy(&usr->dmT);CHKERRQ(ierr);

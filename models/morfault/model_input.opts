@@ -11,7 +11,7 @@
 -nz 50
 -ppcell 3
 
--tstep 101
+-tstep 11
 -tout 1
 -dt_out 1e10
 -tmax 10e6
@@ -19,11 +19,11 @@
 -ts_scheme 2
 -adv_scheme 2
 
--rheology 1
+-rheology 0
 
 -Vext 1.0
 -Tbot 1523
--eta_vp 1e19 # converged with 1e21-use this for initial guess/converged loop.
+-eta_K 1e19 # converged with 1e21-use this for initial guess/converged loop.
 -age 40
 
 -eta_min 1.0e15
@@ -42,21 +42,21 @@
 -mat0_rho_function 0  # Density function: 0-constant
 -mat0_eta0 1e18
 -mat0_eta_function 0  # Eta function: 0-constant
--mat0_zeta0 1e19
+-mat0_zeta0 1e20
 -mat0_zeta_function 0  # Zeta function: 0-constant
--mat0_G 1e12
--mat0_Z0 1e12
+-mat0_G 1e20
+-mat0_Z0 1e40
 -mat0_C 1e10
 
 # sediments - weak seed
 -mat1_rho0 3300
 -mat1_rho_function 0  # Density function: 0-constant
--mat1_eta0 1e22
+-mat1_eta0 1e20
 -mat1_eta_function 0  # Eta function: 0-constant
--mat1_zeta0 1e23
+-mat1_zeta0 1e22
 -mat1_zeta_function 0  # Zeta function: 0-constant
--mat1_G 1e12
--mat1_Z0 1e12
+-mat1_G 1e20
+-mat1_Z0 1e40
 -mat1_C 1e10
 
 # upper crust (basalt)
@@ -66,9 +66,9 @@
 -mat2_eta_function 2  # Eta function: 0-constant
 -mat2_zeta0 1e19
 -mat2_zeta_function 2  # Zeta function: 0-constant
--mat2_G 1e12
--mat2_Z0 1e12
--mat2_C 1e5
+-mat2_G 6.7e10
+-mat2_Z0 1e40
+-mat2_C 1e6
 
 # lower crust (gabbro)
 -mat3_rho0 3300
@@ -77,9 +77,9 @@
 -mat3_eta_function 2  # Eta function: 0-constant
 -mat3_zeta0 1e19
 -mat3_zeta_function 2  # Zeta function: 0-constant
--mat3_G 1e12
--mat3_Z0 1e12
--mat3_C 1e5
+-mat3_G 6.7e10
+-mat3_Z0 1e40
+-mat3_C 1e6
 
 # lithospheric mantle
 -mat4_rho0 3300
@@ -88,9 +88,9 @@
 -mat4_eta_function 2  # Eta function: 0-constant
 -mat4_zeta0 1e19
 -mat4_zeta_function 2  # Zeta function: 0-constant
--mat4_G 1e12
--mat4_Z0 1e12
--mat4_C 1e5
+-mat4_G 6.7e10
+-mat4_Z0 1e40
+-mat4_C 1e6
 
 # asthenosphere
 -mat5_rho0 3300
@@ -99,9 +99,9 @@
 -mat5_eta_function 2  # Eta function: 0-constant
 -mat5_zeta0 1e19
 -mat5_zeta_function 2  # Zeta function: 0-constant
--mat5_G 1e12
--mat5_Z0 1e12
--mat5_C 1e5
+-mat5_G 6.7e10
+-mat5_Z0 1e40
+-mat5_C 1e6
 
 # solver options
 -t_pc_type lu 

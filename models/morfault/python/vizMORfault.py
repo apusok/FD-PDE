@@ -163,23 +163,17 @@ def create_scaling():
     scal.rho = 500
     scal.eta = 1e18
     scal.v = scal.rho*scal.g*scal.x**2/scal.eta
+    scal.t = scal.x/scal.v
     scal.eps = scal.v/scal.x
-    # scal.t = data['scalt'][0]
     scal.K = 1.0e-7
-    scal.P = scal.rho*scal.g*scal.x
-    # scal.Z = 1e40
-    # scal.G = 6e10
-    # scal.H = data['scalH'][0]
-    # scal.Gamma = data['scalGamma'][0]
-    # scal.C0 = data['C0'][0]
-    # scal.DC = data['DC'][0]
+    scal.P = scal.eta*scal.v/scal.x
     scal.T0 = scal.T_KELVIN
-    scal.DT = 1350 - scal.T_KELVIN
+    scal.DT = 1523.15 - scal.T_KELVIN
 
     nd = EmptyStruct()
-    nd.L = 400e3/scal.x
+    nd.L = 200e3/scal.x
     nd.H = 1.0
-    nd.xmin = -400e3/2/scal.x
+    nd.xmin = -200e3/2/scal.x
     nd.zmin = -1.0
     # nd.U0 = data['U0'][0]
     # nd.visc_ratio = data['visc_ratio'][0]
@@ -706,7 +700,7 @@ def parse_matProp_file(fname,fdir):
     nx = data['Nx'][0]
     nz = data['Ny'][0]
     data_c = data['X_cell']
-
+ 
     matProp = EmptyStruct()
     dof = 14
     matProp.eta = data_c[0::dof].reshape(nz,nx)

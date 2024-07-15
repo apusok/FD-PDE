@@ -1,493 +1,461 @@
 #include "morfault.h"
 
-// ---------------------------------------
-// FormCoefficient_PV (Stokes-Darcy)
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FormCoefficient_PV"
-PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
-{
-  UsrData        *usr = (UsrData*)ctx;
-  PetscInt       i, j, sx, sz, nx, nz, iprev, inext, icenter, Nx, Nz;
-  PetscScalar    **coordx, **coordz, ***c, ***xx, ***xwt; 
-  PetscScalar    ***_Tc, ***_phic, ***_Plith, ***_eps, ***_tauold, ***_DPold, ***_tau, ***_DP, ***_plast, ***_matProp;
-  Vec            coefflocal, xlocal, xTlocal, xMPhaselocal, xtaulocal, xDPlocal;
-  Vec            xphilocal, xPlithlocal, xepslocal, xtauoldlocal, xDPoldlocal, xplastlocal, xmatProplocal;
-  PetscScalar    k_hat[4], dt, tf_tol;
-  PetscErrorCode ierr;
-  PetscFunctionBeginUser;
+// // ---------------------------------------
+// // FormCoefficient_PV (Stokes-Darcy) - REVISE
+// // ---------------------------------------
+// #undef __FUNCT__
+// #define __FUNCT__ "FormCoefficient_PV"
+// PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, void *ctx)
+// {
+//   UsrData        *usr = (UsrData*)ctx;
+//   PetscInt       i, j, sx, sz, nx, nz, iprev, inext, icenter, Nx, Nz;
+//   PetscScalar    **coordx, **coordz, ***c, ***xx, ***xwt; 
+//   PetscScalar    ***_Tc, ***_phic, ***_Plith, ***_eps, ***_tauold, ***_DPold, ***_tau, ***_DP, ***_plast, ***_matProp;
+//   Vec            coefflocal, xlocal, xTlocal, xMPhaselocal, xtaulocal, xDPlocal;
+//   Vec            xphilocal, xPlithlocal, xepslocal, xtauoldlocal, xDPoldlocal, xplastlocal, xmatProplocal;
+//   PetscScalar    k_hat[4], dt;
+//   PetscErrorCode ierr;
+//   PetscFunctionBeginUser;
 
-  // parameters
-  k_hat[0] = 0.0;
-  k_hat[1] = 0.0;
-  k_hat[2] = usr->par->k_hat;
-  k_hat[3] = usr->par->k_hat;
+//   // parameters
+//   k_hat[0] = 0.0;
+//   k_hat[1] = 0.0;
+//   k_hat[2] = usr->par->k_hat;
+//   k_hat[3] = usr->par->k_hat;
 
-  dt = usr->nd->dt;
-  tf_tol = usr->par->tf_tol;
+//   dt = usr->nd->dt;
 
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 0 #\n");
+//   // Get coefficient
+//   ierr = DMStagGetGlobalSizes(dmcoeff, &Nx, &Nz,NULL);CHKERRQ(ierr);
+//   ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+//   ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+//   ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,LEFT,&iprev);CHKERRQ(ierr);
+//   ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,RIGHT,&inext);CHKERRQ(ierr); 
+//   ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter);CHKERRQ(ierr);
 
-  // Get coefficient
-  ierr = DMStagGetGlobalSizes(dmcoeff, &Nx, &Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,RIGHT,&inext);CHKERRQ(ierr); 
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter);CHKERRQ(ierr);
+//   // Create coefficient local vector
+//   ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
+//   ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
 
-  // Create coefficient local vector
-  ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
+//   // Strain rates
+//   ierr = UpdateStrainRates(dm,x,usr); CHKERRQ(ierr);
+//   ierr = DMGetLocalVector(usr->dmeps, &xepslocal); CHKERRQ(ierr);
+//   ierr = DMGlobalToLocal (usr->dmeps, usr->xeps, INSERT_VALUES, xepslocal); CHKERRQ(ierr);
+//   ierr = DMStagVecGetArrayRead(usr->dmeps,xepslocal,&_eps);CHKERRQ(ierr);
 
-  // Strain rates
-  ierr = UpdateStrainRates(dm,x,usr); CHKERRQ(ierr);
-  ierr = DMGetLocalVector(usr->dmeps, &xepslocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (usr->dmeps, usr->xeps, INSERT_VALUES, xepslocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(usr->dmeps,xepslocal,&_eps);CHKERRQ(ierr);
+//   ierr = DMGetLocalVector(usr->dmeps, &xtauoldlocal); CHKERRQ(ierr);
+//   ierr = DMGlobalToLocal (usr->dmeps, usr->xtau_old, INSERT_VALUES, xtauoldlocal); CHKERRQ(ierr);
+//   ierr = DMStagVecGetArrayRead(usr->dmeps,xtauoldlocal,&_tauold);CHKERRQ(ierr);
 
-  ierr = DMGetLocalVector(usr->dmeps, &xtauoldlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (usr->dmeps, usr->xtau_old, INSERT_VALUES, xtauoldlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(usr->dmeps,xtauoldlocal,&_tauold);CHKERRQ(ierr);
+//   ierr = DMGetLocalVector(usr->dmeps, &xtaulocal); CHKERRQ(ierr);
+//   ierr = DMGlobalToLocal (usr->dmeps, usr->xtau, INSERT_VALUES, xtaulocal); CHKERRQ(ierr);
+//   ierr = DMStagVecGetArray(usr->dmeps,xtaulocal,&_tau);CHKERRQ(ierr);
 
-  ierr = DMGetLocalVector(usr->dmeps, &xtaulocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (usr->dmeps, usr->xtau, INSERT_VALUES, xtaulocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(usr->dmeps,xtaulocal,&_tau);CHKERRQ(ierr);
-
-  // Get dm and solution vector
-  ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(dm,xlocal,&xx);CHKERRQ(ierr);
+//   // Get dm and solution vector
+//   ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
+//   ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+//   ierr = DMStagVecGetArrayRead(dm,xlocal,&xx);CHKERRQ(ierr);
   
-  // Get solution vector for temperature
-  ierr = DMGetLocalVector(usr->dmT,&xTlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (usr->dmT,usr->xT,INSERT_VALUES,xTlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(usr->dmT,xTlocal,&_Tc);CHKERRQ(ierr);
+//   // Get solution vector for temperature
+//   ierr = DMGetLocalVector(usr->dmT,&xTlocal); CHKERRQ(ierr);
+//   ierr = DMGlobalToLocal (usr->dmT,usr->xT,INSERT_VALUES,xTlocal); CHKERRQ(ierr);
+//   ierr = DMStagVecGetArrayRead(usr->dmT,xTlocal,&_Tc);CHKERRQ(ierr);
 
-  // Get porosity
-  ierr = DMGetLocalVector(usr->dmT,&xphilocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (usr->dmT,usr->xphi,INSERT_VALUES,xphilocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(usr->dmT,xphilocal,&_phic);CHKERRQ(ierr);
+//   // Get porosity
+//   ierr = DMGetLocalVector(usr->dmT,&xphilocal); CHKERRQ(ierr);
+//   ierr = DMGlobalToLocal (usr->dmT,usr->xphi,INSERT_VALUES,xphilocal); CHKERRQ(ierr);
+//   ierr = DMStagVecGetArrayRead(usr->dmT,xphilocal,&_phic);CHKERRQ(ierr);
 
-  // Get dm and vector Plith
-  ierr = DMGetLocalVector(usr->dmPlith, &xPlithlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (usr->dmPlith, usr->xPlith, INSERT_VALUES, xPlithlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(usr->dmPlith,xPlithlocal,&_Plith);CHKERRQ(ierr);
+//   // Get dm and vector Plith
+//   ierr = DMGetLocalVector(usr->dmPlith, &xPlithlocal); CHKERRQ(ierr);
+//   ierr = DMGlobalToLocal (usr->dmPlith, usr->xPlith, INSERT_VALUES, xPlithlocal); CHKERRQ(ierr);
+//   ierr = DMStagVecGetArrayRead(usr->dmPlith,xPlithlocal,&_Plith);CHKERRQ(ierr);
 
-  ierr = DMGetLocalVector(usr->dmPlith, &xDPoldlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (usr->dmPlith, usr->xDP_old, INSERT_VALUES, xDPoldlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(usr->dmPlith,xDPoldlocal,&_DPold);CHKERRQ(ierr);
+//   ierr = DMGetLocalVector(usr->dmPlith, &xDPoldlocal); CHKERRQ(ierr);
+//   ierr = DMGlobalToLocal (usr->dmPlith, usr->xDP_old, INSERT_VALUES, xDPoldlocal); CHKERRQ(ierr);
+//   ierr = DMStagVecGetArrayRead(usr->dmPlith,xDPoldlocal,&_DPold);CHKERRQ(ierr);
 
-  ierr = DMGetLocalVector(usr->dmPlith, &xDPlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (usr->dmPlith, usr->xDP, INSERT_VALUES, xDPlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(usr->dmPlith,xDPlocal,&_DP);CHKERRQ(ierr);
+//   ierr = DMGetLocalVector(usr->dmPlith, &xDPlocal); CHKERRQ(ierr);
+//   ierr = DMGlobalToLocal (usr->dmPlith, usr->xDP, INSERT_VALUES, xDPlocal); CHKERRQ(ierr);
+//   ierr = DMStagVecGetArrayRead(usr->dmPlith,xDPlocal,&_DP);CHKERRQ(ierr);
 
-  ierr = DMGetLocalVector(usr->dmPlith, &xplastlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (usr->dmPlith, usr->xplast, INSERT_VALUES, xplastlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(usr->dmPlith,xplastlocal,&_plast);CHKERRQ(ierr);
+//   ierr = DMGetLocalVector(usr->dmPlith, &xplastlocal); CHKERRQ(ierr);
+//   ierr = DMGlobalToLocal (usr->dmPlith, usr->xplast, INSERT_VALUES, xplastlocal); CHKERRQ(ierr);
+//   ierr = DMStagVecGetArrayRead(usr->dmPlith,xplastlocal,&_plast);CHKERRQ(ierr);
 
-  // get material phase fractions
-  ierr = DMCreateLocalVector(usr->dmMPhase, &xMPhaselocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocalBegin(usr->dmMPhase,usr->xMPhase,INSERT_VALUES,xMPhaselocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocalEnd  (usr->dmMPhase,usr->xMPhase,INSERT_VALUES,xMPhaselocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(usr->dmMPhase, xMPhaselocal, &xwt); CHKERRQ(ierr);
+//   // get material phase fractions
+//   ierr = DMCreateLocalVector(usr->dmMPhase, &xMPhaselocal); CHKERRQ(ierr);
+//   ierr = DMGlobalToLocalBegin(usr->dmMPhase,usr->xMPhase,INSERT_VALUES,xMPhaselocal); CHKERRQ(ierr);
+//   ierr = DMGlobalToLocalEnd  (usr->dmMPhase,usr->xMPhase,INSERT_VALUES,xMPhaselocal); CHKERRQ(ierr);
+//   ierr = DMStagVecGetArray(usr->dmMPhase, xMPhaselocal, &xwt); CHKERRQ(ierr);
 
-  // Get material properties - for output
-  ierr = DMGetLocalVector(usr->dmmatProp, &xmatProplocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (usr->dmmatProp, usr->xmatProp, INSERT_VALUES, xmatProplocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(usr->dmmatProp,xmatProplocal,&_matProp);CHKERRQ(ierr);
+//   // Get material properties - for output
+//   ierr = DMGetLocalVector(usr->dmmatProp, &xmatProplocal); CHKERRQ(ierr);
+//   ierr = DMGlobalToLocal (usr->dmmatProp, usr->xmatProp, INSERT_VALUES, xmatProplocal); CHKERRQ(ierr);
+//   ierr = DMStagVecGetArrayRead(usr->dmmatProp,xmatProplocal,&_matProp);CHKERRQ(ierr);
 
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 1 #\n");
+//   // get location slots
+//   PetscInt  iE,iP;
+//   ierr = DMStagGetLocationSlot(usr->dmT,DMSTAG_ELEMENT,T_ELEMENT,&iE);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmPlith,DMSTAG_ELEMENT,0,&iP);CHKERRQ(ierr);
 
-  // get location slots
-  PetscInt  iE,iP;
-  ierr = DMStagGetLocationSlot(usr->dmT,DMSTAG_ELEMENT,T_ELEMENT,&iE);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmPlith,DMSTAG_ELEMENT,0,&iP);CHKERRQ(ierr);
+//   PetscInt iPV;
+//   ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,PV_ELEMENT_P,&iPV);CHKERRQ(ierr);
 
-  PetscInt iPV;
-  ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,PV_ELEMENT_P,&iPV);CHKERRQ(ierr);
+//   PetscInt  e_slot[3],av_slot[4],b_slot[4],d2_slot[4],d3_slot[4],iL,iR,iU,iD,iC,iA,iD1;
+//   iL = 0; iR = 1; iD = 2; iU  = 3;
+//   iC = 0; iA = 1; iD1= 2;
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,   PVCOEFF_ELEMENT_C,   &e_slot[iC]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,   PVCOEFF_ELEMENT_A,   &e_slot[iA]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,   PVCOEFF_ELEMENT_D1,  &e_slot[iD1]);CHKERRQ(ierr);
 
-  PetscInt  e_slot[3],av_slot[4],b_slot[4],d2_slot[4],d3_slot[4],iL,iR,iU,iD,iC,iA,iD1;
-  iL = 0; iR = 1; iD = 2; iU  = 3;
-  iC = 0; iA = 1; iD1= 2;
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,   PVCOEFF_ELEMENT_C,   &e_slot[iC]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,   PVCOEFF_ELEMENT_A,   &e_slot[iA]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,   PVCOEFF_ELEMENT_D1,  &e_slot[iD1]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN_LEFT, PVCOEFF_VERTEX_A,&av_slot[0]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN_RIGHT,PVCOEFF_VERTEX_A,&av_slot[1]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP_LEFT,   PVCOEFF_VERTEX_A,&av_slot[2]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP_RIGHT,  PVCOEFF_VERTEX_A,&av_slot[3]);CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN_LEFT, PVCOEFF_VERTEX_A,&av_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN_RIGHT,PVCOEFF_VERTEX_A,&av_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP_LEFT,   PVCOEFF_VERTEX_A,&av_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP_RIGHT,  PVCOEFF_VERTEX_A,&av_slot[3]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,   PVCOEFF_FACE_B,   &b_slot[iL]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,  PVCOEFF_FACE_B,   &b_slot[iR]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,   PVCOEFF_FACE_B,   &b_slot[iD]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,     PVCOEFF_FACE_B,   &b_slot[iU]);CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,   PVCOEFF_FACE_B,   &b_slot[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,  PVCOEFF_FACE_B,   &b_slot[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,   PVCOEFF_FACE_B,   &b_slot[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,     PVCOEFF_FACE_B,   &b_slot[iU]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,   PVCOEFF_FACE_D2,   &d2_slot[iL]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,  PVCOEFF_FACE_D2,   &d2_slot[iR]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,   PVCOEFF_FACE_D2,   &d2_slot[iD]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,     PVCOEFF_FACE_D2,   &d2_slot[iU]);CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,   PVCOEFF_FACE_D2,   &d2_slot[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,  PVCOEFF_FACE_D2,   &d2_slot[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,   PVCOEFF_FACE_D2,   &d2_slot[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,     PVCOEFF_FACE_D2,   &d2_slot[iU]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,   PVCOEFF_FACE_D3,   &d3_slot[iL]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,  PVCOEFF_FACE_D3,   &d3_slot[iR]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,   PVCOEFF_FACE_D3,   &d3_slot[iD]);CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,     PVCOEFF_FACE_D3,   &d3_slot[iU]);CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,   PVCOEFF_FACE_D3,   &d3_slot[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,  PVCOEFF_FACE_D3,   &d3_slot[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,   PVCOEFF_FACE_D3,   &d3_slot[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,     PVCOEFF_FACE_D3,   &d3_slot[iU]);CHKERRQ(ierr);
+//   PetscInt iwtc[3],iwtl[3],iwtr[3],iwtd[3],iwtu[3], iwtld[3],iwtrd[3],iwtlu[3],iwtru[3];
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 0, &iwtc[0]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 1, &iwtc[1]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 2, &iwtc[2]); CHKERRQ(ierr);
 
-  PetscInt iwtc[3],iwtl[3],iwtr[3],iwtd[3],iwtu[3], iwtld[3],iwtrd[3],iwtlu[3],iwtru[3];
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 0, &iwtc[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 1, &iwtc[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 2, &iwtc[2]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 0, &iwtl[0]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 1, &iwtl[1]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 2, &iwtl[2]); CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 0, &iwtl[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 1, &iwtl[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 2, &iwtl[2]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 0, &iwtr[0]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 1, &iwtr[1]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 2, &iwtr[2]); CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 0, &iwtr[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 1, &iwtr[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 2, &iwtr[2]); CHKERRQ(ierr);
-
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 0, &iwtd[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 1, &iwtd[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 2, &iwtd[2]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 0, &iwtd[0]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 1, &iwtd[1]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 2, &iwtd[2]); CHKERRQ(ierr);
   
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 0, &iwtu[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 1, &iwtu[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 2, &iwtu[2]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 0, &iwtu[0]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 1, &iwtu[1]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 2, &iwtu[2]); CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 0, &iwtld[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 1, &iwtld[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 2, &iwtld[2]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 0, &iwtld[0]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 1, &iwtld[1]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 2, &iwtld[2]); CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 0, &iwtrd[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 1, &iwtrd[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 2, &iwtrd[2]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 0, &iwtrd[0]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 1, &iwtrd[1]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 2, &iwtrd[2]); CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 0, &iwtlu[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 1, &iwtlu[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 2, &iwtlu[2]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 0, &iwtlu[0]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 1, &iwtlu[1]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 2, &iwtlu[2]); CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 0, &iwtru[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 1, &iwtru[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 2, &iwtru[2]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 0, &iwtru[0]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 1, &iwtru[1]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 2, &iwtru[2]); CHKERRQ(ierr);
 
-  PetscInt ii, ixx, izz, ixz, iII, ixxn[4], izzn[4], ixzn[4], iIIn[4];
-  ierr = DMStagGetLocationSlot(usr->dmeps, ELEMENT, 0, &ixx); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmeps, ELEMENT, 1, &izz); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmeps, ELEMENT, 2, &ixz); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmeps, ELEMENT, 3, &iII); CHKERRQ(ierr);
+//   PetscInt ii, ixx, izz, ixz, iII, ixxn[4], izzn[4], ixzn[4], iIIn[4];
+//   ierr = DMStagGetLocationSlot(usr->dmeps, ELEMENT, 0, &ixx); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, ELEMENT, 1, &izz); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, ELEMENT, 2, &ixz); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, ELEMENT, 3, &iII); CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(usr->dmeps, DOWN_LEFT, 0, &ixxn[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmeps, DOWN_LEFT, 1, &izzn[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmeps, DOWN_LEFT, 2, &ixzn[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmeps, DOWN_LEFT, 3, &iIIn[0]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, DOWN_LEFT, 0, &ixxn[0]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, DOWN_LEFT, 1, &izzn[0]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, DOWN_LEFT, 2, &ixzn[0]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, DOWN_LEFT, 3, &iIIn[0]); CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(usr->dmeps, DOWN_RIGHT, 0, &ixxn[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmeps, DOWN_RIGHT, 1, &izzn[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmeps, DOWN_RIGHT, 2, &ixzn[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmeps, DOWN_RIGHT, 3, &iIIn[1]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, DOWN_RIGHT, 0, &ixxn[1]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, DOWN_RIGHT, 1, &izzn[1]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, DOWN_RIGHT, 2, &ixzn[1]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, DOWN_RIGHT, 3, &iIIn[1]); CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(usr->dmeps, UP_LEFT, 0, &ixxn[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmeps, UP_LEFT, 1, &izzn[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmeps, UP_LEFT, 2, &ixzn[2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmeps, UP_LEFT, 3, &iIIn[2]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, UP_LEFT, 0, &ixxn[2]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, UP_LEFT, 1, &izzn[2]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, UP_LEFT, 2, &ixzn[2]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, UP_LEFT, 3, &iIIn[2]); CHKERRQ(ierr);
 
-  ierr = DMStagGetLocationSlot(usr->dmeps, UP_RIGHT, 0, &ixxn[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmeps, UP_RIGHT, 1, &izzn[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmeps, UP_RIGHT, 2, &ixzn[3]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmeps, UP_RIGHT, 3, &iIIn[3]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, UP_RIGHT, 0, &ixxn[3]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, UP_RIGHT, 1, &izzn[3]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, UP_RIGHT, 2, &ixzn[3]); CHKERRQ(ierr);
+//   ierr = DMStagGetLocationSlot(usr->dmeps, UP_RIGHT, 3, &iIIn[3]); CHKERRQ(ierr);
 
-  PetscInt imat[14];
-  for (ii = 0; ii < 14; ii++) { ierr = DMStagGetLocationSlot(usr->dmmatProp, ELEMENT, ii, &imat[ii]); CHKERRQ(ierr); }
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 #\n");
+//   PetscInt imat[14];
+//   for (ii = 0; ii < 14; ii++) { ierr = DMStagGetLocationSlot(usr->dmmatProp, ELEMENT, ii, &imat[ii]); CHKERRQ(ierr); }
   
-  // Loop over local domain - set initial density and viscosity
-  for (j = sz; j < sz+nz; j++) {
-    for (i = sx; i <sx+nx; i++) {
-      PetscScalar   phic[9], pc[9], Plc[9], Tc[9], DPoldc[9], gradPlith[4], dx, dz;
-      PetscInt      iph, ii, im, jm, ip, jp;
+//   // Loop over local domain - set initial density and viscosity
+//   for (j = sz; j < sz+nz; j++) {
+//     for (i = sx; i <sx+nx; i++) {
+//       PetscScalar   phic[9], pc[9], Plc[9], Tc[9], DPoldc[9], gradPlith[4], dx, dz;
+//       PetscInt      iph, ii, im, jm, ip, jp;
 
-      if (i == 0   ) im = i; else im = i-1;
-      if (i == Nx-1) ip = i; else ip = i+1;
-      if (j == 0   ) jm = j; else jm = j-1;
-      if (j == Nz-1) jp = j; else jp = j+1;
+//       if (i == 0   ) im = i; else im = i-1;
+//       if (i == Nx-1) ip = i; else ip = i+1;
+//       if (j == 0   ) jm = j; else jm = j-1;
+//       if (j == Nz-1) jp = j; else jp = j+1;
 
-      // should be adapted to variable spacing
-      dx = coordx[i][inext]-coordx[i][iprev];
-      dz = coordz[j][inext]-coordz[j][iprev];
+//       // should be adapted to variable spacing
+//       dx = coordx[i][inext]-coordx[i][iprev];
+//       dz = coordz[j][inext]-coordz[j][iprev];
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - A [%d %d] #\n",i,j);
+//       // get porosity, p, Plith, T - center
+//       ierr = Get9PointCenterValues(i,j,iE,Nx,Nz,_phic,phic);CHKERRQ(ierr);
+//       ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_Plith,Plc);CHKERRQ(ierr);
+//       ierr = Get9PointCenterValues(i,j,iPV,Nx,Nz,xx,pc);CHKERRQ(ierr);
+//       ierr = Get9PointCenterValues(i,j,iE,Nx,Nz,_Tc,Tc);CHKERRQ(ierr);
+//       ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_DPold,DPoldc);CHKERRQ(ierr);
 
-      // get porosity, p, Plith, T - center
-      ierr = Get9PointCenterValues(i,j,iE,Nx,Nz,_phic,phic);CHKERRQ(ierr);
-      ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_Plith,Plc);CHKERRQ(ierr);
-      ierr = Get9PointCenterValues(i,j,iPV,Nx,Nz,xx,pc);CHKERRQ(ierr);
-      ierr = Get9PointCenterValues(i,j,iE,Nx,Nz,_Tc,Tc);CHKERRQ(ierr);
-      ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_DPold,DPoldc);CHKERRQ(ierr);
+//       gradPlith[0] = (Plc[0]-Plc[1])/dx;
+//       gradPlith[1] = (Plc[2]-Plc[0])/dx;
+//       gradPlith[2] = (Plc[0]-Plc[3])/dz;
+//       gradPlith[3] = (Plc[4]-Plc[0])/dz;
 
-      gradPlith[0] = (Plc[0]-Plc[1])/dx;
-      gradPlith[1] = (Plc[2]-Plc[0])/dx;
-      gradPlith[2] = (Plc[0]-Plc[3])/dz;
-      gradPlith[3] = (Plc[4]-Plc[0])/dz;
+//       if (j==Nz-1) gradPlith[3] = gradPlith[2]; // top domain
+//       if (j==0   ) gradPlith[2] = gradPlith[3]; // assumes same gradient as in previous cell
 
-      if (j==Nz-1) gradPlith[3] = gradPlith[2]; // top domain
-      if (j==0   ) gradPlith[2] = gradPlith[3]; // assumes same gradient as in previous cell
+//       // Prepare for pointwise rheology calculation
+//       PetscScalar eta_eff[9], zeta_eff[9], chis[9], chip[9], txx[9], tzz[9], txz[9], tII[9], DP[9], dotlam[9];
+//       PetscScalar eta_v[9],eta_e[9],eta_ve[9],zeta_v[9],zeta_e[9],zeta_ve[9];
+//       PetscScalar e[4], t[4], P[3], res[21],Z[9],G[9], C[9], sigmat[9], theta[9];
+//       PetscInt ix[4];
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B [%d %d] #\n",i,j);
+//       // center points
+//       ix[0] = ixx; ix[1] = izz; ix[2] = ixz; ix[3] = iII;
 
-      // Prepare for pointwise rheology calculation
-      PetscScalar eta_eff[9], zeta_eff[9], chis[9], chip[9], txx[9], tzz[9], txz[9], tII[9], DP[9], dotlam[9];
-      PetscScalar eta_v[9],eta_e[9],eta_ve[9],zeta_v[9],zeta_e[9],zeta_ve[9];
-      PetscScalar e[4], t[4], P[3], res[21],Z[9],G[9], C[9], sigmat[9], theta[9];
-      PetscInt ix[4];
+//       P[0] = pc[0]; P[1] = Plc[0]; P[2] = DPoldc[0];
+//       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
+//       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
+//       ierr = RheologyPointwise(i,j,xwt,iwtc,Tc[0],phic[0],P,e,t,ix,res,usr);CHKERRQ(ierr);
+//       ierr = DecompactRheologyVars(0,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      // center points
-      ix[0] = ixx; ix[1] = izz; ix[2] = ixz; ix[3] = iII;
+//       P[0] = pc[1]; P[1] = Plc[1]; P[2] = DPoldc[1];
+//       ierr = GetTensorPointValues(im,j,ix,_eps,e);CHKERRQ(ierr);
+//       ierr = GetTensorPointValues(im,j,ix,_tauold,t);CHKERRQ(ierr);
+//       ierr = RheologyPointwise(im,j,xwt,iwtc,Tc[1],phic[1],P,e,t,ix,res,usr);CHKERRQ(ierr);
+//       ierr = DecompactRheologyVars(1,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 0 [%d %d] #\n",i,j);
-      P[0] = pc[0]; P[1] = Plc[0]; P[2] = DPoldc[0];
-      ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
-      ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
-      ierr = RheologyPointwise(i,j,xwt,iwtc,Tc[0],phic[0],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(0,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
+//       P[0] = pc[2]; P[1] = Plc[2]; P[2] = DPoldc[2];
+//       ierr = GetTensorPointValues(ip,j,ix,_eps,e);CHKERRQ(ierr);
+//       ierr = GetTensorPointValues(ip,j,ix,_tauold,t);CHKERRQ(ierr);
+//       ierr = RheologyPointwise(ip,j,xwt,iwtc,Tc[2],phic[2],P,e,t,ix,res,usr);CHKERRQ(ierr);
+//       ierr = DecompactRheologyVars(2,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 1 [%d %d] #\n",i,j);
-      P[0] = pc[1]; P[1] = Plc[1]; P[2] = DPoldc[1];
-      ierr = GetTensorPointValues(im,j,ix,_eps,e);CHKERRQ(ierr);
-      ierr = GetTensorPointValues(im,j,ix,_tauold,t);CHKERRQ(ierr);
-      ierr = RheologyPointwise(im,j,xwt,iwtc,Tc[1],phic[1],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(1,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
+//       P[0] = pc[3]; P[1] = Plc[3]; P[2] = DPoldc[3];
+//       ierr = GetTensorPointValues(i,jm,ix,_eps,e);CHKERRQ(ierr);
+//       ierr = GetTensorPointValues(i,jm,ix,_tauold,t);CHKERRQ(ierr);
+//       ierr = RheologyPointwise(i,jm,xwt,iwtc,Tc[3],phic[3],P,e,t,ix,res,usr);CHKERRQ(ierr);
+//       ierr = DecompactRheologyVars(3,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 2 [%d %d] #\n",i,j);
-      P[0] = pc[2]; P[1] = Plc[2]; P[2] = DPoldc[2];
-      ierr = GetTensorPointValues(ip,j,ix,_eps,e);CHKERRQ(ierr);
-      ierr = GetTensorPointValues(ip,j,ix,_tauold,t);CHKERRQ(ierr);
-      ierr = RheologyPointwise(ip,j,xwt,iwtc,Tc[2],phic[2],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(2,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
+//       P[0] = pc[4]; P[1] = Plc[4]; P[2] = DPoldc[4];
+//       ierr = GetTensorPointValues(i,jp,ix,_eps,e);CHKERRQ(ierr);
+//       ierr = GetTensorPointValues(i,jp,ix,_tauold,t);CHKERRQ(ierr);
+//       ierr = RheologyPointwise(i,jp,xwt,iwtc,Tc[4],phic[4],P,e,t,ix,res,usr);CHKERRQ(ierr);
+//       ierr = DecompactRheologyVars(4,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 3 [%d %d] #\n",i,j);
-      P[0] = pc[3]; P[1] = Plc[3]; P[2] = DPoldc[3];
-      ierr = GetTensorPointValues(i,jm,ix,_eps,e);CHKERRQ(ierr);
-      ierr = GetTensorPointValues(i,jm,ix,_tauold,t);CHKERRQ(ierr);
-      ierr = RheologyPointwise(i,jm,xwt,iwtc,Tc[3],phic[3],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(3,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
-
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 4 [%d %d] #\n",i,j);
-      P[0] = pc[4]; P[1] = Plc[4]; P[2] = DPoldc[4];
-      ierr = GetTensorPointValues(i,jp,ix,_eps,e);CHKERRQ(ierr);
-      ierr = GetTensorPointValues(i,jp,ix,_tauold,t);CHKERRQ(ierr);
-      ierr = RheologyPointwise(i,jp,xwt,iwtc,Tc[4],phic[4],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(4,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
-
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - C [%d %d] #\n",i,j);
-      // corner points
-      PetscScalar Tcorner[4], phicorner[4], pcorner[4], Plcorner[4], DPoldcorner[4];
-      ierr = GetCornerAvgFromCenter(Tc,Tcorner);CHKERRQ(ierr);
-      ierr = GetCornerAvgFromCenter(phic,phicorner);CHKERRQ(ierr);
-      ierr = GetCornerAvgFromCenter(pc,pcorner);CHKERRQ(ierr);
-      ierr = GetCornerAvgFromCenter(Plc,Plcorner);CHKERRQ(ierr);
-      ierr = GetCornerAvgFromCenter(DPoldc,DPoldcorner);CHKERRQ(ierr);
+//       // corner points
+//       PetscScalar Tcorner[4], phicorner[4], pcorner[4], Plcorner[4], DPoldcorner[4];
+//       ierr = GetCornerAvgFromCenter(Tc,Tcorner);CHKERRQ(ierr);
+//       ierr = GetCornerAvgFromCenter(phic,phicorner);CHKERRQ(ierr);
+//       ierr = GetCornerAvgFromCenter(pc,pcorner);CHKERRQ(ierr);
+//       ierr = GetCornerAvgFromCenter(Plc,Plcorner);CHKERRQ(ierr);
+//       ierr = GetCornerAvgFromCenter(DPoldc,DPoldcorner);CHKERRQ(ierr);
       
-      ii = 0; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii];
-      ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
-      ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
-      ierr = RheologyPointwise(i,j,xwt,iwtld,Tcorner[0],phicorner[0],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(5,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
+//       ii = 0; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii];
+//       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
+//       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
+//       ierr = RheologyPointwise(i,j,xwt,iwtld,Tcorner[0],phicorner[0],P,e,t,ix,res,usr);CHKERRQ(ierr);
+//       ierr = DecompactRheologyVars(5,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      ii = 1; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii];
-      ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
-      ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
-      ierr = RheologyPointwise(i,j,xwt,iwtrd,Tcorner[1],phicorner[1],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(6,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
+//       ii = 1; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii];
+//       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
+//       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
+//       ierr = RheologyPointwise(i,j,xwt,iwtrd,Tcorner[1],phicorner[1],P,e,t,ix,res,usr);CHKERRQ(ierr);
+//       ierr = DecompactRheologyVars(6,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      ii = 2; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii];
-      ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
-      ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
-      ierr = RheologyPointwise(i,j,xwt,iwtlu,Tcorner[2],phicorner[2],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(7,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
+//       ii = 2; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii];
+//       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
+//       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
+//       ierr = RheologyPointwise(i,j,xwt,iwtlu,Tcorner[2],phicorner[2],P,e,t,ix,res,usr);CHKERRQ(ierr);
+//       ierr = DecompactRheologyVars(7,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      ii = 3; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii];
-      ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
-      ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
-      ierr = RheologyPointwise(i,j,xwt,iwtru,Tcorner[3],phicorner[3],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(8,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
+//       ii = 3; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii];
+//       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
+//       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
+//       ierr = RheologyPointwise(i,j,xwt,iwtru,Tcorner[3],phicorner[3],P,e,t,ix,res,usr);CHKERRQ(ierr);
+//       ierr = DecompactRheologyVars(8,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - D [%d %d] #\n",i,j);
-      { // element 
-        // C = 0 (center, c=0)
-        c[j][i][e_slot[iC]] = 0.0;
+//       { // element 
+//         // C = 0 (center, c=0)
+//         c[j][i][e_slot[iC]] = 0.0;
 
-        // A = eta_eff,phi (center, c=1)
-        c[j][i][e_slot[iA]] = eta_eff[0];
+//         // A = eta_eff,phi (center, c=1)
+//         c[j][i][e_slot[iA]] = eta_eff[0];
 
-        // D1 = zeta_eff-2/3eta_eff (center, c=2)
-        // c[j][i][e_slot[iD1]] = zeta_eff[0]-2.0/3.0*eta_eff[0];
-        if (phic[0]>0.0) c[j][i][e_slot[iD1]] = zeta_eff[0]-2.0/3.0*eta_eff[0];
-        else             c[j][i][e_slot[iD1]] = 0.0; 
-      }
+//         // D1 = zeta_eff-2/3eta_eff (center, c=2)
+//         c[j][i][e_slot[iD1]] = zeta_eff[0]-2.0/3.0*eta_eff[0];
+//       }
 
-      { // corner
-        // A = eta_eff,phi (corner, c=0)
-        DMStagStencil point[4];
-        for (ii = 0; ii < 4; ii++) {
-          c[j][i][av_slot[ii]] = eta_eff[5+ii];
-        }
-      }
+//       { // corner
+//         // A = eta_eff,phi (corner, c=0)
+//         for (ii = 0; ii < 4; ii++) {
+//           c[j][i][av_slot[ii]] = eta_eff[5+ii];
+//         }
+//       }
       
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - E [%d %d] #\n",i,j);
-      { // face
-        PetscScalar   phi[4], K[4], B[4], D2[4], D3[4], rho0[3], rhof[4], rhos[4], rhog[4], rhob[4], wt[3];
-        PetscScalar   divchitau[4],gradchidp[4], tauold[4], dpold[4];
-        PetscInt      idx[3];
+//       { // face
+//         PetscScalar   phi[4], K[4], B[4], D2[4], D3[4], rho0[3], rhof[4], rhos[4], rhog[4], rhob[4], wt[3];
+//         PetscScalar   divchitau[4],gradchidp[4], tauold[4], dpold[4];
+//         PetscInt      idx[3];
 
-        // porosity on edges - not for variable grid spacing
-        phi[0] = (phic[0]+phic[1])*0.5;
-        phi[1] = (phic[0]+phic[2])*0.5;
-        phi[2] = (phic[0]+phic[3])*0.5;
-        phi[3] = (phic[0]+phic[4])*0.5;
+//         // porosity on edges - not for variable grid spacing
+//         phi[0] = (phic[0]+phic[1])*0.5;
+//         phi[1] = (phic[0]+phic[2])*0.5;
+//         phi[2] = (phic[0]+phic[3])*0.5;
+//         phi[3] = (phic[0]+phic[4])*0.5;
 
-        gradchidp[0] = (chip[0]*_DPold[j ][i ][iP] - chip[1]*_DPold[j ][im][iP])/dx;
-        gradchidp[1] = (chip[2]*_DPold[j ][ip][iP] - chip[0]*_DPold[j ][i ][iP])/dx;
-        gradchidp[2] = (chip[0]*_DPold[j ][i ][iP] - chip[3]*_DPold[jm][i ][iP])/dz;
-        gradchidp[3] = (chip[4]*_DPold[jp][i ][iP] - chip[0]*_DPold[j ][i ][iP])/dz;
+//         gradchidp[0] = (chip[0]*_DPold[j ][i ][iP] - chip[1]*_DPold[j ][im][iP])/dx;
+//         gradchidp[1] = (chip[2]*_DPold[j ][ip][iP] - chip[0]*_DPold[j ][i ][iP])/dx;
+//         gradchidp[2] = (chip[0]*_DPold[j ][i ][iP] - chip[3]*_DPold[jm][i ][iP])/dz;
+//         gradchidp[3] = (chip[4]*_DPold[jp][i ][iP] - chip[0]*_DPold[j ][i ][iP])/dz;
 
-        //  div(chis*tau_old) = div(S) = [dSxx/dx+dSxz/dz, dSzx/dx+dSzz/dz]
-        divchitau[0] = (chis[0]*_tauold[j][i ][ixx] - chis[1]*_tauold[j][im][ixx])/dx + (chis[7]*_tauold[j][i][ixzn[2]]-chis[5]*_tauold[j][i][ixzn[0]])/dz;
-        divchitau[1] = (chis[2]*_tauold[j][ip][ixx] - chis[0]*_tauold[j][i ][ixx])/dx + (chis[8]*_tauold[j][i][ixzn[3]]-chis[6]*_tauold[j][i][ixzn[1]])/dz;
-        divchitau[2] = (chis[6]*_tauold[j][i][ixzn[1]]-chis[5]*_tauold[j][i][ixzn[0]])/dx + (chis[0]*_tauold[j ][i][izz] - chis[3]*_tauold[jm][i][izz])/dz;
-        divchitau[3] = (chis[8]*_tauold[j][i][ixzn[3]]-chis[7]*_tauold[j][i][ixzn[2]])/dx + (chis[4]*_tauold[jp][i][izz] - chis[0]*_tauold[j ][i][izz])/dz;
+//         //  div(chis*tau_old) = div(S) = [dSxx/dx+dSxz/dz, dSzx/dx+dSzz/dz]
+//         divchitau[0] = (chis[0]*_tauold[j][i ][ixx] - chis[1]*_tauold[j][im][ixx])/dx + (chis[7]*_tauold[j][i][ixzn[2]]-chis[5]*_tauold[j][i][ixzn[0]])/dz;
+//         divchitau[1] = (chis[2]*_tauold[j][ip][ixx] - chis[0]*_tauold[j][i ][ixx])/dx + (chis[8]*_tauold[j][i][ixzn[3]]-chis[6]*_tauold[j][i][ixzn[1]])/dz;
+//         divchitau[2] = (chis[6]*_tauold[j][i][ixzn[1]]-chis[5]*_tauold[j][i][ixzn[0]])/dx + (chis[0]*_tauold[j ][i][izz] - chis[3]*_tauold[jm][i][izz])/dz;
+//         divchitau[3] = (chis[8]*_tauold[j][i][ixzn[3]]-chis[7]*_tauold[j][i][ixzn[2]])/dx + (chis[4]*_tauold[jp][i][izz] - chis[0]*_tauold[j ][i][izz])/dz;
 
-        // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - D [%d %d] %1.12e %1.12e %1.12e %1.12e %1.12e #\n",i,j,chip[0],chip[1],chip[2],chip[3],chip[4]);
-        // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - E [%d %d] %1.12e %1.12e %1.12e %1.12e %1.12e #\n",i,j,chis[0],chis[1],chis[2],chis[3],chis[4]);
+//         for (ii = 0; ii < 4; ii++) {
+//           K[ii]  = Permeability(phi[ii],usr->par->n); // assumed uniform for all materials
+//           rhof[ii] = usr->par->rhof; // should be function of T, C
 
-        for (ii = 0; ii < 4; ii++) {
-          K[ii]  = Permeability(phi[ii],usr->par->n); // assumed uniform for all materials
-          rhof[ii] = usr->par->rhof; // should be function of T, C
+//           // solid material density - can be function of T, location
+//           for (iph = 0; iph < usr->nph; iph++) { rho0[iph] = Density(usr->mat[iph].rho0,usr->mat[iph].rho_func); }
 
-          // solid material density - can be function of T, location
-          for (iph = 0; iph < usr->nph; iph++) { rho0[iph] = Density(usr->mat[iph].rho0,usr->mat[iph].rho_func); }
+//           // get material phase fraction
+//           if (ii == 0 ) { idx[0] = iwtl[0]; idx[1] = iwtl[1]; idx[2] = iwtl[2]; }
+//           if (ii == 1 ) { idx[0] = iwtr[0]; idx[1] = iwtr[1]; idx[2] = iwtr[2]; }
+//           if (ii == 2 ) { idx[0] = iwtd[0]; idx[1] = iwtd[1]; idx[2] = iwtd[2]; }
+//           if (ii == 3 ) { idx[0] = iwtu[0]; idx[1] = iwtu[1]; idx[2] = iwtu[2]; }
 
-          // get material phase fraction
-          if (ii == 0 ) { idx[0] = iwtl[0]; idx[1] = iwtl[1]; idx[2] = iwtl[2]; }
-          if (ii == 1 ) { idx[0] = iwtr[0]; idx[1] = iwtr[1]; idx[2] = iwtr[2]; }
-          if (ii == 2 ) { idx[0] = iwtd[0]; idx[1] = iwtd[1]; idx[2] = iwtd[2]; }
-          if (ii == 3 ) { idx[0] = iwtu[0]; idx[1] = iwtu[1]; idx[2] = iwtu[2]; }
+//           ierr = GetMatPhaseFraction(i,j,xwt,idx,usr->nph,wt); CHKERRQ(ierr);
+//           rhos[ii] = WeightAverageValue(rho0,wt,usr->nph); 
+//           rhob[ii] = Mixture(rhos[ii],rhof[ii],phi[ii]);
+//           rhog[ii] = -rhob[ii]/usr->scal->rho*k_hat[ii];
 
-          ierr = GetMatPhaseFraction(i,j,xwt,idx,usr->nph,wt); CHKERRQ(ierr);
-          rhos[ii] = WeightAverageValue(rho0,wt,usr->nph); 
-          rhob[ii] = Mixture(rhos[ii],rhof[ii],phi[ii]);
-          rhog[ii] = -rhob[ii]/usr->scal->rho*k_hat[ii];
+//           tauold[ii] = -usr->nd->PG*divchitau[ii];
+//           dpold[ii]  = usr->nd->PZ*gradchidp[ii];
 
-          tauold[ii] = -usr->nd->PG*divchitau[ii];
-          dpold[ii]  = usr->nd->PZ*gradchidp[ii];
+//           // B[ii] = gradPlith[ii]+rhog[ii]+tauold[ii]+dpold[ii];
+//           B[ii] = 0.0+tauold[ii]+dpold[ii];
+//           D2[ii] = -K[ii]*usr->nd->R*usr->nd->R;
+//           D3[ii] = -K[ii]*usr->nd->R*usr->nd->R*(gradPlith[ii]-rhof[ii]/usr->scal->rho*k_hat[ii]);
 
-          // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - E [%d %d %d] %1.12e %1.12e %1.12e %1.12e %1.12e #\n",i,j,ii,gradPlith[ii],rhog[ii],tauold[ii],dpold[ii],gradchidp[ii]);
+//           // B = body force+elasticity (edges, c=0)
+//           c[j][i][b_slot[ii]] = B[ii];
 
-          // B[ii] = gradPlith[ii]+rhog[ii]+tauold[ii]+dpold[ii];
-          B[ii] = 0.0+tauold[ii]+dpold[ii];
-          D2[ii] = -K[ii]*usr->nd->R*usr->nd->R;
-          D3[ii] = -K[ii]*usr->nd->R*usr->nd->R*(gradPlith[ii]-rhof[ii]/usr->scal->rho*k_hat[ii]);
+//           // D2 = -R^2*Kphi (edges, c=1)
+//           c[j][i][d2_slot[ii]] = D2[ii];
 
-          // B = body force+elasticity (edges, c=0)
-          c[j][i][b_slot[ii]] = B[ii];
+//           // D3 = -R^2*Kphi*(grad(Plith)-rho_ell/drho*k_hat) (edges, c=2)
+//           c[j][i][d2_slot[ii]] = D3[ii];
+//         }
+//       }
 
-          // D2 = -R^2*Kphi (edges, c=1)
-          c[j][i][d2_slot[ii]] = D2[ii];
+//       // save stresses for output + dotlam
+//       _tau[j][i][ixx]     = txx[0]; _tau[j][i][izz]     = tzz[0]; _tau[j][i][ixz]     = txz[0]; _tau[j][i][iII]     = tII[0];
+//       _tau[j][i][ixxn[0]] = txx[5]; _tau[j][i][izzn[0]] = tzz[5]; _tau[j][i][ixzn[0]] = txz[5]; _tau[j][i][iIIn[0]] = tII[5];
+//       _tau[j][i][ixxn[1]] = txx[6]; _tau[j][i][izzn[1]] = tzz[6]; _tau[j][i][ixzn[1]] = txz[6]; _tau[j][i][iIIn[1]] = tII[6];
+//       _tau[j][i][ixxn[2]] = txx[7]; _tau[j][i][izzn[2]] = tzz[7]; _tau[j][i][ixzn[2]] = txz[7]; _tau[j][i][iIIn[2]] = tII[7];
+//       _tau[j][i][ixxn[3]] = txx[8]; _tau[j][i][izzn[3]] = tzz[8]; _tau[j][i][ixzn[3]] = txz[8]; _tau[j][i][iIIn[3]] = tII[8];
+//       _DP[j][i][iP]    = DP[0];
+//       _plast[j][i][iP] = dotlam[0];
 
-          // D3 = -R^2*Kphi*(grad(Plith)-rho_ell/drho*k_hat) (edges, c=2)
-          c[j][i][d2_slot[ii]] = D3[ii];
-        }
-      }
+//       // get density element
+//       PetscScalar rho0[3],rho,wt[3];
+//       for (iph = 0; iph < usr->nph; iph++) { rho0[iph] = Density(usr->mat[iph].rho0,usr->mat[iph].rho_func); }
+//       ierr = GetMatPhaseFraction(i,j,xwt,iwtc,usr->nph,wt); CHKERRQ(ierr);
+//       rho = WeightAverageValue(rho0,wt,usr->nph)/usr->scal->rho;
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - F [%d %d] #\n",i,j);
-      // save stresses for output + dotlam
-      _tau[j][i][ixx]     = txx[0]; _tau[j][i][izz]     = tzz[0]; _tau[j][i][ixz]     = txz[0]; _tau[j][i][iII]     = tII[0];
-      _tau[j][i][ixxn[0]] = txx[5]; _tau[j][i][izzn[0]] = tzz[5]; _tau[j][i][ixzn[0]] = txz[5]; _tau[j][i][iIIn[0]] = tII[5];
-      _tau[j][i][ixxn[1]] = txx[6]; _tau[j][i][izzn[1]] = tzz[6]; _tau[j][i][ixzn[1]] = txz[6]; _tau[j][i][iIIn[1]] = tII[6];
-      _tau[j][i][ixxn[2]] = txx[7]; _tau[j][i][izzn[2]] = tzz[7]; _tau[j][i][ixzn[2]] = txz[7]; _tau[j][i][iIIn[2]] = tII[7];
-      _tau[j][i][ixxn[3]] = txx[8]; _tau[j][i][izzn[3]] = tzz[8]; _tau[j][i][ixzn[3]] = txz[8]; _tau[j][i][iIIn[3]] = tII[8];
-      _DP[j][i][iP]    = DP[0];
-      _plast[j][i][iP] = dotlam[0];
+//       // save material properties for output - REVISE FOR ALL
+//       _matProp[j][i][imat[MATPROP_ELEMENT_ETA]]    = eta_eff[0];
+//       _matProp[j][i][imat[MATPROP_ELEMENT_ETA_V]]  = eta_v[0];
+//       _matProp[j][i][imat[MATPROP_ELEMENT_ETA_E]]  = eta_e[0];
+//       _matProp[j][i][imat[MATPROP_ELEMENT_ETA_P]]  = eta_ve[0];
+//       _matProp[j][i][imat[MATPROP_ELEMENT_ZETA]]   = zeta_eff[0];
+//       _matProp[j][i][imat[MATPROP_ELEMENT_ZETA_V]] = zeta_v[0];
+//       _matProp[j][i][imat[MATPROP_ELEMENT_ZETA_E]] = zeta_e[0];
+//       _matProp[j][i][imat[MATPROP_ELEMENT_ZETA_P]] = zeta_ve[0];
+//       _matProp[j][i][imat[MATPROP_ELEMENT_Z]]      = Z[0];
+//       _matProp[j][i][imat[MATPROP_ELEMENT_G]]      = G[0];
+//       _matProp[j][i][imat[MATPROP_ELEMENT_C]]      = C[0];
+//       _matProp[j][i][imat[MATPROP_ELEMENT_SIGMAT]] = sigmat[0];
+//       _matProp[j][i][imat[MATPROP_ELEMENT_THETA]]  = theta[0];
+//       _matProp[j][i][imat[MATPROP_ELEMENT_RHO]]    = rho;
+//     }
+//   }
 
-      // get density element
-      PetscScalar rho0[3],rho,wt[3];
-      for (iph = 0; iph < usr->nph; iph++) { rho0[iph] = Density(usr->mat[iph].rho0,usr->mat[iph].rho_func); }
-      ierr = GetMatPhaseFraction(i,j,xwt,iwtc,usr->nph,wt); CHKERRQ(ierr);
-      rho = WeightAverageValue(rho0,wt,usr->nph)/usr->scal->rho;
+//   // Restore arrays, local vectors
+//   ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+//   ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
+//   ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+//   ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+//   ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
 
-      // save material properties for output - REVISE FOR ALL
-      _matProp[j][i][imat[MATPROP_ELEMENT_ETA]]    = eta_eff[0];
-      _matProp[j][i][imat[MATPROP_ELEMENT_ETA_V]]  = eta_v[0];
-      _matProp[j][i][imat[MATPROP_ELEMENT_ETA_E]]  = eta_e[0];
-      _matProp[j][i][imat[MATPROP_ELEMENT_ETA_VE]] = eta_ve[0];
-      _matProp[j][i][imat[MATPROP_ELEMENT_ZETA]]   = zeta_eff[0];
-      _matProp[j][i][imat[MATPROP_ELEMENT_ZETA_V]] = zeta_v[0];
-      _matProp[j][i][imat[MATPROP_ELEMENT_ZETA_E]] = zeta_e[0];
-      _matProp[j][i][imat[MATPROP_ELEMENT_ZETA_VE]]= zeta_ve[0];
-      _matProp[j][i][imat[MATPROP_ELEMENT_Z]]      = Z[0];
-      _matProp[j][i][imat[MATPROP_ELEMENT_G]]      = G[0];
-      _matProp[j][i][imat[MATPROP_ELEMENT_C]]      = C[0];
-      _matProp[j][i][imat[MATPROP_ELEMENT_SIGMAT]] = sigmat[0];
-      _matProp[j][i][imat[MATPROP_ELEMENT_THETA]]  = theta[0];
-      _matProp[j][i][imat[MATPROP_ELEMENT_RHO]]    = rho;
-    }
-  }
+//   ierr = DMStagVecRestoreArrayRead(dm,xlocal,&xx);CHKERRQ(ierr);
+//   ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
 
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 3 #\n");
+//   ierr = DMStagVecRestoreArrayRead(usr->dmeps,xepslocal,&_eps);CHKERRQ(ierr);
+//   ierr = DMRestoreLocalVector(usr->dmeps,&xepslocal); CHKERRQ(ierr);
+//   ierr = DMStagVecRestoreArrayRead(usr->dmeps,xtauoldlocal,&_tauold);CHKERRQ(ierr);
+//   ierr = DMRestoreLocalVector(usr->dmeps,&xtauoldlocal); CHKERRQ(ierr);
 
-  // Restore arrays, local vectors
-  ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
-  ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
+//   ierr = DMStagVecRestoreArray(usr->dmeps,xtaulocal,&_tau);CHKERRQ(ierr);
+//   ierr = DMLocalToGlobalBegin(usr->dmeps,xtaulocal,INSERT_VALUES,usr->xtau); CHKERRQ(ierr);
+//   ierr = DMLocalToGlobalEnd  (usr->dmeps,xtaulocal,INSERT_VALUES,usr->xtau); CHKERRQ(ierr);
+//   ierr = DMRestoreLocalVector(usr->dmeps,&xtaulocal); CHKERRQ(ierr);
 
-  ierr = DMStagVecRestoreArrayRead(dm,xlocal,&xx);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
+//   ierr = DMStagVecRestoreArrayRead(usr->dmT,xTlocal,&_Tc);CHKERRQ(ierr);
+//   ierr = DMRestoreLocalVector(usr->dmT,&xTlocal); CHKERRQ(ierr);
+//   ierr = DMStagVecRestoreArrayRead(usr->dmT,xphilocal,&_phic);CHKERRQ(ierr);
+//   ierr = DMRestoreLocalVector(usr->dmT,&xphilocal); CHKERRQ(ierr);
 
-  ierr = DMStagVecRestoreArrayRead(usr->dmeps,xepslocal,&_eps);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(usr->dmeps,&xepslocal); CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(usr->dmeps,xtauoldlocal,&_tauold);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(usr->dmeps,&xtauoldlocal); CHKERRQ(ierr);
+//   ierr = DMStagVecRestoreArrayRead(usr->dmPlith,xPlithlocal,&_Plith);CHKERRQ(ierr);
+//   ierr = DMRestoreLocalVector(usr->dmPlith,&xPlithlocal); CHKERRQ(ierr);
+//   ierr = DMStagVecRestoreArrayRead(usr->dmPlith,xDPoldlocal,&_DPold);CHKERRQ(ierr);
+//   ierr = DMRestoreLocalVector(usr->dmPlith,&xDPoldlocal); CHKERRQ(ierr);
 
-  ierr = DMStagVecRestoreArray(usr->dmeps,xtaulocal,&_tau);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(usr->dmeps,xtaulocal,INSERT_VALUES,usr->xtau); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (usr->dmeps,xtaulocal,INSERT_VALUES,usr->xtau); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(usr->dmeps,&xtaulocal); CHKERRQ(ierr);
+//   ierr = DMStagVecRestoreArray(usr->dmPlith,xDPlocal,&_DP);CHKERRQ(ierr);
+//   ierr = DMLocalToGlobalBegin(usr->dmPlith,xDPlocal,INSERT_VALUES,usr->xDP); CHKERRQ(ierr);
+//   ierr = DMLocalToGlobalEnd  (usr->dmPlith,xDPlocal,INSERT_VALUES,usr->xDP); CHKERRQ(ierr);
+//   ierr = DMRestoreLocalVector(usr->dmPlith,&xDPlocal); CHKERRQ(ierr);
 
-  ierr = DMStagVecRestoreArrayRead(usr->dmT,xTlocal,&_Tc);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(usr->dmT,&xTlocal); CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(usr->dmT,xphilocal,&_phic);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(usr->dmT,&xphilocal); CHKERRQ(ierr);
+//   ierr = DMStagVecRestoreArray(usr->dmPlith,xplastlocal,&_plast);CHKERRQ(ierr);
+//   ierr = DMLocalToGlobalBegin(usr->dmPlith,xplastlocal,INSERT_VALUES,usr->xplast); CHKERRQ(ierr);
+//   ierr = DMLocalToGlobalEnd  (usr->dmPlith,xplastlocal,INSERT_VALUES,usr->xplast); CHKERRQ(ierr);
+//   ierr = DMRestoreLocalVector(usr->dmPlith,&xplastlocal); CHKERRQ(ierr);
 
-  ierr = DMStagVecRestoreArrayRead(usr->dmPlith,xPlithlocal,&_Plith);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(usr->dmPlith,&xPlithlocal); CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(usr->dmPlith,xDPoldlocal,&_DPold);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(usr->dmPlith,&xDPoldlocal); CHKERRQ(ierr);
+//   ierr = DMStagVecRestoreArray(usr->dmmatProp,xmatProplocal,&_matProp);CHKERRQ(ierr);
+//   ierr = DMLocalToGlobalBegin(usr->dmmatProp,xmatProplocal,INSERT_VALUES,usr->xmatProp); CHKERRQ(ierr);
+//   ierr = DMLocalToGlobalEnd  (usr->dmmatProp,xmatProplocal,INSERT_VALUES,usr->xmatProp); CHKERRQ(ierr);
+//   ierr = DMRestoreLocalVector(usr->dmmatProp,&xmatProplocal); CHKERRQ(ierr);
 
-  ierr = DMStagVecRestoreArray(usr->dmPlith,xDPlocal,&_DP);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(usr->dmPlith,xDPlocal,INSERT_VALUES,usr->xDP); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (usr->dmPlith,xDPlocal,INSERT_VALUES,usr->xDP); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(usr->dmPlith,&xDPlocal); CHKERRQ(ierr);
-
-  ierr = DMStagVecRestoreArray(usr->dmPlith,xplastlocal,&_plast);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(usr->dmPlith,xplastlocal,INSERT_VALUES,usr->xplast); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (usr->dmPlith,xplastlocal,INSERT_VALUES,usr->xplast); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(usr->dmPlith,&xplastlocal); CHKERRQ(ierr);
-
-  ierr = DMStagVecRestoreArray(usr->dmmatProp,xmatProplocal,&_matProp);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(usr->dmmatProp,xmatProplocal,INSERT_VALUES,usr->xmatProp); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (usr->dmmatProp,xmatProplocal,INSERT_VALUES,usr->xmatProp); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(usr->dmmatProp,&xmatProplocal); CHKERRQ(ierr);
-
-  ierr = DMStagVecRestoreArray(usr->dmMPhase,xMPhaselocal,&xwt);CHKERRQ(ierr);
-  ierr = VecDestroy(&xMPhaselocal); CHKERRQ(ierr);
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 4 #\n");
+//   ierr = DMStagVecRestoreArray(usr->dmMPhase,xMPhaselocal,&xwt);CHKERRQ(ierr);
+//   ierr = VecDestroy(&xMPhaselocal); CHKERRQ(ierr);
  
-  PetscFunctionReturn(0);
-}
+//   PetscFunctionReturn(0);
+// }
 
 // ---------------------------------------
 // FormCoefficient_PV (Stokes)
@@ -498,11 +466,10 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
   PetscInt       i, j, sx, sz, nx, nz, iprev, inext, icenter, Nx, Nz;
   PetscScalar    **coordx, **coordz, ***c, ***xx, ***xwt; 
   PetscScalar    ***_Tc, ***_phic, ***_Plith, ***_eps, ***_tauold, ***_DPold, ***_tau, ***_DP;
-  PetscScalar     ***_plast, ***_matProp, ***_noise, ***_strain;
+  PetscScalar     ***_plast, ***_matProp;
   Vec            coefflocal, xlocal, xTlocal, xMPhaselocal, xtaulocal, xDPlocal;
   Vec            xphilocal, xPlithlocal, xepslocal, xtauoldlocal, xDPoldlocal, xplastlocal, xmatProplocal;
-  Vec            noiselocal, strainlocal;
-  PetscScalar    k_hat[4], dt, tf_tol;
+  PetscScalar    k_hat[4];
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
 
@@ -511,11 +478,6 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
   k_hat[1] = 0.0;
   k_hat[2] = usr->par->k_hat;
   k_hat[3] = usr->par->k_hat;
-
-  dt = usr->nd->dt;
-  tf_tol = usr->par->tf_tol;
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 0 #\n");
 
   // Get coefficient
   ierr = DMStagGetGlobalSizes(dmcoeff, &Nx, &Nz,NULL);CHKERRQ(ierr);
@@ -575,14 +537,6 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
   ierr = DMGlobalToLocal (usr->dmPlith, usr->xplast, INSERT_VALUES, xplastlocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArrayRead(usr->dmPlith,xplastlocal,&_plast);CHKERRQ(ierr);
 
-  ierr = DMGetLocalVector(usr->dmPlith, &noiselocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (usr->dmPlith, usr->noise, INSERT_VALUES, noiselocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(usr->dmPlith,noiselocal,&_noise);CHKERRQ(ierr);
-
-  ierr = DMGetLocalVector(usr->dmPlith, &strainlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (usr->dmPlith, usr->strain, INSERT_VALUES, strainlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(usr->dmPlith,strainlocal,&_strain);CHKERRQ(ierr);
-
   // get material phase fractions
   ierr = DMCreateLocalVector(usr->dmMPhase, &xMPhaselocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(usr->dmMPhase,usr->xMPhase,INSERT_VALUES,xMPhaselocal); CHKERRQ(ierr);
@@ -593,8 +547,6 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
   ierr = DMGetLocalVector(usr->dmmatProp, &xmatProplocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (usr->dmmatProp, usr->xmatProp, INSERT_VALUES, xmatProplocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArrayRead(usr->dmmatProp,xmatProplocal,&_matProp);CHKERRQ(ierr);
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 1 #\n");
 
   // get location slots
   PetscInt  iE,iP;
@@ -713,12 +665,10 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
   PetscInt imat[14];
   for (ii = 0; ii < 14; ii++) { ierr = DMStagGetLocationSlot(usr->dmmatProp, ELEMENT, ii, &imat[ii]); CHKERRQ(ierr); }
 
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 #\n");
-  
   // Loop over local domain - set initial density and viscosity
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
-      PetscScalar   phic[9], pc[9], Plc[9], Tc[9], DPoldc[9], gradPlith[4], noise[9], strain[9], dx, dz;
+      PetscScalar   phic[9], pc[9], Plc[9], Tc[9], DPoldc[9], gradPlith[4], dx, dz;
       PetscInt      iph, ii, im, jm, ip, jp;
 
       if (i == 0   ) im = i; else im = i-1;
@@ -730,16 +680,12 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
       dx = coordx[i][inext]-coordx[i][iprev];
       dz = coordz[j][inext]-coordz[j][iprev];
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK 0 [%d %d] #\n",i,j);
-
       // get porosity, p, Plith, T - center
       ierr = Get9PointCenterValues(i,j,iE,Nx,Nz,_phic,phic);CHKERRQ(ierr);
       ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_Plith,Plc);CHKERRQ(ierr);
       ierr = Get9PointCenterValues(i,j,iPV,Nx,Nz,xx,pc);CHKERRQ(ierr);
       ierr = Get9PointCenterValues(i,j,iE,Nx,Nz,_Tc,Tc);CHKERRQ(ierr);
       ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_DPold,DPoldc);CHKERRQ(ierr);
-      ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_noise,noise);CHKERRQ(ierr);
-      ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_strain,strain);CHKERRQ(ierr);
 
       gradPlith[0] = (Plc[0]-Plc[1])/dx;
       gradPlith[1] = (Plc[2]-Plc[0])/dx;
@@ -749,86 +695,77 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
       if (j==Nz-1) gradPlith[3] = gradPlith[2]; // top domain
       if (j==0   ) gradPlith[2] = gradPlith[3]; // assumes same gradient as in previous cell
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B [%d %d] #\n",i,j);
-
       // Prepare for pointwise rheology calculation
       PetscScalar eta_eff[9], zeta_eff[9], chis[9], chip[9], txx[9], tzz[9], txz[9], tII[9], DP[9], dotlam[9];
-      PetscScalar eta_v[9],eta_e[9],eta_ve[9],zeta_v[9],zeta_e[9],zeta_ve[9];
-      PetscScalar e[4], t[4], P[5], res[21], Z[9], G[9], C[9], sigmat[9], theta[9];
+      PetscScalar eta_v[9],eta_e[9],eta_p[9],zeta_v[9],zeta_e[9],zeta_p[9];
+      PetscScalar e[4], t[4], P[3], res[21], Z[9], G[9], C[9], sigmat[9], theta[9];
       PetscInt ix[4];
 
       // center points
       ix[0] = ixx; ix[1] = izz; ix[2] = ixz; ix[3] = iII;
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 0 [%d %d] #\n",i,j);
-      P[0] = pc[0]; P[1] = Plc[0]; P[2] = DPoldc[0]; P[3] = noise[0]; P[4] = strain[0];
+      P[0] = pc[0]; P[1] = Plc[0]; P[2] = DPoldc[0]; 
       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,j,xwt,iwtc,Tc[0],phic[0],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(0,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
+      ierr = DecompactRheologyVars(0,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 1 [%d %d] #\n",i,j);
-      P[0] = pc[1]; P[1] = Plc[1]; P[2] = DPoldc[1]; P[3] = noise[1]; P[4] = strain[1];
+      P[0] = pc[1]; P[1] = Plc[1]; P[2] = DPoldc[1]; 
       ierr = GetTensorPointValues(im,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(im,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(im,j,xwt,iwtc,Tc[1],phic[1],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(1,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
+      ierr = DecompactRheologyVars(1,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 2 [%d %d] #\n",i,j);
-      P[0] = pc[2]; P[1] = Plc[2]; P[2] = DPoldc[2]; P[3] = noise[2]; P[4] = strain[2];
+      P[0] = pc[2]; P[1] = Plc[2]; P[2] = DPoldc[2]; 
       ierr = GetTensorPointValues(ip,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(ip,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(ip,j,xwt,iwtc,Tc[2],phic[2],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(2,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
+      ierr = DecompactRheologyVars(2,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 3 [%d %d] #\n",i,j);
-      P[0] = pc[3]; P[1] = Plc[3]; P[2] = DPoldc[3]; P[3] = noise[3]; P[4] = strain[3];
+      P[0] = pc[3]; P[1] = Plc[3]; P[2] = DPoldc[3]; 
       ierr = GetTensorPointValues(i,jm,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,jm,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,jm,xwt,iwtc,Tc[3],phic[3],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(3,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
+      ierr = DecompactRheologyVars(3,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 4 [%d %d] #\n",i,j);
-      P[0] = pc[4]; P[1] = Plc[4]; P[2] = DPoldc[4]; P[3] = noise[4]; P[4] = strain[4];
+      P[0] = pc[4]; P[1] = Plc[4]; P[2] = DPoldc[4]; 
       ierr = GetTensorPointValues(i,jp,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,jp,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,jp,xwt,iwtc,Tc[4],phic[4],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(4,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
+      ierr = DecompactRheologyVars(4,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - C [%d %d] #\n",i,j);
       // corner points
-      PetscScalar Tcorner[4], phicorner[4], pcorner[4], Plcorner[4], DPoldcorner[4], noisecorner[4], straincorner[4];
+      PetscScalar Tcorner[4], phicorner[4], pcorner[4], Plcorner[4], DPoldcorner[4];
       ierr = GetCornerAvgFromCenter(Tc,Tcorner);CHKERRQ(ierr);
       ierr = GetCornerAvgFromCenter(phic,phicorner);CHKERRQ(ierr);
       ierr = GetCornerAvgFromCenter(pc,pcorner);CHKERRQ(ierr);
       ierr = GetCornerAvgFromCenter(Plc,Plcorner);CHKERRQ(ierr);
       ierr = GetCornerAvgFromCenter(DPoldc,DPoldcorner);CHKERRQ(ierr);
       
-      ii = 0; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; P[3] = noisecorner[ii]; P[4] = straincorner[ii];
+      ii = 0; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; 
       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,j,xwt,iwtld,Tcorner[0],phicorner[0],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(5,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
+      ierr = DecompactRheologyVars(5,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      ii = 1; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; P[3] = noisecorner[ii]; P[4] = straincorner[ii];
+      ii = 1; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; 
       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,j,xwt,iwtrd,Tcorner[1],phicorner[1],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(6,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
+      ierr = DecompactRheologyVars(6,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      ii = 2; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; P[3] = noisecorner[ii]; P[4] = straincorner[ii];
+      ii = 2; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; 
       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,j,xwt,iwtlu,Tcorner[2],phicorner[2],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(7,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
+      ierr = DecompactRheologyVars(7,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      ii = 3; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; P[3] = noisecorner[ii]; P[4] = straincorner[ii];
+      ii = 3; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; 
       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,j,xwt,iwtru,Tcorner[3],phicorner[3],P,e,t,ix,res,usr);CHKERRQ(ierr);
-      ierr = DecompactRheologyVars(8,res,eta_eff,eta_v,eta_e,eta_ve,zeta_eff,zeta_v,zeta_e,zeta_ve,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
+      ierr = DecompactRheologyVars(8,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - D [%d %d] #\n",i,j);
       { // element 
         // C = 0 (center, c=0)
         c[j][i][e_slot[iC]] = 0.0;
@@ -844,10 +781,9 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
         }
       }
       
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - E [%d %d] #\n",i,j);
       { // face
-        PetscScalar   phi[4], K[4], B[4], D2[4], D3[4], rho0[6], rhof[4], rhos[4], rhog[4], rhob[4], wt[6];
-        PetscScalar   divchitau[4],gradchidp[4], tauold[4], dpold[4];
+        PetscScalar   phi[4], K[4], B[4], D2[4], D3[4], rho0[6], rhof[4], rhos[4], rhog[4], wt[6];
+        PetscScalar   divchitau[4],gradchidp[4];
         PetscInt      idx[6];
 
         // porosity on edges - not for variable grid spacing
@@ -867,15 +803,12 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
         divchitau[2] = (chis[6]*_tauold[j][i][ixzn[1]]-chis[5]*_tauold[j][i][ixzn[0]])/dx + (chis[0]*_tauold[j ][i][izz] - chis[3]*_tauold[jm][i][izz])/dz;
         divchitau[3] = (chis[8]*_tauold[j][i][ixzn[3]]-chis[7]*_tauold[j][i][ixzn[2]])/dx + (chis[4]*_tauold[jp][i][izz] - chis[0]*_tauold[j ][i][izz])/dz;
 
-        // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - D [%d %d] %1.12e %1.12e %1.12e %1.12e %1.12e #\n",i,j,chip[0],chip[1],chip[2],chip[3],chip[4]);
-        // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - E [%d %d] %1.12e %1.12e %1.12e %1.12e %1.12e #\n",i,j,chis[0],chis[1],chis[2],chis[3],chis[4]);
-
         for (ii = 0; ii < 4; ii++) {
           K[ii]  = Permeability(phi[ii],usr->par->n); // assumed uniform for all materials
-          rhof[ii] = usr->par->rhof; // should be function of T, C
+          rhof[ii] = usr->par->rhof/usr->scal->rho; // should be function of T, C
 
           // solid material density - can be function of T, location
-          for (iph = 0; iph < usr->nph; iph++) { rho0[iph] = Density(usr->mat[iph].rho0,usr->mat[iph].rho_func); }
+          for (iph = 0; iph < usr->nph; iph++) { rho0[iph] = Density(usr->mat_nd[iph].rho0,usr->mat[iph].rho_func); }
 
           // get material phase fraction
           if (ii == 0 ) { idx[0] = iwtl[0]; idx[1] = iwtl[1]; idx[2] = iwtl[2]; idx[3] = iwtl[3]; idx[4] = iwtl[4]; idx[5] = iwtl[5]; }
@@ -885,23 +818,14 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
 
           ierr = GetMatPhaseFraction(i,j,xwt,idx,usr->nph,wt); CHKERRQ(ierr);
           rhos[ii] = WeightAverageValue(rho0,wt,usr->nph); 
-          rhob[ii] = Mixture(rhos[ii],rhof[ii],phi[ii]);
-          rhog[ii] = -rhob[ii]/usr->scal->rho*k_hat[ii];
+          rhog[ii] = Mixture(rhos[ii],rhof[ii],phi[ii])*k_hat[ii];
+          B[ii] = gradPlith[ii]-rhog[ii]-divchitau[ii]+gradchidp[ii];
 
-          tauold[ii] = -usr->nd->PG*divchitau[ii];
-          dpold[ii]  = usr->nd->PZ*gradchidp[ii];
-
-          // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - E [%d %d %d] %1.12e %1.12e %1.12e %1.12e %1.12e #\n",i,j,ii,gradPlith[ii],rhog[ii],tauold[ii],dpold[ii],gradchidp[ii]);
-
-          B[ii] = gradPlith[ii]+rhog[ii]+tauold[ii]+dpold[ii];
-          // B[ii] = 0.0+rhog[ii]+tauold[ii]+dpold[ii];
-          // B[ii] = 0.0+tauold[ii]+dpold[ii];
           // B = body force+elasticity (edges, c=0)
           c[j][i][b_slot[ii]] = B[ii];
         }
       }
 
-      // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - F [%d %d] #\n",i,j);
       // save stresses for output + dotlam
       _tau[j][i][ixx]     = txx[0]; _tau[j][i][izz]     = tzz[0]; _tau[j][i][ixz]     = txz[0]; _tau[j][i][iII]     = tII[0];
       _tau[j][i][ixxn[0]] = txx[5]; _tau[j][i][izzn[0]] = tzz[5]; _tau[j][i][ixzn[0]] = txz[5]; _tau[j][i][iIIn[0]] = tII[5];
@@ -913,19 +837,19 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
 
       // get density element
       PetscScalar rho0[6],rho,wt[6];
-      for (iph = 0; iph < usr->nph; iph++) { rho0[iph] = Density(usr->mat[iph].rho0,usr->mat[iph].rho_func); }
+      for (iph = 0; iph < usr->nph; iph++) { rho0[iph] = Density(usr->mat_nd[iph].rho0,usr->mat[iph].rho_func); }
       ierr = GetMatPhaseFraction(i,j,xwt,iwtc,usr->nph,wt); CHKERRQ(ierr);
-      rho = WeightAverageValue(rho0,wt,usr->nph)/usr->scal->rho;
+      rho = WeightAverageValue(rho0,wt,usr->nph);
 
-      // save material properties for output - REVISE FOR ALL
+      // save material properties for output
       _matProp[j][i][imat[MATPROP_ELEMENT_ETA]]    = eta_eff[0];
       _matProp[j][i][imat[MATPROP_ELEMENT_ETA_V]]  = eta_v[0];
       _matProp[j][i][imat[MATPROP_ELEMENT_ETA_E]]  = eta_e[0];
-      _matProp[j][i][imat[MATPROP_ELEMENT_ETA_VE]] = eta_ve[0];
+      _matProp[j][i][imat[MATPROP_ELEMENT_ETA_P]]  = eta_p[0];
       _matProp[j][i][imat[MATPROP_ELEMENT_ZETA]]   = zeta_eff[0];
       _matProp[j][i][imat[MATPROP_ELEMENT_ZETA_V]] = zeta_v[0];
       _matProp[j][i][imat[MATPROP_ELEMENT_ZETA_E]] = zeta_e[0];
-      _matProp[j][i][imat[MATPROP_ELEMENT_ZETA_VE]]= zeta_ve[0];
+      _matProp[j][i][imat[MATPROP_ELEMENT_ZETA_P]] = zeta_p[0];
       _matProp[j][i][imat[MATPROP_ELEMENT_Z]]      = Z[0];
       _matProp[j][i][imat[MATPROP_ELEMENT_G]]      = G[0];
       _matProp[j][i][imat[MATPROP_ELEMENT_C]]      = C[0];
@@ -934,8 +858,6 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
       _matProp[j][i][imat[MATPROP_ELEMENT_RHO]]    = rho;
     }
   }
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 3 #\n");
 
   // Restore arrays, local vectors
   ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -977,11 +899,6 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
   ierr = DMLocalToGlobalEnd  (usr->dmPlith,xplastlocal,INSERT_VALUES,usr->xplast); CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(usr->dmPlith,&xplastlocal); CHKERRQ(ierr);
 
-  ierr = DMStagVecRestoreArrayRead(usr->dmPlith,noiselocal,&_noise);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(usr->dmPlith,&noiselocal); CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(usr->dmPlith,strainlocal,&_strain);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(usr->dmPlith,&strainlocal); CHKERRQ(ierr);
-
   ierr = DMStagVecRestoreArray(usr->dmmatProp,xmatProplocal,&_matProp);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(usr->dmmatProp,xmatProplocal,INSERT_VALUES,usr->xmatProp); CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd  (usr->dmmatProp,xmatProplocal,INSERT_VALUES,usr->xmatProp); CHKERRQ(ierr);
@@ -990,14 +907,12 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
   ierr = DMStagVecRestoreArray(usr->dmMPhase,xMPhaselocal,&xwt);CHKERRQ(ierr);
   ierr = VecDestroy(&xMPhaselocal); CHKERRQ(ierr);
 
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 4 #\n");
- 
   PetscFunctionReturn(0);
 }
 
 // ---------------------------------------
-PetscErrorCode DecompactRheologyVars(PetscInt ii,PetscScalar *res,PetscScalar *eta_eff,PetscScalar *eta_v,PetscScalar *eta_e,PetscScalar *eta_ve,PetscScalar *zeta_eff,
-                                     PetscScalar *zeta_v,PetscScalar *zeta_e,PetscScalar *zeta_ve,PetscScalar *chis,PetscScalar *chip,
+PetscErrorCode DecompactRheologyVars(PetscInt ii,PetscScalar *res,PetscScalar *eta_eff,PetscScalar *eta_v,PetscScalar *eta_e,PetscScalar *eta_p,PetscScalar *zeta_eff,
+                                     PetscScalar *zeta_v,PetscScalar *zeta_e,PetscScalar *zeta_p,PetscScalar *chis,PetscScalar *chip,
                                      PetscScalar *txx,PetscScalar *tzz,PetscScalar *txz,PetscScalar *tII,PetscScalar *DP,PetscScalar *dotlam,
                                      PetscScalar *Z,PetscScalar *G,PetscScalar *C,PetscScalar *sigmat,PetscScalar *theta)
 {
@@ -1005,11 +920,11 @@ PetscErrorCode DecompactRheologyVars(PetscInt ii,PetscScalar *res,PetscScalar *e
     eta_eff[ii] = res[0]; 
     eta_v[ii]   = res[1]; 
     eta_e[ii]   = res[2]; 
-    eta_ve[ii]  = res[3]; 
+    eta_p[ii]   = res[3]; 
     zeta_eff[ii]= res[4]; 
     zeta_v[ii]  = res[5]; 
     zeta_e[ii]  = res[6]; 
-    zeta_ve[ii] = res[7];
+    zeta_p[ii]  = res[7];
     chis[ii]    = res[8]; 
     chip[ii]    = res[9]; 
     txx[ii]     = res[10]; 
@@ -1039,314 +954,7 @@ PetscErrorCode RheologyPointwise(PetscInt i, PetscInt j, PetscScalar ***xwt, Pet
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
 
-  if (usr->par->rheology==0) { ierr = RheologyPointwise_Prev(i,j,xwt,iwt,T,phi,P,eps,tauold,ix,res,usr);CHKERRQ(ierr); }
-  if (usr->par->rheology==1) { ierr = RheologyPointwise_VEP(i,j,xwt,iwt,T,phi,P,eps,tauold,ix,res,usr);CHKERRQ(ierr); }
-
-  PetscFunctionReturn(0);
-}
-
-// ---------------------------------------
-// RheologyPointwise_Prev - per marker phase, but plasticity is then performed 3 times
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "RheologyPointwise_Prev"
-PetscErrorCode RheologyPointwise_Prev(PetscInt i, PetscInt j, PetscScalar ***xwt, PetscInt *iwt, PetscScalar T, PetscScalar phi, PetscScalar *P, 
-                                 PetscScalar *eps, PetscScalar *tauold, PetscInt *ix, PetscScalar *res, void *ctx)
-{
-  UsrData        *usr = (UsrData*)ctx;
-  PetscInt       iph, ixx, izz, ixz, iII, iP, VEP_func[6],n[6];
-  PetscScalar    dt, tf_tol, p, Plith, DPold, noise, strain;
-
-  PetscErrorCode ierr;
-  PetscFunctionBeginUser;
-
-  dt = usr->nd->dt;
-  tf_tol = usr->par->tf_tol;
-  ixx = ix[0];
-  izz = ix[1];
-  ixz = ix[2];
-  iII = ix[3];
-  iP  = ix[4];
-  p = P[0]; Plith = P[1]; DPold = P[2];
-  noise = P[3];
-  strain= P[4];
-
-  // get epsII, epsp, epspII - tau_old, dP
-  PetscScalar exx, ezz, exz, eII, told_xx, told_zz, told_xz, told_II, Pf;
-  exx = eps[0]; told_xx = tauold[0]; 
-  ezz = eps[1]; told_zz = tauold[1];
-  exz = eps[2]; told_xz = tauold[2];
-  eII = eps[3]; told_II = tauold[3];
-  Pf  = p + Plith;
-
-  // turn off elasticity and plasticity for initial_guess
-  if (usr->init_guess==0) {
-    VEP_func[0] = 0; 
-    VEP_func[1] = 0;
-    VEP_func[2] = 0;
-    VEP_func[3] = 0; 
-    VEP_func[4] = 0;
-    VEP_func[5] = 0;
-    n[0] = 1.0; n[1] = 1.0; n[2] = 1.0; n[3] = 1.0; n[4] = 1.0; n[5] = 1.0;
-  } else if (usr->init_guess==1) {
-    VEP_func[0] = 1; 
-    VEP_func[1] = 1;
-    VEP_func[2] = 1;
-    VEP_func[3] = 1; 
-    VEP_func[4] = 1;
-    VEP_func[5] = 1;
-    n[0] = usr->mat[0].n;
-    n[1] = usr->mat[1].n;
-    n[2] = usr->mat[2].n;
-    n[3] = usr->mat[3].n;
-    n[4] = usr->mat[4].n;
-    n[5] = usr->mat[5].n;
-  } else {
-    VEP_func[0] = usr->mat[0].VEP_func; 
-    VEP_func[1] = usr->mat[1].VEP_func; 
-    VEP_func[2] = usr->mat[2].VEP_func; 
-    VEP_func[3] = usr->mat[3].VEP_func; 
-    VEP_func[4] = usr->mat[4].VEP_func; 
-    VEP_func[5] = usr->mat[5].VEP_func; 
-    n[0] = usr->mat[0].n;
-    n[1] = usr->mat[1].n;
-    n[2] = usr->mat[2].n;
-    n[3] = usr->mat[3].n;
-    n[4] = usr->mat[4].n;
-    n[5] = usr->mat[5].n;
-  }
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 2 - 0 [%d %d] %1.12e #\n",i,j,dt);
-
-  // calculate eta_v, eta_e, eta_ve, zeta_v, zeta_e, zeta_ve
-  PetscScalar meta_v[6], mzeta_v[6], meta_e[6], mzeta_e[6], meta_ve[6], mzeta_ve[6], mZ[6],mG[6],wt[6];
-  PetscScalar inv_Z[6], inv_meta_v[6],inv_mzeta_v[6],inv_meta_e[6],inv_mzeta_e[6];
-  PetscScalar Cph[6], sigmatph[6], thetaph[6];
-  PetscScalar Tdim, phis, eIIdim, Pdim;
-  Tdim = dim_paramT(T,T_KELVIN,usr->scal->T);
-  Pdim = dim_param(Pf,usr->scal->P);
-  eIIdim = eII*usr->scal->v/usr->scal->x;
-  phis = 1.0 - phi;
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 2 - 1 [%d %d] #\n",i,j);
-
-  // material phase viscosities
-  for (iph = 0; iph < usr->nph; iph++) {
-    // meta_v[iph]  = ShearViscosity(usr->mat[iph].eta0,usr->scal->eta,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->lambda,usr->mat[iph].eta_func);
-    meta_v[iph] = ShearViscosity_PowerLaw(usr->mat[iph].eta0,usr->scal->eta,eIIdim,Tdim,Pdim,usr->mat[iph].Ad,n[iph],usr->mat[iph].Ea,usr->mat[iph].Va,usr->par->R,usr->mat[iph].eta_func);
-    mzeta_v[iph] = CompactionViscosity(usr->mat[iph].zeta0,usr->scal->eta,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->phi_min,usr->par->zetaExp,usr->mat[iph].zeta_func); 
-    
-    inv_meta_v[iph]  = 1.0/meta_v[iph];
-    inv_mzeta_v[iph] = 1.0/mzeta_v[iph];
-
-    inv_meta_e[iph]  = 0.0;
-    inv_mzeta_e[iph] = 0.0;
-    inv_Z[iph]       = 0.0;
-
-    if (VEP_func[iph]>0){ //visco-elastic
-      inv_meta_e[iph]  = usr->scal->eta/(usr->mat[iph].G*dim_param(dt,usr->scal->t));
-      inv_Z[iph] = InvPoroElasticModulus(usr->mat[iph].Z0,phi);
-      inv_mzeta_e[iph] = usr->scal->eta*inv_Z[iph]/dim_param(dt,usr->scal->t);
-    } 
-
-    // visco-elastic 
-    meta_ve[iph]  = PetscPowScalar(inv_meta_v[iph]+inv_meta_e[iph],-1.0);
-    mzeta_ve[iph] = PetscPowScalar(inv_mzeta_v[iph]+inv_mzeta_e[iph],-1.0);
-
-    // for output
-    if (inv_meta_e[iph]==0.0) meta_e[iph] = usr->nd->eta_max;
-    else                      meta_e[iph] = 1.0/inv_meta_e[iph];
-
-    if (inv_mzeta_e[iph]==0.0) mzeta_e[iph] = usr->nd->eta_max;
-    else                       mzeta_e[iph] = 1.0/inv_mzeta_e[iph];
-
-    // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 2 - 3 [%d %d %d] %1.12e %1.12e %1.12e %1.12e #\n",i,j,iph,meta_e[iph],mzeta_e[iph],inv_meta_e[iph],inv_mzeta_e[iph]);
-
-    if (inv_Z[iph]==0.0) mZ[iph] = 0.0;
-    else                 mZ[iph] = 1.0/inv_Z[iph];
-    mG[iph] = usr->mat[iph].G;
-
-    if (VEP_func[iph]==2){ // plastic parameters
-      Cph[iph]      = usr->mat[iph].C;
-      sigmatph[iph] = usr->mat[iph].sigmat;
-      thetaph[iph]  = usr->mat[iph].theta;
-    } else {
-      Cph[iph]      = 0.0;
-      sigmatph[iph] = 0.0;
-      thetaph[iph]  = 0.0;
-    }
-  }
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 2 - 2 [%d %d] #\n",i,j);
-  // solid material phase-averaged
-  PetscScalar eta_v, zeta_v, eta_e, zeta_e, eta_ve, zeta_ve, Z, G, inv_eta_e, inv_zeta_e;
-  PetscScalar eta_eff, zeta_eff, dotlam;
-
-  ierr = GetMatPhaseFraction(i,j,xwt,iwt,usr->nph,wt); CHKERRQ(ierr);
-  eta_v  = WeightAverageValue(meta_v,wt,usr->nph); 
-  zeta_v = WeightAverageValue(mzeta_v,wt,usr->nph); 
-
-  eta_e  = WeightAverageValue(meta_e,wt,usr->nph); 
-  zeta_e = WeightAverageValue(mzeta_e,wt,usr->nph); 
-  Z      = WeightAverageValue(mZ,wt,usr->nph); 
-  G      = WeightAverageValue(mG,wt,usr->nph); 
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 2 - 3 [%d %d] %1.12e %1.12e %1.12e %1.12e %1.12e %1.12e #\n",i,j,eta_v,zeta_v,eta_e,zeta_e,Z,G);
-
-  inv_eta_e  = WeightAverageValue(inv_meta_e,wt,usr->nph);
-  inv_zeta_e = WeightAverageValue(inv_mzeta_e,wt,usr->nph); 
-
-  eta_ve  = WeightAverageValue(meta_ve,wt,usr->nph); 
-  zeta_ve = WeightAverageValue(mzeta_ve,wt,usr->nph); 
-
-  // check cut-off viscosities
-  eta_v = ViscosityHarmonicAvg(eta_v ,usr->nd->eta_min,usr->nd->eta_max);
-  zeta_v= ViscosityHarmonicAvg(zeta_v,usr->nd->eta_min,usr->nd->eta_max);
-
-  eta_e = ViscosityHarmonicAvg(eta_e ,usr->nd->eta_min,usr->nd->eta_max);
-  zeta_e= ViscosityHarmonicAvg(zeta_e,usr->nd->eta_min,usr->nd->eta_max);
-
-  eta_ve = ViscosityHarmonicAvg(eta_ve ,usr->nd->eta_min,usr->nd->eta_max);
-  zeta_ve= ViscosityHarmonicAvg(zeta_ve,usr->nd->eta_min,usr->nd->eta_max);
-
-  // plastic parameters - consider strain softening
-  PetscScalar C, sigmat, theta;
-  C = nd_param(WeightAverageValue(Cph,wt,usr->nph),usr->scal->P); 
-  sigmat = nd_param(WeightAverageValue(sigmatph,wt,usr->nph),usr->scal->P); 
-  theta = WeightAverageValue(thetaph,wt,usr->nph); 
-
-  // Add softening to cohesion 
-  PetscScalar xsoft;
-  xsoft = strain/usr->par->strain_max;
-  if (xsoft >= 1.0) xsoft = 1.0;
-  C     = C     * (1.0+noise) * (1.0 - usr->par->hcc*xsoft );
-  theta = theta * (1.0+noise) * (1.0 - usr->par->hcc*xsoft );
-
-  // // Add some noise to cohesion or softening - not efficient to create random context here
-  // PetscRandom    rnd;
-  // PetscScalar    value;
-  // ierr = PetscRandomCreate(PETSC_COMM_SELF,&rnd);CHKERRQ(ierr);
-  // ierr = PetscRandomSetInterval(rnd,-usr->par->noise_max,usr->par->noise_max);CHKERRQ(ierr);
-  // ierr = PetscRandomSetFromOptions(rnd);CHKERRQ(ierr);
-  // ierr = PetscRandomGetValue(rnd,&value);CHKERRQ(ierr);
-  // C *= (1.0+value);
-  // ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
-
-  // if (i==0) PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 2 - 3 [%d %d] %1.12e %1.12e %1.12e %1.12e %1.12e %1.12e #\n",i,j,eta_v,zeta_v,eta_e,zeta_e,eta_ve,zeta_ve);
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 2 - 4 [%d %d] #\n",i,j);
-
-  // effective deviatoric and volumetric strain rates
-  PetscScalar exxp, ezzp, exzp, div13, divp, eIIp;
-  div13 = (exx + ezz)/3.0;
-  exxp = ((exx-div13) + 0.5*told_xx*inv_eta_e);
-  ezzp = ((ezz-div13) + 0.5*told_zz*inv_eta_e);
-  exzp = (exz + 0.5*told_xz*inv_eta_e);
-  eIIp = TensorSecondInvariant(exxp,ezzp,exzp);
-  divp = ((exx+ezz) - DPold*inv_zeta_e);
-
-  // trial stress (at this point phase averaged eta_ve, zeta_ve)
-  PetscScalar txxt, tzzt, txzt, tIIt, dpt;
-  txxt = 2*eta_ve*exxp;
-  tzzt = 2*eta_ve*ezzp;
-  txzt = 2*eta_ve*exzp;
-  tIIt = TensorSecondInvariant(txxt,tzzt,txzt);
-  dpt = -zeta_ve * divp;
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 2 - 5 [%d %d] #\n",i,j);
-
-  if (VEP_func[0]==2 || VEP_func[1]==2 || VEP_func[2]==2 || VEP_func[3]==2 || VEP_func[4]==2 || VEP_func[5]==2) {
-    // Fluid pressure 
-    PetscScalar aP,theta_rad;
-    aP = Pf*AlphaP(phi,usr->par->phia)/phis;
-    theta_rad = PETSC_PI*theta/180;
-
-    // // plasticity F = (Y,lambdadot,tauII,dP)
-    // PetscScalar xve[4], stressSol[3];
-    // xve[0] = tIIt;
-    // xve[1] = dpt;
-    // xve[2] = eta_ve;
-    // xve[3] = zeta_ve;
-
-    // // if (i==0) PetscPrintf(PETSC_COMM_WORLD,"# BREAK A [%d %d] %1.12e %1.12e %1.12e %1.12e %1.12e %1.12e %1.12e %1.12e #\n",i,j,eta_ve,zeta_ve,tIIt,dpt,C,theta,sigmat,aP);
-
-    // ierr = Plastic_LocalSolver(xve,C,sigmat,theta_rad,aP,phi,usr,stressSol); CHKERRQ(ierr);
-    // dotlam = stressSol[2];
-
-    // // effective viscosities
-    // if (dotlam > tf_tol) { 
-    //   eta_eff = 0.5*stressSol[0]/eIIp * phis; 
-    //   if (divp==0.0) zeta_eff = usr->nd->eta_max;
-    //   else           zeta_eff = -stressSol[1]/divp * phis;
-    // } else { 
-    //   eta_eff = eta_ve *phis; 
-    //   zeta_eff= zeta_ve *phis;
-    // }
-
-    { // VEP rheology
-      PetscScalar Y,eta_P, eta_VP;
-      // Y = C; // von Mises- yields but bad convergence
-      Y = C*PetscCosScalar(PETSC_PI*theta/180) + Pf*PetscSinScalar(PETSC_PI*theta/180); // Drucker-Prager Pf
-      // Y = C*PetscCosScalar(PETSC_PI*theta/180) + Plith*PetscSinScalar(PETSC_PI*theta/180); // Drucker-Prager Plith
-      // Y = C + Plith*PetscSinScalar(PETSC_PI*theta/180); // Drucker-Prager Plith
-      eta_P = Y/(2.0*eIIp); 
-      // if (eta_P<eta_ve) PetscPrintf(PETSC_COMM_WORLD, "PLASTIC: [%d %d] %1.12e %1.12e %1.12e %1.12e %1.12e\n",i,j,C,Plith,eIIp,eta_P,eta_ve);
-      eta_VP = PetscMin(eta_P,eta_ve);
-      // eta_eff = PetscMin(PetscMax(eta_VP,usr->nd->eta_min),usr->nd->eta_max);
-      eta_eff = ViscosityHarmonicAvg(eta_VP ,usr->nd->eta_min,usr->nd->eta_max);
-
-      divp   = 0.0;
-      zeta_eff = usr->nd->eta_max;
-      dotlam = 0.0;
-    }
-
-  } else { // no plasticity
-    eta_eff = eta_ve *phis; 
-    zeta_eff= zeta_ve *phis;
-    dotlam = 0.0;
-  }
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 2 - 6 [%d %d] #\n",i,j);
-
-  // chis, chip
-  PetscScalar chis, chip;
-  chis = eta_eff*inv_eta_e;
-  chip = zeta_eff*inv_zeta_e;
-
-  // if (i==0) PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 2 - 7 [%d %d] %1.12e %1.12e %1.12e %1.12e %1.12e %1.12e #\n",i,j,chis,chip,eta_eff,zeta_eff,inv_eta_e,inv_zeta_e);
-
-  // update stresses for output
-  PetscScalar txx, tzz, txz, tII, DP;
-  txx = 2*eta_eff*exxp/phis;
-  tzz = 2*eta_eff*ezzp/phis;
-  txz = 2*eta_eff*exzp/phis;
-  tII = TensorSecondInvariant(txx,tzz,txz);  // this should be roughly equal to stressSol[0]
-  DP = -zeta_eff*divp/phis;
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - B - 2 - 7 [%d %d] #\n",i,j);
-
-  // return values
-  res[0]  = eta_eff;
-  res[1]  = eta_v;
-  res[2]  = eta_e;
-  res[3]  = eta_ve;
-  res[4]  = zeta_eff;
-  res[5]  = zeta_v;
-  res[6]  = zeta_e;
-  res[7]  = zeta_ve;
-  res[8]  = chis;
-  res[9]  = chip;
-  res[10] = txx;
-  res[11] = tzz;
-  res[12] = txz;
-  res[13] = tII;
-  res[14] = DP;
-  res[15] = dotlam;
-  res[16] = nd_param(Z,usr->scal->P);
-  res[17] = nd_param(G,usr->scal->P);
-  res[18] = C;
-  res[19] = sigmat;
-  res[20] = theta;
+  if (usr->par->rheology==0) { ierr = RheologyPointwise_VEP(i,j,xwt,iwt,T,phi,P,eps,tauold,ix,res,usr);CHKERRQ(ierr); }
 
   PetscFunctionReturn(0);
 }
@@ -1362,16 +970,14 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       iph;
   PetscScalar    dt, p, Plith, DPold, Tdim, phis;
-  PetscScalar    eta_v, zeta_v, eta_e, zeta_e, eta_p, zeta_p, eta_ve, zeta_ve, eta, zeta, chip, chis, Y;
+  PetscScalar    eta_v, zeta_v, eta_e, zeta_e, eta_p, zeta_p, eta_ve, zeta_ve, eta, zeta, chip, chis;
 
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
 
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A [%d %d] %1.12e #\n",i,j,dt);
-
   dt = usr->nd->dt;
   p = P[0]; Plith = P[1]; DPold = P[2];
-  Tdim = dim_paramT(T,T_KELVIN,usr->scal->T);
+  Tdim = dim_paramT(T,usr->par->Ttop,usr->scal->DT);
   phis = 1.0 - phi;
 
   // get epsII, epsp, epspII - tau_old, dP
@@ -1384,41 +990,36 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
   div13 = (exx + ezz)/3.0;
   Pf    = p + Plith;
 
-  // PetscScalar eII_dev;
-  // eII_dev = PetscPowScalar((PetscPowScalar(eII,2) - 1.0/6.0*PetscPowScalar(exx+ezz,2)),0.5);
-
   // get marker phase and properties
-  PetscScalar  wt[6], meta_v[6], mzeta_v[6], meta_e[6], mzeta_e[6], meta_ve[6], mzeta_ve[6], mC[6], mZ[6], mG[6];
+  PetscScalar  wt[6], meta_v[6], mzeta_v[6], meta_e[6], mzeta_e[6], meta_ve[6], mzeta_ve[6], mC[6], mZ[6], mG[6], msigmat[6],mtheta[6];
   PetscScalar  inv_meta_v[6], inv_meta_e[6], inv_mzeta_v[6], inv_mzeta_e[6];
   PetscScalar  meta[6], mzeta[6], mchis[6], mchip[6], meta_p[6], meta_VEP[6], mzeta_p[6], mzeta_VEP[6];
-  PetscScalar  inv_Z[6];
 
   ierr = GetMatPhaseFraction(i,j,xwt,iwt,usr->nph,wt); CHKERRQ(ierr);
 
   for (iph = 0; iph < usr->nph; iph++) {
-    meta_v[iph]  = ShearViscosity(usr->mat[iph].eta0,usr->scal->eta,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->lambda,usr->mat[iph].eta_func);
-    mzeta_v[iph] = CompactionViscosity(usr->mat[iph].zeta0,usr->scal->eta,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->phi_min,usr->par->zetaExp,usr->mat[iph].zeta_func); 
+    meta_v[iph]  = ShearViscosity(usr->mat_nd[iph].eta0,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->lambda,usr->mat_nd[iph].eta_func);
+    mzeta_v[iph] = CompactionViscosity(usr->mat_nd[iph].zeta0,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->phi_min,usr->par->zetaExp,usr->mat_nd[iph].zeta_func); 
     
     inv_meta_v[iph]  = 1.0/meta_v[iph];
     inv_mzeta_v[iph] = 1.0/mzeta_v[iph];
 
-    inv_Z[iph] = 1.0/usr->mat[iph].Z0;
-    // inv_Z[iph] = InvPoroElasticModulus(usr->mat[iph].Z0,phi);
-    inv_meta_e[iph]  = usr->scal->eta/(usr->mat[iph].G*dim_param(dt,usr->scal->t)); // scalP or scaleta*dt?
-    inv_mzeta_e[iph] = usr->scal->eta*inv_Z[iph]/dim_param(dt,usr->scal->t);
+    meta_e[iph]  = usr->mat_nd[iph].G*dt;
+    mzeta_e[iph] = usr->mat_nd[iph].Z0*dt; // PoroElasticModulus(usr->mat_nd[iph].Z0,phi)*dt;
 
-    meta_e[iph]  = 1.0/inv_meta_e[iph];
-    mzeta_e[iph] = 1.0/inv_mzeta_e[iph];
-    
+    inv_meta_e[iph]  = 1.0/meta_e[iph];
+    inv_mzeta_e[iph] = 1.0/mzeta_e[iph];
+
     // visco-elastic 
     meta_ve[iph]  = PetscPowScalar(inv_meta_v[iph]+inv_meta_e[iph],-1.0);
     mzeta_ve[iph] = PetscPowScalar(inv_mzeta_v[iph]+inv_mzeta_e[iph],-1.0);
 
     // elastic and plastic parameters
-    mZ[iph] = 1.0/inv_Z[iph];
-    mG[iph] = usr->mat[iph].G;
-    // mC[iph] = nd_param(usr->mat[iph].C,usr->scal->P);
-    mC[iph] = nd_param(usr->mat[iph].C,usr->scal->eta*usr->scal->v/usr->scal->x);
+    mZ[iph] = usr->mat_nd[iph].Z0;
+    mG[iph] = usr->mat_nd[iph].G;
+    mC[iph] = usr->mat_nd[iph].C;
+    msigmat[iph] = usr->mat_nd[iph].sigmat;
+    mtheta[iph]  = usr->mat_nd[iph].theta;
 
     // effective deviatoric and volumetric strain rates
     exxp = ((exx-div13) + 0.5*told_xx*inv_meta_e[iph]);
@@ -1427,31 +1028,24 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
     eIIp = TensorSecondInvariant(exxp,ezzp,exzp);
     divp = ((exx+ezz) - DPold*inv_mzeta_e[iph]);
 
-    // // trial stress
-    // PetscScalar txxt, tzzt, txzt, tIIt, dpt;
-    // txxt = 2*meta_ve[iph]*exxp;
-    // tzzt = 2*meta_ve[iph]*ezzp;
-    // txzt = 2*meta_ve[iph]*exzp;
-    // tIIt = TensorSecondInvariant(txxt,tzzt,txzt);
-    // dpt = -mzeta_ve[iph] * divp;
-
     // plastic viscosity
-    if (usr->init_guess>0) { 
+    if (usr->plasticity) { 
       PetscScalar Y;
       Y = mC[iph]; // von Mises
       // Y = C*PetscCosScalar(PETSC_PI*theta/180) + Pf*PetscSinScalar(PETSC_PI*theta/180); // Drucker-Prager Pf
       // Y = C*PetscCosScalar(PETSC_PI*theta/180) + Plith*PetscSinScalar(PETSC_PI*theta/180); // Drucker-Prager Plith
       // Y = C + Plith*PetscSinScalar(PETSC_PI*theta/180); // Drucker-Prager Plith
-      meta_p[iph]   = Y/(2.0*eIIp); //Y/(2.0*eII_dev);
-      // if (i==25) PetscPrintf(PETSC_COMM_WORLD,"# BREAK [%d %d %d] %1.12e %1.12e %1.12e#\n",i,j,iph,Y,eIIp,meta_p[iph]);
+      meta_p[iph]   = Y/(2.0*eIIp); 
       mzeta_p[iph]  = PetscMin(usr->nd->eta_max,Y/PetscAbs(exx+ezz)); 
     } else { 
       meta_p[iph]    = usr->nd->eta_max;
       mzeta_p[iph]   = usr->nd->eta_max;
     }
 
-    meta_VEP[iph] = PetscMin(meta_p[iph],meta_ve[iph]);
+    meta_VEP[iph]  = PetscMin(meta_p[iph],meta_ve[iph]);
     mzeta_VEP[iph] = PetscMin(mzeta_p[iph],meta_ve[iph]);
+
+    // if (i==25) PetscPrintf(PETSC_COMM_WORLD,"# BREAK A0 [%d %d %d] %1.12e #\n",i,j,iph,meta_VEP[iph]);
 
     // effective viscosities
     meta[iph] = ViscosityHarmonicAvg(meta_VEP[iph],usr->nd->eta_min,usr->nd->eta_max)*phis;
@@ -1474,9 +1068,15 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
   zeta   = WeightAverageValue(mzeta,wt,usr->nph); 
   chis   = WeightAverageValue(mchis,wt,usr->nph); 
   chip   = WeightAverageValue(mchip,wt,usr->nph); 
-  Y      = WeightAverageValue(mC,wt,usr->nph); 
 
-  // update effective deviatoric and volumetric strain rates with Marker Phased average
+  PetscScalar C, G, Z, sigmat, theta;
+  G      = WeightAverageValue(mG,wt,usr->nph); 
+  Z      = WeightAverageValue(mZ,wt,usr->nph); 
+  C      = WeightAverageValue(mC,wt,usr->nph); 
+  sigmat = WeightAverageValue(msigmat,wt,usr->nph); 
+  theta  = WeightAverageValue(mtheta,wt,usr->nph); 
+
+  // update effective deviatoric and volumetric strain rates with Marker PhaseAverage
   exxp = ((exx-div13) + 0.5*told_xx/eta_e);
   ezzp = ((ezz-div13) + 0.5*told_zz/eta_e);
   exzp = (exz + 0.5*told_xz/eta_e);
@@ -1487,10 +1087,8 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
   txx = 2*eta*exxp/phis;
   tzz = 2*eta*ezzp/phis;
   txz = 2*eta*exzp/phis;
-  tII = TensorSecondInvariant(txx,tzz,txz);  // this should be roughly equal to stressSol[0]
+  tII = TensorSecondInvariant(txx,tzz,txz);
   DP = -zeta*divp/phis;
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK AB [%d %d] %1.12e #\n",i,j,dt);
 
   // return values
   res[0]  = eta;
@@ -1509,13 +1107,11 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
   res[13] = tII;
   res[14] = DP;
   res[15] = 0.0;
-  res[16] = 0.0;
-  res[17] = 0.0;
-  res[18] = Y;
-  res[19] = 0.0;
-  res[20] = 0.0;
-
-  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK B [%d %d] %1.12e #\n",i,j,dt);
+  res[16] = Z;
+  res[17] = G;
+  res[18] = C;
+  res[19] = sigmat;
+  res[20] = theta;
 
   PetscFunctionReturn(0);
 }
@@ -1627,7 +1223,7 @@ PetscErrorCode FormCoefficient_T(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, 
       }
 
       { // B = 1/Ra*kappa (edge)
-        PetscInt      ii;
+        PetscInt ii;
         for (ii = 0; ii < 4; ii++) {
           PetscScalar rho0[6], cp0[6], kT0[6], kappa0[6], kappa, kappa_dim, wt[6];
           PetscInt    iph, idx[6];
@@ -1648,7 +1244,6 @@ PetscErrorCode FormCoefficient_T(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, 
           kappa_dim = WeightAverageValue(kappa0,wt,usr->nph); 
           kappa = nd_param(kappa_dim,usr->scal->kappa);
           c[j][i][B_slot[ii]] = 1.0/usr->nd->Ra*kappa;
-          // if (j==0) PetscPrintf(PETSC_COMM_WORLD,"# BREAK A - 2 - E [%d %d %d] %1.12e %1.12e %1.12e %1.12e #\n",i,j,ii,kappa_dim,kappa,usr->nd->Ra,c[j][i][B_slot[ii]]);
         }
       }
 
