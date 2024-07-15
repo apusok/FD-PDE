@@ -21,7 +21,7 @@ def sortTimesteps(tdir):
 
 # Parameters
 A.dimensional = 1 # 0-nd, 1-dim
-A.input = '../'
+A.input = '../run01_C1e7_eta_seed_1e20_50km/'
 A.output_path_dir = '../Figures/'
 A.path_dir = './'
 
@@ -100,7 +100,7 @@ for istep in range(0,101,1):
   # Load and plot markers
   vizB.correct_path_marker_data(fdir+'/out_pic_ts'+str(istep)+'.xmf')
   A.mark = vizB.parse_marker_file('out_pic_ts'+str(istep)+'.xmf',fdir)
-  vizB.plot_marker_id(A,istart,iend,jstart,jend,A.output_dir+'out_pic_ts'+str(istep),istep,A.dimensional)
+  # vizB.plot_marker_id(A,istart,iend,jstart,jend,A.output_dir+'out_pic_ts'+str(istep),istep,A.dimensional)
 
   # Correct path for data
   vizB.correct_path_load_data(fdir+'/out_xT_ts'+str(istep)+'.py')
@@ -147,17 +147,19 @@ for istep in range(0,101,1):
   A.Vscx, A.Vscz, A.divVs = vizB.calc_center_velocities_div(A.Vsx,A.Vsz,A.grid.xv,A.grid.zv,A.nx,A.nz)
 
   # Plots
-  vizB.plot_T(A,istart,iend,jstart,jend,A.output_dir+'out_xT_ts'+str(istep),istep,A.dimensional)
+  vizB.plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,A.output_dir+'out_mark_eta_eps_tau_ts'+str(istep),istep,A.dimensional)
+
+  # vizB.plot_T(A,istart,iend,jstart,jend,A.output_dir+'out_xT_ts'+str(istep),istep,A.dimensional)
   # vizB.plot_MPhase(A,istart,iend,jstart,jend,A.output_dir+'out_xMPhase_ts'+str(istep),istep,A.dimensional)
   # vizB.plot_P(A,istart,iend,jstart,jend,A.output_dir+'out_xP_ts'+str(istep),istep,A.dimensional,3)
-  vizB.plot_PV(A,istart,iend,jstart,jend,A.output_dir+'out_xPV_ts'+str(istep),istep,A.dimensional,0)
+  # vizB.plot_PV(A,istart,iend,jstart,jend,A.output_dir+'out_xPV_ts'+str(istep),istep,A.dimensional,0)
   # vizB.plot_PV(A,istart,iend,jstart,jend,A.output_dir+'out_resPV_ts'+str(istep),istep,A.dimensional,1)
-  vizB.plot_Tensor(A,istart,iend,jstart,jend,A.output_dir+'out_xeps_ts'+str(istep),istep,A.dimensional,0)
-  vizB.plot_Tensor(A,istart,iend,jstart,jend,A.output_dir+'out_xtau_ts'+str(istep),istep,A.dimensional,1)
+  # vizB.plot_Tensor(A,istart,iend,jstart,jend,A.output_dir+'out_xeps_ts'+str(istep),istep,A.dimensional,0)
+  # vizB.plot_Tensor(A,istart,iend,jstart,jend,A.output_dir+'out_xtau_ts'+str(istep),istep,A.dimensional,1)
   # vizB.plot_Tensor(A,istart,iend,jstart,jend,A.output_dir+'out_xtauold_ts'+str(istep),istep,A.dimensional,2)
   # vizB.plot_PVcoeff(A,istart,iend,jstart,jend,A.output_dir+'out_xPVcoeff_ts'+str(istep),istep,A.dimensional)
-  vizB.plot_PVcoeff_Stokes(A,istart,iend,jstart,jend,A.output_dir+'out_xPVcoeff_ts'+str(istep),istep,A.dimensional)
-  vizB.plot_matProp(A,istart,iend,jstart,jend,A.output_dir+'out_matProp_ts'+str(istep),istep,A.dimensional)
+  # vizB.plot_PVcoeff_Stokes(A,istart,iend,jstart,jend,A.output_dir+'out_xPVcoeff_ts'+str(istep),istep,A.dimensional)
+  # vizB.plot_matProp(A,istart,iend,jstart,jend,A.output_dir+'out_matProp_ts'+str(istep),istep,A.dimensional)
   # vizB.plot_Vel(A,istart,iend,jstart,jend,A.output_dir+'out_xVel_ts'+str(istep),istep,A.dimensional)
   # vizB.plot_Tcoeff(A,istart,iend,jstart,jend,A.output_dir+'out_xTcoeff_ts'+str(istep),istep,A.dimensional)
   # vizB.plot_plastic(A,istart,iend,jstart,jend,A.output_dir+'out_xplastic_ts'+str(istep),istep,A.dimensional)

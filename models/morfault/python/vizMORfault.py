@@ -1335,3 +1335,45 @@ def plot_Tcoeff(A,istart,iend,jstart,jend,fname,istep,dim):
   # plt.tight_layout() 
   plt.savefig(fname+'.png', bbox_inches = 'tight')
   plt.close()
+
+# ---------------------------------
+def plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,fname,istep,dim):
+
+  fig = plt.figure(1,figsize=(28,5))
+
+  scalx = get_scaling(A,'x',dim,1)
+  lblx = get_label(A,'x',dim)
+  lblz = get_label(A,'z',dim)
+
+  extentE=[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zc[jstart:jend  ])*scalx, max(A.grid.zc[jstart:jend  ])*scalx]
+  extentV=[min(A.grid.xv[istart:iend+1])*scalx, max(A.grid.xv[istart:iend+1])*scalx, min(A.grid.zv[jstart:jend+1])*scalx, max(A.grid.zv[jstart:jend+1])*scalx]
+
+  ax = plt.subplot(1,4,1)
+  im = ax.scatter(A.mark.x*scalx,A.mark.z*scalx,c=A.mark.id,s=0.5,linewidths=None,cmap='viridis')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.75)
+  cbar.ax.set_title('id')
+  ax.set_xlim(min(A.grid.xv[istart:iend]*scalx), max(A.grid.xv[istart:iend]*scalx))
+  ax.set_ylim(min(A.grid.zv[istart:iend]*scalx), max(A.grid.zv[istart:iend]*scalx))
+  ax.set_aspect('equal')
+  ax.set_title('PIC'+' tstep = '+str(istep), fontweight='bold')
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+
+  ax = plt.subplot(1,4,2)
+  scal = get_scaling(A,'eta',dim,0)
+  lbl  = get_label(A,'eta',dim)
+  plot_standard(fig,ax,np.log10(A.matProp.eta[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 '+lbl+' tstep = '+str(istep),lblx,lblz)
+
+  ax = plt.subplot(1,4,3)
+  lblII  = get_label(A,'epsII',dim)
+  X4 = A.eps.II_corner*scal
+  plot_standard(fig,ax,X4,extentV,'CORNER: '+lblII+' tstep = '+str(istep),lblx,lblz)
+
+  ax = plt.subplot(1,4,4)
+  lblII  = get_label(A,'tauII',dim)
+  X4 = A.tau.II_corner*scal
+  plot_standard(fig,ax,X4,extentV,'CORNER: '+lblII+' tstep = '+str(istep),lblx,lblz)
+
+  # plt.tight_layout() 
+  plt.savefig(fname+'.png', bbox_inches = 'tight')
+  plt.close()
