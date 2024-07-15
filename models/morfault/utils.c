@@ -1288,7 +1288,7 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ctx
 PetscErrorCode DMSwarmReadBinaryXDMF_Seq(DM dmswarm, const char *fout, PetscInt nfield, const char *fieldname[1])
 {
   FILE           *fp;
-  char           fname[FNAME_LENGTH],str[FNAME_LENGTH];
+  char           fname[FNAME_LENGTH],str[FNAME_LENGTH],*ptr;
   PetscInt       i,j,nm;
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
@@ -1296,11 +1296,12 @@ PetscErrorCode DMSwarmReadBinaryXDMF_Seq(DM dmswarm, const char *fout, PetscInt 
   // Read XDMF file and get array of data
   ierr = PetscSNPrintf(fname,sizeof(fname),"%s.xmf",fout);
   fp = fopen(fname, "r" );
-  fgets(str,FNAME_LENGTH,fp);
-  fgets(str,FNAME_LENGTH,fp);
-  fgets(str,FNAME_LENGTH,fp);
-  fgets(str,FNAME_LENGTH,fp);
-  fgets(str,FNAME_LENGTH,fp); // line containing nmark
+
+  ptr = fgets(str,FNAME_LENGTH,fp); if (!ptr) { str[0] = 0;}
+  ptr = fgets(str,FNAME_LENGTH,fp); if (!ptr) { str[0] = 0;}
+  ptr = fgets(str,FNAME_LENGTH,fp); if (!ptr) { str[0] = 0;}
+  ptr = fgets(str,FNAME_LENGTH,fp); if (!ptr) { str[0] = 0;}
+  ptr = fgets(str,FNAME_LENGTH,fp); if (!ptr) { str[0] = 0;} // line containing nmark
 
   char tmp[256], *p;
   for (i=0; i<strlen(str); i++) {
@@ -1312,8 +1313,8 @@ PetscErrorCode DMSwarmReadBinaryXDMF_Seq(DM dmswarm, const char *fout, PetscInt 
   }
   nm = (int)strtol(tmp, &p, 10);
 
-  fgets(str,FNAME_LENGTH,fp);
-  fgets(str,FNAME_LENGTH,fp);
+  ptr = fgets(str,FNAME_LENGTH,fp); if (!ptr) { str[0] = 0;}
+  ptr = fgets(str,FNAME_LENGTH,fp); if (!ptr) { str[0] = 0;}
   fclose(fp);
 
   // allocate memory to arrays

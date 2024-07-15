@@ -16,7 +16,7 @@ class SimStruct:
 # ---------------------------------------
 A = SimStruct()
 
-sim = 'run29_01_SD_phimax5e-3_sigma1e-3_HR/'
+sim = 'run29_01_SD_phimax5e-3_sigma1e-3_HR_rVf/'
 A.input = '../'+sim
 A.output_path_dir = '../Figures/'+sim
 A.path_dir = './'

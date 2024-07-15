@@ -21,8 +21,8 @@ def sortTimesteps(tdir):
 
 # Parameters
 A.dimensional = 1 # 0-nd, 1-dim
-sim = 'run27_VEVP_02_phi_max1e-3_porosity_evol/'
-iout = 0
+sim = 'run25_VEVP_07_SD_mat2_30Myr_HR/'
+iout = 850
 A.input = '../'+sim
 A.output_path_dir = '../Figures/'+sim
 A.path_dir = './'
@@ -158,9 +158,9 @@ for istep in range(iout,10001,25):
   A.rheol = vizB.calc_dom_rheology_mechanism(A)
 
   # Plots
-  # vizB.plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,A.output_dir+'out_mark_eta_eps_tau_ts'+str(istep),istep,A.dimensional)
+  vizB.plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,A.output_dir+'out_mark_eta_eps_tau_ts'+str(istep),istep,A.dimensional)
   # vizB.plot_mark_eta_eps_tau2(A,istart,iend,jstart,jend,A.output_dir+'out_mark_eta_eps_tau2_ts'+str(istep),istep,A.dimensional)
-  vizB.plot_mark_eta_eps_tau_T_phi(A,istart,iend,jstart,jend,A.output_dir+'out_mark_eta_eps_tau_T_phi_ts'+str(istep),istep,A.dimensional)
+  # vizB.plot_mark_eta_eps_tau_T_phi(A,istart,iend,jstart,jend,A.output_dir+'out_mark_eta_eps_tau_T_phi_ts'+str(istep),istep,A.dimensional)
   # vizB.plot_def_mechanisms(A,istart,iend,jstart,jend,A.output_dir+'out_def_mechanisms_ts'+str(istep),istep,A.dimensional)
 
   # vizB.plot_T(A,istart,iend,jstart,jend,A.output_dir+'out_xT_ts'+str(istep),istep,A.dimensional)

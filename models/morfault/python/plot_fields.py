@@ -21,7 +21,8 @@ def sortTimesteps(tdir):
 
 # Parameters
 A.dimensional = 1 # 0-nd, 1-dim
-sim = 'run28_06_phi00_phimax1e-3_pulse2_phimax5e-3_HR/'
+# sim = 'run29_00_Stokes_HR/'
+sim = 'run29_01_SD_phimax5e-3_sigma1e-3_HR_rVf/'
 A.input = '../'+sim
 A.output_path_dir = '../Figures/'+sim
 A.path_dir = './'
@@ -54,8 +55,8 @@ for ii in range(0,nt):
 
 # Create directories
 A.input_dir = A.path_dir+A.input
-# A.output_dir = A.output_path_dir+'fields_pic_eps_phi/'
-A.output_dir = A.output_path_dir+'fields/'
+# A.output_dir = A.output_path_dir+'fields_neg_phi/'
+A.output_dir = A.output_path_dir+'fields2/'
 
 try:
   os.mkdir(A.output_path_dir)
@@ -186,9 +187,9 @@ if (flg_output):
     # Plots
     # vizB.plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,A.output_dir+'out_mark_eta_eps_tau_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_mark_eta_eps_tau2(A,istart,iend,jstart,jend,A.output_dir+'out_mark_eta_eps_tau2_ts'+str(istep),istep,A.dimensional)
-    vizB.plot_mark_eta_eps_tau_T_phi(A,istart,iend,jstart,jend,A.output_dir+'out_mark_eta_eps_tau_T_phi_ts'+str(istep),istep,A.dimensional)
+    # vizB.plot_mark_eta_eps_tau_T_phi(A,istart,iend,jstart,jend,A.output_dir+'out_mark_eta_eps_tau_T_phi_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_def_mechanisms(A,istart,iend,jstart,jend,A.output_dir+'out_def_mechanisms_ts'+str(istep),istep,A.dimensional)
-    # vizB.plot_mark_eps_phi(A,istart,iend,jstart,jend,A.output_dir+'out_mark_eps_phi_ts'+str(istep),istep,A.dimensional)
+    vizB.plot_mark_eps_phi(A,istart,iend,jstart,jend,A.output_dir+'out_mark_eps_phi_ts'+str(istep),istep,A.dimensional)
 
     # vizB.plot_T(A,istart,iend,jstart,jend,A.output_dir+'out_xT_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_MPhase(A,istart,iend,jstart,jend,A.output_dir+'out_xMPhase_ts'+str(istep),istep,A.dimensional)

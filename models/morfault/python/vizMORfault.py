@@ -1735,10 +1735,15 @@ def plot_phi(A,istart,iend,jstart,jend,fname,istep,dim):
   X = 1.0 - A.phis
   X[X<1e-10] = 1e-10
   cmap1 = plt.cm.get_cmap('inferno', 20)
+  # print(X[X<0])
+  # X[X>0] = 0
+  # X = -X
+  # X[X<1e-10] = 1e-10
 
   ax = plt.subplot(1,1,1)
   im = ax.imshow(np.log10(X[jstart:jend  ,istart:iend  ]),extent=extentE,cmap=cmap1,origin='lower')
   im.set_clim(-6,-1)
+  # im.set_clim(-10,-1)
   cbar = fig.colorbar(im,ax=ax, shrink=0.60)
   ax.axis('image')
   ax.set_xlabel(lblx)
