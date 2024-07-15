@@ -181,6 +181,7 @@ PetscErrorCode SetSwarmInitialCondition(DM,void*);
 PetscErrorCode AddMarkerInflux(DM,void*);
 PetscErrorCode SetInitialConditions(FDPDE, FDPDE,FDPDE,void*);
 PetscErrorCode HalfSpaceCooling_MOR(void*);
+PetscErrorCode SetInitialPorosityField(void*);
 PetscErrorCode UpdateMarkerPhaseFractions(DM,DM,Vec,void*);
 PetscErrorCode UpdateLithostaticPressure(DM,Vec,void*);
 PetscErrorCode DoOutput(FDPDE,FDPDE,FDPDE,void*);

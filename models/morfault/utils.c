@@ -21,7 +21,8 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ct
   ierr = HalfSpaceCooling_MOR(usr);CHKERRQ(ierr);
 
   // initialize constant solid porosity field
-  ierr = VecSet(usr->xphi,1.0-usr->par->phi0); CHKERRQ(ierr);
+  // ierr = VecSet(usr->xphi,1.0-usr->par->phi0); CHKERRQ(ierr);
+  ierr = SetInitialPorosityField(usr);CHKERRQ(ierr);
 
   // set swarm initial size and coordinates
   PetscInt ppcell[] = {usr->par->ppcell,usr->par->ppcell};
@@ -145,6 +146,50 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
 
       // temperature (phi=0)
       xx[j][i][iT] = nd_T;
+    }
+  }
+
+  // Restore arrays
+  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// SetInitialPorosityField
+// ---------------------------------------
+PetscErrorCode SetInitialPorosityField(void *ctx)
+{
+  UsrData       *usr = (UsrData*) ctx;
+  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, iE, icenter;
+  PetscScalar    **coordx,**coordz, ***xx, Hs;
+  Vec            x, xlocal;
+  DM             dm;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  dm  = usr->dmphi;
+  x   = usr->xphi;
+  Hs  = usr->nd->Hs;
+
+  ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
+  ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &iE); CHKERRQ(ierr);
+
+  ierr = DMCreateLocalVector(dm, &xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+  
+  // Loop over local domain
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      if (coordz[j][icenter]<=-Hs){ xx[j][i][iE] = 1.0-usr->par->phi0; } 
+      else                        { xx[j][i][iE] = 1.0;}
     }
   }
 
@@ -849,6 +894,7 @@ PetscErrorCode OutputParameters(void *ctx)
   ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->scal->kappa,1,PETSC_DOUBLE);CHKERRQ(ierr);
   ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->scal->kT,1,PETSC_DOUBLE);CHKERRQ(ierr);
   ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->scal->kphi,1,PETSC_DOUBLE);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->scal->Gamma,1,PETSC_DOUBLE);CHKERRQ(ierr);
 
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['scalx'] = v\n");
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['scaleta'] = v\n");
@@ -860,6 +906,7 @@ PetscErrorCode OutputParameters(void *ctx)
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['scalkappa'] = v\n");
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['scalkT'] = v\n");
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['scalkphi'] = v\n");
+  fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['scalGamma'] = v\n");
 
   // parameters - nd
   ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->L,1,PETSC_DOUBLE);CHKERRQ(ierr);
@@ -903,10 +950,12 @@ PetscErrorCode OutputParameters(void *ctx)
   ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->delta,1,PETSC_DOUBLE);CHKERRQ(ierr);
   ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->R,1,PETSC_DOUBLE);CHKERRQ(ierr);
   ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->Ra,1,PETSC_DOUBLE);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->Gamma,1,PETSC_DOUBLE);CHKERRQ(ierr);
 
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['delta'] = v\n");
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['R'] = v\n");
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['Ra'] = v\n");
+  fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['Gamma'] = v\n");
 
   // // material properties
   // ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nph,1,PETSC_INT);CHKERRQ(ierr);
@@ -978,6 +1027,7 @@ PetscErrorCode LoadParametersFromFile(void *ctx)
   ierr = PetscViewerBinaryRead(viewer,(void*)&usr->scal->kappa,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
   ierr = PetscViewerBinaryRead(viewer,(void*)&usr->scal->kT,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
   ierr = PetscViewerBinaryRead(viewer,(void*)&usr->scal->kphi,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->scal->Gamma,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
 
   // parameters - nd
   ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->L,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
@@ -1002,6 +1052,7 @@ PetscErrorCode LoadParametersFromFile(void *ctx)
   ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->delta,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
   ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->R,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
   ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->Ra,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->Gamma,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
 
   // material properties ?
   
@@ -1039,7 +1090,7 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ctx
 {
   UsrData        *usr = (UsrData*)ctx;
   DM             dm;
-  Vec            x, xTprev, xTcoeff, xTcoeffprev, xphiprev, xphicoeff, xphicoeffprev;
+  Vec            x, xTprev, xTcoeff, xTcoeffprev, xTguess, xphiprev, xphicoeff, xphicoeffprev, xphiguess;
   char           fout[FNAME_LENGTH];
   PetscViewer    viewer;
   PetscErrorCode ierr;
@@ -1122,7 +1173,10 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ctx
   // initialize guess and previous solution in fdT
   ierr = FDPDEAdvDiffGetPrevSolution(fdT,&xTprev);CHKERRQ(ierr);
   ierr = VecCopy(usr->xT,xTprev);CHKERRQ(ierr);
+  ierr = FDPDEGetSolutionGuess(fdT,&xTguess);CHKERRQ(ierr);
+  ierr = VecCopy(xTprev,xTguess);CHKERRQ(ierr);
   ierr = VecDestroy(&xTprev);CHKERRQ(ierr);
+  ierr = VecDestroy(&xTguess);CHKERRQ(ierr);
 
   ierr = FDPDEAdvDiffGetPrevCoefficient(fdT,&xTcoeffprev);CHKERRQ(ierr);
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xTcoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
@@ -1135,7 +1189,10 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ctx
   // initialize guess and previous solution in fdphi
   ierr = FDPDEAdvDiffGetPrevSolution(fdphi,&xphiprev);CHKERRQ(ierr);
   ierr = VecCopy(usr->xphi,xphiprev);CHKERRQ(ierr);
+  ierr = FDPDEGetSolutionGuess(fdphi,&xphiguess);CHKERRQ(ierr);
+  ierr = VecCopy(xphiprev,xphiguess);CHKERRQ(ierr);
   ierr = VecDestroy(&xphiprev);CHKERRQ(ierr);
+  ierr = VecDestroy(&xphiguess);CHKERRQ(ierr);
 
   ierr = FDPDEAdvDiffGetPrevCoefficient(fdphi,&xphicoeffprev);CHKERRQ(ierr);
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xphicoeff_ts%d",usr->par->fdir_out,usr->nd->istep);

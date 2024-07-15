@@ -928,7 +928,7 @@ def plot_standard(fig,ax,X,extent,title,lblx,lblz,cmin,cmax):
   im = ax.imshow(X,extent=extent,cmap='viridis',origin='lower')
   if (cmax-cmin!=0):
     im.set_clim(cmin,cmax)
-  fig.colorbar(im,ax=ax, shrink=0.80)
+  fig.colorbar(im,ax=ax, shrink=0.70)
   ax.axis('image')
   ax.set_xlabel(lblx)
   ax.set_ylabel(lblz)
@@ -1582,7 +1582,7 @@ def plot_phi(A,istart,iend,jstart,jend,fname,istep,dim):
   extentE=[min(A.grid.xc[istart:iend])*scalx, max(A.grid.xc[istart:iend])*scalx, min(A.grid.zc[jstart:jend])*scalx, max(A.grid.zc[jstart:jend])*scalx]
 
   X = 1.0 - A.phis
-  X[X==0] = 1e-10
+  X[X<1e-10] = 1e-10
   cmap1 = plt.cm.get_cmap('inferno', 20)
 
   ax = plt.subplot(1,1,1)
@@ -1689,15 +1689,97 @@ def plot_mark_eta_eps_tau2(A,istart,iend,jstart,jend,fname,istep,dim):
   scal = get_scaling(A,'eps',dim,0)
   X4 = A.eps.II_corner*scal
   # plot_standard(fig,ax,X4,extentV,'CORNER: '+lblII+' tstep = '+str(istep),lblx,lblz,0,0)
-  im = ax.imshow(np.log10(X4[jstart:jend  ,istart:iend  ]),extent=extentV)
-  im.set_clim(-18,-13)
+  im = ax.imshow(np.log10(X4[jstart:jend  ,istart:iend  ]),extent=extentV,origin='lower')
+  im.set_clim(-16,-13)
   cbar = fig.colorbar(im,ax=ax, shrink=0.60)
   ax.axis('image')
   ax.set_xlabel(lblx)
   ax.set_ylabel(lblz)
-  ax.set_title('CORNER: '+lblII+' tstep = '+str(istep))
+  ax.set_title('CORNER: log10 '+lblII+' tstep = '+str(istep))
 
   ax = plt.subplot(2,2,4)
+  lblII  = get_label(A,'tauII',dim)
+  scal = get_scaling(A,'P',dim,1)
+  X4 = A.tau.II_corner*scal
+  plot_standard(fig,ax,X4,extentV,'CORNER: '+lblII+' tstep = '+str(istep),lblx,lblz,0,0)
+
+  # plt.tight_layout() 
+  plt.savefig(fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_mark_eta_eps_tau_T_phi(A,istart,iend,jstart,jend,fname,istep,dim):
+  
+  fig = plt.figure(1,figsize=(21,8))
+  t = istep
+
+  scalx = get_scaling(A,'x',dim,1)
+  scalv = get_scaling(A,'v',dim,1)
+  lblx = get_label(A,'x',dim)
+  lblz = get_label(A,'z',dim)
+
+  extentE=[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zc[jstart:jend  ])*scalx, max(A.grid.zc[jstart:jend  ])*scalx]
+  extentV=[min(A.grid.xv[istart:iend+1])*scalx, max(A.grid.xv[istart:iend+1])*scalx, min(A.grid.zv[jstart:jend+1])*scalx, max(A.grid.zv[jstart:jend+1])*scalx]
+
+  ax = plt.subplot(2,3,1)
+  im = ax.scatter(A.mark.x*scalx,A.mark.z*scalx,c=A.mark.id,s=0.5,linewidths=None,cmap='viridis')
+  cbar = fig.colorbar(im,ax=ax, shrink=0.70)
+  cbar.ax.set_title('id')
+  ax.set_xlim(min(A.grid.xv[istart:iend]*scalx), max(A.grid.xv[istart:iend]*scalx))
+  ax.set_ylim(min(A.grid.zv[istart:iend]*scalx), max(A.grid.zv[istart:iend]*scalx))
+  ax.set_aspect('equal')
+  ax.set_title('PIC'+' tstep = '+str(istep)+' time = '+str(t)+' [kyr]', fontweight='bold')
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+
+  ax = plt.subplot(2,3,2)
+  X = scale_TC(A,'T','T',dim,1)
+  lbl = get_label(A,'T',dim)
+  plot_standard(fig,ax,X[jstart:jend,istart:iend],extentE,lbl+' tstep = '+str(istep),lblx,lblz,0,0)
+
+  # temperature contour
+  if (dim):
+    levels = [0, 250, 500, 750, 1000, 1200, 1300,]
+    fmt = r'%0.0f $^o$C'
+    ts = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, X[jstart:jend  ,istart:iend  ], levels=levels,linewidths=(1.0,), extend='both',cmap='plasma')
+    ax.clabel(ts, fmt=fmt, fontsize=14)
+
+  ax = plt.subplot(2,3,3)
+  X = 1.0 - A.phis
+  X[X<1e-10] = 1e-10
+  cmap1 = plt.cm.get_cmap('inferno', 20)
+  im = ax.imshow(np.log10(X[jstart:jend  ,istart:iend  ]),extent=extentE,cmap=cmap1,origin='lower')
+  im.set_clim(-6,-1)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.70)
+  ax.axis('image')
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  ax.set_title(r'log$_{10}\phi$'+' tstep = '+str(istep))
+
+  ax = plt.subplot(2,3,4)
+  scal = get_scaling(A,'eta',dim,0)
+  lbl  = get_label(A,'eta',dim)
+  plot_standard(fig,ax,np.log10(A.matProp.eta[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 '+lbl+' tstep = '+str(istep),lblx,lblz,0,0)
+
+  maxV = 1
+  nind = 5
+  Q  = ax.quiver(A.grid.xc[istart:iend:nind]*scalx, A.grid.zc[jstart:jend:nind]*scalx, A.Vscx[jstart:jend:nind,istart:iend:nind]*scalv/maxV, A.Vscz[jstart:jend:nind,istart:iend:nind]*scalv/maxV, 
+      color='black', scale_units='xy', scale=0.25, units='width', pivot='tail', width=0.003, headwidth=5, headaxislength=5, minlength=0)
+
+  ax = plt.subplot(2,3,5)
+  lblII  = get_label(A,'epsII',dim)
+  scal = get_scaling(A,'eps',dim,0)
+  X4 = A.eps.II_corner*scal
+  # plot_standard(fig,ax,X4,extentV,'CORNER: '+lblII+' tstep = '+str(istep),lblx,lblz,0,0)
+  im = ax.imshow(np.log10(X4[jstart:jend  ,istart:iend  ]),extent=extentV,origin='lower')
+  im.set_clim(-16,-13)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.70)
+  ax.axis('image')
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  ax.set_title('CORNER: log10 '+lblII+' tstep = '+str(istep))
+
+  ax = plt.subplot(2,3,6)
   lblII  = get_label(A,'tauII',dim)
   scal = get_scaling(A,'P',dim,1)
   X4 = A.tau.II_corner*scal

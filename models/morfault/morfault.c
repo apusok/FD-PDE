@@ -339,7 +339,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     // Update fluid velocity
     ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmPlith,usr->xPlith,usr->dmphi,usr->xphi,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
 
-    // // Porosity Solver - solve for phi_new, t
+    // Porosity Solver
     PetscPrintf(PETSC_COMM_WORLD,"\n# (phi) Porosity Solver \n");
     converged = PETSC_FALSE;
     while (!converged) {

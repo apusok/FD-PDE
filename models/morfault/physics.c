@@ -249,7 +249,11 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
       ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_strain,strain);CHKERRQ(ierr);
 
       // correct for liquid porosity - not the same as phic[ii] = 1.0e-4; 
-      for (ii = 0; ii < 9; ii++) { phic[ii] = 1.0 - phic[ii]; }
+      for (ii = 0; ii < 9; ii++) { 
+        // phic[ii] = 1.0e-4;
+        phic[ii] = 1.0 - phic[ii]; 
+        if (phic[ii]<0.0) phic[ii] = 0.0;
+      }
 
       gradPlith[0] = (Plc[0]-Plc[1])/dx;
       gradPlith[1] = (Plc[2]-Plc[0])/dx;
@@ -1313,8 +1317,11 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
       // visco-plastic viscosity
       PetscScalar aa;
       aa = mC[iph]*PetscCosScalar(theta_rad) - msigmat[iph]*PetscSinScalar(theta_rad);
-      meta_p[iph]   = PetscPowScalar(stressSol[0]*stressSol[0]+aa*aa, 0.5)/mdotlam[iph];
-      mzeta_p[iph]  = -stressSol[1]/(mdotlam[iph]*cdl*PetscSinScalar(theta_rad)); 
+      if (mdotlam[iph]>0.0) { meta_p[iph]   = PetscPowScalar(stressSol[0]*stressSol[0]+aa*aa, 0.5)/mdotlam[iph]; } 
+      else                  { meta_p[iph]    = usr->nd->eta_max; }
+        
+      if ((mdotlam[iph]>0.0) & (stressSol[1]<0.0)) { mzeta_p[iph]  = -stressSol[1]/(mdotlam[iph]*cdl*PetscSinScalar(theta_rad)); } 
+      else                                         { mzeta_p[iph]   = usr->nd->eta_max; }
 
     } else { 
       meta_VEP[iph] = meta_ve[iph]*phis; 
