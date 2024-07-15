@@ -164,6 +164,8 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->eta_K, 1e22, "eta_K", "Shear viscosity of the Kelvin VP dashpot"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->tf_tol, 1e-8, "tf_tol", "Function tolerance for solving yielding stresses"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->Nmax, 25, "Nmax", "Max Newton iteration for plasticity"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->strain_max, 0.1, "strain_max", "Total plastic strain for softening"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->hcc, 0.5, "hcc", "Relative reduction for cohesion and friction angle during strain softening"); CHKERRQ(ierr);
 
   // material phases for markers (markers carry only phase id)
   ierr = PetscBagRegisterInt(bag, &par->marker_phases, 6, "marker_phases", "Number of marker phases [-]"); CHKERRQ(ierr);

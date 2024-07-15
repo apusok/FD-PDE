@@ -228,7 +228,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
   // Loop over local domain - set initial density and viscosity
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
-      PetscScalar   phic[9], pc[9], Plc[9], Tc[9], DPoldc[9], gradPlith[4], dx, dz;
+      PetscScalar   phic[9], pc[9], Plc[9], Tc[9], DPoldc[9], strain[9], gradPlith[4], dx, dz;
       PetscInt      iph, ii, im, jm, ip, jp;
 
       if (i == 0   ) im = i; else im = i-1;
@@ -246,6 +246,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
       ierr = Get9PointCenterValues(i,j,iPV,Nx,Nz,xx,pc);CHKERRQ(ierr);
       ierr = Get9PointCenterValues(i,j,iE,Nx,Nz,_Tc,Tc);CHKERRQ(ierr);
       ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_DPold,DPoldc);CHKERRQ(ierr);
+      ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_strain,strain);CHKERRQ(ierr);
 
       gradPlith[0] = (Plc[0]-Plc[1])/dx;
       gradPlith[1] = (Plc[2]-Plc[0])/dx;
@@ -258,69 +259,70 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
       // Prepare for pointwise rheology calculation
       PetscScalar eta_eff[9], zeta_eff[9], chis[9], chip[9], txx[9], tzz[9], txz[9], tII[9], DP[9], dotlam[9];
       PetscScalar eta_v[9],eta_e[9],eta_p[9],zeta_v[9],zeta_e[9],zeta_p[9];
-      PetscScalar e[4], t[4], P[3], res[21], Z[9], G[9], C[9], sigmat[9], theta[9];
+      PetscScalar e[4], t[4], P[4], res[21], Z[9], G[9], C[9], sigmat[9], theta[9];
       PetscInt ix[4];
 
       // center points
       ix[0] = ixx; ix[1] = izz; ix[2] = ixz; ix[3] = iII;
 
-      P[0] = pc[0]; P[1] = Plc[0]; P[2] = DPoldc[0]; 
+      P[0] = pc[0]; P[1] = Plc[0]; P[2] = DPoldc[0]; P[3] = strain[0];
       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,j,xwt,iwtc,Tc[0],phic[0],P,e,t,ix,res,usr);CHKERRQ(ierr);
       ierr = DecompactRheologyVars(0,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      P[0] = pc[1]; P[1] = Plc[1]; P[2] = DPoldc[1]; 
+      P[0] = pc[1]; P[1] = Plc[1]; P[2] = DPoldc[1]; P[3] = strain[1];
       ierr = GetTensorPointValues(im,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(im,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(im,j,xwt,iwtc,Tc[1],phic[1],P,e,t,ix,res,usr);CHKERRQ(ierr);
       ierr = DecompactRheologyVars(1,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      P[0] = pc[2]; P[1] = Plc[2]; P[2] = DPoldc[2]; 
+      P[0] = pc[2]; P[1] = Plc[2]; P[2] = DPoldc[2]; P[3] = strain[2];
       ierr = GetTensorPointValues(ip,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(ip,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(ip,j,xwt,iwtc,Tc[2],phic[2],P,e,t,ix,res,usr);CHKERRQ(ierr);
       ierr = DecompactRheologyVars(2,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      P[0] = pc[3]; P[1] = Plc[3]; P[2] = DPoldc[3]; 
+      P[0] = pc[3]; P[1] = Plc[3]; P[2] = DPoldc[3]; P[3] = strain[3];
       ierr = GetTensorPointValues(i,jm,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,jm,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,jm,xwt,iwtc,Tc[3],phic[3],P,e,t,ix,res,usr);CHKERRQ(ierr);
       ierr = DecompactRheologyVars(3,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      P[0] = pc[4]; P[1] = Plc[4]; P[2] = DPoldc[4]; 
+      P[0] = pc[4]; P[1] = Plc[4]; P[2] = DPoldc[4]; P[3] = strain[4];
       ierr = GetTensorPointValues(i,jp,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,jp,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,jp,xwt,iwtc,Tc[4],phic[4],P,e,t,ix,res,usr);CHKERRQ(ierr);
       ierr = DecompactRheologyVars(4,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
       // corner points
-      PetscScalar Tcorner[4], phicorner[4], pcorner[4], Plcorner[4], DPoldcorner[4];
+      PetscScalar Tcorner[4], phicorner[4], pcorner[4], Plcorner[4], DPoldcorner[4], straincorner[4];
       ierr = GetCornerAvgFromCenter(Tc,Tcorner);CHKERRQ(ierr);
       ierr = GetCornerAvgFromCenter(phic,phicorner);CHKERRQ(ierr);
       ierr = GetCornerAvgFromCenter(pc,pcorner);CHKERRQ(ierr);
       ierr = GetCornerAvgFromCenter(Plc,Plcorner);CHKERRQ(ierr);
       ierr = GetCornerAvgFromCenter(DPoldc,DPoldcorner);CHKERRQ(ierr);
+      ierr = GetCornerAvgFromCenter(strain,straincorner);CHKERRQ(ierr);
       
-      ii = 0; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; 
+      ii = 0; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; P[3] = straincorner[ii];
       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,j,xwt,iwtld,Tcorner[0],phicorner[0],P,e,t,ix,res,usr);CHKERRQ(ierr);
       ierr = DecompactRheologyVars(5,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      ii = 1; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; 
+      ii = 1; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; P[3] = straincorner[ii];
       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,j,xwt,iwtrd,Tcorner[1],phicorner[1],P,e,t,ix,res,usr);CHKERRQ(ierr);
       ierr = DecompactRheologyVars(6,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      ii = 2; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; 
+      ii = 2; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; P[3] = straincorner[ii];
       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,j,xwt,iwtlu,Tcorner[2],phicorner[2],P,e,t,ix,res,usr);CHKERRQ(ierr);
       ierr = DecompactRheologyVars(7,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      ii = 3; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; 
+      ii = 3; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; P[3] = straincorner[ii];
       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,j,xwt,iwtru,Tcorner[3],phicorner[3],P,e,t,ix,res,usr);CHKERRQ(ierr);
@@ -700,7 +702,7 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
   // Loop over local domain - set initial density and viscosity
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
-      PetscScalar   phic[9], pc[9], Plc[9], Tc[9], DPoldc[9], gradPlith[4], dx, dz;
+      PetscScalar   phic[9], pc[9], Plc[9], Tc[9], DPoldc[9], strain[9], gradPlith[4], dx, dz;
       PetscInt      iph, ii, im, jm, ip, jp;
 
       if (i == 0   ) im = i; else im = i-1;
@@ -718,6 +720,7 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
       ierr = Get9PointCenterValues(i,j,iPV,Nx,Nz,xx,pc);CHKERRQ(ierr);
       ierr = Get9PointCenterValues(i,j,iE,Nx,Nz,_Tc,Tc);CHKERRQ(ierr);
       ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_DPold,DPoldc);CHKERRQ(ierr);
+      ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_strain,strain);CHKERRQ(ierr);
 
       gradPlith[0] = (Plc[0]-Plc[1])/dx;
       gradPlith[1] = (Plc[2]-Plc[0])/dx;
@@ -730,69 +733,70 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
       // Prepare for pointwise rheology calculation
       PetscScalar eta_eff[9], zeta_eff[9], chis[9], chip[9], txx[9], tzz[9], txz[9], tII[9], DP[9], dotlam[9];
       PetscScalar eta_v[9],eta_e[9],eta_p[9],zeta_v[9],zeta_e[9],zeta_p[9];
-      PetscScalar e[4], t[4], P[3], res[21], Z[9], G[9], C[9], sigmat[9], theta[9];
+      PetscScalar e[4], t[4], P[4], res[21], Z[9], G[9], C[9], sigmat[9], theta[9];
       PetscInt ix[4];
 
       // center points
       ix[0] = ixx; ix[1] = izz; ix[2] = ixz; ix[3] = iII;
 
-      P[0] = pc[0]; P[1] = Plc[0]; P[2] = DPoldc[0]; 
+      P[0] = pc[0]; P[1] = Plc[0]; P[2] = DPoldc[0]; P[3] = strain[0];
       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,j,xwt,iwtc,Tc[0],phic[0],P,e,t,ix,res,usr);CHKERRQ(ierr);
       ierr = DecompactRheologyVars(0,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      P[0] = pc[1]; P[1] = Plc[1]; P[2] = DPoldc[1]; 
+      P[0] = pc[1]; P[1] = Plc[1]; P[2] = DPoldc[1]; P[3] = strain[1];
       ierr = GetTensorPointValues(im,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(im,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(im,j,xwt,iwtc,Tc[1],phic[1],P,e,t,ix,res,usr);CHKERRQ(ierr);
       ierr = DecompactRheologyVars(1,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      P[0] = pc[2]; P[1] = Plc[2]; P[2] = DPoldc[2]; 
+      P[0] = pc[2]; P[1] = Plc[2]; P[2] = DPoldc[2]; P[3] = strain[2];
       ierr = GetTensorPointValues(ip,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(ip,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(ip,j,xwt,iwtc,Tc[2],phic[2],P,e,t,ix,res,usr);CHKERRQ(ierr);
       ierr = DecompactRheologyVars(2,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      P[0] = pc[3]; P[1] = Plc[3]; P[2] = DPoldc[3]; 
+      P[0] = pc[3]; P[1] = Plc[3]; P[2] = DPoldc[3]; P[3] = strain[3];
       ierr = GetTensorPointValues(i,jm,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,jm,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,jm,xwt,iwtc,Tc[3],phic[3],P,e,t,ix,res,usr);CHKERRQ(ierr);
       ierr = DecompactRheologyVars(3,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      P[0] = pc[4]; P[1] = Plc[4]; P[2] = DPoldc[4]; 
+      P[0] = pc[4]; P[1] = Plc[4]; P[2] = DPoldc[4]; P[3] = strain[4];
       ierr = GetTensorPointValues(i,jp,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,jp,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,jp,xwt,iwtc,Tc[4],phic[4],P,e,t,ix,res,usr);CHKERRQ(ierr);
       ierr = DecompactRheologyVars(4,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
       // corner points
-      PetscScalar Tcorner[4], phicorner[4], pcorner[4], Plcorner[4], DPoldcorner[4];
+      PetscScalar Tcorner[4], phicorner[4], pcorner[4], Plcorner[4], DPoldcorner[4], straincorner[4];
       ierr = GetCornerAvgFromCenter(Tc,Tcorner);CHKERRQ(ierr);
       ierr = GetCornerAvgFromCenter(phic,phicorner);CHKERRQ(ierr);
       ierr = GetCornerAvgFromCenter(pc,pcorner);CHKERRQ(ierr);
       ierr = GetCornerAvgFromCenter(Plc,Plcorner);CHKERRQ(ierr);
       ierr = GetCornerAvgFromCenter(DPoldc,DPoldcorner);CHKERRQ(ierr);
+      ierr = GetCornerAvgFromCenter(strain,straincorner);CHKERRQ(ierr);
       
-      ii = 0; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; 
+      ii = 0; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; P[3] = straincorner[ii];
       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,j,xwt,iwtld,Tcorner[0],phicorner[0],P,e,t,ix,res,usr);CHKERRQ(ierr);
       ierr = DecompactRheologyVars(5,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      ii = 1; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; 
+      ii = 1; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; P[3] = straincorner[ii];
       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,j,xwt,iwtrd,Tcorner[1],phicorner[1],P,e,t,ix,res,usr);CHKERRQ(ierr);
       ierr = DecompactRheologyVars(6,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      ii = 2; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; 
+      ii = 2; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; P[3] = straincorner[ii];
       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,j,xwt,iwtlu,Tcorner[2],phicorner[2],P,e,t,ix,res,usr);CHKERRQ(ierr);
       ierr = DecompactRheologyVars(7,res,eta_eff,eta_v,eta_e,eta_p,zeta_eff,zeta_v,zeta_e,zeta_p,chis,chip,txx,tzz,txz,tII,DP,dotlam,Z,G,C,sigmat,theta);CHKERRQ(ierr);
 
-      ii = 3; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; 
+      ii = 3; ix[0] = ixxn[ii]; ix[1] = izzn[ii]; ix[2] = ixzn[ii]; ix[3] = iIIn[ii]; P[0] = pcorner[ii]; P[1] = Plcorner[ii]; P[2] = DPoldcorner[ii]; P[3] = straincorner[ii];
       ierr = GetTensorPointValues(i,j,ix,_eps,e);CHKERRQ(ierr);
       ierr = GetTensorPointValues(i,j,ix,_tauold,t);CHKERRQ(ierr);
       ierr = RheologyPointwise(i,j,xwt,iwtru,Tcorner[3],phicorner[3],P,e,t,ix,res,usr);CHKERRQ(ierr);
@@ -1006,14 +1010,14 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       iph;
-  PetscScalar    dt, p, Plith, DPold, Tdim, phis;
+  PetscScalar    dt, p, Plith, DPold, Tdim, phis, strain;
   PetscScalar    eta_v, zeta_v, eta_e, zeta_e, eta_p, zeta_p, eta_ve, zeta_ve, eta, zeta, chip, chis;
 
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
 
   dt = usr->nd->dt;
-  p = P[0]; Plith = P[1]; DPold = P[2];
+  p = P[0]; Plith = P[1]; DPold = P[2]; strain = P[3];
   Tdim = dim_paramT(T,usr->par->Ttop,usr->scal->DT);
   phis = 1.0 - phi;
 
@@ -1058,6 +1062,14 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
     msigmat[iph] = usr->mat_nd[iph].sigmat;
     mtheta[iph]  = usr->mat_nd[iph].theta;
 
+    // add softening to cohesion and friction angle
+    PetscScalar xsoft, noise;
+    xsoft = strain/usr->par->strain_max;
+    noise = 0.0;
+    if (xsoft >= 1.0) xsoft = 1.0;
+    mC[iph]     = mC[iph]     * (1.0+noise) * (1.0 - usr->par->hcc*xsoft );
+    mtheta[iph] = mtheta[iph] * (1.0+noise) * (1.0 - usr->par->hcc*xsoft );
+
     // effective deviatoric and volumetric strain rates
     exxp = ((exx-div13) + 0.5*told_xx*inv_meta_e[iph]);
     ezzp = ((ezz-div13) + 0.5*told_zz*inv_meta_e[iph]);
@@ -1085,13 +1097,15 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
 
       // hyperbolic surface
       PetscScalar aa, bb;
-      aa = mC[iph]*PetscCosScalar(PETSC_PI*mtheta[iph]/180) + Pf*PetscSinScalar(PETSC_PI*mtheta[iph]/180);
-      // aa = mC[iph]*PetscCosScalar(PETSC_PI*mtheta[iph]/180) + Plith*PetscSinScalar(PETSC_PI*mtheta[iph]/180);
+      // aa = mC[iph]*PetscCosScalar(PETSC_PI*mtheta[iph]/180) + Pf*PetscSinScalar(PETSC_PI*mtheta[iph]/180);
+      aa = mC[iph]*PetscCosScalar(PETSC_PI*mtheta[iph]/180) + Plith*PetscSinScalar(PETSC_PI*mtheta[iph]/180);
       bb = mC[iph]*PetscCosScalar(PETSC_PI*mtheta[iph]/180) - msigmat[iph]*PetscSinScalar(PETSC_PI*mtheta[iph]/180);
       Y = PetscPowScalar(aa*aa-bb*bb,0.5);
 
       meta_p[iph]   = Y/(2.0*eIIp); 
       mzeta_p[iph]  = PetscMin(usr->nd->eta_max,Y/PetscAbs(exx+ezz)); 
+
+      // calculate dotlam
     } else { 
       meta_p[iph]    = usr->nd->eta_max;
       mzeta_p[iph]   = usr->nd->eta_max;
@@ -1179,7 +1193,7 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       iph;
-  PetscScalar    dt, tf_tol, p, Plith, DPold, Tdim, phis, dotlam;
+  PetscScalar    dt, tf_tol, p, Plith, DPold, Tdim, phis, dotlam, strain;
   PetscScalar    eta_v, zeta_v, eta_e, zeta_e, eta_ve, zeta_ve, eta, zeta, chip, chis; // eta_p, zeta_p,
 
   PetscErrorCode ierr;
@@ -1188,7 +1202,7 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
   dt = usr->nd->dt;
   tf_tol = usr->par->tf_tol;
 
-  p = P[0]; Plith = P[1]; DPold = P[2];
+  p = P[0]; Plith = P[1]; DPold = P[2]; strain = P[3];
   Tdim = dim_paramT(T,usr->par->Ttop,usr->scal->DT);
   phis = 1.0 - phi;
 
@@ -1225,7 +1239,8 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
 
     // elastic rheology
     meta_e[iph]  = usr->mat_nd[iph].G*dt;
-    mzeta_e[iph] = usr->mat_nd[iph].Z0*PetscPowScalar(phi,-0.5)*dt; // PoroElasticModulus(usr->mat_nd[iph].Z0,phi)*dt;
+    mzeta_e[iph] = usr->mat_nd[iph].Z0*dt;
+    // mzeta_e[iph] = usr->mat_nd[iph].Z0*PetscPowScalar(phi,-0.5)*dt; // PoroElasticModulus(usr->mat_nd[iph].Z0,phi)*dt;
 
     inv_meta_e[iph]  = 1.0/meta_e[iph];
     inv_mzeta_e[iph] = 1.0/mzeta_e[iph];
@@ -1242,6 +1257,12 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
     mtheta[iph]  = usr->mat_nd[iph].theta;
 
     // add softening to cohesion and friction angle
+    PetscScalar xsoft, noise;
+    xsoft = strain/usr->par->strain_max;
+    noise = 0.0;
+    if (xsoft >= 1.0) xsoft = 1.0;
+    mC[iph]     = mC[iph]     * (1.0+noise) * (1.0 - usr->par->hcc*xsoft );
+    mtheta[iph] = mtheta[iph] * (1.0+noise) * (1.0 - usr->par->hcc*xsoft );
 
     // effective deviatoric and volumetric strain rates
     exxp = ((exx-div13) + 0.5*told_xx*inv_meta_e[iph]);
