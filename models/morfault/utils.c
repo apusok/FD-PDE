@@ -1365,9 +1365,11 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ctx
   ierr = VecDestroy(&xTguess);CHKERRQ(ierr);
 
   ierr = FDPDEAdvDiffGetPrevCoefficient(fdT,&xTcoeffprev);CHKERRQ(ierr);
+  ierr = FDPDEGetCoefficient(fdT,NULL,&xTcoeff);CHKERRQ(ierr);
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xTcoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
   ierr = VecCopy(x,xTcoeffprev);CHKERRQ(ierr);
+  ierr = VecCopy(x,xTcoeff);CHKERRQ(ierr);
   ierr = VecDestroy(&xTcoeffprev);CHKERRQ(ierr);
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
@@ -1381,9 +1383,11 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ctx
   ierr = VecDestroy(&xphiguess);CHKERRQ(ierr);
 
   ierr = FDPDEAdvDiffGetPrevCoefficient(fdphi,&xphicoeffprev);CHKERRQ(ierr);
+  ierr = FDPDEGetCoefficient(fdphi,NULL,&xphicoeff);CHKERRQ(ierr);
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xphicoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
   ierr = VecCopy(x,xphicoeffprev);CHKERRQ(ierr);
+  ierr = VecCopy(x,xphicoeff);CHKERRQ(ierr);
   ierr = VecDestroy(&xphicoeffprev);CHKERRQ(ierr);
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);

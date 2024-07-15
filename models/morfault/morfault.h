@@ -105,7 +105,7 @@ typedef struct {
 
 typedef struct {
   PetscScalar    L, H, Hs, xmin, zmin, Vext, Vin, R, delta, eta_min, eta_max, eta_K, Zmax;
-  PetscScalar    Tbot, Ttop, Ra, Gamma;
+  PetscScalar    Tbot, Ttop, Ra, Gamma, rhof;
   PetscScalar    tmax, dtmax, t, dt, dt_out, dzin, dzin_fs;
   PetscScalar    Vin_free, Vin_rock;
   PetscInt       istep;

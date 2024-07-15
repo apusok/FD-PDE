@@ -582,6 +582,7 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   nd->Tbot  = nd_paramT(par->Tbot,par->Ttop,scal->DT);
   nd->Ttop  = nd_paramT(par->Ttop,par->Ttop,scal->DT);
   nd->Gamma = nd_param(par->Gamma,scal->Gamma);
+  nd->rhof  = nd_param(par->rhof,scal->rho);
 
   nd->eta_min = nd_param(par->eta_min,scal->eta);
   nd->eta_max = nd_param(par->eta_max,scal->eta);

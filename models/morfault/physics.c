@@ -303,6 +303,9 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
       { // face
         PetscScalar   phi[4], K[4], B[4], D2[4], D3[4];
         PetscScalar   divchitau[4],gradchidp[4], gradPlith[4];
+        PetscScalar   rhof[4], rhos[4], rho[4], wt[MAX_MAT_PHASE], rho0[MAX_MAT_PHASE];
+        PetscInt      idx[MAX_MAT_PHASE];
+
 
         // porosity on edges - not for variable grid spacing
         phi[0] = (phic[0]+phic[1])*0.5;
@@ -315,11 +318,11 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
         gradPlith[2] = (Plc[0]-Plc[3])/dz;
         gradPlith[3] = (Plc[4]-Plc[0])/dz;
 
-        // on boundaries assume same gradient as in previous cell
-        if (i==Nx-1) gradPlith[1] = gradPlith[0]; 
-        if (i==0   ) gradPlith[0] = gradPlith[1]; 
-        if (j==Nz-1) gradPlith[3] = gradPlith[2]; 
-        if (j==0   ) gradPlith[2] = gradPlith[3]; 
+        // // on boundaries assume same gradient as in previous cell
+        // if (i==Nx-1) gradPlith[1] = gradPlith[0]; 
+        // if (i==0   ) gradPlith[0] = gradPlith[1]; 
+        // if (j==Nz-1) gradPlith[3] = gradPlith[2]; 
+        // if (j==0   ) gradPlith[2] = gradPlith[3]; 
 
         gradchidp[0] = (chip[0]*_DPold[j ][i ][iP] - chip[1]*_DPold[j ][im][iP])/dx;
         gradchidp[1] = (chip[2]*_DPold[j ][ip][iP] - chip[0]*_DPold[j ][i ][iP])/dx;
@@ -334,8 +337,23 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
 
         for (ii = 0; ii < 4; ii++) {
           K[ii]  = Permeability(phi[ii],usr->par->n); // assumed uniform for all materials
+
+          // get material phase fraction
+          if (ii == 0 ) { idx[0] = iwtl[0]; idx[1] = iwtl[1]; idx[2] = iwtl[2]; idx[3] = iwtl[3]; idx[4] = iwtl[4]; idx[5] = iwtl[5]; }
+          if (ii == 1 ) { idx[0] = iwtr[0]; idx[1] = iwtr[1]; idx[2] = iwtr[2]; idx[3] = iwtr[3]; idx[4] = iwtr[4]; idx[5] = iwtr[5];}
+          if (ii == 2 ) { idx[0] = iwtd[0]; idx[1] = iwtd[1]; idx[2] = iwtd[2]; idx[3] = iwtd[3]; idx[4] = iwtd[4]; idx[5] = iwtd[5];}
+          if (ii == 3 ) { idx[0] = iwtu[0]; idx[1] = iwtu[1]; idx[2] = iwtu[2]; idx[3] = iwtu[3]; idx[4] = iwtu[4]; idx[5] = iwtu[5];}
+
+          // get bulk density
+          for (iph = 0; iph < usr->nph; iph++) { rho0[iph] = Density(usr->mat_nd[iph].rho0,usr->mat[iph].rho_func); }
+          ierr = GetMatPhaseFraction(i,j,xwt,idx,usr->nph,wt); CHKERRQ(ierr);
+          rhos[ii] = WeightAverageValue(rho0,wt,usr->nph); 
+          rhof[ii] = usr->nd->rhof;
+          rho[ii]  = Mixture(rhos[ii],rhof[ii],phi[ii]);
+
           // add buoyancy terms here
-          B[ii] = -divchitau[ii]+gradchidp[ii] + gradPlith[ii]*i_hat[ii] - phi[ii]*k_hat[ii];
+          B[ii] = -divchitau[ii]+gradchidp[ii] + gradPlith[ii] + rho[ii]*k_hat[ii];
+          // B[ii] = -divchitau[ii]+gradchidp[ii] + gradPlith[ii]*i_hat[ii] - phi[ii]*k_hat[ii]; 
           D2[ii] = -K[ii]*usr->nd->R*usr->nd->R;
           D3[ii] = -K[ii]*usr->nd->R*usr->nd->R*(gradPlith[ii]*i_hat[ii] - k_hat[ii]);
 
@@ -725,6 +743,8 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
       
       { // face
         PetscScalar   phi[4], B[4], divchitau[4],gradchidp[4],gradPlith[4];
+        PetscScalar   rhof[4], rhos[4], rho[4], wt[MAX_MAT_PHASE], rho0[MAX_MAT_PHASE];
+        PetscInt      idx[MAX_MAT_PHASE];
 
         // porosity on edges - not for variable grid spacing
         phi[0] = (phic[0]+phic[1])*0.5;
@@ -737,25 +757,39 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
         gradPlith[2] = (Plc[0]-Plc[3])/dz;
         gradPlith[3] = (Plc[4]-Plc[0])/dz;
 
-        // on boundaries assume same gradient as in previous cell
-        if (i==Nx-1) gradPlith[1] = gradPlith[0]; 
-        if (i==0   ) gradPlith[0] = gradPlith[1]; 
-        if (j==Nz-1) gradPlith[3] = gradPlith[2]; 
-        if (j==0   ) gradPlith[2] = gradPlith[3]; 
+        // // on boundaries assume same gradient as in previous cell
+        // if (i==Nx-1) gradPlith[1] = gradPlith[0]; 
+        // if (i==0   ) gradPlith[0] = gradPlith[1]; 
+        // if (j==Nz-1) gradPlith[3] = gradPlith[2]; 
+        // if (j==0   ) gradPlith[2] = gradPlith[3]; 
 
         gradchidp[0] = (chip[0]*_DPold[j ][i ][iP] - chip[1]*_DPold[j ][im][iP])/dx;
         gradchidp[1] = (chip[2]*_DPold[j ][ip][iP] - chip[0]*_DPold[j ][i ][iP])/dx;
         gradchidp[2] = (chip[0]*_DPold[j ][i ][iP] - chip[3]*_DPold[jm][i ][iP])/dz;
         gradchidp[3] = (chip[4]*_DPold[jp][i ][iP] - chip[0]*_DPold[j ][i ][iP])/dz;
 
-        //  div(chis*tau_old) = div(S) = [dSxx/dx+dSxz/dz, dSzx/dx+dSzz/dz]
+        // div(chis*tau_old) = div(S) = [dSxx/dx+dSxz/dz, dSzx/dx+dSzz/dz]
         divchitau[0] = (chis[0]*_tauold[j][i ][ixx] - chis[1]*_tauold[j][im][ixx])/dx + (chis[7]*_tauold[j][i][ixzn[2]]-chis[5]*_tauold[j][i][ixzn[0]])/dz;
         divchitau[1] = (chis[2]*_tauold[j][ip][ixx] - chis[0]*_tauold[j][i ][ixx])/dx + (chis[8]*_tauold[j][i][ixzn[3]]-chis[6]*_tauold[j][i][ixzn[1]])/dz;
         divchitau[2] = (chis[6]*_tauold[j][i][ixzn[1]]-chis[5]*_tauold[j][i][ixzn[0]])/dx + (chis[0]*_tauold[j ][i][izz] - chis[3]*_tauold[jm][i][izz])/dz;
         divchitau[3] = (chis[8]*_tauold[j][i][ixzn[3]]-chis[7]*_tauold[j][i][ixzn[2]])/dx + (chis[4]*_tauold[jp][i][izz] - chis[0]*_tauold[j ][i][izz])/dz;
 
         for (ii = 0; ii < 4; ii++) {
-          B[ii] = -divchitau[ii]+gradchidp[ii] + gradPlith[ii]*i_hat[ii] - phi[ii]*k_hat[ii];
+          // get material phase fraction
+          if (ii == 0 ) { idx[0] = iwtl[0]; idx[1] = iwtl[1]; idx[2] = iwtl[2]; idx[3] = iwtl[3]; idx[4] = iwtl[4]; idx[5] = iwtl[5]; }
+          if (ii == 1 ) { idx[0] = iwtr[0]; idx[1] = iwtr[1]; idx[2] = iwtr[2]; idx[3] = iwtr[3]; idx[4] = iwtr[4]; idx[5] = iwtr[5];}
+          if (ii == 2 ) { idx[0] = iwtd[0]; idx[1] = iwtd[1]; idx[2] = iwtd[2]; idx[3] = iwtd[3]; idx[4] = iwtd[4]; idx[5] = iwtd[5];}
+          if (ii == 3 ) { idx[0] = iwtu[0]; idx[1] = iwtu[1]; idx[2] = iwtu[2]; idx[3] = iwtu[3]; idx[4] = iwtu[4]; idx[5] = iwtu[5];}
+
+          // get bulk density
+          for (iph = 0; iph < usr->nph; iph++) { rho0[iph] = Density(usr->mat_nd[iph].rho0,usr->mat[iph].rho_func); }
+          ierr = GetMatPhaseFraction(i,j,xwt,idx,usr->nph,wt); CHKERRQ(ierr);
+          rhos[ii] = WeightAverageValue(rho0,wt,usr->nph); 
+          rhof[ii] = usr->nd->rhof;
+          rho[ii]  = Mixture(rhos[ii],rhof[ii],phi[ii]);
+          
+          B[ii] = -divchitau[ii]+gradchidp[ii] + gradPlith[ii] + rho[ii]*k_hat[ii];
+          //B[ii] = -divchitau[ii]+gradchidp[ii] + gradPlith[ii]*i_hat[ii] - phi[ii]*k_hat[ii];
 
           // B = body force+elasticity (edges, c=0)
           c[j][i][b_slot[ii]] = B[ii];

@@ -157,7 +157,7 @@ for istep in time_list:
 
   # print values
   i = 100
-  j = 48
+  j = 47
   dim = 1
   scal_eta = vizB.get_scaling(A,'eta',dim,0)
   scal_P = vizB.get_scaling(A,'P',dim,1)
@@ -166,6 +166,7 @@ for istep in time_list:
   scal_v_ms = vizB.get_scaling(A,'v',dim,0)
   scal_x_m = vizB.get_scaling(A,'x',dim,0)
   scal_t = vizB.get_scaling(A,'t',dim,1)
+  scal_Kphi = vizB.get_scaling(A,'Kphi',dim,0)
   # print('zeta = ',A.matProp.zeta[j,i]*scal_eta,' Pa s')
   # zetaVE = 1.0/(1.0/A.matProp.zetaV[j,i]+1.0/A.matProp.zetaE[j,i])
   # print('zeta_VE = ',zetaVE*scal_eta,' Pa s')
@@ -183,6 +184,7 @@ for istep in time_list:
   print('zeta_VE = ',zetaVE)
   phis = A.phis[j,i]
   print('phis = ',phis)
+  print('phi = ',1.0-phis)
   print('DP = ',A.DP[j,i])
   print('DP_old = ',A.DPold[j,i])
   print('Z = ',A.matProp.Z[j,i])
@@ -192,9 +194,10 @@ for istep in time_list:
   print('curlyCp =',curlyCp)
   print('x =',A.grid.xc[i]*scal_x)
   print('z =',A.grid.zc[j]*scal_x)
+  print('Kphi =',A.matProp.Kphi[j,i]*scal_Kphi)
 
-  nplots = 8
-  fig = plt.figure(1,figsize=(21,8))
+  nplots = 9
+  fig = plt.figure(1,figsize=(23,8))
 
   ax = plt.subplot(1,nplots,1)
   ax.plot(np.log10(A.matProp.zeta[:,i]*scal_eta),A.grid.zc*scal_x,'k-')
@@ -245,6 +248,11 @@ for istep in time_list:
   ax.grid(True)
   ax.set_xlabel('log10(phi)')
   # ax.set_ylabel('z [km]')
+
+  ax = plt.subplot(1,nplots,9)
+  ax.plot(A.matProp.Kphi[:,i]*scal_Kphi,A.grid.zc*scal_x,'k-')
+  ax.grid(True)
+  ax.set_xlabel('Kphi [m2]')
 
   plt.savefig(A.output_path_dir+'profile_1D_z.pdf', bbox_inches = 'tight')
   plt.close()
