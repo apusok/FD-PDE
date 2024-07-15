@@ -104,11 +104,9 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
       PetscScalar age, T, nd_T, xp, zp, rp;
-      // constant age in Myr
-      age = usr->par->age*1.0e6*SEC_YEAR;
-
-      // age varying with distance from axis
-      // age  = dim_param(fabs(coordx[i][icenter]),usr->scal->x)/dim_param(usr->nd->Vext,usr->scal->v);
+      
+      if (usr->par->model_setup==0) age = usr->par->age*1.0e6*SEC_YEAR; // constant age in Myr
+      else age  = usr->par->age*1.0e6*SEC_YEAR + dim_param(fabs(coordx[i][icenter]),usr->scal->x)/dim_param(usr->nd->Vext,usr->scal->v); // age varying with distance from axis + initial age
 
       // half-space cooling temperature - take into account free surface
       T = HalfSpaceCoolingTemp(Tm,Ts,-Hs-dim_param(coordz[j][icenter],usr->scal->x),usr->scal->kappa,age,usr->par->hs_factor); 
@@ -222,11 +220,13 @@ PetscErrorCode SetSwarmInitialCondition(DM dmswarm, void *ctx)
     if ((zcoor>=ztop-h-dh) && (zcoor<ztop-h)) pfield[p] = usr->par->mat4_id; 
 
     // weak seed
-    xp = dim_param(xcoor,usr->scal->x)-xs;
-    zp = dim_param(zcoor,usr->scal->x)-zs;
-    rp = PetscSqrtScalar(xp*xp+zp*zp);
-    if (rp<=r) { pfield[p] = usr->par->mat1_id; }
-    
+    if (usr->par->model_setup==0) {
+      xp = dim_param(xcoor,usr->scal->x)-xs;
+      zp = dim_param(zcoor,usr->scal->x)-zs;
+      rp = PetscSqrtScalar(xp*xp+zp*zp);
+      if (rp<=r) { pfield[p] = usr->par->mat1_id; }
+    }
+
     // update binary representation
     if (pfield[p]==0) pfield0[p] = 1;
     if (pfield[p]==1) pfield1[p] = 1;

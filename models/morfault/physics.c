@@ -1062,13 +1062,13 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
     msigmat[iph] = usr->mat_nd[iph].sigmat;
     mtheta[iph]  = usr->mat_nd[iph].theta;
 
-    // add softening to cohesion and friction angle
-    PetscScalar xsoft, noise;
-    xsoft = strain/usr->par->strain_max;
-    noise = 0.0;
-    if (xsoft >= 1.0) xsoft = 1.0;
-    mC[iph]     = mC[iph]     * (1.0+noise) * (1.0 - usr->par->hcc*xsoft );
-    mtheta[iph] = mtheta[iph] * (1.0+noise) * (1.0 - usr->par->hcc*xsoft );
+    // // add softening to cohesion and friction angle - need to add dotlam calculation here
+    // PetscScalar xsoft, noise;
+    // xsoft = strain/usr->par->strain_max;
+    // noise = 0.0;
+    // if (xsoft >= 1.0) xsoft = 1.0;
+    // mC[iph]     = mC[iph]     * (1.0+noise) * (1.0 - usr->par->hcc*xsoft );
+    // mtheta[iph] = mtheta[iph] * (1.0+noise) * (1.0 - usr->par->hcc*xsoft );
 
     // effective deviatoric and volumetric strain rates
     exxp = ((exx-div13) + 0.5*told_xx*inv_meta_e[iph]);
@@ -1106,6 +1106,7 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
       mzeta_p[iph]  = PetscMin(usr->nd->eta_max,Y/PetscAbs(exx+ezz)); 
 
       // calculate dotlam
+
     } else { 
       meta_p[iph]    = usr->nd->eta_max;
       mzeta_p[iph]   = usr->nd->eta_max;
@@ -1284,7 +1285,6 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
 
       // Fluid pressure 
       aP = Pf*AlphaP(phi,usr->par->phi_min)/phis;
-      // aP = Plith;
 
       // plasticity F = (Y,lambdadot,tauII,dP)
       PetscScalar xve[4], stressSol[3];
@@ -1296,13 +1296,11 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
       // ierr = Plastic_LocalSolver(xve,mC[iph],msigmat[iph],theta_rad,aP,phi,usr,stressSol); CHKERRQ(ierr);
       {
         PetscScalar Cc, Ct, stressP[2], stressA[5], mzeta_ve_dl,cdl;
-        // Pf = Plith;
         aP = Pf*PetscSinScalar(theta_rad)*AlphaP(phi,usr->par->phi_min)/phis;
         Cc = mC[iph];
         Ct = msigmat[iph];
         stressP[0] = tIIt;
         stressP[1] = dpt;
-        // cdl  = 1.0 - PetscExpScalar(-phi/usr->par->phi_min);
         cdl  = PetscExpScalar(-usr->par->phi_min/phi);
         mzeta_ve_dl = mzeta_ve[iph]*cdl;
         ierr = VEVP_hyper_sol_Y(usr->par->Nmax, usr->par->tf_tol, Cc, Ct, aP, theta_rad, meta_ve[iph], mzeta_ve_dl, usr->nd->eta_K, stressP, stressA, stressSol); CHKERRQ(ierr);

@@ -161,6 +161,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->eta_min, 1.0e15, "eta_min", "Cutoff minimum shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta_max, 1.0e25, "eta_max", "Cutoff maximum shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->phi_min, PHI_CUTOFF, "phi_min", "Cutoff minimum porosity"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->phi0, 1e-4, "phi0", "Reference background porosity"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta_K, 1e22, "eta_K", "Shear viscosity of the Kelvin VP dashpot"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->tf_tol, 1e-8, "tf_tol", "Function tolerance for solving yielding stresses"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->Nmax, 25, "Nmax", "Max Newton iteration for plasticity"); CHKERRQ(ierr);
@@ -296,6 +297,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   ierr = PetscBagRegisterInt(bag, &par->rheology,0, "rheology", "0-VEP 1-VEVP (AveragePhase) 2-VEVP (DominantPhase)"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->two_phase,0, "two_phase", "0-single (Stokes) 1-two_phase (StokesDarcy)"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->model_setup,0, "model_setup", "0-weak inclusion 1-temp profile"); CHKERRQ(ierr);
   
   // boolean options
   ierr = PetscBagRegisterBool(bag, &par->log_info,PETSC_FALSE, "model_log_info", "Output profiling data (T/F)"); CHKERRQ(ierr);

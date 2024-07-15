@@ -120,7 +120,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = FDPDESetUp(fdPV);CHKERRQ(ierr);
     ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV,bc_description_PV,usr); CHKERRQ(ierr);
     ierr = FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV,coeff_description_PV,usr); CHKERRQ(ierr);
-    phi0 = 1.0e-2;
+    phi0 = usr->par->phi0;
   }
 
   if (usr->par->two_phase == 0) {
