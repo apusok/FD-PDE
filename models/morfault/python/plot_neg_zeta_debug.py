@@ -29,13 +29,12 @@ def sortTimesteps(tdir):
 
 # Parameters
 A.dimensional = 1 # 0-nd, 1-dim
-sim = 'run37_flow_dike_dt5e1_etaK1e20/'
-A.input = '../'+sim
-A.output_path_dir = '../Figures/'+sim
-A.path_dir = './'
+sim = 'run37_flow_dike_dt1e2_etaK1e20_abs/'
+A.input = '/Users/apusok/Documents/morfault/'+sim
+A.output_path_dir = '/Users/apusok/Documents/morfault/Figures/'+sim
 
 # search timesteps in folder
-tdir = os.listdir(A.path_dir+A.input)
+tdir = os.listdir(A.input)
 if '.DS_Store' in tdir:
   tdir.remove('.DS_Store')
 if 'model_input.opts' in tdir:
@@ -61,7 +60,7 @@ for ii in range(0,nt):
   time_list[ii] = int(tdir[ii][8:])
 
 # Create directories - default to check for files
-A.input_dir = A.path_dir+A.input
+A.input_dir = A.input
 A.output_dir = A.output_path_dir+'fields2/' 
 
 vizB.make_dir(A.output_path_dir)
@@ -97,7 +96,7 @@ print('  >> '+A.output_dir)
 
 # Loop over timesteps
 # for istep in time_list:
-for istep1 in range(2336,2337,1):
+for istep1 in range(1155,1156,1):
   istep = time_list[istep1]
 
   fdir  = A.input_dir+'Timestep'+str(istep)
@@ -123,7 +122,6 @@ for istep1 in range(2336,2337,1):
   vizB.correct_path_load_data(fdir+'/out_xtau_ts'+str(istep)+'.py')
   vizB.correct_path_load_data(fdir+'/out_xtauold_ts'+str(istep)+'.py')
   vizB.correct_path_load_data(fdir+'/out_xPVcoeff_ts'+str(istep)+'.py')
-  vizB.correct_path_load_data(fdir+'/out_xplast_ts'+str(istep)+'.py')
   vizB.correct_path_load_data(fdir+'/out_resPV_ts'+str(istep)+'.py')
   vizB.correct_path_load_data(fdir+'/out_resT_ts'+str(istep)+'.py')
   vizB.correct_path_load_data(fdir+'/out_resphi_ts'+str(istep)+'.py')
@@ -141,7 +139,6 @@ for istep1 in range(2336,2337,1):
   A.Plith = vizB.parse_Element_file('out_xPlith_ts'+str(istep),fdir)
   A.DP    = vizB.parse_Element_file('out_xDP_ts'+str(istep),fdir)
   A.DPold = vizB.parse_Element_file('out_xDPold_ts'+str(istep),fdir)
-  A.dotlam= vizB.parse_Element_file('out_xplast_ts'+str(istep),fdir)
   A.P, A.Vsx, A.Vsz = vizB.parse_PV_file('out_xPV_ts'+str(istep),fdir)
   A.P_res, A.Vsx_res, A.Vsz_res = vizB.parse_PV_file('out_resPV_ts'+str(istep),fdir)
   A.T_res = vizB.parse_Element_file('out_resT_ts'+str(istep),fdir)
@@ -214,10 +211,11 @@ for istep1 in range(2336,2337,1):
   ax.grid(True)
   ax.set_xlabel(r'$P$ [MPa]')
   ax.set_ylabel('z [km]')
+  ax.set_title('tstep = '+str(istep), fontweight='bold')
 
   iplot +=1
   ax = plt.subplot(1,nplots,iplot)
-  ax.plot(A.DP[:,i]*scal_P,A.grid.zc*scal_x,'k-')
+  ax.plot(A.DP[:,i]*scal_P,A.grid.zc*scal_x,'r-')
   ax.grid(True)
   ax.set_xlabel(r'$\Delta P$ [MPa]')
   # ax.set_ylabel('z [km]')
@@ -238,14 +236,14 @@ for istep1 in range(2336,2337,1):
 
   iplot +=1
   ax = plt.subplot(1,nplots,iplot)
-  ax.plot(A.divVs[:,i]*scal_v_ms/scal_x_m,A.grid.zc*scal_x,'k-')
+  ax.plot(A.divVs[:,i]*scal_v_ms/scal_x_m,A.grid.zc*scal_x,'r-')
   ax.grid(True)
   ax.set_xlabel(r'$\nabla\cdot v_s$ [1/s]')
   # ax.set_ylabel('z [km]')
 
   iplot +=1
   ax = plt.subplot(1,nplots,iplot)
-  ax.plot((A.divVs[:,i] - A.DPold[:,i]*A.phis[:,i]/A.nd.dt/A.matProp.Z[:,i])*scal_v_ms/scal_x_m,A.grid.zc*scal_x,'k-')
+  ax.plot((A.divVs[:,i] - A.DPold[:,i]*A.phis[:,i]/A.nd.dt/A.matProp.Z[:,i])*scal_v_ms/scal_x_m,A.grid.zc*scal_x,'r-')
   ax.grid(True)
   ax.set_xlabel(r'$\mathcal{C}p$ [1/s]')
   # ax.set_ylabel('z [km]')
@@ -259,7 +257,7 @@ for istep1 in range(2336,2337,1):
 
   iplot +=1
   ax = plt.subplot(1,nplots,iplot)
-  ax.plot(np.log10(A.matProp.zeta[:,i]*scal_eta),A.grid.zc*scal_x,'k-')
+  ax.plot(np.log10(A.matProp.zeta[:,i]*scal_eta),A.grid.zc*scal_x,'r-')
   ax.grid(True)
   ax.set_xlabel(r'log10($\zeta_{eff}$) [Pa s]')
   # ax.set_ylabel('z [km]')
@@ -268,7 +266,7 @@ for istep1 in range(2336,2337,1):
   X[X<1e-20] = 1e-20
   iplot +=1
   ax = plt.subplot(1,nplots,iplot)
-  ax.plot(np.log10(X[:,i]),A.grid.zc*scal_x,'k-')
+  ax.plot(np.log10(X[:,i]),A.grid.zc*scal_x,'r-')
   ax.grid(True)
   ax.set_xlabel(r'log10($\phi$)')
   # ax.set_ylabel('z [km]')

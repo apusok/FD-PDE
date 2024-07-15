@@ -186,7 +186,7 @@ PetscErrorCode SetInitialPorosityField(void *ctx)
   sigma   = usr->par->sigma_bc;   // 0.1 - 0.001;
   sigma_v = 1e-3;
 
-  if (usr->par->model_setup==10) sigma_v = 1e-4;
+  // if (usr->par->model_setup==10) sigma_v = 1e-4;
 
   xc = 0.0;
   zc = usr->nd->zmin+usr->nd->H*0.2; 
@@ -207,6 +207,8 @@ PetscErrorCode SetInitialPorosityField(void *ctx)
       xp = coordx[i][icenter] - xc;
       zp = coordz[j][icenter] - zc;
       phi = usr->par->phi0 + phi_max*PetscExpScalar(-xp*xp/sigma - zp*zp/sigma_v);
+
+      // if (usr->par->model_setup==10) phi = usr->par->phi0 + phi_max*PetscExpScalar(- zp*zp/sigma_v);
 
       xx[j][i][iE] = 1.0-phi; 
 
