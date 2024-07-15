@@ -292,7 +292,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->tmax, 1.0e6, "tmax", "Maximum time [yr]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->dtmax, 1.0e3, "dtmax", "Maximum time step size [yr]"); CHKERRQ(ierr);
 
-  ierr = PetscBagRegisterInt(bag, &par->rheology,0, "rheology", "0-VEP 1-VEVP (AveragePhase)"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->rheology,0, "rheology", "0-VEP 1-VEVP (AveragePhase) 2-VEVP (DominantPhase)"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->two_phase,0, "two_phase", "0-single (Stokes) 1-two_phase (StokesDarcy)"); CHKERRQ(ierr);
   
   // boolean options

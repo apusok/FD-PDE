@@ -173,6 +173,7 @@ PetscScalar PoroElasticModulus(PetscScalar,PetscScalar);
 PetscScalar TensorSecondInvariant(PetscScalar,PetscScalar,PetscScalar);
 PetscScalar ViscosityHarmonicAvg(PetscScalar,PetscScalar,PetscScalar); 
 
+PetscErrorCode VEVP_hyper_sol_Y(PetscInt, PetscScalar,PetscScalar, PetscScalar, PetscScalar, PetscScalar, PetscScalar, PetscScalar, PetscScalar, PetscScalar[],PetscScalar[], PetscScalar[]);
 PetscErrorCode Plastic_LocalSolver(PetscScalar*,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,void*,PetscScalar[]);
 PetscScalar AlphaP(PetscScalar,PetscScalar);
 
