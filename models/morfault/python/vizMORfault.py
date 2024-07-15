@@ -2061,6 +2061,93 @@ def plot_mark_eps_phi(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
   plt.close()
 
 # ---------------------------------
+def plot_mark_eps_phi_column3(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
+  fig = plt.figure(1,figsize=(10,15))
+
+  scalx = get_scaling(A,'x',dim,1)
+  scalv = get_scaling(A,'v',dim,1)
+  lblx = get_label(A,'x',dim)
+  lblz = get_label(A,'z',dim)
+  scalt = get_scaling(A,'t',dim,1)
+  t = A.nd.t*scalt
+  
+  markx = A.mark.x[A.mark.id==0]
+  markz = A.mark.z[A.mark.id==0]
+
+  extentE=[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zc[jstart:jend  ])*scalx, max(A.grid.zc[jstart:jend  ])*scalx]
+  extentV=[min(A.grid.xv[istart:iend+1])*scalx, max(A.grid.xv[istart:iend+1])*scalx, min(A.grid.zv[jstart:jend+1])*scalx, max(A.grid.zv[jstart:jend+1])*scalx]
+
+  ax = plt.subplot(1,3,1)
+  # cmap1 = 'cividis'
+  # cmap1 = 'viridis'
+  cmap1 = 'binary_r'
+  im = ax.scatter(A.mark.x*scalx,A.mark.z*scalx,c=A.mark.id,s=0.5,linewidths=None,cmap=cmap1)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.70)
+  cbar.ax.set_title('id')
+  ax.set_xlim(min(A.grid.xv[istart:iend]*scalx), max(A.grid.xv[istart:iend]*scalx))
+  ax.set_ylim(min(A.grid.zv[istart:iend]*scalx), max(A.grid.zv[istart:iend]*scalx))
+  # ax.set_aspect('equal')
+  ax.set_title('PIC'+' tstep = '+str(istep)+' time = '+str(round(t/1.0e3,0))+' [kyr]', fontweight='bold')
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+
+  maxV = 1
+  nind = 10 # 10 for high res/ 5 for low res
+  Q  = ax.quiver(A.grid.xc[istart:iend:nind]*scalx, A.grid.zc[jstart:jend:nind]*scalx, A.Vscx[jstart:jend:nind,istart:iend:nind]*scalv/maxV, A.Vscz[jstart:jend:nind,istart:iend:nind]*scalv/maxV, 
+      color='black', scale_units='xy', scale=0.25, units='width', pivot='tail', width=0.003, headwidth=5, headaxislength=5, minlength=0)
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+
+
+  ax = plt.subplot(1,3,2)
+  lblII  = get_label(A,'epsII',dim)
+  scal = get_scaling(A,'eps',dim,0)
+  # cmap1 = cm.broc_r
+  X4 = A.eps.II_corner*scal
+  # plot_standard(fig,ax,X4,extentV,'CORNER: '+lblII+' tstep = '+str(istep),lblx,lblz,0,0)
+  # im = ax.imshow(np.log10(X4[jstart:jend  ,istart:iend  ]),extent=extentV,cmap='seismic',origin='lower')
+  im = ax.imshow(X4[jstart:jend  ,istart:iend  ],extent=extentV,cmap='seismic',origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  # im.set_clim(-16,-13)
+  im.set_clim(1e-16,1e-13)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.70)
+  ax.axis('image')
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  # ax.set_title('log10 '+lblII)
+  ax.set_title(lblII)
+
+  ax = plt.subplot(1,3,3)
+  X = 1.0 - A.phis
+  X[X<1e-10] = 1e-10
+  # X[X>1e-10] = 1e-10
+  cmap1 = plt.cm.get_cmap('inferno', 20)
+  im = ax.imshow(np.log10(X[jstart:jend  ,istart:iend  ]),extent=extentE,cmap=cmap1,origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(-6,-1)
+  cbar = fig.colorbar(im,ax=ax, shrink=0.70)
+  ax.axis('image')
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  ax.set_title(r'log$_{10}\phi$')
+
+  # temperature contour
+  X = scale_TC(A,'T','T',dim,1)
+  cmap1 = plt.cm.get_cmap('binary',10)
+
+  if (dim):
+    levels = [0, 250, 500, 750, 1000, 1300, 1500]
+    fmt = r'%0.0f $^o$C'
+    ts = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, X[jstart:jend  ,istart:iend  ], levels=levels,linewidths=(1.0,), extend='both',cmap=cmap1)
+    ax.clabel(ts, fmt=fmt, fontsize=10)
+
+  # plt.tight_layout() 
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
 def plot_def_mechanisms(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
   make_dir(fdir)
   fig = plt.figure(1,figsize=(14,5))

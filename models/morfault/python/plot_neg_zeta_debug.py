@@ -29,7 +29,7 @@ def sortTimesteps(tdir):
 
 # Parameters
 A.dimensional = 1 # 0-nd, 1-dim
-sim = 'run37_flow_dike_dt1e2_etaK1e20_abs/'
+sim = 'run37_flow_dike_dt5e1_etaK1e20/'
 A.input = '../'+sim
 A.output_path_dir = '../Figures/'+sim
 A.path_dir = './'
@@ -97,7 +97,7 @@ print('  >> '+A.output_dir)
 
 # Loop over timesteps
 # for istep in time_list:
-for istep1 in range(1000,1201,1):
+for istep1 in range(2336,2337,1):
   istep = time_list[istep1]
 
   fdir  = A.input_dir+'Timestep'+str(istep)
@@ -163,7 +163,7 @@ for istep1 in range(1000,1201,1):
 
   # print values
   i = int(A.nx/2)
-  j = 47
+  j = 54
   dim = 1
   scal_eta = vizB.get_scaling(A,'eta',dim,0)
   scal_P = vizB.get_scaling(A,'P',dim,1)
@@ -173,34 +173,36 @@ for istep1 in range(1000,1201,1):
   scal_x_m = vizB.get_scaling(A,'x',dim,0)
   scal_t = vizB.get_scaling(A,'t',dim,1)
   scal_Kphi = vizB.get_scaling(A,'Kphi',dim,0)
-  # print('zeta = ',A.matProp.zeta[j,i]*scal_eta,' Pa s')
-  # zetaVE = 1.0/(1.0/A.matProp.zetaV[j,i]+1.0/A.matProp.zetaE[j,i])
-  # print('zeta_VE = ',zetaVE*scal_eta,' Pa s')
-  # phis = A.phis[j,i]
-  # print('phis = ',phis)
-  # print('DP = ',A.DP[j,i]*scal_P,' MPa')
-  # print('DP_old = ',A.DPold[j,i]*scal_P,' MPa')
-  # print('Z = ',A.matProp.Z[j,i]*scal_P,' MPa')
-  # print('divVs = ',A.divVs[j,i])
-  # print('dt = ',A.nd.dt*scal_t)
+  
+  zetaVE = 1.0/(1.0/A.matProp.zetaV[j,i]+1.0/A.matProp.zetaE[j,i])
+  phis = A.phis[j,i]
+  curlyCp = A.divVs[j,i] - A.DPold[j,i]*phis/A.nd.dt/A.matProp.Z[j,i]
 
-  # print('Nondimensional:')
-  # print('zeta = ',A.matProp.zeta[j,i])
-  # zetaVE = 1.0/(1.0/A.matProp.zetaV[j,i]+1.0/A.matProp.zetaE[j,i])
-  # print('zeta_VE = ',zetaVE)
-  # phis = A.phis[j,i]
-  # print('phis = ',phis)
-  # print('phi = ',1.0-phis)
-  # print('DP = ',A.DP[j,i])
-  # print('DP_old = ',A.DPold[j,i])
-  # print('Z = ',A.matProp.Z[j,i])
-  # print('divVs = ',A.divVs[j,i])
-  # print('dt = ',A.nd.dt)
-  # curlyCp = A.divVs[j,i] - A.DPold[j,i]*phis/A.nd.dt/A.matProp.Z[j,i]
-  # print('curlyCp =',curlyCp)
-  # print('x =',A.grid.xc[i]*scal_x)
-  # print('z =',A.grid.zc[j]*scal_x)
-  # print('Kphi =',A.matProp.Kphi[j,i]*scal_Kphi)
+  print('\nDimensional:')
+  print('zeta = ',A.matProp.zeta[j,i]*scal_eta,' Pa s')
+  print('zeta_VE = ',zetaVE*scal_eta,' Pa s')
+  print('phis = ',phis)
+  print('DP = ',A.DP[j,i]*scal_P,' MPa')
+  print('DP_old = ',A.DPold[j,i]*scal_P,' MPa')
+  print('Z = ',A.matProp.Z[j,i]*scal_P,' MPa')
+  print('divVs = ',A.divVs[j,i]*scal_v_ms/scal_x_m)
+  print('curlyCp =',curlyCp*scal_v_ms/scal_x_m)
+  print('dt = ',A.nd.dt*scal_t)
+
+  print('\nNondimensional:')
+  print('zeta = ',A.matProp.zeta[j,i])
+  print('zeta_VE = ',zetaVE)
+  print('phis = ',phis)
+  print('phi = ',1.0-phis)
+  print('DP = ',A.DP[j,i])
+  print('DP_old = ',A.DPold[j,i])
+  print('Z = ',A.matProp.Z[j,i])
+  print('divVs = ',A.divVs[j,i])
+  print('dt = ',A.nd.dt)
+  print('curlyCp =',curlyCp)
+  print('x =',A.grid.xc[i]*scal_x)
+  print('z =',A.grid.zc[j]*scal_x)
+  print('Kphi =',A.matProp.Kphi[j,i]*scal_Kphi)
 
   nplots = 11
   iplot = 0

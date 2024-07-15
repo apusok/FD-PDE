@@ -755,7 +755,7 @@ PetscErrorCode FormBCList_T(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   for (k=0; k<n_bc; k++) {
     // value_bc[k] = usr->nd->Tbot;
     
-    if ((usr->par->model_setup<=1) || (usr->par->model_setup==3) || (usr->par->model_setup==5)) age = usr->par->age*1.0e6*SEC_YEAR; // constant age
+    if ((usr->par->model_setup<=1) || (usr->par->model_setup==3) || (usr->par->model_setup==5) || (usr->par->model_setup==10)) age = usr->par->age*1.0e6*SEC_YEAR; // constant age
     else age  = usr->par->age*1.0e6*SEC_YEAR + dim_param(fabs(x_bc[2*k]),usr->scal->x)/dim_param(usr->nd->Vext,usr->scal->v); // variable age
 
     Tbot = HalfSpaceCoolingTemp(usr->par->Tbot,usr->par->Ttop,usr->par->H-usr->par->Hs,usr->scal->kappa,age,usr->par->hs_factor); 

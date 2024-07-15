@@ -23,7 +23,7 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ct
   // initialize constant solid porosity field
   ierr = VecSet(usr->xphi,1.0-usr->par->phi0); CHKERRQ(ierr);
 
-  if ((usr->par->model_setup==5) || (usr->par->model_setup==6)) {
+  if ((usr->par->model_setup==5) || (usr->par->model_setup==6) || (usr->par->model_setup==10)) {
     ierr = SetInitialPorosityField(usr);CHKERRQ(ierr);
   }
   
@@ -129,7 +129,7 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
     for (i = sx; i <sx+nx; i++) {
       PetscScalar age, T, nd_T, xp, zp, rp;
       
-      if ((usr->par->model_setup<=1) || (usr->par->model_setup==3) || (usr->par->model_setup==5)) age = usr->par->age*1.0e6*SEC_YEAR; // constant age in Myr
+      if ((usr->par->model_setup<=1) || (usr->par->model_setup==3) || (usr->par->model_setup==5) || (usr->par->model_setup==10)) age = usr->par->age*1.0e6*SEC_YEAR; // constant age in Myr
       else age  = usr->par->age*1.0e6*SEC_YEAR + dim_param(fabs(coordx[i][icenter]),usr->scal->x)/dim_param(usr->nd->Vext,usr->scal->v); // age varying with distance from axis + initial age
 
       // half-space cooling temperature - take into account free surface
@@ -185,6 +185,8 @@ PetscErrorCode SetInitialPorosityField(void *ctx)
   phi_max = usr->par->phi_max_bc; // 1e-3;
   sigma   = usr->par->sigma_bc;   // 0.1 - 0.001;
   sigma_v = 1e-3;
+
+  if (usr->par->model_setup==10) sigma_v = 1e-4;
 
   xc = 0.0;
   zc = usr->nd->zmin+usr->nd->H*0.2; 

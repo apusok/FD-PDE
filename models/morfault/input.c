@@ -308,7 +308,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   ierr = PetscBagRegisterInt(bag, &par->rheology,0, "rheology", "0-VEP 1-VEVP (AveragePhase)"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->two_phase,0, "two_phase", "0-single (Stokes) 1-two_phase (StokesDarcy)"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->model_setup,0, "model_setup", "0-mechanical seed, 1-thermal seed, 2-var age, 3-const age, 4-const T, 5-source, const age, 6-source, age"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->model_setup,0, "model_setup", "0-mechanical seed, 1-thermal seed, 2-var age, 3-const age, 4-const T, 5-source, const age, 6-source, age, 10-column"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->inflow_bc,0, "inflow_bc", "0-bottom, 1-top and bottom"); CHKERRQ(ierr);
   
   // boolean options
