@@ -172,31 +172,36 @@ def parse_parameters_file(fname,fdir):
     # Sort data
     scal = EmptyStruct()
     scal.SEC_YEAR = 31536000
+    scal.T_KELVIN = 273.15
+    scal.g = 9.8
 
     scal.x = data['scalx'][0]
-    scal.v = data['scalv'][0]
-    scal.t = data['scalt'][0]
-    scal.K = data['scalK'][0]
-    scal.P = data['scalP'][0]
     scal.eta = data['scaleta'][0]
     scal.rho = data['scalrho'][0]
-    scal.H = data['scalH'][0]
+    scal.v = data['scalv'][0]
+    scal.t = data['scalt'][0]
+    scal.DT = data['scalDT'][0]
+    scal.P = data['scaltau'][0]
+    scal.kappa = data['scalkappa'][0]
+    scal.kT = data['scalkT'][0]
+    scal.Kphi = data['scalkphi'][0]
     scal.Gamma = data['scalGamma'][0]
-    scal.C0 = data['C0'][0]
-    scal.DC = data['DC'][0]
-    scal.T0 = data['T0'][0]
-    scal.DT = data['DT'][0]
+    scal.T0 = scal.T_KELVIN
+    scal.eps = scal.v/scal.x
 
     nd = EmptyStruct()
     nd.L = data['L'][0]
     nd.H = data['H'][0]
     nd.xmin = data['xmin'][0]
     nd.zmin = data['zmin'][0]
-    nd.xsill = data['xsill'][0]
-    nd.U0 = data['U0'][0]
-    nd.visc_ratio = data['visc_ratio'][0]
+    nd.Hs = data['Hs'][0]
+    nd.Vext = data['Vext'][0]
+    nd.Vin = data['Vin'][0]
+    nd.Tbot = data['Tbot'][0]
+    nd.Ttop = data['Ttop'][0]
     nd.eta_min = data['eta_min'][0]
     nd.eta_max = data['eta_max'][0]
+    nd.eta_K = data['eta_K'][0]
     nd.istep = data['istep'][0]
     nd.t = data['t'][0]
     nd.dt = data['dt'][0]
@@ -204,15 +209,9 @@ def parse_parameters_file(fname,fdir):
     nd.dtmax = data['dtmax'][0]
 
     nd.delta = data['delta'][0]
-    nd.alpha_s = data['alpha_s'][0]
-    nd.beta_s = data['beta_s'][0]
-    nd.A = data['A'][0]
-    nd.S = data['S'][0]
-    nd.PeT = data['PeT'][0]
-    nd.PeC = data['PeC'][0]
-    nd.thetaS = data['thetaS'][0]
-    nd.G = data['G'][0]
-    nd.RM = data['RM'][0]
+    nd.R = data['R'][0]
+    nd.Ra = data['Ra'][0]
+    nd.Gamma = data['Gamma'][0]
 
     # geoscal
     geoscal = EmptyStruct()
@@ -393,6 +392,25 @@ def create_labels():
 
     return lbl
   except OSError:
+    return 0.0
+
+# ---------------------------------
+def parse_time_info_parameters_file(fname,fdir):
+  try: 
+    # Load output data including directory or path
+    spec = importlib.util.spec_from_file_location(fname,fdir+'/'+fname+'.py')
+    imod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(imod)
+    data = imod._PETScBinaryLoad()
+
+    # Split data
+    istep = data['istep'][0]
+    t = data['t'][0]
+    dt = data['dt'][0]
+
+    return istep, dt, t
+  except OSError:
+    print('Cannot open: '+fdir+'/'+fname+'.py')
     return 0.0
 
 # ---------------------------------
@@ -1608,12 +1626,14 @@ def plot_phi(A,istart,iend,jstart,jend,fname,istep,dim):
 def plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,fname,istep,dim):
 
   fig = plt.figure(1,figsize=(28,5))
-  t = istep
+  
 
   scalx = get_scaling(A,'x',dim,1)
   scalv = get_scaling(A,'v',dim,1)
   lblx = get_label(A,'x',dim)
   lblz = get_label(A,'z',dim)
+  scalt = get_scaling(A,'t',dim,1)
+  t = A.nd.t*scalt
 
   extentE=[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zc[jstart:jend  ])*scalx, max(A.grid.zc[jstart:jend  ])*scalx]
   extentV=[min(A.grid.xv[istart:iend+1])*scalx, max(A.grid.xv[istart:iend+1])*scalx, min(A.grid.zv[jstart:jend+1])*scalx, max(A.grid.zv[jstart:jend+1])*scalx]
@@ -1625,7 +1645,7 @@ def plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,fname,istep,dim):
   ax.set_xlim(min(A.grid.xv[istart:iend]*scalx), max(A.grid.xv[istart:iend]*scalx))
   ax.set_ylim(min(A.grid.zv[istart:iend]*scalx), max(A.grid.zv[istart:iend]*scalx))
   ax.set_aspect('equal')
-  ax.set_title('PIC'+' tstep = '+str(istep)+' time = '+str(t)+' [kyr]', fontweight='bold')
+  ax.set_title('PIC'+' tstep = '+str(istep)+' time = '+str(round(t/1.0e3,0))+' [kyr]', fontweight='bold')
   ax.set_xlabel(lblx)
   ax.set_ylabel(lblz)
 
@@ -1659,12 +1679,13 @@ def plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,fname,istep,dim):
 def plot_mark_eta_eps_tau2(A,istart,iend,jstart,jend,fname,istep,dim):
   
   fig = plt.figure(1,figsize=(14,10))
-  t = istep
 
   scalx = get_scaling(A,'x',dim,1)
   scalv = get_scaling(A,'v',dim,1)
   lblx = get_label(A,'x',dim)
   lblz = get_label(A,'z',dim)
+  scalt = get_scaling(A,'t',dim,1)
+  t = A.nd.t*scalt
 
   extentE=[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zc[jstart:jend  ])*scalx, max(A.grid.zc[jstart:jend  ])*scalx]
   extentV=[min(A.grid.xv[istart:iend+1])*scalx, max(A.grid.xv[istart:iend+1])*scalx, min(A.grid.zv[jstart:jend+1])*scalx, max(A.grid.zv[jstart:jend+1])*scalx]
@@ -1676,7 +1697,7 @@ def plot_mark_eta_eps_tau2(A,istart,iend,jstart,jend,fname,istep,dim):
   ax.set_xlim(min(A.grid.xv[istart:iend]*scalx), max(A.grid.xv[istart:iend]*scalx))
   ax.set_ylim(min(A.grid.zv[istart:iend]*scalx), max(A.grid.zv[istart:iend]*scalx))
   ax.set_aspect('equal')
-  ax.set_title('PIC'+' tstep = '+str(istep)+' time = '+str(t)+' [kyr]', fontweight='bold')
+  ax.set_title('PIC'+' tstep = '+str(istep)+' time = '+str(round(t/1.0e3,0))+' [kyr]', fontweight='bold')
   ax.set_xlabel(lblx)
   ax.set_ylabel(lblz)
 
@@ -1717,12 +1738,13 @@ def plot_mark_eta_eps_tau2(A,istart,iend,jstart,jend,fname,istep,dim):
 def plot_mark_eta_eps_tau_T_phi(A,istart,iend,jstart,jend,fname,istep,dim):
   
   fig = plt.figure(1,figsize=(21,8))
-  t = istep
 
   scalx = get_scaling(A,'x',dim,1)
   scalv = get_scaling(A,'v',dim,1)
   lblx = get_label(A,'x',dim)
   lblz = get_label(A,'z',dim)
+  scalt = get_scaling(A,'t',dim,1)
+  t = A.nd.t*scalt
 
   extentE=[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zc[jstart:jend  ])*scalx, max(A.grid.zc[jstart:jend  ])*scalx]
   extentV=[min(A.grid.xv[istart:iend+1])*scalx, max(A.grid.xv[istart:iend+1])*scalx, min(A.grid.zv[jstart:jend+1])*scalx, max(A.grid.zv[jstart:jend+1])*scalx]
@@ -1734,7 +1756,7 @@ def plot_mark_eta_eps_tau_T_phi(A,istart,iend,jstart,jend,fname,istep,dim):
   ax.set_xlim(min(A.grid.xv[istart:iend]*scalx), max(A.grid.xv[istart:iend]*scalx))
   ax.set_ylim(min(A.grid.zv[istart:iend]*scalx), max(A.grid.zv[istart:iend]*scalx))
   ax.set_aspect('equal')
-  ax.set_title('PIC'+' tstep = '+str(istep)+' time = '+str(t)+' [kyr]', fontweight='bold')
+  ax.set_title('PIC'+' tstep = '+str(istep)+' time = '+str(round(t/1.0e3,0))+' [kyr]', fontweight='bold')
   ax.set_xlabel(lblx)
   ax.set_ylabel(lblz)
 
