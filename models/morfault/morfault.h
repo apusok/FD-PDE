@@ -149,7 +149,6 @@ PetscErrorCode FormCoefficient_T(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode RheologyPointwise(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
 PetscErrorCode RheologyPointwise_VEP(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
 PetscErrorCode RheologyPointwise_VEVP(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
-PetscErrorCode RheologyPointwise_VEVP_DominantPhase(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
 PetscErrorCode DecompactRheologyVars(PetscInt,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,
                                      PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,
                                      PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*);
@@ -172,10 +171,7 @@ PetscScalar Mixture(PetscScalar,PetscScalar,PetscScalar);
 PetscScalar PoroElasticModulus(PetscScalar,PetscScalar);
 PetscScalar TensorSecondInvariant(PetscScalar,PetscScalar,PetscScalar);
 PetscScalar ViscosityHarmonicAvg(PetscScalar,PetscScalar,PetscScalar); 
-
-PetscErrorCode VEVP_hyper_sol_Y(PetscInt, PetscScalar,PetscScalar, PetscScalar, PetscScalar, PetscScalar, PetscScalar, PetscScalar, PetscScalar, PetscScalar[],PetscScalar[], PetscScalar[]);
 PetscErrorCode Plastic_LocalSolver(PetscScalar*,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,void*,PetscScalar[]);
-// PetscScalar AlphaP(PetscScalar,PetscScalar);
 
 // utils
 PetscErrorCode SetSwarmInitialCondition(DM,void*);
