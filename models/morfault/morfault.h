@@ -193,6 +193,7 @@ PetscErrorCode UpdateMarkerPhaseFractions(DM,DM,Vec,void*);
 PetscErrorCode UpdateLithostaticPressure(DM,Vec,void*);
 PetscErrorCode DoOutput(FDPDE,FDPDE,FDPDE,void*);
 PetscErrorCode UpdateStrainRates(DM,Vec,void*);
+PetscErrorCode UpdateStrainRates_Array(DM,Vec,void*);
 PetscErrorCode IntegratePlasticStrain(DM,Vec,Vec,void*);
 PetscErrorCode ComputeFluidAndBulkVelocity(DM,Vec,DM,Vec,DM,Vec,DM,Vec,void*);
 PetscErrorCode LiquidVelocityExplicitTimestep(DM,Vec,PetscScalar*);

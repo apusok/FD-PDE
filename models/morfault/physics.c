@@ -42,7 +42,8 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
   ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
 
   // Strain rates
-  ierr = UpdateStrainRates(dm,x,usr); CHKERRQ(ierr);
+  // ierr = UpdateStrainRates(dm,x,usr); CHKERRQ(ierr);
+  ierr = UpdateStrainRates_Array(dm,x,usr); CHKERRQ(ierr);
   ierr = DMGetLocalVector(usr->dmeps, &xepslocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (usr->dmeps, usr->xeps, INSERT_VALUES, xepslocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArrayRead(usr->dmeps,xepslocal,&_eps);CHKERRQ(ierr);
@@ -503,7 +504,8 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
   ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
 
   // Strain rates
-  ierr = UpdateStrainRates(dm,x,usr); CHKERRQ(ierr);
+  // ierr = UpdateStrainRates(dm,x,usr); CHKERRQ(ierr);
+  ierr = UpdateStrainRates_Array(dm,x,usr); CHKERRQ(ierr);
   ierr = DMGetLocalVector(usr->dmeps, &xepslocal); CHKERRQ(ierr);
   ierr = DMGlobalToLocal (usr->dmeps, usr->xeps, INSERT_VALUES, xepslocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArrayRead(usr->dmeps,xepslocal,&_eps);CHKERRQ(ierr);
