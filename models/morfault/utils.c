@@ -391,6 +391,60 @@ PetscErrorCode UpdateMarkerPhaseFractions(DM dmswarm, DM dmMPhase, Vec xMPhase, 
 }
 
 // ---------------------------------------
+// GetMarkerDensityPerCell
+// Note: can be extended to retrieve count and array of cell ids with nmark < nmark_threshold 
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "GetMarkerDensityPerCell"
+PetscErrorCode GetMarkerDensityPerCell(DM dmswarm, DM dm, PetscInt nmark[2])
+{
+  PetscInt       p, npoints, ncell, *pcellid, *cnt, Nx, Nz;
+  Vec            xlocal;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  ierr = DMSwarmGetSize(dmswarm,&npoints);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&pcellid);CHKERRQ(ierr);
+  ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
+  ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
+  ierr = VecGetSize(xlocal,&ncell);CHKERRQ(ierr);
+  ierr = PetscCalloc1(ncell,&cnt);CHKERRQ(ierr);
+
+  // count markers/cell
+  for (p=0; p<npoints; p++) {
+    PetscInt cellid = -1;
+    cellid = pcellid[p];
+    cnt[cellid] += 1.0;
+  }
+
+  // get min/max 
+  PetscInt lmin, lmax, gmin = 0, gmax = 0;
+  lmin = 1000;
+  lmax = 0;
+  for (p=0; p<ncell; p++) {
+    PetscBool in_global_space;
+    ierr = DMStagLocalElementIndexInGlobalSpace_2d(dm,p,&in_global_space);CHKERRQ(ierr);
+    if (in_global_space) {
+      if (cnt[p]<lmin) lmin = cnt[p];
+      if (cnt[p]>lmax) lmax = cnt[p];
+    }
+  }
+
+  // MPI exchange global min/max
+  ierr = MPI_Allreduce(&lmin,&gmin,1,MPI_INT,MPI_MIN,PetscObjectComm((PetscObject)dm));CHKERRQ(ierr);
+  ierr = MPI_Allreduce(&lmax,&gmax,1,MPI_INT,MPI_MAX,PetscObjectComm((PetscObject)dm));CHKERRQ(ierr);
+
+  ierr = DMSwarmRestoreField(dmswarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&pcellid);CHKERRQ(ierr);
+  ierr = PetscFree(cnt);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm, &xlocal); CHKERRQ(ierr);
+
+  nmark[0] = gmin;
+  nmark[1] = gmax;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
 // Update Lithostatic pressure
 // ---------------------------------------
 PetscErrorCode UpdateLithostaticPressure(DM dm, Vec x, void *ctx)
@@ -524,8 +578,8 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdT, void *ctx)
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xDP_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(usr->dmPlith,usr->xDP,fout);CHKERRQ(ierr);
 
-  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xDPold_ts%d",usr->par->fdir_out,usr->nd->istep);
-  // ierr = DMStagViewBinaryPython(usr->dmPlith,usr->xDP_old,fout);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xDPold_ts%d",usr->par->fdir_out,usr->nd->istep);
+  ierr = DMStagViewBinaryPython(usr->dmPlith,usr->xDP_old,fout);CHKERRQ(ierr);
 
   // strain rates, stresses, dotlam
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xeps_ts%d",usr->par->fdir_out,usr->nd->istep);
@@ -534,8 +588,8 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdT, void *ctx)
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xtau_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(usr->dmeps,usr->xtau,fout);CHKERRQ(ierr);
 
-  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xtauold_ts%d",usr->par->fdir_out,usr->nd->istep);
-  // ierr = DMStagViewBinaryPython(usr->dmeps,usr->xtau_old,fout);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xtauold_ts%d",usr->par->fdir_out,usr->nd->istep);
+  ierr = DMStagViewBinaryPython(usr->dmeps,usr->xtau_old,fout);CHKERRQ(ierr);
 
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xplast_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(usr->dmPlith,usr->xplast,fout);CHKERRQ(ierr);
@@ -1011,30 +1065,12 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, void *ctx)
   ierr = VecCopy(x,fdT->r);CHKERRQ(ierr);
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
-  
-  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPlith_ts%d",usr->par->fdir_out,usr->nd->istep);
-  // ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  // ierr = VecCopy(x,usr->xPlith);CHKERRQ(ierr);
-  // ierr = VecDestroy(&x); CHKERRQ(ierr);
-  // ierr = DMDestroy(&dm); CHKERRQ(ierr);
-  
+
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xDP_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
   ierr = VecCopy(x,usr->xDP_old);CHKERRQ(ierr);
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
-
-  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xDPold_ts%d",usr->par->fdir_out,usr->nd->istep);
-  // ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  // ierr = VecCopy(x,usr->xDP_old);CHKERRQ(ierr);
-  // ierr = VecDestroy(&x); CHKERRQ(ierr);
-  // ierr = DMDestroy(&dm); CHKERRQ(ierr);
-
-  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xeps_ts%d",usr->par->fdir_out,usr->nd->istep);
-  // ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  // ierr = VecCopy(x,usr->xeps);CHKERRQ(ierr);
-  // ierr = VecDestroy(&x); CHKERRQ(ierr);
-  // ierr = DMDestroy(&dm); CHKERRQ(ierr);
 
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xtau_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
@@ -1042,29 +1078,11 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, void *ctx)
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
 
-  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xtauold_ts%d",usr->par->fdir_out,usr->nd->istep);
-  // ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  // ierr = VecCopy(x,usr->xtau_old);CHKERRQ(ierr);
-  // ierr = VecDestroy(&x); CHKERRQ(ierr);
-  // ierr = DMDestroy(&dm); CHKERRQ(ierr);
-
-  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xplast_ts%d",usr->par->fdir_out,usr->nd->istep);
-  // ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  // ierr = VecCopy(x,usr->xplast);CHKERRQ(ierr);
-  // ierr = VecDestroy(&x); CHKERRQ(ierr);
-  // ierr = DMDestroy(&dm); CHKERRQ(ierr);
-
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xstrain_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
   ierr = VecCopy(x,usr->xstrain);CHKERRQ(ierr);
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
-
-  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xVel_ts%d",usr->par->fdir_out,usr->nd->istep);
-  // ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  // ierr = VecCopy(x,usr->xVel);CHKERRQ(ierr);
-  // ierr = VecDestroy(&x); CHKERRQ(ierr);
-  // ierr = DMDestroy(&dm); CHKERRQ(ierr);
   
   // markers - read XDMF file
   const char     *fieldname[] = {"id"};
@@ -1078,12 +1096,10 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, void *ctx)
   ierr = VecDestroy(&xTprev);CHKERRQ(ierr);
 
   // load coefficient structure
-  // ierr = FDPDEGetCoefficient(fdT,NULL,&xTcoeff);CHKERRQ(ierr);
   ierr = FDPDEAdvDiffGetPrevCoefficient(fdT,&xTcoeffprev);CHKERRQ(ierr);
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xTcoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
   ierr = VecCopy(x,xTcoeffprev);CHKERRQ(ierr);
-  // ierr = VecCopy(x,xTcoeff);CHKERRQ(ierr);
   ierr = VecDestroy(&xTcoeffprev);CHKERRQ(ierr);
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
@@ -1095,14 +1111,13 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, void *ctx)
 }
 
 // ---------------------------------------
-// DMSwarmReadBinaryXDMF_Seq
-// WARNING: should be adapted to read nfields!
+// DMSwarmReadBinaryXDMF_Seq - Sequential read of marker XDMF files
+// WARNING: should be generalised to read nfields!
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "DMSwarmReadBinaryXDMF_Seq"
 PetscErrorCode DMSwarmReadBinaryXDMF_Seq(DM dmswarm, const char *fout, PetscInt nfield, const char *fieldname[1])
 {
-  // UsrData        *usr = (UsrData*)ctx;
   FILE           *fp;
   char           fname[FNAME_LENGTH],str[FNAME_LENGTH];
   PetscInt       i,j,nm;

@@ -189,6 +189,7 @@ PetscErrorCode LoadRestartFromFile(FDPDE, FDPDE, void*);
 PetscErrorCode OutputParameters(void*); 
 PetscErrorCode LoadParametersFromFile(void*);
 PetscErrorCode DMSwarmReadBinaryXDMF_Seq(DM,const char*,PetscInt,const char*[1]);
+PetscErrorCode GetMarkerDensityPerCell(DM,DM,PetscInt[2]);
 
 PetscErrorCode GetMatPhaseFraction(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscInt,PetscScalar*);
 PetscErrorCode GetCornerAvgFromCenter(PetscScalar*,PetscScalar*);

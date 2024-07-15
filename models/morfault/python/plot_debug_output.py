@@ -3,7 +3,7 @@ import os
 import sys
 import numpy as np
 
-# Add path to vizLABconvect
+# Add path to vizMORfault
 pathViz = './'
 sys.path.append(pathViz)
 import vizMORfault as vizB
@@ -21,7 +21,7 @@ def sortTimesteps(tdir):
 
 # Parameters
 A.dimensional = 1 # 0-nd, 1-dim
-sim = 'run15_VEVP_03_AvgPh_Plith_etaVharm_etaK1e20_sigmatC4/'
+sim = 'run26_VEVP_01_SD_def_mech/'
 iout = 0
 A.input = '../'+sim
 A.output_path_dir = '../Figures/'+sim
@@ -92,7 +92,7 @@ jstart = 0
 jend   = A.nz
 
 # Loop over timesteps
-for istep in range(iout,100001,1):
+for istep in range(iout,3001,50):
   fdir  = A.input_dir+'Timestep'+str(istep)
   print(fdir)
 
@@ -137,8 +137,8 @@ for istep in range(iout,100001,1):
   A.eps = vizB.parse_Tensor_file('out_xeps_ts'+str(istep),fdir)
   A.tau = vizB.parse_Tensor_file('out_xtau_ts'+str(istep),fdir)
   A.tauold = vizB.parse_Tensor_file('out_xtauold_ts'+str(istep),fdir)
-  # A.PVcoeff = vizB.parse_PVcoeff_file('out_xPVcoeff_ts'+str(istep),fdir)
-  A.PVcoeff = vizB.parse_PVcoeff_Stokes_file('out_xPVcoeff_ts'+str(istep),fdir)
+  A.PVcoeff = vizB.parse_PVcoeff_file('out_xPVcoeff_ts'+str(istep),fdir)
+  # A.PVcoeff = vizB.parse_PVcoeff_Stokes_file('out_xPVcoeff_ts'+str(istep),fdir)
   A.matProp = vizB.parse_matProp_file('out_matProp_ts'+str(istep),fdir)
   A.Vfx, A.Vfz, A.Vx, A.Vz = vizB.parse_Vel_file('out_xVel_ts'+str(istep),fdir)
   A.Tcoeff = vizB.parse_Tcoeff_file('out_xTcoeff_ts'+str(istep),fdir)
@@ -148,23 +148,28 @@ for istep in range(iout,100001,1):
   # Center velocities and mass divergence
   A.Vscx, A.Vscz, A.divVs = vizB.calc_center_velocities_div(A.Vsx,A.Vsz,A.grid.xv,A.grid.zv,A.nx,A.nz)
 
+  # Calculate individual deformation strain rates
+  A.rheol = vizB.calc_dom_rheology_mechanism(A)
+
   # Plots
   vizB.plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,A.output_dir+'out_mark_eta_eps_tau_ts'+str(istep),istep,A.dimensional)
+  # vizB.plot_def_mechanisms(A,istart,iend,jstart,jend,A.output_dir+'out_def_mechanisms_ts'+str(istep),istep,A.dimensional)
 
-  vizB.plot_T(A,istart,iend,jstart,jend,A.output_dir+'out_xT_ts'+str(istep),istep,A.dimensional)
-  vizB.plot_MPhase(A,istart,iend,jstart,jend,A.output_dir+'out_xMPhase_ts'+str(istep),istep,A.dimensional)
-  vizB.plot_P(A,istart,iend,jstart,jend,A.output_dir+'out_xP_ts'+str(istep),istep,A.dimensional,3)
-  vizB.plot_PV(A,istart,iend,jstart,jend,A.output_dir+'out_xPV_ts'+str(istep),istep,A.dimensional,0)
-  vizB.plot_PV(A,istart,iend,jstart,jend,A.output_dir+'out_resPV_ts'+str(istep),istep,A.dimensional,1)
-  vizB.plot_Tensor(A,istart,iend,jstart,jend,A.output_dir+'out_xeps_ts'+str(istep),istep,A.dimensional,0)
-  vizB.plot_Tensor(A,istart,iend,jstart,jend,A.output_dir+'out_xtau_ts'+str(istep),istep,A.dimensional,1)
+  # vizB.plot_T(A,istart,iend,jstart,jend,A.output_dir+'out_xT_ts'+str(istep),istep,A.dimensional)
+  # vizB.plot_MPhase(A,istart,iend,jstart,jend,A.output_dir+'out_xMPhase_ts'+str(istep),istep,A.dimensional)
+  # vizB.plot_P(A,istart,iend,jstart,jend,A.output_dir+'out_xP_ts'+str(istep),istep,A.dimensional,3)
+  # vizB.plot_PV(A,istart,iend,jstart,jend,A.output_dir+'out_xPV_ts'+str(istep),istep,A.dimensional,0)
+  # vizB.plot_PV(A,istart,iend,jstart,jend,A.output_dir+'out_resPV_ts'+str(istep),istep,A.dimensional,1)
+  # vizB.plot_Tensor(A,istart,iend,jstart,jend,A.output_dir+'out_xeps_ts'+str(istep),istep,A.dimensional,0)
+  # vizB.plot_Tensor(A,istart,iend,jstart,jend,A.output_dir+'out_xtau_ts'+str(istep),istep,A.dimensional,1)
   # vizB.plot_Tensor(A,istart,iend,jstart,jend,A.output_dir+'out_xtauold_ts'+str(istep),istep,A.dimensional,2)
   # vizB.plot_PVcoeff(A,istart,iend,jstart,jend,A.output_dir+'out_xPVcoeff_ts'+str(istep),istep,A.dimensional)
-  vizB.plot_PVcoeff_Stokes(A,istart,iend,jstart,jend,A.output_dir+'out_xPVcoeff_ts'+str(istep),istep,A.dimensional)
-  vizB.plot_matProp(A,istart,iend,jstart,jend,A.output_dir+'out_matProp_ts'+str(istep),istep,A.dimensional)
+  # vizB.plot_PVcoeff_Stokes(A,istart,iend,jstart,jend,A.output_dir+'out_xPVcoeff_ts'+str(istep),istep,A.dimensional)
+  # vizB.plot_matProp(A,istart,iend,jstart,jend,A.output_dir+'out_matProp_ts'+str(istep),istep,A.dimensional)
   # vizB.plot_Vel(A,istart,iend,jstart,jend,A.output_dir+'out_xVel_ts'+str(istep),istep,A.dimensional)
-  vizB.plot_Tcoeff(A,istart,iend,jstart,jend,A.output_dir+'out_xTcoeff_ts'+str(istep),istep,A.dimensional)
-  vizB.plot_plastic(A,istart,iend,jstart,jend,A.output_dir+'out_xplastic_ts'+str(istep),istep,A.dimensional)
+  # vizB.plot_Tcoeff(A,istart,iend,jstart,jend,A.output_dir+'out_xTcoeff_ts'+str(istep),istep,A.dimensional)
+  # vizB.plot_plastic(A,istart,iend,jstart,jend,A.output_dir+'out_xplastic_ts'+str(istep),istep,A.dimensional)
+  # vizB.plot_individual_eps(A,istart,iend,jstart,jend,A.output_dir+'out_individual_eps_ts'+str(istep),istep,A.dimensional)
 
   os.system('rm -r '+A.input_dir+'Timestep'+str(istep)+'/__pycache__')
 

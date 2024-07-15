@@ -328,7 +328,7 @@ PetscErrorCode Numerical_solution(void *ctx)
 
     // Advect markers - RK1
     PetscPrintf(PETSC_COMM_WORLD,"\n# (DMSWARM) Advect and update lithological phase fractions \n");
-    PetscInt nmark0, nmark1, nmark2;
+    PetscInt nmark0, nmark1, nmark2, nmark[2];
     ierr = DMSwarmGetSize(usr->dmswarm,&nmark0);CHKERRQ(ierr);
     ierr = MPoint_AdvectRK1(usr->dmswarm,usr->dmPV,usr->xPV,nd->dt);CHKERRQ(ierr);
     ierr = DMSwarmGetSize(usr->dmswarm,&nmark1);CHKERRQ(ierr);
@@ -336,6 +336,8 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = DMSwarmGetSize(usr->dmswarm,&nmark2);CHKERRQ(ierr);
     ierr = UpdateMarkerPhaseFractions(usr->dmswarm,usr->dmMPhase,usr->xMPhase,usr);CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"# (DMSWARM) Marker number: Initial = %d After advection = %d After influx = %d \n",nmark0,nmark1,nmark2);
+    ierr = GetMarkerDensityPerCell(usr->dmswarm,usr->dmMPhase,nmark);CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD,"# (DMSWARM) Marker density: min = %d max = %d per cell \n",nmark[0],nmark[1]);
 
     // Prepare data for next time-step
     ierr = FDPDEAdvDiffGetPrevSolution(fdT,&xTprev);CHKERRQ(ierr);
@@ -346,10 +348,6 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = VecCopy(xTcoeff,xTcoeffprev);CHKERRQ(ierr);
     ierr = VecDestroy(&xTcoeffprev);CHKERRQ(ierr);
 
-    // copy xtau, xDP to old
-    ierr = VecCopy(usr->xtau, usr->xtau_old); CHKERRQ(ierr);
-    ierr = VecCopy(usr->xDP, usr->xDP_old); CHKERRQ(ierr);
-
     // Update time
     nd->t += nd->dt;
 
@@ -357,6 +355,10 @@ PetscErrorCode Numerical_solution(void *ctx)
     if ((nd->istep % par->tout == 0 ) || (fmod(nd->t,nd->dt_out) < nd->dt)) {
       ierr = DoOutput(fdPV,fdT,usr);CHKERRQ(ierr);
     }
+
+    // copy xtau, xDP to old
+    ierr = VecCopy(usr->xtau, usr->xtau_old); CHKERRQ(ierr);
+    ierr = VecCopy(usr->xDP, usr->xDP_old); CHKERRQ(ierr);
 
     nd->istep++;
 

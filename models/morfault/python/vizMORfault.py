@@ -889,8 +889,45 @@ def calc_center_velocities_div(vx,vz,xv,zv,nx,nz):
   return vxc, vzc, divV
 
 # ---------------------------------
-def plot_standard(fig,ax,X,extent,title,lblx,lblz):
+def calc_dom_rheology_mechanism(A):
+  # A.eps,A.tau,A.tauold,A.DP,A.DPold,A.matProp,A.dotlam,A.grid.xc,A.grid.zc,A.nx,A.nz
+
+  rheol = EmptyStruct()
+  rheol.epsV_xx = 0.5*A.tau.xx_center/A.matProp.etaV
+  rheol.epsV_zz = 0.5*A.tau.zz_center/A.matProp.etaV
+  rheol.epsV_xz = 0.5*A.tau.xz_center/A.matProp.etaV
+  rheol.epsV_II = (0.5*(rheol.epsV_xx**2 + rheol.epsV_zz**2)+rheol.epsV_xz**2)**0.5
+
+  rheol.epsE_xx = 0.5*(A.tau.xx_center-A.tauold.xx_center)/A.matProp.etaE
+  rheol.epsE_zz = 0.5*(A.tau.zz_center-A.tauold.zz_center)/A.matProp.etaE
+  rheol.epsE_xz = 0.5*(A.tau.xz_center-A.tauold.xz_center)/A.matProp.etaE
+  rheol.epsE_II = (0.5*(rheol.epsE_xx**2 + rheol.epsE_zz**2)+rheol.epsE_xz**2)**0.5
+
+  rheol.epsP_xx = 0.5*A.tau.xx_center/A.matProp.etaP
+  rheol.epsP_zz = 0.5*A.tau.zz_center/A.matProp.etaP
+  rheol.epsP_xz = 0.5*A.tau.xz_center/A.matProp.etaP
+  rheol.epsP_II = (0.5*(rheol.epsP_xx**2 + rheol.epsP_zz**2)+rheol.epsP_xz**2)**0.5
+
+  rheol.volV = -A.DP/A.matProp.zetaV
+  rheol.volE = -(A.DP-A.DPold)/A.matProp.zetaE
+  rheol.volP = -A.DP/A.matProp.zetaP
+
+  # difference 
+  rheol.epsP2_II = A.eps.II_center-rheol.epsV_II-rheol.epsE_II
+  rheol.volP2    = A.divVs-rheol.volV-rheol.volE
+
+  # print(rheol.epsP_II)
+  # print(rheol.epsP_II-rheol.epsP2_II)
+  # print(rheol.volP)
+  # print(rheol.volP-rheol.volP2)
+
+  return rheol
+
+# ---------------------------------
+def plot_standard(fig,ax,X,extent,title,lblx,lblz,cmin,cmax):
   im = ax.imshow(X,extent=extent,cmap='viridis',origin='lower')
+  if (cmax-cmin!=0):
+    im.set_clim(cmin,cmax)
   fig.colorbar(im,ax=ax, shrink=0.80)
   ax.axis('image')
   ax.set_xlabel(lblx)
@@ -933,7 +970,7 @@ def plot_T(A,istart,iend,jstart,jend,fname,istep,dim):
   lbl = get_label(A,'T',dim)
 
   ax = plt.subplot(1,1,1)
-  plot_standard(fig,ax,X[jstart:jend,istart:iend],extentC,lbl+' tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,X[jstart:jend,istart:iend],extentC,lbl+' tstep = '+str(istep),lblx,lblz,0,0)
 
   # temperature contour
   if (dim):
@@ -979,22 +1016,22 @@ def plot_MPhase(A,istart,iend,jstart,jend,fname,istep,dim):
   extentV=[min(A.grid.xv[istart:iend])*scalx, max(A.grid.xv[istart:iend])*scalx, min(A.grid.zv[jstart:jend])*scalx, max(A.grid.zv[jstart:jend])*scalx]
 
   ax = plt.subplot(2,3,1)
-  plot_standard(fig,ax,A.MPhase.CornerPh0[jstart:jend,istart:iend],extentV,'Corner Ph=0 tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,A.MPhase.CornerPh0[jstart:jend,istart:iend],extentV,'Corner Ph=0 tstep = '+str(istep),lblx,lblz,0,0)
 
   ax = plt.subplot(2,3,2)
-  plot_standard(fig,ax,A.MPhase.CornerPh1[jstart:jend,istart:iend],extentV,'Corner Ph=1 tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,A.MPhase.CornerPh1[jstart:jend,istart:iend],extentV,'Corner Ph=1 tstep = '+str(istep),lblx,lblz,0,0)
 
   ax = plt.subplot(2,3,3)
-  plot_standard(fig,ax,A.MPhase.CornerPh2[jstart:jend,istart:iend],extentV,'Corner Ph=2 tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,A.MPhase.CornerPh2[jstart:jend,istart:iend],extentV,'Corner Ph=2 tstep = '+str(istep),lblx,lblz,0,0)
 
   ax = plt.subplot(2,3,4)
-  plot_standard(fig,ax,A.MPhase.CornerPh3[jstart:jend,istart:iend],extentV,'Corner Ph=3 tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,A.MPhase.CornerPh3[jstart:jend,istart:iend],extentV,'Corner Ph=3 tstep = '+str(istep),lblx,lblz,0,0)
 
   ax = plt.subplot(2,3,5)
-  plot_standard(fig,ax,A.MPhase.CornerPh4[jstart:jend,istart:iend],extentV,'Corner Ph=4 tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,A.MPhase.CornerPh4[jstart:jend,istart:iend],extentV,'Corner Ph=4 tstep = '+str(istep),lblx,lblz,0,0)
 
   ax = plt.subplot(2,3,6)
-  plot_standard(fig,ax,A.MPhase.CornerPh5[jstart:jend,istart:iend],extentV,'Corner Ph=5 tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,A.MPhase.CornerPh5[jstart:jend,istart:iend],extentV,'Corner Ph=5 tstep = '+str(istep),lblx,lblz,0,0)
 
   # plt.tight_layout() 
   plt.savefig(fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
@@ -1019,24 +1056,24 @@ def plot_P(A,istart,iend,jstart,jend,fname,istep,dim,iplot):
 
   if (iplot==1):
     ax = plt.subplot(1,1,1)
-    plot_standard(fig,ax,A.Plith[jstart:jend,istart:iend]*scalP,extentC,lblP+':Plith tstep = '+str(istep),lblx,lblz)
+    plot_standard(fig,ax,A.Plith[jstart:jend,istart:iend]*scalP,extentC,lblP+':Plith tstep = '+str(istep),lblx,lblz,0,0)
   
   if (iplot==2):
     ax = plt.subplot(1,2,1)
-    plot_standard(fig,ax,A.Plith[jstart:jend,istart:iend]*scalP,extentC,lblP+':Plith tstep = '+str(istep),lblx,lblz)
+    plot_standard(fig,ax,A.Plith[jstart:jend,istart:iend]*scalP,extentC,lblP+':Plith tstep = '+str(istep),lblx,lblz,0,0)
 
     ax = plt.subplot(1,2,2)
-    plot_standard(fig,ax,A.DP[jstart:jend,istart:iend]*scalP,extentC,lblP+':DP tstep = '+str(istep),lblx,lblz)
+    plot_standard(fig,ax,A.DP[jstart:jend,istart:iend]*scalP,extentC,lblP+':DP tstep = '+str(istep),lblx,lblz,0,0)
 
   if (iplot==3):
     ax = plt.subplot(1,3,1)
-    plot_standard(fig,ax,A.Plith[jstart:jend,istart:iend]*scalP,extentC,lblP+':Plith tstep = '+str(istep),lblx,lblz)
+    plot_standard(fig,ax,A.Plith[jstart:jend,istart:iend]*scalP,extentC,lblP+':Plith tstep = '+str(istep),lblx,lblz,0,0)
 
     ax = plt.subplot(1,3,2)
-    plot_standard(fig,ax,A.DP[jstart:jend,istart:iend]*scalP,extentC,lblP+':DP tstep = '+str(istep),lblx,lblz)
+    plot_standard(fig,ax,A.DP[jstart:jend,istart:iend]*scalP,extentC,lblP+':DP tstep = '+str(istep),lblx,lblz,0,0)
 
     ax = plt.subplot(1,3,3)
-    plot_standard(fig,ax,A.DPold[jstart:jend,istart:iend]*scalP,extentC,lblP+':DPold tstep = '+str(istep),lblx,lblz)
+    plot_standard(fig,ax,A.DPold[jstart:jend,istart:iend]*scalP,extentC,lblP+':DPold tstep = '+str(istep),lblx,lblz,0,0)
 
   # plt.tight_layout() 
   plt.savefig(fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
@@ -1053,13 +1090,13 @@ def plot_plastic(A,istart,iend,jstart,jend,fname,istep,dim):
   extentC=[min(A.grid.xc[istart:iend])*scalx, max(A.grid.xc[istart:iend])*scalx, min(A.grid.zc[jstart:jend])*scalx, max(A.grid.zc[jstart:jend])*scalx]
 
   ax = plt.subplot(1,3,1)
-  plot_standard(fig,ax,A.divVs[jstart:jend,istart:iend],extentC,r'$\nabla\cdot v$ [-] tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,A.divVs[jstart:jend,istart:iend],extentC,r'$\nabla\cdot v$ [-] tstep = '+str(istep),lblx,lblz,0,0)
 
   ax = plt.subplot(1,3,2)
-  plot_standard(fig,ax,A.dotlam[jstart:jend,istart:iend],extentC,r'$\dot{\lambda}$ [-] tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,A.dotlam[jstart:jend,istart:iend],extentC,r'$\dot{\lambda}$ [-] tstep = '+str(istep),lblx,lblz,0,0)
 
   ax = plt.subplot(1,3,3)
-  plot_standard(fig,ax,A.lam[jstart:jend,istart:iend],extentC,r'$\lambda$ [-] tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,A.lam[jstart:jend,istart:iend],extentC,r'$\lambda$ [-] tstep = '+str(istep),lblx,lblz,0,0)
 
   # plt.tight_layout() 
   plt.savefig(fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
@@ -1102,13 +1139,13 @@ def plot_PV(A,istart,iend,jstart,jend,fname,istep,dim,iplot):
   extentVz=[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zv[jstart:jend+1])*scalx, max(A.grid.zv[jstart:jend+1])*scalx]
 
   ax = plt.subplot(1,3,1)
-  plot_standard(fig,ax,X1,extentP,lbl1+' tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,X1,extentP,lbl1+' tstep = '+str(istep),lblx,lblz,0,0)
 
   ax = plt.subplot(1,3,2)
-  plot_standard(fig,ax,X2,extentVx,lbl2,lblx,lblz)
+  plot_standard(fig,ax,X2,extentVx,lbl2,lblx,lblz,0,0)
 
   ax = plt.subplot(1,3,3)
-  plot_standard(fig,ax,X3,extentVz,lbl3,lblx,lblz)
+  plot_standard(fig,ax,X3,extentVz,lbl3,lblx,lblz,0,0)
 
   # plt.tight_layout() 
   plt.savefig(fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
@@ -1178,28 +1215,28 @@ def plot_Tensor(A,istart,iend,jstart,jend,fname,istep,dim,iplot):
   extentV=[min(A.grid.xv[istart:iend+1])*scalx, max(A.grid.xv[istart:iend+1])*scalx, min(A.grid.zv[jstart:jend+1])*scalx, max(A.grid.zv[jstart:jend+1])*scalx]
 
   ax = plt.subplot(2,4,1)
-  plot_standard(fig,ax,X1,extentV,'CORNER: '+lblxx+' tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,X1,extentV,'CORNER: '+lblxx+' tstep = '+str(istep),lblx,lblz,0,0)
 
   ax = plt.subplot(2,4,2)
-  plot_standard(fig,ax,X2,extentV,lblzz,lblx,lblz)
+  plot_standard(fig,ax,X2,extentV,lblzz,lblx,lblz,0,0)
 
   ax = plt.subplot(2,4,3)
-  plot_standard(fig,ax,X3,extentV,lblxz,lblx,lblz)
+  plot_standard(fig,ax,X3,extentV,lblxz,lblx,lblz,0,0)
 
   ax = plt.subplot(2,4,4)
-  plot_standard(fig,ax,X4,extentV,lblII,lblx,lblz)
+  plot_standard(fig,ax,X4,extentV,lblII,lblx,lblz,0,0)
 
   ax = plt.subplot(2,4,5)
-  plot_standard(fig,ax,X1_c,extentE,'CENTER: '+lblxx+' tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,X1_c,extentE,'CENTER: '+lblxx+' tstep = '+str(istep),lblx,lblz,0,0)
 
   ax = plt.subplot(2,4,6)
-  plot_standard(fig,ax,X2_c,extentE,lblzz,lblx,lblz)
+  plot_standard(fig,ax,X2_c,extentE,lblzz,lblx,lblz,0,0)
 
   ax = plt.subplot(2,4,7)
-  plot_standard(fig,ax,X3_c,extentE,lblxz,lblx,lblz)
+  plot_standard(fig,ax,X3_c,extentE,lblxz,lblx,lblz,0,0)
 
   ax = plt.subplot(2,4,8)
-  plot_standard(fig,ax,X4_c,extentE,lblII,lblx,lblz)
+  plot_standard(fig,ax,X4_c,extentE,lblII,lblx,lblz,0,0)
 
   # plt.tight_layout() 
   plt.savefig(fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
@@ -1220,34 +1257,34 @@ def plot_PVcoeff(A,istart,iend,jstart,jend,fname,istep,dim):
   extentN =[min(A.grid.xc[istart:iend+1])*scalx, max(A.grid.xc[istart:iend+1])*scalx, min(A.grid.zv[jstart:jend+1])*scalx, max(A.grid.zv[jstart:jend+1])*scalx]
 
   ax = plt.subplot(3,4,1)
-  plot_standard(fig,ax,A.PVcoeff.A_corner[jstart:jend+1,istart:iend+1],extentN,'A corner tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,A.PVcoeff.A_corner[jstart:jend+1,istart:iend+1],extentN,'A corner tstep = '+str(istep),lblx,lblz,0,0)
 
   ax = plt.subplot(3,4,2)
-  plot_standard(fig,ax,A.PVcoeff.A[jstart:jend  ,istart:iend  ],extentE,'A center',lblx,lblz)
+  plot_standard(fig,ax,A.PVcoeff.A[jstart:jend  ,istart:iend  ],extentE,'A center',lblx,lblz,0,0)
 
   ax = plt.subplot(3,4,3)
-  plot_standard(fig,ax,A.PVcoeff.D1[jstart:jend  ,istart:iend  ],extentE,'D1 center',lblx,lblz)
+  plot_standard(fig,ax,A.PVcoeff.D1[jstart:jend  ,istart:iend  ],extentE,'D1 center',lblx,lblz,0,0)
 
   ax = plt.subplot(3,4,4)
-  plot_standard(fig,ax,A.PVcoeff.C[jstart:jend  ,istart:iend  ],extentE,'C center',lblx,lblz)
+  plot_standard(fig,ax,A.PVcoeff.C[jstart:jend  ,istart:iend  ],extentE,'C center',lblx,lblz,0,0)
 
   ax = plt.subplot(3,4,5)
-  plot_standard(fig,ax,A.PVcoeff.Bx[jstart:jend  ,istart:iend+1],extentFx,'Bx face',lblx,lblz)
+  plot_standard(fig,ax,A.PVcoeff.Bx[jstart:jend  ,istart:iend+1],extentFx,'Bx face',lblx,lblz,0,0)
 
   ax = plt.subplot(3,4,6)
-  plot_standard(fig,ax,A.PVcoeff.D2x[jstart:jend  ,istart:iend+1],extentFx,'D2x face',lblx,lblz)
+  plot_standard(fig,ax,A.PVcoeff.D2x[jstart:jend  ,istart:iend+1],extentFx,'D2x face',lblx,lblz,0,0)
 
   ax = plt.subplot(3,4,7)
-  plot_standard(fig,ax,A.PVcoeff.D3x[jstart:jend  ,istart:iend+1],extentFx,'D3x face',lblx,lblz)
+  plot_standard(fig,ax,A.PVcoeff.D3x[jstart:jend  ,istart:iend+1],extentFx,'D3x face',lblx,lblz,0,0)
 
   ax = plt.subplot(3,4,9)
-  plot_standard(fig,ax,A.PVcoeff.Bz[jstart:jend+1,istart:iend  ],extentFz,'Bz face',lblx,lblz)
+  plot_standard(fig,ax,A.PVcoeff.Bz[jstart:jend+1,istart:iend  ],extentFz,'Bz face',lblx,lblz,0,0)
 
   ax = plt.subplot(3,4,10)
-  plot_standard(fig,ax,A.PVcoeff.D2z[jstart:jend+1,istart:iend  ],extentFz,'D2z face',lblx,lblz)
+  plot_standard(fig,ax,A.PVcoeff.D2z[jstart:jend+1,istart:iend  ],extentFz,'D2z face',lblx,lblz,0,0)
 
   ax = plt.subplot(3,4,11)
-  plot_standard(fig,ax,A.PVcoeff.D3z[jstart:jend+1,istart:iend  ],extentFz,'D3z face',lblx,lblz)
+  plot_standard(fig,ax,A.PVcoeff.D3z[jstart:jend+1,istart:iend  ],extentFz,'D3z face',lblx,lblz,0,0)
 
   # plt.tight_layout() 
   plt.savefig(fname+'.png', bbox_inches = 'tight')
@@ -1268,19 +1305,19 @@ def plot_PVcoeff_Stokes(A,istart,iend,jstart,jend,fname,istep,dim):
   extentN =[min(A.grid.xc[istart:iend+1])*scalx, max(A.grid.xc[istart:iend+1])*scalx, min(A.grid.zv[jstart:jend+1])*scalx, max(A.grid.zv[jstart:jend+1])*scalx]
 
   ax = plt.subplot(2,3,1)
-  plot_standard(fig,ax,A.PVcoeff.A_corner[jstart:jend+1,istart:iend+1],extentN,'A corner tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,A.PVcoeff.A_corner[jstart:jend+1,istart:iend+1],extentN,'A corner tstep = '+str(istep),lblx,lblz,0,0)
 
   ax = plt.subplot(2,3,2)
-  plot_standard(fig,ax,A.PVcoeff.A[jstart:jend  ,istart:iend  ],extentE,'A center',lblx,lblz)
+  plot_standard(fig,ax,A.PVcoeff.A[jstart:jend  ,istart:iend  ],extentE,'A center',lblx,lblz,0,0)
 
   ax = plt.subplot(2,3,3)
-  plot_standard(fig,ax,A.PVcoeff.C[jstart:jend  ,istart:iend  ],extentE,'C center',lblx,lblz)
+  plot_standard(fig,ax,A.PVcoeff.C[jstart:jend  ,istart:iend  ],extentE,'C center',lblx,lblz,0,0)
 
   ax = plt.subplot(2,3,4)
-  plot_standard(fig,ax,A.PVcoeff.Bx[jstart:jend  ,istart:iend+1],extentFx,'Bx face',lblx,lblz)
+  plot_standard(fig,ax,A.PVcoeff.Bx[jstart:jend  ,istart:iend+1],extentFx,'Bx face',lblx,lblz,0,0)
 
   ax = plt.subplot(2,3,5)
-  plot_standard(fig,ax,A.PVcoeff.Bz[jstart:jend+1,istart:iend  ],extentFz,'Bz face',lblx,lblz)
+  plot_standard(fig,ax,A.PVcoeff.Bz[jstart:jend+1,istart:iend  ],extentFz,'Bz face',lblx,lblz,0,0)
 
   # plt.tight_layout() 
   plt.savefig(fname+'.png', bbox_inches = 'tight')
@@ -1300,63 +1337,63 @@ def plot_matProp(A,istart,iend,jstart,jend,fname,istep,dim):
   ax = plt.subplot(4,4,1)
   scal = get_scaling(A,'eta',dim,0)
   lbl  = get_label(A,'eta',dim)
-  plot_standard(fig,ax,np.log10(A.matProp.eta[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 '+lbl+' tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,np.log10(A.matProp.eta[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 '+lbl+' tstep = '+str(istep),lblx,lblz,0,0)
 
   ax = plt.subplot(4,4,2)
-  plot_standard(fig,ax,np.log10(A.matProp.etaV[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 V '+lbl,lblx,lblz)
+  plot_standard(fig,ax,np.log10(A.matProp.etaV[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 V '+lbl,lblx,lblz,0,0)
 
   ax = plt.subplot(4,4,3)
   if np.linalg.norm(A.matProp.etaE)==0:
-    plot_standard(fig,ax,A.matProp.etaE[jstart:jend  ,istart:iend  ]*scal,extentE,'E '+lbl,lblx,lblz)
+    plot_standard(fig,ax,A.matProp.etaE[jstart:jend  ,istart:iend  ]*scal,extentE,'E '+lbl,lblx,lblz,0,0)
   else:
-    plot_standard(fig,ax,np.log10(A.matProp.etaE[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 E '+lbl,lblx,lblz)
+    plot_standard(fig,ax,np.log10(A.matProp.etaE[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 E '+lbl,lblx,lblz,0,0)
 
   ax = plt.subplot(4,4,4)
-  plot_standard(fig,ax,np.log10(A.matProp.etaP[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 P '+lbl,lblx,lblz)
+  plot_standard(fig,ax,np.log10(A.matProp.etaP[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 P '+lbl,lblx,lblz,0,0)
 
   lbl  = get_label(A,'zeta',dim)
   ax = plt.subplot(4,4,5)
-  plot_standard(fig,ax,np.log10(A.matProp.zeta[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 '+lbl,lblx,lblz)
+  plot_standard(fig,ax,np.log10(A.matProp.zeta[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 '+lbl,lblx,lblz,0,0)
 
   ax = plt.subplot(4,4,6)
-  plot_standard(fig,ax,np.log10(A.matProp.zetaV[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 V '+lbl,lblx,lblz)
+  plot_standard(fig,ax,np.log10(A.matProp.zetaV[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 V '+lbl,lblx,lblz,0,0)
 
   ax = plt.subplot(4,4,7)
   if np.linalg.norm(A.matProp.zetaE)==0:
-    plot_standard(fig,ax,A.matProp.zetaE[jstart:jend  ,istart:iend  ]*scal,extentE,'E '+lbl,lblx,lblz)
+    plot_standard(fig,ax,A.matProp.zetaE[jstart:jend  ,istart:iend  ]*scal,extentE,'E '+lbl,lblx,lblz,0,0)
   else:
-    plot_standard(fig,ax,np.log10(A.matProp.zetaE[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 E '+lbl,lblx,lblz)
+    plot_standard(fig,ax,np.log10(A.matProp.zetaE[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 E '+lbl,lblx,lblz,0,0)
 
   ax = plt.subplot(4,4,8)
-  plot_standard(fig,ax,np.log10(A.matProp.zetaP[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 P '+lbl,lblx,lblz)
+  plot_standard(fig,ax,np.log10(A.matProp.zetaP[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 P '+lbl,lblx,lblz,0,0)
 
   ax = plt.subplot(4,4,9)
   lbl  = get_label(A,'Z',dim)
   scal = get_scaling(A,'P',dim,1)
-  plot_standard(fig,ax,A.matProp.Z[jstart:jend  ,istart:iend  ]*scal,extentE,lbl,lblx,lblz)
+  plot_standard(fig,ax,A.matProp.Z[jstart:jend  ,istart:iend  ]*scal,extentE,lbl,lblx,lblz,0,0)
 
   ax = plt.subplot(4,4,10)
   lbl  = get_label(A,'G',dim)
   scal = get_scaling(A,'P',dim,1)
-  plot_standard(fig,ax,A.matProp.G[jstart:jend  ,istart:iend  ]*scal,extentE,lbl,lblx,lblz)
+  plot_standard(fig,ax,A.matProp.G[jstart:jend  ,istart:iend  ]*scal,extentE,lbl,lblx,lblz,0,0)
 
   ax = plt.subplot(4,4,11)
   lbl  = get_label(A,'C',dim)
   scal = get_scaling(A,'P',dim,1)
-  plot_standard(fig,ax,A.matProp.C[jstart:jend  ,istart:iend  ]*scal,extentE,lbl,lblx,lblz)
+  plot_standard(fig,ax,A.matProp.C[jstart:jend  ,istart:iend  ]*scal,extentE,lbl,lblx,lblz,0,0)
 
   ax = plt.subplot(4,4,13)
   lbl  = get_label(A,'sigmat',dim)
-  im = plot_standard(fig,ax,A.matProp.sigmat[jstart:jend  ,istart:iend  ]*scal,extentE,lbl,lblx,lblz)
+  im = plot_standard(fig,ax,A.matProp.sigmat[jstart:jend  ,istart:iend  ]*scal,extentE,lbl,lblx,lblz,0,0)
 
   ax = plt.subplot(4,4,14)
   lbl  = get_label(A,'theta',dim)
-  im = plot_standard(fig,ax,A.matProp.theta[jstart:jend  ,istart:iend  ],extentE,lbl,lblx,lblz)
+  im = plot_standard(fig,ax,A.matProp.theta[jstart:jend  ,istart:iend  ],extentE,lbl,lblx,lblz,0,0)
 
   ax = plt.subplot(4,4,15)
   scal = get_scaling(A,'rho',dim,0)
   lbl  = get_label(A,'rho',dim)
-  im = plot_standard(fig,ax,A.matProp.rho[jstart:jend  ,istart:iend  ]*scal,extentE,lbl,lblx,lblz)
+  im = plot_standard(fig,ax,A.matProp.rho[jstart:jend  ,istart:iend  ]*scal,extentE,lbl,lblx,lblz,0,0)
 
   # plt.tight_layout() 
   plt.savefig(fname+'.png', bbox_inches = 'tight')
@@ -1377,19 +1414,19 @@ def plot_Vel(A,istart,iend,jstart,jend,fname,istep,dim):
 
   ax = plt.subplot(2,2,1)
   lbl = get_label(A,'vfx',dim)
-  plot_standard(fig,ax,A.Vfx[jstart:jend  ,istart:iend+1]*scalv,extentVx,lbl+' tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,A.Vfx[jstart:jend  ,istart:iend+1]*scalv,extentVx,lbl+' tstep = '+str(istep),lblx,lblz,0,0)
 
   ax = plt.subplot(2,2,2)
   lbl = get_label(A,'vfz',dim)
-  plot_standard(fig,ax,A.Vfz[jstart:jend+1,istart:iend  ]*scalv,extentVz,lbl,lblx,lblz)
+  plot_standard(fig,ax,A.Vfz[jstart:jend+1,istart:iend  ]*scalv,extentVz,lbl,lblx,lblz,0,0)
 
   ax = plt.subplot(2,2,3)
   lbl = get_label(A,'vx',dim)
-  plot_standard(fig,ax,A.Vx[jstart:jend  ,istart:iend+1]*scalv,extentVx,lbl,lblx,lblz)
+  plot_standard(fig,ax,A.Vx[jstart:jend  ,istart:iend+1]*scalv,extentVx,lbl,lblx,lblz,0,0)
 
   ax = plt.subplot(2,2,4)
   lbl = get_label(A,'vz',dim)
-  plot_standard(fig,ax,A.Vz[jstart:jend+1,istart:iend  ]*scalv,extentVz,lbl,lblx,lblz)
+  plot_standard(fig,ax,A.Vz[jstart:jend+1,istart:iend  ]*scalv,extentVz,lbl,lblx,lblz,0,0)
 
   # plt.tight_layout() 
   plt.savefig(fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
@@ -1409,25 +1446,115 @@ def plot_Tcoeff(A,istart,iend,jstart,jend,fname,istep,dim):
   extentFz=[min(A.grid.xc[istart:iend+1])*scalx, max(A.grid.xc[istart:iend+1])*scalx, min(A.grid.zv[jstart:jend+1])*scalx, max(A.grid.zv[jstart:jend+1])*scalx]
 
   ax = plt.subplot(3,2,1)
-  plot_standard(fig,ax,A.Tcoeff.A[jstart:jend  ,istart:iend  ],extentE,'A center',lblx,lblz)
+  plot_standard(fig,ax,A.Tcoeff.A[jstart:jend  ,istart:iend  ],extentE,'A center',lblx,lblz,0,0)
 
   ax = plt.subplot(3,2,2)
-  plot_standard(fig,ax,A.Tcoeff.C[jstart:jend  ,istart:iend  ],extentE,'C center',lblx,lblz)
+  plot_standard(fig,ax,A.Tcoeff.C[jstart:jend  ,istart:iend  ],extentE,'C center',lblx,lblz,0,0)
 
   ax = plt.subplot(3,2,3)
-  plot_standard(fig,ax,A.Tcoeff.Bx[jstart:jend  ,istart:iend  ],extentFx,'Bx face',lblx,lblz)
+  plot_standard(fig,ax,A.Tcoeff.Bx[jstart:jend  ,istart:iend  ],extentFx,'Bx face',lblx,lblz,0,0)
 
   ax = plt.subplot(3,2,4)
-  plot_standard(fig,ax,A.Tcoeff.Bz[jstart:jend+1,istart:iend  ],extentFz,'Bz face',lblx,lblz)
+  plot_standard(fig,ax,A.Tcoeff.Bz[jstart:jend+1,istart:iend  ],extentFz,'Bz face',lblx,lblz,0,0)
 
   ax = plt.subplot(3,2,5)
-  plot_standard(fig,ax,A.Tcoeff.ux[jstart:jend  ,istart:iend  ],extentFx,'ux face',lblx,lblz)
+  plot_standard(fig,ax,A.Tcoeff.ux[jstart:jend  ,istart:iend  ],extentFx,'ux face',lblx,lblz,0,0)
 
   ax = plt.subplot(3,2,6)
-  plot_standard(fig,ax,A.Tcoeff.uz[jstart:jend+1,istart:iend  ],extentFz,'uz face',lblx,lblz)
+  plot_standard(fig,ax,A.Tcoeff.uz[jstart:jend+1,istart:iend  ],extentFz,'uz face',lblx,lblz,0,0)
 
   # plt.tight_layout() 
   plt.savefig(fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_individual_eps(A,istart,iend,jstart,jend,fname,istep,dim):
+  fig = plt.figure(1,figsize=(28,25))
+
+  # return scaling params and labels
+  scal = get_scaling(A,'eps',dim,0)
+  scalx = get_scaling(A,'x',dim,1)
+  extentE=[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zc[jstart:jend  ])*scalx, max(A.grid.zc[jstart:jend  ])*scalx]
+
+  lblx = get_label(A,'x',dim)
+  lblz = get_label(A,'z',dim)
+  lblII  = get_label(A,'epsII',dim)
+  lblxx  = get_label(A,'epsxx',dim)
+  lblzz  = get_label(A,'epszz',dim)
+  lblxz  = get_label(A,'epsxz',dim)
+  
+  X1 = A.eps.xx_center*scal
+  X2 = A.eps.zz_center*scal
+  X3 = A.eps.xz_center*scal
+  X4 = A.eps.II_center*scal
+
+  ax = plt.subplot(5,4,1)
+  plot_standard(fig,ax,X1,extentE,'Total: '+lblxx+' tstep = '+str(istep),lblx,lblz,0,0)
+  ax = plt.subplot(5,4,2)
+  plot_standard(fig,ax,X2,extentE,lblzz,lblx,lblz,0,0)
+  ax = plt.subplot(5,4,3)
+  plot_standard(fig,ax,X3,extentE,lblxz,lblx,lblz,0,0)
+  ax = plt.subplot(5,4,4)
+  plot_standard(fig,ax,X4,extentE,lblII,lblx,lblz,0,0)
+
+  X1 = A.rheol.epsV_xx*scal
+  X2 = A.rheol.epsV_zz*scal
+  X3 = A.rheol.epsV_xz*scal
+  X4 = A.rheol.epsV_II*scal
+
+  ax = plt.subplot(5,4,5)
+  plot_standard(fig,ax,X1,extentE,'V: '+lblxx+' tstep = '+str(istep),lblx,lblz,0,0)
+  ax = plt.subplot(5,4,6)
+  plot_standard(fig,ax,X2,extentE,lblzz,lblx,lblz,0,0)
+  ax = plt.subplot(5,4,7)
+  plot_standard(fig,ax,X3,extentE,lblxz,lblx,lblz,0,0)
+  ax = plt.subplot(5,4,8)
+  plot_standard(fig,ax,X4,extentE,lblII,lblx,lblz,0,0)
+
+  X1 = A.rheol.epsE_xx*scal
+  X2 = A.rheol.epsE_zz*scal
+  X3 = A.rheol.epsE_xz*scal
+  X4 = A.rheol.epsE_II*scal
+
+  ax = plt.subplot(5,4,9)
+  plot_standard(fig,ax,X1,extentE,'E: '+lblxx+' tstep = '+str(istep),lblx,lblz,0,0)
+  ax = plt.subplot(5,4,10)
+  plot_standard(fig,ax,X2,extentE,lblzz,lblx,lblz,0,0)
+  ax = plt.subplot(5,4,11)
+  plot_standard(fig,ax,X3,extentE,lblxz,lblx,lblz,0,0)
+  ax = plt.subplot(5,4,12)
+  plot_standard(fig,ax,X4,extentE,lblII,lblx,lblz,0,0)
+  
+  X1 = A.rheol.epsP_xx*scal
+  X2 = A.rheol.epsP_zz*scal
+  X3 = A.rheol.epsP_xz*scal
+  X4 = A.rheol.epsP_II*scal
+
+  ax = plt.subplot(5,4,13)
+  plot_standard(fig,ax,X1,extentE,'P: '+lblxx+' tstep = '+str(istep),lblx,lblz,0,0)
+  ax = plt.subplot(5,4,14)
+  plot_standard(fig,ax,X2,extentE,lblzz,lblx,lblz,0,0)
+  ax = plt.subplot(5,4,15)
+  plot_standard(fig,ax,X3,extentE,lblxz,lblx,lblz,0,0)
+  ax = plt.subplot(5,4,16)
+  plot_standard(fig,ax,X4,extentE,lblII,lblx,lblz,0,0)
+
+  X1 = A.divVs*scal
+  X2 = A.rheol.volV*scal
+  X3 = A.rheol.volE*scal
+  X4 = A.rheol.volP*scal
+
+  ax = plt.subplot(5,4,17)
+  plot_standard(fig,ax,X1,extentE,'Total: div(v) tstep = '+str(istep),lblx,lblz,0,0)
+  ax = plt.subplot(5,4,18)
+  plot_standard(fig,ax,X2,extentE,'volV',lblx,lblz,0,0)
+  ax = plt.subplot(5,4,19)
+  plot_standard(fig,ax,X3,extentE,'volE',lblx,lblz,0,0)
+  ax = plt.subplot(5,4,20)
+  plot_standard(fig,ax,X4,extentE,'volP',lblx,lblz,0,0)
+
+  # plt.tight_layout() 
+  plt.savefig(fname+'_dim'+str(dim)+'.png', bbox_inches = 'tight')
   plt.close()
 
 # ---------------------------------
@@ -1458,7 +1585,7 @@ def plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,fname,istep,dim):
   ax = plt.subplot(1,4,2)
   scal = get_scaling(A,'eta',dim,0)
   lbl  = get_label(A,'eta',dim)
-  plot_standard(fig,ax,np.log10(A.matProp.eta[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 '+lbl+' tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,np.log10(A.matProp.eta[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 '+lbl+' tstep = '+str(istep),lblx,lblz,0,0)
 
   maxV = 1
   nind = 5
@@ -1467,13 +1594,61 @@ def plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,fname,istep,dim):
 
   ax = plt.subplot(1,4,3)
   lblII  = get_label(A,'epsII',dim)
+  scal = get_scaling(A,'eps',dim,0)
   X4 = A.eps.II_corner*scal
-  plot_standard(fig,ax,X4,extentV,'CORNER: '+lblII+' tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,X4,extentV,'CORNER: '+lblII+' tstep = '+str(istep),lblx,lblz,0,0)
 
   ax = plt.subplot(1,4,4)
   lblII  = get_label(A,'tauII',dim)
+  scal = get_scaling(A,'P',dim,1)
   X4 = A.tau.II_corner*scal
-  plot_standard(fig,ax,X4,extentV,'CORNER: '+lblII+' tstep = '+str(istep),lblx,lblz)
+  plot_standard(fig,ax,X4,extentV,'CORNER: '+lblII+' tstep = '+str(istep),lblx,lblz,0,0)
+
+  # plt.tight_layout() 
+  plt.savefig(fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_def_mechanisms(A,istart,iend,jstart,jend,fname,istep,dim):
+
+  fig = plt.figure(1,figsize=(14,5))
+
+  scalx = get_scaling(A,'x',dim,1)
+  lblx = get_label(A,'x',dim)
+  lblz = get_label(A,'z',dim)
+
+  extentE=[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zc[jstart:jend  ])*scalx, max(A.grid.zc[jstart:jend  ])*scalx]
+
+  X1 = A.rheol.epsV_II/A.eps.II_center
+  X2 = A.rheol.epsE_II/A.eps.II_center
+  X3 = A.rheol.epsP_II/A.eps.II_center
+  X = np.zeros([A.nz,A.nx])
+
+  C1 = A.rheol.volV/A.divVs
+  C2 = A.rheol.volE/A.divVs
+  C3 = A.rheol.volP/A.divVs
+  C = np.zeros([A.nz,A.nx])
+
+  for i in range(0,A.nx):
+    for j in range(0,A.nz):
+      if (X1[j][i]>X2[j][i]) & (X1[j][i]>X3[j][i]):
+        X[j][i] = 0
+      if (X2[j][i]>X1[j][i]) & (X2[j][i]>X3[j][i]):
+        X[j][i] = 1
+      if (X3[j][i]>X2[j][i]) & (X3[j][i]>X1[j][i]):
+        X[j][i] = 2
+      if (C1[j][i]>C2[j][i]) & (C1[j][i]>C3[j][i]):
+        C[j][i] = 0
+      if (C2[j][i]>C1[j][i]) & (C2[j][i]>C3[j][i]):
+        C[j][i] = 1
+      if (C3[j][i]>C2[j][i]) & (C3[j][i]>C1[j][i]):
+        C[j][i] = 2
+
+  ax = plt.subplot(1,2,1)
+  plot_standard(fig,ax,X,extentE,'SHEAR tstep = '+str(istep),lblx,lblz,0,2)
+
+  ax = plt.subplot(1,2,2)
+  plot_standard(fig,ax,C,extentE,'VOL tstep = '+str(istep),lblx,lblz,0,2)
 
   # plt.tight_layout() 
   plt.savefig(fname+'.png', bbox_inches = 'tight')

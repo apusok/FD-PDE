@@ -1193,7 +1193,7 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       iph;
   PetscScalar    dt, tf_tol, p, Plith, DPold, Tdim, phis, dotlam, strain;
-  PetscScalar    eta_v, zeta_v, eta_e, zeta_e, eta_ve, zeta_ve, eta, zeta, chip, chis;
+  PetscScalar    eta_v, zeta_v, eta_e, zeta_e, eta_p, zeta_p, eta, zeta, chip, chis;
 
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
@@ -1219,7 +1219,8 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
   Pf    = p + Plith;
 
   // get marker phase and properties
-  PetscScalar  wt[6], meta_v[6], mzeta_v[6], meta_e[6], mzeta_e[6], meta_ve[6], mzeta_ve[6], mC[6], mZ[6], mG[6], msigmat[6],mtheta[6];
+  PetscScalar  wt[6], meta_v[6], mzeta_v[6], meta_e[6], mzeta_e[6], meta_p[6], mzeta_p[6], meta_ve[6], mzeta_ve[6];
+  PetscScalar  mC[6], mZ[6], mG[6], msigmat[6], mtheta[6];
   PetscScalar  inv_meta_v[6], inv_meta_e[6], inv_mzeta_v[6], inv_mzeta_e[6];
   PetscScalar  meta[6], mzeta[6], mchis[6], mchip[6], meta_VEP[6], mzeta_VEP[6], mdotlam[6];
 
@@ -1300,11 +1301,20 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
 
       if (divp > tf_tol) { mzeta_VEP[iph] = -stressSol[1]/divp * phis; } 
       else               { mzeta_VEP[iph]= mzeta_ve[iph]*phis; }
+      
+      // visco-plastic viscosity
+      PetscScalar aa;
+      aa = mC[iph]*PetscCosScalar(theta_rad) - msigmat[iph]*PetscSinScalar(theta_rad);
+      meta_p[iph]   = PetscPowScalar(stressSol[0]*stressSol[0]+aa*aa, 0.5)/mdotlam[iph];
+      mzeta_p[iph]  = -stressSol[1]/(mdotlam[iph]*cdl*PetscSinScalar(theta_rad)); 
 
     } else { 
       meta_VEP[iph] = meta_ve[iph]*phis; 
       mzeta_VEP[iph]= mzeta_ve[iph]*phis;
       mdotlam[iph] = 0.0;
+
+      meta_p[iph]    = usr->nd->eta_max;
+      mzeta_p[iph]   = usr->nd->eta_max;
     }
 
     // effective viscosities
@@ -1320,8 +1330,8 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
   zeta_v = WeightAverageValue(mzeta_v,wt,usr->nph); 
   eta_e  = WeightAverageValue(meta_e,wt,usr->nph); 
   zeta_e = WeightAverageValue(mzeta_e,wt,usr->nph); 
-  eta_ve = WeightAverageValue(meta_ve,wt,usr->nph); 
-  zeta_ve= WeightAverageValue(mzeta_ve,wt,usr->nph); 
+  eta_p  = WeightAverageValue(meta_p,wt,usr->nph); 
+  zeta_p = WeightAverageValue(mzeta_p,wt,usr->nph); 
   eta    = WeightAverageValue(meta,wt,usr->nph); 
   zeta   = WeightAverageValue(mzeta,wt,usr->nph); 
   chis   = WeightAverageValue(mchis,wt,usr->nph); 
@@ -1353,11 +1363,11 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
   res[0]  = eta;
   res[1]  = eta_v;
   res[2]  = eta_e;
-  res[3]  = eta;
+  res[3]  = eta_p;
   res[4]  = zeta;
   res[5]  = zeta_v;
   res[6]  = zeta_e;
-  res[7]  = zeta;
+  res[7]  = zeta_p;
   res[8]  = chis;
   res[9]  = chip;
   res[10] = txx;
