@@ -279,11 +279,11 @@ PetscErrorCode Numerical_solution(void *ctx)
 
     // Solve PV
     PetscPrintf(PETSC_COMM_WORLD,"# (PV) Mechanics Solver - Stokes-Darcy2Field \n");
-    PetscInt rmax;
-    ierr = MaxRheologyIndicator(usr,&rmax);CHKERRQ(ierr);
-    if (rmax==0) PetscPrintf(PETSC_COMM_WORLD,"# (PV) Rheology: VISCOUS \n");
-    if (rmax==1) PetscPrintf(PETSC_COMM_WORLD,"# (PV) Rheology: VISCO-ELASTIC \n");
-    if (rmax==2) PetscPrintf(PETSC_COMM_WORLD,"# (PV) Rheology: VISCO-ELASTO-(VISCO-PLASTIC) \n");
+    // PetscInt rmax;
+    // ierr = MaxRheologyIndicator(usr,&rmax);CHKERRQ(ierr);
+    // if (rmax==0) PetscPrintf(PETSC_COMM_WORLD,"# (PV) Rheology: VISCOUS \n");
+    // if (rmax==1) PetscPrintf(PETSC_COMM_WORLD,"# (PV) Rheology: VISCO-ELASTIC \n");
+    // if (rmax==2) PetscPrintf(PETSC_COMM_WORLD,"# (PV) Rheology: VISCO-ELASTO-(VISCO-PLASTIC) \n");
     // ierr = FDPDESolve(fdPV,NULL);CHKERRQ(ierr);
     SNESConvergedReason reason;
     converged = PETSC_FALSE;

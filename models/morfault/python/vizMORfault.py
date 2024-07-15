@@ -712,11 +712,11 @@ def parse_matProp_file(fname,fdir):
     matProp.eta = data_c[0::dof].reshape(nz,nx)
     matProp.etaV = data_c[1::dof].reshape(nz,nx)
     matProp.etaE = data_c[2::dof].reshape(nz,nx)
-    matProp.etaVE = data_c[3::dof].reshape(nz,nx)
+    matProp.etaP = data_c[3::dof].reshape(nz,nx)
     matProp.zeta = data_c[4::dof].reshape(nz,nx)
     matProp.zetaV = data_c[5::dof].reshape(nz,nx)
     matProp.zetaE = data_c[6::dof].reshape(nz,nx)
-    matProp.zetaVE = data_c[7::dof].reshape(nz,nx)
+    matProp.zetaP = data_c[7::dof].reshape(nz,nx)
     matProp.Z = data_c[8::dof].reshape(nz,nx)
     matProp.G = data_c[9::dof].reshape(nz,nx)
     matProp.C = data_c[10::dof].reshape(nz,nx)
@@ -1218,7 +1218,7 @@ def plot_matProp(A,istart,iend,jstart,jend,fname,istep,dim):
     plot_standard(fig,ax,np.log10(A.matProp.etaE[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 E '+lbl,lblx,lblz)
 
   ax = plt.subplot(4,4,4)
-  plot_standard(fig,ax,np.log10(A.matProp.etaVE[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 VE '+lbl,lblx,lblz)
+  plot_standard(fig,ax,np.log10(A.matProp.etaP[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 P '+lbl,lblx,lblz)
 
   lbl  = get_label(A,'zeta',dim)
   ax = plt.subplot(4,4,5)
@@ -1234,7 +1234,7 @@ def plot_matProp(A,istart,iend,jstart,jend,fname,istep,dim):
     plot_standard(fig,ax,np.log10(A.matProp.zetaE[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 E '+lbl,lblx,lblz)
 
   ax = plt.subplot(4,4,8)
-  plot_standard(fig,ax,np.log10(A.matProp.zetaVE[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 VE '+lbl,lblx,lblz)
+  plot_standard(fig,ax,np.log10(A.matProp.zetaP[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 P '+lbl,lblx,lblz)
 
   ax = plt.subplot(4,4,9)
   lbl  = get_label(A,'Z',dim)

@@ -166,9 +166,9 @@ PetscScalar HalfSpaceCoolingTemp(PetscScalar,PetscScalar,PetscScalar,PetscScalar
 PetscScalar LithostaticPressure(PetscScalar,PetscScalar,PetscScalar);
 PetscScalar Density(PetscScalar,PetscInt);
 PetscScalar Permeability(PetscScalar,PetscScalar);
-PetscScalar ShearViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt); 
+PetscScalar ShearViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt); 
 PetscScalar ShearViscosity_PowerLaw(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt);  
-PetscScalar CompactionViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt);
+PetscScalar CompactionViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt);
 PetscScalar ArrheniusTerm_Viscosity(PetscScalar,PetscScalar,PetscScalar); 
 PetscScalar FluidVelocity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 PetscScalar Mixture(PetscScalar,PetscScalar,PetscScalar);

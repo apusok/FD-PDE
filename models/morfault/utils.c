@@ -33,7 +33,8 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdT, void *ctx)
 
   // Create initial guess for PV - viscous solution
   usr->init_guess = 0; 
-  PetscPrintf(PETSC_COMM_WORLD,"# (PV) Rheology: VISCOUS \n");
+  PetscPrintf(PETSC_COMM_WORLD,"# (PV) Rheology: VISCO-ELASTIC \n");
+  usr->nd->dt = usr->nd->dtmax;
   ierr = FDPDESolve(fdPV,NULL);CHKERRQ(ierr);
   ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
   ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
@@ -123,11 +124,11 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
       T = HalfSpaceCoolingTemp(Tm,usr->par->Ts,-Hs-dim_param(coordz[j][icenter],usr->scal->x),usr->par->mat1_kappa,age,usr->par->hs_factor); 
 
       // add initial 10K perturbation
-      xp = dim_param(coordx[i][icenter],usr->scal->x)-xs;
-      zp = dim_param(coordz[j][icenter],usr->scal->x)-zs;
-      rp = PetscSqrtScalar(xp*xp+zp*zp);
-      if (rp<=r) {T += (r-rp)/r*usr->par->incl_dT;}
-      if (T-T_KELVIN<0.0) T = T_KELVIN;
+      // xp = dim_param(coordx[i][icenter],usr->scal->x)-xs;
+      // zp = dim_param(coordz[j][icenter],usr->scal->x)-zs;
+      // rp = PetscSqrtScalar(xp*xp+zp*zp);
+      // if (rp<=r) {T += (r-rp)/r*usr->par->incl_dT;}
+      // if (T-T_KELVIN<0.0) T = T_KELVIN;
 
       // nd_T = (T - usr->par->T0)/usr->par->DT;
       nd_T = nd_paramT(T,T_KELVIN,usr->scal->T);
@@ -172,6 +173,11 @@ PetscErrorCode SetSwarmInitialCondition(DM dmswarm, void *ctx)
   ierr = DMSwarmGetField(dmswarm,"id4",NULL,NULL,(void**)&pfield4);CHKERRQ(ierr);
   ierr = DMSwarmGetField(dmswarm,"id5",NULL,NULL,(void**)&pfield5);CHKERRQ(ierr);
 
+  PetscScalar xs, zs, r, xp, zp, rp;
+  xs = usr->par->incl_x;
+  zs = usr->par->incl_z;
+  r = usr->par->incl_r;
+
   for (p=0; p<npoints; p++) {
     PetscScalar xcoor,zcoor, h, dh;
     
@@ -200,7 +206,7 @@ PetscErrorCode SetSwarmInitialCondition(DM dmswarm, void *ctx)
     // sediments 1km
     h  = usr->nd->Hs;
     dh = nd_param(1e3,usr->scal->x);
-    if ((zcoor>=ztop-h-dh) && (zcoor<ztop-h)) pfield[p] = usr->par->mat1_id; 
+    // if ((zcoor>=ztop-h-dh) && (zcoor<ztop-h)) pfield[p] = usr->par->mat1_id; 
 
     // basalt 2 km
     h  += dh;
@@ -224,6 +230,12 @@ PetscErrorCode SetSwarmInitialCondition(DM dmswarm, void *ctx)
     h  += 2.0*dh;
     dh = nd_param(5e3,usr->scal->x);
     if ((zcoor>=ztop-h-dh) && (zcoor<ztop-h)) pfield[p] = usr->par->mat4_id; 
+
+    // weak seed
+    xp = dim_param(xcoor,usr->scal->x)-xs;
+    zp = dim_param(zcoor,usr->scal->x)-zs;
+    rp = PetscSqrtScalar(xp*xp+zp*zp);
+    if (rp<=r) { pfield[p] = usr->par->mat1_id; }
     
     // update binary representation
     if (pfield[p]==0) pfield0[p] = 1;

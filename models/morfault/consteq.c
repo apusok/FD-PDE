@@ -48,7 +48,7 @@ PetscScalar Permeability(PetscScalar phi, PetscScalar n)
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "ShearViscosity"
-PetscScalar ShearViscosity(PetscScalar eta0, PetscScalar scal_eta, PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar lambda, PetscScalar eta_min, PetscScalar eta_max, PetscInt func) 
+PetscScalar ShearViscosity(PetscScalar eta0, PetscScalar scal_eta, PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar lambda, PetscInt func) 
 { 
   PetscScalar eta, peta0, eta_arr;
   peta0 = eta0/scal_eta;
@@ -106,7 +106,7 @@ PetscScalar ArrheniusTerm_Viscosity(PetscScalar T, PetscScalar EoR, PetscScalar 
 // ---------------------------------------
 // CompactionViscosity
 // ---------------------------------------
-PetscScalar CompactionViscosity(PetscScalar zeta0, PetscScalar scal_eta, PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar phi_min, PetscScalar zetaExp, PetscScalar eta_min, PetscScalar eta_max, PetscInt func) 
+PetscScalar CompactionViscosity(PetscScalar zeta0, PetscScalar scal_eta, PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar phi_min, PetscScalar zetaExp, PetscInt func) 
 { 
   PetscScalar zeta, pzeta0, zeta_arr;
   pzeta0 = zeta0/scal_eta;

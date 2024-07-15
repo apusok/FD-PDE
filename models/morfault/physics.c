@@ -1132,9 +1132,9 @@ PetscErrorCode RheologyPointwise_Prev(PetscInt i, PetscInt j, PetscScalar ***xwt
 
   // material phase viscosities
   for (iph = 0; iph < usr->nph; iph++) {
-    // meta_v[iph]  = ShearViscosity(usr->mat[iph].eta0,usr->scal->eta,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->lambda,usr->nd->eta_min,usr->nd->eta_max,usr->mat[iph].eta_func);
+    // meta_v[iph]  = ShearViscosity(usr->mat[iph].eta0,usr->scal->eta,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->lambda,usr->mat[iph].eta_func);
     meta_v[iph] = ShearViscosity_PowerLaw(usr->mat[iph].eta0,usr->scal->eta,eIIdim,Tdim,Pdim,usr->mat[iph].Ad,n[iph],usr->mat[iph].Ea,usr->mat[iph].Va,usr->par->R,usr->mat[iph].eta_func);
-    mzeta_v[iph] = CompactionViscosity(usr->mat[iph].zeta0,usr->scal->eta,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->phi_min,usr->par->zetaExp,usr->nd->eta_min,usr->nd->eta_max,usr->mat[iph].zeta_func); 
+    mzeta_v[iph] = CompactionViscosity(usr->mat[iph].zeta0,usr->scal->eta,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->phi_min,usr->par->zetaExp,usr->mat[iph].zeta_func); 
     
     inv_meta_v[iph]  = 1.0/meta_v[iph];
     inv_mzeta_v[iph] = 1.0/mzeta_v[iph];
@@ -1361,8 +1361,8 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
 {
   UsrData        *usr = (UsrData*)ctx;
   PetscInt       iph;
-  PetscScalar    dt, p, DPold, em, nh, lambda, Tdim;
-  PetscScalar    eta_v, zeta_v, eta_e, zeta_e, eta, zeta, chip, chis, Y;
+  PetscScalar    dt, p, Plith, DPold, Tdim, phis;
+  PetscScalar    eta_v, zeta_v, eta_e, zeta_e, eta_p, zeta_p, eta_ve, zeta_ve, eta, zeta, chip, chis, Y;
 
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
@@ -1370,79 +1370,125 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
   // PetscPrintf(PETSC_COMM_WORLD,"# BREAK A [%d %d] %1.12e #\n",i,j,dt);
 
   dt = usr->nd->dt;
-  em = usr->nd->eta_min;
-  nh = 1.0;
-  lambda = 0.0;
-  p = P[0]; DPold = P[2];
+  p = P[0]; Plith = P[1]; DPold = P[2];
   Tdim = dim_paramT(T,T_KELVIN,usr->scal->T);
+  phis = 1.0 - phi;
 
   // get epsII, epsp, epspII - tau_old, dP
-  PetscScalar exx, ezz, exz, eII, told_xx, told_zz, told_xz, told_II;
+  PetscScalar exx, ezz, exz, eII, told_xx, told_zz, told_xz, told_II, Pf;
+  PetscScalar exxp, ezzp, exzp, div13, divp, eIIp;
   exx = eps[0]; told_xx = tauold[0]; 
   ezz = eps[1]; told_zz = tauold[1];
   exz = eps[2]; told_xz = tauold[2];
   eII = eps[3]; told_II = tauold[3];
+  div13 = (exx + ezz)/3.0;
+  Pf    = p + Plith;
 
-  PetscScalar eII_dev;
-  // second invariant of deviatoric strain rate
-  eII_dev = PetscPowScalar((PetscPowScalar(eII,2) - 1.0/6.0*PetscPowScalar(exx+ezz,2)),0.5);
+  // PetscScalar eII_dev;
+  // eII_dev = PetscPowScalar((PetscPowScalar(eII,2) - 1.0/6.0*PetscPowScalar(exx+ezz,2)),0.5);
 
   // get marker phase and properties
-  PetscScalar    wt[6], meta_v[6], mzeta_v[6], meta_e[6], mzeta_e[6], mY[6], mYC[6];
-  PetscScalar    inv_eta_p[6], inv_eta_vp[6], inv_zeta_p[6], inv_zeta_vp[6];
-  PetscScalar    meta[6], mzeta[6], mchis[6], mchip[6];
+  PetscScalar  wt[6], meta_v[6], mzeta_v[6], meta_e[6], mzeta_e[6], meta_ve[6], mzeta_ve[6], mC[6], mZ[6], mG[6];
+  PetscScalar  inv_meta_v[6], inv_meta_e[6], inv_mzeta_v[6], inv_mzeta_e[6];
+  PetscScalar  meta[6], mzeta[6], mchis[6], mchip[6], meta_p[6], meta_VEP[6], mzeta_p[6], mzeta_VEP[6];
+  PetscScalar  inv_Z[6];
 
   ierr = GetMatPhaseFraction(i,j,xwt,iwt,usr->nph,wt); CHKERRQ(ierr);
 
   for (iph = 0; iph < usr->nph; iph++) {
-    // meta_v[iph]  = nd_param(usr->mat[iph].eta0,usr->scal->eta)*PetscExpScalar(-lambda*phi);
-    // mzeta_v[iph] = nd_param(usr->mat[iph].zeta0,usr->scal->eta)*PetscExpScalar(-lambda*phi);
-    meta_v[iph]  = ShearViscosity(usr->mat[iph].eta0,usr->scal->eta,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->lambda,usr->nd->eta_min,usr->nd->eta_max,usr->mat[iph].eta_func);
-    mzeta_v[iph] = CompactionViscosity(usr->mat[iph].zeta0,usr->scal->eta,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->phi_min,usr->par->zetaExp,usr->nd->eta_min,usr->nd->eta_max,usr->mat[iph].zeta_func); 
-    meta_e[iph]  = nd_param(usr->mat[iph].G,usr->scal->P)*dt;
-    mzeta_e[iph] = nd_param(usr->mat[iph].Z0,usr->scal->P)*dt;
-    mY[iph]      = nd_param(usr->mat[iph].C,usr->scal->P); // plastic yield criterion
-    mYC[iph]     = nd_param(usr->mat[iph].C,usr->scal->P); // compaction failure criteria
-  
+    meta_v[iph]  = ShearViscosity(usr->mat[iph].eta0,usr->scal->eta,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->lambda,usr->mat[iph].eta_func);
+    mzeta_v[iph] = CompactionViscosity(usr->mat[iph].zeta0,usr->scal->eta,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->phi_min,usr->par->zetaExp,usr->mat[iph].zeta_func); 
+    
+    inv_meta_v[iph]  = 1.0/meta_v[iph];
+    inv_mzeta_v[iph] = 1.0/mzeta_v[iph];
+
+    inv_Z[iph] = 1.0/usr->mat[iph].Z0;
+    // inv_Z[iph] = InvPoroElasticModulus(usr->mat[iph].Z0,phi);
+    inv_meta_e[iph]  = usr->scal->eta/(usr->mat[iph].G*dim_param(dt,usr->scal->t)); // scalP or scaleta*dt?
+    inv_mzeta_e[iph] = usr->scal->eta*inv_Z[iph]/dim_param(dt,usr->scal->t);
+
+    meta_e[iph]  = 1.0/inv_meta_e[iph];
+    mzeta_e[iph] = 1.0/inv_mzeta_e[iph];
+    
+    // visco-elastic 
+    meta_ve[iph]  = PetscPowScalar(inv_meta_v[iph]+inv_meta_e[iph],-1.0);
+    mzeta_ve[iph] = PetscPowScalar(inv_mzeta_v[iph]+inv_mzeta_e[iph],-1.0);
+
+    // elastic and plastic parameters
+    mZ[iph] = 1.0/inv_Z[iph];
+    mG[iph] = usr->mat[iph].G;
+    // mC[iph] = nd_param(usr->mat[iph].C,usr->scal->P);
+    mC[iph] = nd_param(usr->mat[iph].C,usr->scal->eta*usr->scal->v/usr->scal->x);
+
+    // effective deviatoric and volumetric strain rates
+    exxp = ((exx-div13) + 0.5*told_xx*inv_meta_e[iph]);
+    ezzp = ((ezz-div13) + 0.5*told_zz*inv_meta_e[iph]);
+    exzp = (exz + 0.5*told_xz*inv_meta_e[iph]);
+    eIIp = TensorSecondInvariant(exxp,ezzp,exzp);
+    divp = ((exx+ezz) - DPold*inv_mzeta_e[iph]);
+
+    // // trial stress
+    // PetscScalar txxt, tzzt, txzt, tIIt, dpt;
+    // txxt = 2*meta_ve[iph]*exxp;
+    // tzzt = 2*meta_ve[iph]*ezzp;
+    // txzt = 2*meta_ve[iph]*exzp;
+    // tIIt = TensorSecondInvariant(txxt,tzzt,txzt);
+    // dpt = -mzeta_ve[iph] * divp;
+
     // plastic viscosity
     if (usr->init_guess>0) { 
-      inv_eta_p[iph]  = 2.0*eII_dev/mY[iph];
-      inv_zeta_p[iph] = PetscAbs(exx+ezz)/mYC[iph]; //inv_zeta_p = inv_eta_p/lam_v;
+      PetscScalar Y;
+      Y = mC[iph]; // von Mises
+      // Y = C*PetscCosScalar(PETSC_PI*theta/180) + Pf*PetscSinScalar(PETSC_PI*theta/180); // Drucker-Prager Pf
+      // Y = C*PetscCosScalar(PETSC_PI*theta/180) + Plith*PetscSinScalar(PETSC_PI*theta/180); // Drucker-Prager Plith
+      // Y = C + Plith*PetscSinScalar(PETSC_PI*theta/180); // Drucker-Prager Plith
+      meta_p[iph]   = Y/(2.0*eIIp); //Y/(2.0*eII_dev);
+      // if (i==25) PetscPrintf(PETSC_COMM_WORLD,"# BREAK [%d %d %d] %1.12e %1.12e %1.12e#\n",i,j,iph,Y,eIIp,meta_p[iph]);
+      mzeta_p[iph]  = PetscMin(usr->nd->eta_max,Y/PetscAbs(exx+ezz)); 
     } else { 
-      inv_eta_p[iph] = 0.0;
-      inv_zeta_p[iph] = 0.0;
+      meta_p[iph]    = usr->nd->eta_max;
+      mzeta_p[iph]   = usr->nd->eta_max;
     }
-    inv_eta_vp[iph]  = PetscPowScalar(PetscPowScalar(inv_eta_p[iph], nh) + PetscPowScalar(1.0/meta_v[iph], nh), 1.0/nh);
-    inv_zeta_vp[iph] = PetscPowScalar(PetscPowScalar(inv_zeta_p[iph], nh) + PetscPowScalar(1.0/mzeta_v[iph], nh), 1.0/nh);
+
+    meta_VEP[iph] = PetscMin(meta_p[iph],meta_ve[iph]);
+    mzeta_VEP[iph] = PetscMin(mzeta_p[iph],meta_ve[iph]);
 
     // effective viscosities
-    meta[iph]  = em + (1.0 - phi)/(inv_eta_vp[iph]  + 1.0/meta_e[iph]);
-    mzeta[iph] = em + (1.0 - phi)/(inv_zeta_vp[iph] + 1.0/mzeta_e[iph]);
+    meta[iph] = ViscosityHarmonicAvg(meta_VEP[iph],usr->nd->eta_min,usr->nd->eta_max)*phis;
+    mzeta[iph]= ViscosityHarmonicAvg(mzeta_VEP[iph],usr->nd->eta_min,usr->nd->eta_max)*phis;
 
-    // elastic stress evolution parameter - remove the cutoff minimum viscosity in calculating the built-up stress
-    mchis[iph] = (meta[iph]-em)/meta_e[iph];
-    mchip[iph] = (mzeta[iph]-em)/mzeta_e[iph];
+    // elastic stress evolution parameter
+    mchis[iph] = meta[iph]*inv_meta_e[iph];
+    mchip[iph] = mzeta[iph]*inv_meta_e[iph];
   }
 
   eta_v  = WeightAverageValue(meta_v,wt,usr->nph); 
   zeta_v = WeightAverageValue(mzeta_v,wt,usr->nph); 
   eta_e  = WeightAverageValue(meta_e,wt,usr->nph); 
   zeta_e = WeightAverageValue(mzeta_e,wt,usr->nph); 
+  eta_ve = WeightAverageValue(meta_ve,wt,usr->nph); 
+  zeta_ve= WeightAverageValue(mzeta_ve,wt,usr->nph); 
+  eta_p  = WeightAverageValue(meta_p,wt,usr->nph); 
+  zeta_p = WeightAverageValue(mzeta_p,wt,usr->nph); 
   eta    = WeightAverageValue(meta,wt,usr->nph); 
   zeta   = WeightAverageValue(mzeta,wt,usr->nph); 
   chis   = WeightAverageValue(mchis,wt,usr->nph); 
   chip   = WeightAverageValue(mchip,wt,usr->nph); 
-  Y      = WeightAverageValue(mY,wt,usr->nph); 
+  Y      = WeightAverageValue(mC,wt,usr->nph); 
+
+  // update effective deviatoric and volumetric strain rates with Marker Phased average
+  exxp = ((exx-div13) + 0.5*told_xx/eta_e);
+  ezzp = ((ezz-div13) + 0.5*told_zz/eta_e);
+  exzp = (exz + 0.5*told_xz/eta_e);
+  divp = ((exx+ezz) - DPold/zeta_e);
 
   // shear and volumetric stresses
-  PetscScalar phis, div, txx, tzz, txz, tII, DP;
-  phis = 1 - phi;
-  div = exx + ezz;
-  txx = (2.0*(eta-em)*(exx-1.0/3.0*div) + chis*told_xx)/phis;
-  tzz = (2.0*(eta-em)*(ezz-1.0/3.0*div) + chis*told_zz)/phis;
-  txz = (2.0*(eta-em)*exz + chis*told_xz)/phis;
-  tII = PetscPowScalar(0.5*(txx*txx + tzz*tzz + 2*txz*txz),0.5);
-  DP  = (-(zeta-em)*div + chip*DPold)/phis;
+  PetscScalar txx, tzz, txz, tII, DP;
+  txx = 2*eta*exxp/phis;
+  tzz = 2*eta*ezzp/phis;
+  txz = 2*eta*exzp/phis;
+  tII = TensorSecondInvariant(txx,tzz,txz);  // this should be roughly equal to stressSol[0]
+  DP = -zeta*divp/phis;
 
   // PetscPrintf(PETSC_COMM_WORLD,"# BREAK AB [%d %d] %1.12e #\n",i,j,dt);
 
@@ -1450,11 +1496,11 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
   res[0]  = eta;
   res[1]  = eta_v;
   res[2]  = eta_e;
-  res[3]  = eta_v;
+  res[3]  = eta_p;
   res[4]  = zeta;
   res[5]  = zeta_v;
   res[6]  = zeta_e;
-  res[7]  = zeta_v;
+  res[7]  = zeta_p;
   res[8]  = chis;
   res[9]  = chip;
   res[10] = txx;
