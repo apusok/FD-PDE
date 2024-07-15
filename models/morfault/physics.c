@@ -1256,10 +1256,10 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
         mdotlam[iph] = stressSol[2];
 
         // effective viscosities
-        if (eIIp > tf_tol) { meta_VEP[iph] = 0.5 * phis * stressSol[0]/eIIp; } 
+        if (PetscAbs(eIIp) > tf_tol) { meta_VEP[iph] = 0.5 * phis * stressSol[0]/eIIp; } 
         else               { meta_VEP[iph] = meta_ve[iph]; }
 
-        if (divp > tf_tol) { mzeta_VEP[iph] = - phis * stressSol[1]/divp; } 
+        if (PetscAbs(divp) > tf_tol) { mzeta_VEP[iph] = - phis * stressSol[1]/divp; } 
         else               { mzeta_VEP[iph] = mzeta_ve[iph]; }
         
         // visco-plastic viscosity - for output

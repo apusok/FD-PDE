@@ -26,7 +26,7 @@ def sortTimesteps(tdir):
 
 # Parameters
 A.dimensional = 1 # 0-nd, 1-dim
-sim = 'run29_00_Stokes_Vin_free/'
+sim = 'run37_flow_dike_dt1e2_etaK1e20/'
 A.input = '../'+sim
 A.output_path_dir = '../Figures/'+sim
 A.path_dir = './'

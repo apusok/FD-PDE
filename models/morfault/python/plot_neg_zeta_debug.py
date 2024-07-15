@@ -13,6 +13,9 @@ import vizMORfault as vizB
 rc('font',**{'family':'serif','serif':['Times new roman']})
 rc('text', usetex=True)
 
+import warnings
+warnings.filterwarnings('ignore')
+
 class SimStruct:
   pass
 
@@ -26,7 +29,7 @@ def sortTimesteps(tdir):
 
 # Parameters
 A.dimensional = 1 # 0-nd, 1-dim
-sim = 'run31_03_SD_phimax5e-3_Zmax10_HR/'
+sim = 'run37_flow_dike_dt1e2_etaK1e20_abs/'
 A.input = '../'+sim
 A.output_path_dir = '../Figures/'+sim
 A.path_dir = './'
@@ -93,7 +96,10 @@ jend   = A.nz
 print('  >> '+A.output_dir)
 
 # Loop over timesteps
-for istep in time_list:
+# for istep in time_list:
+for istep1 in range(1000,1201,1):
+  istep = time_list[istep1]
+
   fdir  = A.input_dir+'Timestep'+str(istep)
   print('  >> >> '+'Timestep'+str(istep))
 
@@ -156,7 +162,7 @@ for istep in time_list:
   A.Vscx, A.Vscz, A.divVs = vizB.calc_center_velocities_div(A.Vsx,A.Vsz,A.grid.xv,A.grid.zv,A.nx,A.nz)
 
   # print values
-  i = 100
+  i = int(A.nx/2)
   j = 47
   dim = 1
   scal_eta = vizB.get_scaling(A,'eta',dim,0)
@@ -178,83 +184,125 @@ for istep in time_list:
   # print('divVs = ',A.divVs[j,i])
   # print('dt = ',A.nd.dt*scal_t)
 
-  print('Nondimensional:')
-  print('zeta = ',A.matProp.zeta[j,i])
-  zetaVE = 1.0/(1.0/A.matProp.zetaV[j,i]+1.0/A.matProp.zetaE[j,i])
-  print('zeta_VE = ',zetaVE)
-  phis = A.phis[j,i]
-  print('phis = ',phis)
-  print('phi = ',1.0-phis)
-  print('DP = ',A.DP[j,i])
-  print('DP_old = ',A.DPold[j,i])
-  print('Z = ',A.matProp.Z[j,i])
-  print('divVs = ',A.divVs[j,i])
-  print('dt = ',A.nd.dt)
-  curlyCp = A.divVs[j,i] - A.DPold[j,i]*phis/A.nd.dt/A.matProp.Z[j,i]
-  print('curlyCp =',curlyCp)
-  print('x =',A.grid.xc[i]*scal_x)
-  print('z =',A.grid.zc[j]*scal_x)
-  print('Kphi =',A.matProp.Kphi[j,i]*scal_Kphi)
+  # print('Nondimensional:')
+  # print('zeta = ',A.matProp.zeta[j,i])
+  # zetaVE = 1.0/(1.0/A.matProp.zetaV[j,i]+1.0/A.matProp.zetaE[j,i])
+  # print('zeta_VE = ',zetaVE)
+  # phis = A.phis[j,i]
+  # print('phis = ',phis)
+  # print('phi = ',1.0-phis)
+  # print('DP = ',A.DP[j,i])
+  # print('DP_old = ',A.DPold[j,i])
+  # print('Z = ',A.matProp.Z[j,i])
+  # print('divVs = ',A.divVs[j,i])
+  # print('dt = ',A.nd.dt)
+  # curlyCp = A.divVs[j,i] - A.DPold[j,i]*phis/A.nd.dt/A.matProp.Z[j,i]
+  # print('curlyCp =',curlyCp)
+  # print('x =',A.grid.xc[i]*scal_x)
+  # print('z =',A.grid.zc[j]*scal_x)
+  # print('Kphi =',A.matProp.Kphi[j,i]*scal_Kphi)
 
-  nplots = 9
-  fig = plt.figure(1,figsize=(23,8))
-
-  ax = plt.subplot(1,nplots,1)
-  ax.plot(np.log10(A.matProp.zeta[:,i]*scal_eta),A.grid.zc*scal_x,'k-')
+  nplots = 11
+  iplot = 0
+  fig = plt.figure(1,figsize=(28,8))
+  
+  iplot +=1
+  ax = plt.subplot(1,nplots,iplot)
+  ax.plot(A.P[:,i]*scal_P,A.grid.zc*scal_x,'k-')
   ax.grid(True)
-  ax.set_xlabel('log10(zeta) [Pa s]')
+  ax.set_xlabel(r'$P$ [MPa]')
   ax.set_ylabel('z [km]')
 
-  ax = plt.subplot(1,nplots,2)
-  ax.plot(np.log10(1.0/(1.0/A.matProp.zetaV[:,i]+1.0/A.matProp.zetaE[:,i])*scal_eta),A.grid.zc*scal_x,'k-')
-  ax.grid(True)
-  ax.set_xlabel('log10(zetaVE) [Pa s]]')
-  # ax.set_ylabel('z [km]')
-
-  ax = plt.subplot(1,nplots,3)
-  ax.plot(A.divVs[:,i]*scal_v_ms/scal_x_m,A.grid.zc*scal_x,'k-')
-  ax.grid(True)
-  ax.set_xlabel('div(Vs) [1/s]')
-  # ax.set_ylabel('z [km]')
-
-  ax = plt.subplot(1,nplots,4)
-  ax.plot((A.divVs[:,i] - A.DPold[:,i]*A.phis[:,i]/A.nd.dt/A.matProp.Z[:,i])*scal_v_ms/scal_x_m,A.grid.zc*scal_x,'k-')
-  ax.grid(True)
-  ax.set_xlabel('curly Cprime [1/s]')
-  # ax.set_ylabel('z [km]')
-
-  ax = plt.subplot(1,nplots,5)
+  iplot +=1
+  ax = plt.subplot(1,nplots,iplot)
   ax.plot(A.DP[:,i]*scal_P,A.grid.zc*scal_x,'k-')
   ax.grid(True)
-  ax.set_xlabel('DP [MPa]')
+  ax.set_xlabel(r'$\Delta P$ [MPa]')
   # ax.set_ylabel('z [km]')
 
-  ax = plt.subplot(1,nplots,6)
+  iplot +=1
+  ax = plt.subplot(1,nplots,iplot)
   ax.plot(A.tau.II_center[:,i]*scal_P,A.grid.zc*scal_x,'k-')
   ax.grid(True)
-  ax.set_xlabel('tauII [MPa]')
+  ax.set_xlabel(r'$\tau_{II}$ [MPa]')
   # ax.set_ylabel('z [km]')
 
-  ax = plt.subplot(1,nplots,7)
-  ax.plot(A.matProp.Z[:,i]*scal_P,A.grid.zc*scal_x,'k-')
+  iplot +=1
+  ax = plt.subplot(1,nplots,iplot)
+  ax.plot(A.eps.II_center[:,i]*scal_v_ms/scal_x_m,A.grid.zc*scal_x,'k-')
   ax.grid(True)
-  ax.set_xlabel('Zphi [MPa]')
+  ax.set_xlabel(r'$\dot{\epsilon}_{II}$ [1/s]')
+  # ax.set_ylabel('z [km]')
+
+  iplot +=1
+  ax = plt.subplot(1,nplots,iplot)
+  ax.plot(A.divVs[:,i]*scal_v_ms/scal_x_m,A.grid.zc*scal_x,'k-')
+  ax.grid(True)
+  ax.set_xlabel(r'$\nabla\cdot v_s$ [1/s]')
+  # ax.set_ylabel('z [km]')
+
+  iplot +=1
+  ax = plt.subplot(1,nplots,iplot)
+  ax.plot((A.divVs[:,i] - A.DPold[:,i]*A.phis[:,i]/A.nd.dt/A.matProp.Z[:,i])*scal_v_ms/scal_x_m,A.grid.zc*scal_x,'k-')
+  ax.grid(True)
+  ax.set_xlabel(r'$\mathcal{C}p$ [1/s]')
+  # ax.set_ylabel('z [km]')
+
+  iplot +=1
+  ax = plt.subplot(1,nplots,iplot)
+  ax.plot(np.log10(A.matProp.eta[:,i]*scal_eta),A.grid.zc*scal_x,'k-')
+  ax.grid(True)
+  ax.set_xlabel(r'log10($\eta_{eff}$) [Pa s]')
+  # ax.set_ylabel('z [km]')
+
+  iplot +=1
+  ax = plt.subplot(1,nplots,iplot)
+  ax.plot(np.log10(A.matProp.zeta[:,i]*scal_eta),A.grid.zc*scal_x,'k-')
+  ax.grid(True)
+  ax.set_xlabel(r'log10($\zeta_{eff}$) [Pa s]')
   # ax.set_ylabel('z [km]')
 
   X = 1.0 - A.phis
-  X[X<1e-10] = 1e-10
-  ax = plt.subplot(1,nplots,8)
+  X[X<1e-20] = 1e-20
+  iplot +=1
+  ax = plt.subplot(1,nplots,iplot)
   ax.plot(np.log10(X[:,i]),A.grid.zc*scal_x,'k-')
   ax.grid(True)
-  ax.set_xlabel('log10(phi)')
+  ax.set_xlabel(r'log10($\phi$)')
   # ax.set_ylabel('z [km]')
 
-  ax = plt.subplot(1,nplots,9)
-  ax.plot(A.matProp.Kphi[:,i]*scal_Kphi,A.grid.zc*scal_x,'k-')
+  iplot +=1
+  ax = plt.subplot(1,nplots,iplot)
+  ax.plot(A.lam[:,i],A.grid.zc*scal_x,'k-')
   ax.grid(True)
-  ax.set_xlabel('Kphi [m2]')
+  ax.set_xlabel(r'$\lambda$')
+  # ax.set_ylabel('z [km]')
 
-  plt.savefig(A.output_path_dir+'profile_1D_z.pdf', bbox_inches = 'tight')
+  iplot +=1
+  ax = plt.subplot(1,nplots,iplot)
+  ax.plot(A.Vfz[:,i]*scal_v,A.grid.zv*scal_x,'k-')
+  ax.grid(True)
+  ax.set_xlabel(r'$v_\ell^z$ [cm/yr]')
+  # ax.set_ylabel('z [km]')
+
+  # ax = plt.subplot(1,nplots,2)
+  # ax.plot(np.log10(1.0/(1.0/A.matProp.zetaV[:,i]+1.0/A.matProp.zetaE[:,i])*scal_eta),A.grid.zc*scal_x,'k-')
+  # ax.grid(True)
+  # ax.set_xlabel('log10(zetaVE) [Pa s]]')
+  # # ax.set_ylabel('z [km]')
+
+  # ax = plt.subplot(1,nplots,7)
+  # ax.plot(A.matProp.Z[:,i]*scal_P,A.grid.zc*scal_x,'k-')
+  # ax.grid(True)
+  # ax.set_xlabel('Zphi [MPa]')
+  # # ax.set_ylabel('z [km]')
+
+  # ax = plt.subplot(1,nplots,9)
+  # ax.plot(A.matProp.Kphi[:,i]*scal_Kphi,A.grid.zc*scal_x,'k-')
+  # ax.grid(True)
+  # ax.set_xlabel('Kphi [m2]')
+
+  plt.savefig(A.output_path_dir+'profile_1D_z_ts'+str(istep)+'.png', bbox_inches = 'tight')
   plt.close()
 
 
