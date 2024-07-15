@@ -21,7 +21,7 @@ def sortTimesteps(tdir):
 
 # Parameters
 A.dimensional = 1 # 0-nd, 1-dim
-sim = 'run43_01a_SD_setup6_Kphi1e-7_sigmabc1e-2_upwind/'
+sim = 'run51_V_eta1e19_Vext0_zeta01e21/'
 A.input = '/Users/apusok/Documents/morfault/'+sim
 A.output_path_dir = '/Users/apusok/Documents/morfault/Figures/'+sim
 
@@ -35,6 +35,11 @@ if 'model_input.opts' in tdir:
 tdir_check = list.copy(tdir)
 for s in tdir_check:
   if '.out' in s:
+    tdir.remove(s)
+
+tdir_check = list.copy(tdir)
+for s in tdir_check:
+  if '.run' in s:
     tdir.remove(s)
 
 tdir_check = list.copy(tdir)
@@ -58,7 +63,7 @@ for ii in range(0,nt):
 
 # Create directories - default to check for files
 A.input_dir = A.input
-A.output_dir = A.output_path_dir+'fields_egu2/'
+A.output_dir = A.output_path_dir+'fields_alpha_eta/'
 # A.output_dir = A.output_path_dir+'plastic2/'  
 
 vizB.make_dir(A.output_path_dir)
@@ -86,8 +91,8 @@ A.nx = A.grid.nx
 A.nz = A.grid.nz
 
 # plot entire domain
-istart = 0
-iend   = A.nx
+istart = 60
+iend   = 140 #A.nx
 jstart = 0
 jend   = A.nz
 
@@ -105,7 +110,7 @@ if (flg_output):
   print('  >> '+A.output_dir+'  >> TRUE')
 
   # Loop over timesteps
-  for istep1 in range(0,nt,1):
+  for istep1 in range(0,nt,5):
     istep = time_list[istep1]
   # for istep in time_list:
     fdir  = A.input_dir+'Timestep'+str(istep)
@@ -167,7 +172,7 @@ if (flg_output):
     A.eps = vizB.parse_Tensor_file('out_xeps_ts'+str(istep),fdir)
     A.tau = vizB.parse_Tensor_file('out_xtau_ts'+str(istep),fdir)
     A.tauold = vizB.parse_Tensor_file('out_xtauold_ts'+str(istep),fdir)
-    # A.PVcoeff = vizB.parse_PVcoeff_file('out_xPVcoeff_ts'+str(istep),fdir)
+    A.PVcoeff = vizB.parse_PVcoeff_file('out_xPVcoeff_ts'+str(istep),fdir)
     # A.PVcoeff = vizB.parse_PVcoeff_Stokes_file('out_xPVcoeff_ts'+str(istep),fdir)
     A.matProp = vizB.parse_matProp_file('out_matProp_ts'+str(istep),fdir)
     A.Vfx, A.Vfz, A.Vx, A.Vz = vizB.parse_Vel_file('out_xVel_ts'+str(istep),fdir)
@@ -194,7 +199,7 @@ if (flg_output):
     # vizB.plot_mark_eps_phi_column3(A,istart,iend,jstart,jend,A.output_dir,'out_mark_eps_phi_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_phi_eps_divv(A,istart,iend,jstart,jend,A.output_dir,'out_mark_eps_phi_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_phi_eps(A,istart,iend,jstart,jend,A.output_dir,'out_phi_eps_ts'+str(istep),istep,A.dimensional)
-    vizB.plot_phi_eps(A,istart,iend,jstart,jend,A.output_dir,'out_phi_eps_ts'+str(istep),istep,A.dimensional)
+    vizB.plot_bulk_darcy_alpha(A,istart,iend,jstart,jend,A.output_dir,'out_bulk_darcy_alpha_ts'+str(istep),istep,A.dimensional)
 
     # vizB.plot_T(A,istart,iend,jstart,jend,A.output_path_dir+'T/','out_xT_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_MPhase(A,istart,iend,jstart,jend,A.output_path_dir+'MPhase/','out_xMPhase_ts'+str(istep),istep,A.dimensional)

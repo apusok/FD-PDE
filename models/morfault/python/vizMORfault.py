@@ -2240,6 +2240,314 @@ def plot_phi_eps(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
   plt.close()
 
 # ---------------------------------
+def plot_bulk_darcy_alpha(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
+  # fig = plt.figure(1,figsize=(13,4))
+  fig = plt.figure(1,figsize=(13,6))
+
+  scalx = get_scaling(A,'x',dim,1)
+  scalv = get_scaling(A,'v',dim,1)
+  lblx = get_label(A,'x',dim)
+  lblz = get_label(A,'z',dim)
+  scalt = get_scaling(A,'t',dim,1)
+  t = A.nd.t*scalt
+  
+  markx = A.mark.x[A.mark.id==0]
+  markz = A.mark.z[A.mark.id==0]
+
+  A.Cx   = np.zeros([A.nz,A.nx])
+  A.Cz   = np.zeros([A.nz,A.nx])
+  A.Sx   = np.zeros([A.nz,A.nx])
+  A.Sz   = np.zeros([A.nz,A.nx])
+
+  Sx = A.Vx - A.Vsx
+  Sz = A.Vz - A.Vsz
+  
+  phi = 1.0 - A.phis
+  phi[phi<0.0] = 0.0
+
+  Cp = A.divVs - (1.0-phi)*A.DPold/A.matProp.Z/A.nd.dt
+  A.zeta_eff = A.matProp.zeta - A.matProp.DPdl/Cp
+  A.alpha_eta = A.matProp.eta/(A.zeta_eff+4/3*A.matProp.eta)
+
+  # center velocities
+  for i in range(0,A.nx):
+    for j in range(0,A.nz):
+      A.Cx[j][i]  = 0.5 * (A.Vx[j][i+1] + A.Vx[j][i])
+      A.Cz[j][i]  = 0.5 * (A.Vz[j+1][i] + A.Vz[j][i])
+      A.Sx[j][i]  = 0.5 * (Sx[j][i+1] + Sx[j][i])
+      A.Sz[j][i]  = 0.5 * (Sz[j+1][i] + Sz[j][i])
+
+  # Topography using markers
+  x_mark = np.zeros(A.nx*2)
+  topo_mark = np.zeros(A.nx*2)
+
+  for i in range(0,A.nx):
+    x_mark[2*i  ] = A.grid.xv[i]
+    x_mark[2*i+1] = A.grid.xc[i]
+
+  dx2 = (x_mark[1]-x_mark[0])*0.5
+
+  for i in range(0,A.nx*2):
+    ztopo = 0.0
+    for j in range(0,A.mark.n):
+      if (A.mark.x[j]>=x_mark[i]-dx2) & (A.mark.x[j]<x_mark[i]+dx2) & (A.mark.id[j]==0):
+        ztopo = min(ztopo,A.mark.z[j]*scalx)
+    topo_mark[i] = ztopo
+
+  extentE=[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zc[jstart:jend  ])*scalx, max(A.grid.zc[jstart:jend  ])*scalx]
+  extentV=[min(A.grid.xv[istart:iend+1])*scalx, max(A.grid.xv[istart:iend+1])*scalx, min(A.grid.zv[jstart:jend+1])*scalx, max(A.grid.zv[jstart:jend+1])*scalx]
+
+  ax = plt.subplot(1,2,1)
+  levels = [1e-4, 1]
+  philevel = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, phi[jstart:jend  ,istart:iend  ], levels=levels,colors=('silver'),linewidths=(0.5,), extend='both')
+
+  maxV = 1
+  nind = 4 # 10 for high res/ 5 for low res
+  Q = ax.quiver(A.grid.xc[istart:iend:nind]*scalx, A.grid.zc[jstart:jend:nind]*scalx, A.Cx[jstart:jend:nind,istart:iend:nind]*scalv/maxV, A.Cz[jstart:jend:nind,istart:iend:nind]*scalv/maxV, 
+      color='black', scale=0.5, width=0.005, headwidth=4, headaxislength=4, minlength=0, label =r'$\textbf{c}$')
+  # Q = ax.quiver(A.grid.xc[istart:iend:nind]*scalx, A.grid.zc[jstart:jend:nind]*scalx, A.Cx[jstart:jend:nind,istart:iend:nind]*scalv/maxV, A.Cz[jstart:jend:nind,istart:iend:nind]*scalv/maxV, 
+  #     color='black', scale_units='xy', scale=0.25, units='width', pivot='tail', width=0.03, headwidth=5, headaxislength=5, minlength=0)
+
+  Q1 = ax.quiver(A.grid.xc[istart:iend:nind]*scalx, A.grid.zc[jstart:jend:nind]*scalx, A.Sx[jstart:jend:nind,istart:iend:nind]*scalv/maxV, A.Sz[jstart:jend:nind,istart:iend:nind]*scalv/maxV, 
+      color='red', scale=0.5, width=0.005, headwidth=4, headaxislength=4, minlength=0, label =r'$\textbf{s}$')
+
+  maxVf = 5
+  qk = ax.quiverkey(Q, X=0.05, Y=-0.1, U=maxVf, label=str(maxVf)+' cm/yr', labelpos='E')
+  # qk1 = ax.quiverkey(Q1, X=0.0, Y=-0.1, U=maxVf, label=r'$\textbf{s}$ '+str(maxVf)+' cm/yr', labelpos='E')
+  
+  # im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  # ax.legend()
+  pl = ax.plot(x_mark*scalx,topo_mark,'k-',linewidth=0.5)
+  ax.axis('image')
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  ax.set_title('time = '+str(round(t/1.0e3,0))+' [kyr]  '+r'black:$\textbf{c}$ red:$\textbf{s}$ [cm/yr]')
+
+  ax = plt.subplot(1,2,2)
+  im = ax.imshow(A.alpha_eta[jstart:jend  ,istart:iend  ],extent=extentV,cmap='RdYlBu_r',origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  philevel = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, phi[jstart:jend  ,istart:iend  ], levels=levels,colors=('silver'),linewidths=(0.5,), extend='both')
+  pl = ax.plot(x_mark*scalx,topo_mark,'k-',linewidth=0.5)
+  im.set_clim(0,1.0)
+  cbar = fig.colorbar(im,ax=ax, shrink=1.00)
+  ax.axis('image')
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  ax.set_title(r'$\alpha_\eta = \eta/(\zeta+4/3\eta)$')
+  # ax.set_title(lblII)
+
+  # plt.tight_layout()
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_phi_eps_div_eta_zeta_lam(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
+  fig = plt.figure(1,figsize=(25,6))
+
+  scalx = get_scaling(A,'x',dim,1)
+  scalv = get_scaling(A,'v',dim,1)
+  lblx = get_label(A,'x',dim)
+  lblz = get_label(A,'z',dim)
+  scalt = get_scaling(A,'t',dim,1)
+  t = A.nd.t*scalt
+  
+  markx = A.mark.x[A.mark.id==0]
+  markz = A.mark.z[A.mark.id==0]
+
+  extentE=[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zc[jstart:jend  ])*scalx, max(A.grid.zc[jstart:jend  ])*scalx]
+  extentV=[min(A.grid.xv[istart:iend+1])*scalx, max(A.grid.xv[istart:iend+1])*scalx, min(A.grid.zv[jstart:jend+1])*scalx, max(A.grid.zv[jstart:jend+1])*scalx]
+
+  nplots = 6
+  ax = plt.subplot(1,nplots,1)
+  X = 1.0 - A.phis
+  X[X<1e-10] = 1e-10
+  cmap1 = plt.cm.get_cmap('inferno', 20)
+  im = ax.imshow(np.log10(X[jstart:jend  ,istart:iend  ]),extent=extentE,cmap=cmap1,origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(-6,-1)
+  cbar = fig.colorbar(im,ax=ax,orientation='horizontal')
+
+  ax.axis('image')
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  ax.set_title('t = '+str(round(t/1.0e3,0))+' [kyr]  '+r'log$_{10}\phi$')
+
+  # temperature contour
+  X = scale_TC(A,'T','T',dim,1)
+  cmap1 = plt.cm.get_cmap('binary',10)
+
+  if (dim):
+    levels = [0, 250, 500, 750, 1000, 1300, 1500]
+    fmt = r'%0.0f $^o$C'
+    ts = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, X[jstart:jend  ,istart:iend  ], levels=levels,linewidths=(1.0,), extend='both',cmap=cmap1)
+    ax.clabel(ts, fmt=fmt, fontsize=10-2)
+
+  ax = plt.subplot(1,nplots,2)
+  lblII  = get_label(A,'epsII',dim)
+  scal = get_scaling(A,'eps',dim,0)
+  X4 = np.log10(A.eps.II_corner*scal)
+  im = ax.imshow(X4[jstart:jend  ,istart:iend  ],extent=extentV,cmap='RdYlBu_r',origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(-16,-13)
+  cbar = fig.colorbar(im,ax=ax,orientation='horizontal')
+  ax.axis('image')
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+  ax.set_xlabel(lblx)
+  ax.set_title('log10 '+lblII)
+
+  ax = plt.subplot(1,nplots,3)
+  scal_v_ms = get_scaling(A,'v',dim,0)
+  scal_x_m = get_scaling(A,'x',dim,0)
+  scal = 1e-14
+  X4 = A.divVs*scal_v_ms/scal_x_m/scal
+  im = ax.imshow(X4[jstart:jend  ,istart:iend  ],extent=extentV,cmap='RdYlBu_r',origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(-2,2)
+  cbar = fig.colorbar(im,ax=ax,orientation='horizontal')
+  ax.axis('image')
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+  ax.set_xlabel(lblx)
+  # ax.set_ylabel(lblz)
+  ax.set_title(r'$\nabla\cdot v_s$ [$\times 10^{-14}$ 1/s]')
+
+  ax = plt.subplot(1,nplots,4)
+  scal_eta = get_scaling(A,'eta',dim,0)
+  X = np.log10(A.matProp.eta*scal_eta)
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentE,origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(np.log10(A.nd.eta_min*scal_eta),np.log10(A.nd.eta_max*scal_eta))
+  cbar = fig.colorbar(im,ax=ax,orientation='horizontal')
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+  ax.set_xlabel(lblx)
+  ax.set_title(r'$\log_{10}\eta$ [Pa.s]')
+
+  ax = plt.subplot(1,nplots,5)
+  X = np.log10(A.matProp.zeta*scal_eta)
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentE,origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(np.log10(A.nd.eta_min*scal_eta),np.log10(A.nd.eta_max*scal_eta))
+  cbar = fig.colorbar(im,ax=ax,orientation='horizontal')
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+  ax.set_xlabel(lblx)
+  ax.set_title(r'$\log_{10}\zeta$ [Pa.s]')
+
+  ax = plt.subplot(1,nplots,6)
+  X = A.lam*scal
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentE,origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  # im.set_clim(0,3)
+  cbar = fig.colorbar(im,ax=ax,orientation='horizontal')
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+  ax.set_xlabel(lblx)
+  ax.set_title(r'$\lambda$ [-]')
+
+  # plt.tight_layout()
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_phi_eps_div_lam(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
+  fig = plt.figure(1,figsize=(17,6))
+
+  scalx = get_scaling(A,'x',dim,1)
+  scalv = get_scaling(A,'v',dim,1)
+  lblx = get_label(A,'x',dim)
+  lblz = get_label(A,'z',dim)
+  scalt = get_scaling(A,'t',dim,1)
+  t = A.nd.t*scalt
+  
+  markx = A.mark.x[A.mark.id==0]
+  markz = A.mark.z[A.mark.id==0]
+
+  extentE=[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zc[jstart:jend  ])*scalx, max(A.grid.zc[jstart:jend  ])*scalx]
+  extentV=[min(A.grid.xv[istart:iend+1])*scalx, max(A.grid.xv[istart:iend+1])*scalx, min(A.grid.zv[jstart:jend+1])*scalx, max(A.grid.zv[jstart:jend+1])*scalx]
+
+  nplots = 4
+  ax = plt.subplot(1,nplots,1)
+  X = 1.0 - A.phis
+  X[X<1e-10] = 1e-10
+  cmap1 = plt.cm.get_cmap('inferno', 20)
+  im = ax.imshow(np.log10(X[jstart:jend  ,istart:iend  ]),extent=extentE,cmap=cmap1,origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(-6,-1)
+  cbar = fig.colorbar(im,ax=ax,orientation='horizontal')
+
+  ax.axis('image')
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+  ax.set_xlabel(lblx)
+  ax.set_ylabel(lblz)
+  ax.set_title('t = '+str(round(t/1.0e3,0))+' [kyr]  '+r'log$_{10}\phi$')
+
+  # temperature contour
+  X = scale_TC(A,'T','T',dim,1)
+  cmap1 = plt.cm.get_cmap('binary',10)
+
+  if (dim):
+    levels = [0, 250, 500, 750, 1000, 1300, 1500]
+    fmt = r'%0.0f $^o$C'
+    ts = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, X[jstart:jend  ,istart:iend  ], levels=levels,linewidths=(1.0,), extend='both',cmap=cmap1)
+    ax.clabel(ts, fmt=fmt, fontsize=10-2)
+
+  ax = plt.subplot(1,nplots,2)
+  lblII  = get_label(A,'epsII',dim)
+  scal = get_scaling(A,'eps',dim,0)
+  X4 = np.log10(A.eps.II_corner*scal)
+  im = ax.imshow(X4[jstart:jend  ,istart:iend  ],extent=extentV,cmap='RdYlBu_r',origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(-16,-13)
+  cbar = fig.colorbar(im,ax=ax,orientation='horizontal')
+  ax.axis('image')
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+  ax.set_xlabel(lblx)
+  ax.set_title('log10 '+lblII)
+
+  ax = plt.subplot(1,nplots,3)
+  scal_v_ms = get_scaling(A,'v',dim,0)
+  scal_x_m = get_scaling(A,'x',dim,0)
+  scal = 1e-14
+  X4 = A.divVs*scal_v_ms/scal_x_m/scal
+  im = ax.imshow(X4[jstart:jend  ,istart:iend  ],extent=extentV,cmap='RdYlBu_r',origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  # im.set_clim(-2,2)
+  cbar = fig.colorbar(im,ax=ax,orientation='horizontal')
+  ax.axis('image')
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+  ax.set_xlabel(lblx)
+  # ax.set_ylabel(lblz)
+  ax.set_title(r'$\nabla\cdot v_s$ [$\times 10^{-14}$ 1/s]')
+
+  ax = plt.subplot(1,nplots,4)
+  X = A.dotlam*scal_v_ms/scal_x_m/scal
+  im = ax.imshow(X[jstart:jend  ,istart:iend  ],extent=extentE,cmap='RdYlBu_r',origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  cbar = fig.colorbar(im,ax=ax,orientation='horizontal')
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+  ax.set_xlabel(lblx)
+  ax.set_title(r'$\dot{\lambda}$ [1/s]')
+
+  # plt.tight_layout()
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
 def plot_mark_divs_phi(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
   make_dir(fdir)
   fig = plt.figure(1,figsize=(21,4))

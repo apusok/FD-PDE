@@ -1445,8 +1445,8 @@ PetscErrorCode RheologyPointwise_VE(PetscInt i, PetscInt j, PetscScalar ***xwt, 
       mtheta[iph] = mtheta[iph] * (1.0+noise) * PetscMax((1.0-usr->par->hcc*xsoft),usr->par->hcc);
 
       // tensile strength
-      msigmat[iph] = TensileStrength(mC[iph],4.0,usr->mat_nd[iph].sigmat,0); 
-      // msigmat[iph] = TensileStrength(mC[iph],4.0,usr->mat_nd[iph].sigmat,1); // user defined sigmat
+      // msigmat[iph] = TensileStrength(mC[iph],4.0,usr->mat_nd[iph].sigmat,0); 
+      msigmat[iph] = TensileStrength(mC[iph],4.0,usr->mat_nd[iph].sigmat,1); // user defined sigmat
 
       // initialize plastic viscosity
       meta_p[iph] = usr->nd->eta_max;
