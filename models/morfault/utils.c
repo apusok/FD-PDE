@@ -21,8 +21,8 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ct
   ierr = HalfSpaceCooling_MOR(usr);CHKERRQ(ierr);
 
   // initialize constant solid porosity field
-  // ierr = VecSet(usr->xphi,1.0-usr->par->phi0); CHKERRQ(ierr);
-  ierr = SetInitialPorosityField(usr);CHKERRQ(ierr);
+  ierr = VecSet(usr->xphi,1.0-usr->par->phi0); CHKERRQ(ierr);
+  // ierr = SetInitialPorosityField(usr);CHKERRQ(ierr);
 
   // set swarm initial size and coordinates
   PetscInt ppcell[] = {usr->par->ppcell,usr->par->ppcell};
