@@ -749,6 +749,24 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdT, FDPDE fdphi,void *ctx)
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPVcoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(dmPVcoeff,xPVcoeff,fout);CHKERRQ(ierr);
 
+  // previous sol and coeff - for debug
+  // Vec  xphiprev, xphiprevcoeff;
+  // ierr = FDPDEAdvDiffGetPrevSolution(fdphi,&xphiprev);CHKERRQ(ierr);
+  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xphiprev_ts%d",usr->par->fdir_out,usr->nd->istep);
+  // ierr = DMStagViewBinaryPython(usr->dmphi,xphiprev,fout);CHKERRQ(ierr);
+  // ierr = VecDestroy(&xphiprev);CHKERRQ(ierr);
+
+  // ierr = FDPDEAdvDiffGetPrevCoefficient(fdphi,&xphiprevcoeff);CHKERRQ(ierr);
+  // ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xphiprevcoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
+  // ierr = DMStagViewBinaryPython(dmphicoeff,xphiprevcoeff,fout);CHKERRQ(ierr);
+  // ierr = VecDestroy(&xphiprevcoeff);CHKERRQ(ierr);
+
+  Vec  xphiguess;
+  ierr = FDPDEGetSolutionGuess(fdphi,&xphiguess);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xphiguess_ts%d",usr->par->fdir_out,usr->nd->istep);
+  ierr = DMStagViewBinaryPython(usr->dmphi,xphiguess,fout);CHKERRQ(ierr);
+  ierr = VecDestroy(&xphiguess);CHKERRQ(ierr);
+
   // material properties - eta, zeta, G, Z, permeability, density
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_matProp_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(usr->dmmatProp,usr->xmatProp,fout);CHKERRQ(ierr);
@@ -1406,8 +1424,14 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ctx
   // initialize guess and previous solution in fdphi
   ierr = FDPDEAdvDiffGetPrevSolution(fdphi,&xphiprev);CHKERRQ(ierr);
   ierr = VecCopy(usr->xphi,xphiprev);CHKERRQ(ierr);
+  
   ierr = FDPDEGetSolutionGuess(fdphi,&xphiguess);CHKERRQ(ierr);
-  ierr = VecCopy(xphiprev,xphiguess);CHKERRQ(ierr);
+  // ierr = VecCopy(usr->xphi,xphiguess);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xphiguess_ts%d",usr->par->fdir_out,usr->nd->istep);
+  ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
+  ierr = VecCopy(x,xphiguess);CHKERRQ(ierr);
+  ierr = VecDestroy(&x); CHKERRQ(ierr);
+  ierr = DMDestroy(&dm); CHKERRQ(ierr);
   ierr = VecDestroy(&xphiprev);CHKERRQ(ierr);
   ierr = VecDestroy(&xphiguess);CHKERRQ(ierr);
 
