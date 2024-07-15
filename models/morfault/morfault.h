@@ -73,7 +73,7 @@ typedef struct {
   PetscScalar    L, H, Hs, xmin, zmin;
   PetscScalar    k_hat, g, Ttop, Tbot, R, Vext, rhof, q, age;
   PetscScalar    hs_factor, drho, kphi0, n, mu, eta_min, eta_max, phi_min, phi0, eta_K, lambda, EoR, Teta0, zetaExp;
-  PetscInt       ts_scheme, adv_scheme, tout, tstep, ppcell, Nmax, rheology, two_phase, model_setup;
+  PetscInt       ts_scheme, adv_scheme, tout, tstep, ppcell, Nmax, rheology, two_phase, model_setup, restart;
   PetscScalar    dt_out, tmax, dtmax, tf_tol, strain_max, hcc;
   PetscScalar    incl_x, incl_z, incl_r, incl_dT;
   PetscInt       mat0_id, mat1_id, mat2_id, mat3_id, mat4_id, mat5_id, marker_phases, matid_default;
@@ -94,7 +94,7 @@ typedef struct {
   PetscScalar    mat0_theta, mat1_theta, mat2_theta, mat3_theta, mat4_theta, mat5_theta; 
   char           mat0_name[FNAME_LENGTH],mat1_name[FNAME_LENGTH],mat2_name[FNAME_LENGTH], mat3_name[FNAME_LENGTH],mat4_name[FNAME_LENGTH],mat5_name[FNAME_LENGTH];
   char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH], fdir_out[FNAME_LENGTH]; 
-  PetscBool      log_info;
+  PetscBool      log_info, start_run;
 } Params;
 
 typedef struct {
@@ -175,7 +175,7 @@ PetscScalar ViscosityHarmonicAvg(PetscScalar,PetscScalar,PetscScalar);
 
 PetscErrorCode VEVP_hyper_sol_Y(PetscInt, PetscScalar,PetscScalar, PetscScalar, PetscScalar, PetscScalar, PetscScalar, PetscScalar, PetscScalar, PetscScalar[],PetscScalar[], PetscScalar[]);
 PetscErrorCode Plastic_LocalSolver(PetscScalar*,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,void*,PetscScalar[]);
-PetscScalar AlphaP(PetscScalar,PetscScalar);
+// PetscScalar AlphaP(PetscScalar,PetscScalar);
 
 // utils
 PetscErrorCode SetSwarmInitialCondition(DM,void*);
@@ -189,6 +189,10 @@ PetscErrorCode UpdateStrainRates(DM,Vec,void*); // need optimization
 PetscErrorCode IntegratePlasticStrain(DM,Vec,Vec,void*);
 PetscErrorCode ComputeFluidAndBulkVelocity(DM,Vec,DM,Vec,DM,Vec,DM,Vec,void*);
 PetscErrorCode CreateDirectory(const char*);
+PetscErrorCode LoadRestartFromFile(FDPDE, FDPDE, void*);
+PetscErrorCode OutputParameters(void*); 
+PetscErrorCode LoadParametersFromFile(void*);
+PetscErrorCode DMSwarmReadBinaryXDMF_Seq(DM,const char*,PetscInt,const char*[1]);
 
 PetscErrorCode GetMatPhaseFraction(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscInt,PetscScalar*);
 PetscErrorCode GetCornerAvgFromCenter(PetscScalar*,PetscScalar*);

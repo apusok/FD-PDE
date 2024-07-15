@@ -31,6 +31,7 @@ PetscErrorCode UserParamsCreate(UsrData **_usr,int argc,char **argv)
 
   // print user parameters
   ierr = InputPrintData(usr); CHKERRQ(ierr);
+  usr->par->start_run = PETSC_FALSE;
 
   // return pointer
   *_usr = usr;
@@ -297,11 +298,13 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   ierr = PetscBagRegisterInt(bag, &par->rheology,0, "rheology", "0-VEP 1-VEVP (AveragePhase) 2-VEVP (DominantPhase)"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->two_phase,0, "two_phase", "0-single (Stokes) 1-two_phase (StokesDarcy)"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->model_setup,0, "model_setup", "0-weak inclusion 1-temp profile"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->model_setup,0, "model_setup", "0-weak inclusion 1-temp perturbation 2-age-dep temp profile"); CHKERRQ(ierr);
   
   // boolean options
   ierr = PetscBagRegisterBool(bag, &par->log_info,PETSC_FALSE, "model_log_info", "Output profiling data (T/F)"); CHKERRQ(ierr);
- 
+  ierr = PetscBagRegisterInt(bag, &par->restart,0, "restart", "Restart from #istep, 0-means start from beginning"); CHKERRQ(ierr);
+  par->start_run = PETSC_TRUE;
+
   // input/output 
   par->fname_in[0] = '\0';
   ierr = PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_solution","output_file","Name for output file, set with: -output_file <filename>"); CHKERRQ(ierr);
@@ -436,26 +439,28 @@ PetscErrorCode InputPrintData(UsrData *usr)
   scal = usr->scal;
   nd   = usr->nd;
 
-  // Get date
-  ierr = PetscGetDate(date,30); CHKERRQ(ierr);
-  ierr = PetscOptionsGetAll(NULL, &opts); CHKERRQ(ierr);
+  if (usr->par->start_run) {
+    // Get date
+    ierr = PetscGetDate(date,30); CHKERRQ(ierr);
+    ierr = PetscOptionsGetAll(NULL, &opts); CHKERRQ(ierr);
 
-  // Print header and petsc options
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# MID-OCEAN RIDGE - FAULT: %s \n",&(date[0]));
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+    // Print header and petsc options
+    PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+    PetscPrintf(usr->comm,"# MID-OCEAN RIDGE - FAULT: %s \n",&(date[0]));
+    PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+    PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
+    PetscPrintf(usr->comm,"# --------------------------------------- #\n");
 
-  // Free memory
-  ierr = PetscFree(opts); CHKERRQ(ierr);
+    // Free memory
+    ierr = PetscFree(opts); CHKERRQ(ierr);
 
-  // Input file info
-  if (usr->par->fname_in[0] == '\0') { // string is empty
-    PetscPrintf(usr->comm,"# Input options file: NONE (using default options)\n");
-  }
-  else {
-    PetscPrintf(usr->comm,"# Input options file: %s \n",usr->par->fname_in);
+    // Input file info
+    if (usr->par->fname_in[0] == '\0') { // string is empty
+      PetscPrintf(usr->comm,"# Input options file: NONE (using default options)\n");
+    }
+    else {
+      PetscPrintf(usr->comm,"# Input options file: %s \n",usr->par->fname_in);
+    }
   }
 
   // Print usr bag

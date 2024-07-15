@@ -188,9 +188,9 @@ static PetscScalar ResF(PetscScalar xsol[3], PetscScalar *a,PetscScalar theta,Pe
   return F;
 }
 
-// ---------------------------------------
-PetscScalar AlphaP(PetscScalar phi, PetscScalar phia) 
-{ return PetscExpScalar(-phi/phia); }
+// // ---------------------------------------
+// PetscScalar AlphaP(PetscScalar phi, PetscScalar phia) 
+// { return PetscExpScalar(-phi/phia); }
 
 // ---------------------------------------
 //VEVP_hyper_tau: find the solution of tauII

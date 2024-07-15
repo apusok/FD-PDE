@@ -91,7 +91,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   PetscScalar    xmin, xmax, zmin, zmax, dt, phi0;
   FDPDE          fdPV, fdT;
   DM             dmPV, dmT, dmswarm, dmTcoeff;
-  Vec            xPV, xPVguess, xT, xTprev,xTcoeff, xTcoeffprev;
+  Vec            xPV, xT, xTprev,xTcoeff, xTcoeffprev; //xPVguess;
   PetscBool      converged;
   char           fout[FNAME_LENGTH];
   PetscLogDouble start_time, end_time;
@@ -253,13 +253,18 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = DMSwarmRegisterPetscDatatypeField(dmswarm,"id5",1,PETSC_REAL);CHKERRQ(ierr);
   ierr = DMStagPICFinalize(dmswarm);CHKERRQ(ierr);
   usr->dmswarm = dmswarm;
-  PetscInt ppcell[] = {usr->par->ppcell,usr->par->ppcell};
-  ierr = MPointCoordLayout_DomainVolumeWithCellList(dmswarm,0,NULL,0.5,ppcell,COOR_INITIALIZE);CHKERRQ(ierr);
-
-  // Initial condition and initial PV guess 
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-  PetscPrintf(PETSC_COMM_WORLD,"# Set initial conditions and PV guess \n");
-  ierr = SetInitialConditions(fdPV,fdT,usr);CHKERRQ(ierr);
+  
+  if (par->restart==0) {
+    // Initial condition and initial PV guess 
+    PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+    PetscPrintf(PETSC_COMM_WORLD,"# Set initial conditions and PV guess \n");
+    ierr = SetInitialConditions(fdPV,fdT,usr);CHKERRQ(ierr);
+  } else { 
+    // Restart from file
+    PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+    PetscPrintf(PETSC_COMM_WORLD,"# Restart from timestep %d \n",par->restart);
+    ierr = LoadRestartFromFile(fdPV,fdT,usr);CHKERRQ(ierr);
+  } 
 
   nd->istep++;
 
@@ -292,9 +297,9 @@ PetscErrorCode Numerical_solution(void *ctx)
 
     ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
     ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
-    ierr = FDPDEGetSolutionGuess(fdPV,&xPVguess); CHKERRQ(ierr); 
-    ierr = VecCopy(usr->xPV,xPVguess);CHKERRQ(ierr);
-    ierr = VecDestroy(&xPVguess);CHKERRQ(ierr);
+    // ierr = FDPDEGetSolutionGuess(fdPV,&xPVguess); CHKERRQ(ierr); 
+    // ierr = VecCopy(usr->xPV,xPVguess);CHKERRQ(ierr);
+    // ierr = VecDestroy(&xPVguess);CHKERRQ(ierr);
     ierr = VecDestroy(&xPV);CHKERRQ(ierr);
 
     // Integrate the plastic strain
