@@ -513,34 +513,34 @@ PetscErrorCode UpdateMarkerPhaseFractions(DM dmswarm, DM dmMPhase, Vec xMPhase, 
   dm = usr->dmPV;
   // Project swarm into coefficient
   id = 0;
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id0",dm,dmMPhase,0,id,xMPhase);CHKERRQ(ierr);//vertex
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id0",dm,dmMPhase,1,id,xMPhase);CHKERRQ(ierr);//face
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id0",dm,dmMPhase,2,id,xMPhase);CHKERRQ(ierr);//cell
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id0",dm,dmMPhase,0,id,xMPhase);CHKERRQ(ierr);//vertex
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id0",dm,dmMPhase,1,id,xMPhase);CHKERRQ(ierr);//face
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id0",dm,dmMPhase,2,id,xMPhase);CHKERRQ(ierr);//cell
 
   id = 1;
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id1",dm,dmMPhase,0,id,xMPhase);CHKERRQ(ierr);//vertex
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id1",dm,dmMPhase,1,id,xMPhase);CHKERRQ(ierr);//face
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id1",dm,dmMPhase,2,id,xMPhase);CHKERRQ(ierr);//cell
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id1",dm,dmMPhase,0,id,xMPhase);CHKERRQ(ierr);//vertex
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id1",dm,dmMPhase,1,id,xMPhase);CHKERRQ(ierr);//face
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id1",dm,dmMPhase,2,id,xMPhase);CHKERRQ(ierr);//cell
 
   id = 2;
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id2",dm,dmMPhase,0,id,xMPhase);CHKERRQ(ierr);//vertex
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id2",dm,dmMPhase,1,id,xMPhase);CHKERRQ(ierr);//face
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id2",dm,dmMPhase,2,id,xMPhase);CHKERRQ(ierr);//cell
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id2",dm,dmMPhase,0,id,xMPhase);CHKERRQ(ierr);//vertex
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id2",dm,dmMPhase,1,id,xMPhase);CHKERRQ(ierr);//face
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id2",dm,dmMPhase,2,id,xMPhase);CHKERRQ(ierr);//cell
 
   id = 3;
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id3",dm,dmMPhase,0,id,xMPhase);CHKERRQ(ierr);//vertex
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id3",dm,dmMPhase,1,id,xMPhase);CHKERRQ(ierr);//face
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id3",dm,dmMPhase,2,id,xMPhase);CHKERRQ(ierr);//cell
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id3",dm,dmMPhase,0,id,xMPhase);CHKERRQ(ierr);//vertex
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id3",dm,dmMPhase,1,id,xMPhase);CHKERRQ(ierr);//face
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id3",dm,dmMPhase,2,id,xMPhase);CHKERRQ(ierr);//cell
 
   id = 4;
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id4",dm,dmMPhase,0,id,xMPhase);CHKERRQ(ierr);//vertex
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id4",dm,dmMPhase,1,id,xMPhase);CHKERRQ(ierr);//face
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id4",dm,dmMPhase,2,id,xMPhase);CHKERRQ(ierr);//cell
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id4",dm,dmMPhase,0,id,xMPhase);CHKERRQ(ierr);//vertex
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id4",dm,dmMPhase,1,id,xMPhase);CHKERRQ(ierr);//face
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id4",dm,dmMPhase,2,id,xMPhase);CHKERRQ(ierr);//cell
 
   id = 5;
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id5",dm,dmMPhase,0,id,xMPhase);CHKERRQ(ierr);//vertex
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id5",dm,dmMPhase,1,id,xMPhase);CHKERRQ(ierr);//face
-  ierr = MPoint_ProjectQ1_arith_general(dmswarm,"id5",dm,dmMPhase,2,id,xMPhase);CHKERRQ(ierr);//cell
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id5",dm,dmMPhase,0,id,xMPhase);CHKERRQ(ierr);//vertex
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id5",dm,dmMPhase,1,id,xMPhase);CHKERRQ(ierr);//face
+  ierr = MPoint_ProjectQ1_arith_general_AP(dmswarm,"id5",dm,dmMPhase,2,id,xMPhase);CHKERRQ(ierr);//cell
 
   PetscFunctionReturn(0);
 }
@@ -553,48 +553,49 @@ PetscErrorCode UpdateMarkerPhaseFractions(DM dmswarm, DM dmMPhase, Vec xMPhase, 
 #define __FUNCT__ "GetMarkerDensityPerCell"
 PetscErrorCode GetMarkerDensityPerCell(DM dmswarm, DM dm, PetscInt nmark[2])
 {
-  PetscInt       p, npoints, ncell, *pcellid, *cnt, Nx, Nz;
-  Vec            xlocal;
+  PetscInt       p, npoints, slot, *pcellid;
+  PetscScalar    ***cnt;
+  Vec            x, xlocal;
+  DM             dmcom;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  ierr = DMSwarmGetSize(dmswarm,&npoints);CHKERRQ(ierr);
+  ierr = DMSwarmGetLocalSize(dmswarm,&npoints);CHKERRQ(ierr);
   ierr = DMSwarmGetField(dmswarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&pcellid);CHKERRQ(ierr);
-  ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
-  ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  ierr = VecGetSize(xlocal,&ncell);CHKERRQ(ierr);
-  ierr = PetscCalloc1(ncell,&cnt);CHKERRQ(ierr);
+
+  // create compatible dm with 1 center dof
+  ierr = DMStagCreateCompatibleDMStag(dm,0,0,1,0,&dmcom);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(dmcom,&x);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dmcom,&xlocal);CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmcom,xlocal,&cnt);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcom,DMSTAG_ELEMENT,0,&slot);CHKERRQ(ierr);
 
   // count markers/cell
   for (p=0; p<npoints; p++) {
     PetscInt cellid = -1;
+    PetscInt geid[]={0,0,0};
+
     cellid = pcellid[p];
-    cnt[cellid] += 1.0;
+    ierr = DMStagGetLocalElementGlobalIndices(dmcom,cellid,geid);CHKERRQ(ierr);
+    cnt[ geid[1] ][ geid[0] ][ slot ] += 1.0;
   }
-
-  // get min/max 
-  PetscInt lmin, lmax, gmin = 0, gmax = 0;
-  lmin = 1000;
-  lmax = 0;
-  for (p=0; p<ncell; p++) {
-    PetscBool in_global_space;
-    ierr = DMStagLocalElementIndexInGlobalSpace_2d(dm,p,&in_global_space);CHKERRQ(ierr);
-    if (in_global_space) {
-      if (cnt[p]<lmin) lmin = cnt[p];
-      if (cnt[p]>lmax) lmax = cnt[p];
-    }
-  }
-
-  // MPI exchange global min/max
-  ierr = MPI_Allreduce(&lmin,&gmin,1,MPI_INT,MPI_MIN,PetscObjectComm((PetscObject)dm));CHKERRQ(ierr);
-  ierr = MPI_Allreduce(&lmax,&gmax,1,MPI_INT,MPI_MAX,PetscObjectComm((PetscObject)dm));CHKERRQ(ierr);
 
   ierr = DMSwarmRestoreField(dmswarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&pcellid);CHKERRQ(ierr);
-  ierr = PetscFree(cnt);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm, &xlocal); CHKERRQ(ierr);
 
-  nmark[0] = gmin;
-  nmark[1] = gmax;
+  ierr = DMStagVecRestoreArray(dmcom,xlocal,&cnt);CHKERRQ(ierr);
+  ierr = DMLocalToGlobal(dmcom,xlocal,ADD_VALUES,x);CHKERRQ(ierr);
+
+  // get min/max 
+  PetscScalar gmin, gmax;
+  ierr = VecMin(x, NULL, &gmin); CHKERRQ(ierr);
+  ierr = VecMax(x, NULL, &gmax); CHKERRQ(ierr);
+
+  ierr = VecDestroy(&xlocal);CHKERRQ(ierr);
+  ierr = VecDestroy(&x);CHKERRQ(ierr);
+  ierr = DMDestroy(&dmcom);CHKERRQ(ierr);
+
+  nmark[0] = (int)gmin;
+  nmark[1] = (int)gmax;
 
   PetscFunctionReturn(0);
 }
