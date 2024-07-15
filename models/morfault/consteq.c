@@ -296,6 +296,10 @@ PetscErrorCode Plastic_LocalSolver(PetscScalar *xve,PetscScalar C, PetscScalar s
       xsol[1] = DPt + cdl*zeta_ve/(1.0-phi) * sint * xsol[2]; 
     }
     //PetscPrintf(PETSC_COMM_WORLD, "TEST, tau = %1.6f, dp = %1.6f, lam = %1.6f\n", xsol[0], xsol[1], xsol[2]);
+
+    // check sign of DP to avoid negative compaction viscosity
+    if (PetscAbs(xsol[1]-DPt) > PetscAbs(xsol[1])-PetscAbs(DPt)) xsol[1] = DPt;
+
   }
   PetscFunctionReturn(0);
 }
