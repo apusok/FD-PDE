@@ -265,6 +265,24 @@ for istep1 in range(istep_start,istep_end+1,istep_jump):
       F0[ia,ja] = F_rate_indep(tauII0[ia]*1e6,DP0[ja]*1e6,A1,A2,theta[ii])
       F [ia,ja] = F_rate_dep(F0[ia,ja],etaK[ii],dotlam[ii])
 
+  # Energy dissipation
+  etaV = A.matProp.etaV[j,i]*scal_eta
+  zetaV = A.matProp.zetaV[j,i]*scal_eta
+  EV_shear = phis**2/(2*etaV)*(txx**2+tzz**2+2*txz**2)
+  EV_vol   = phis**2*DP[ii]**2/zetaV
+  EV = EV_shear + EV_vol
+
+  EVP_shear = phis*dotlam[ii]/2*(txx**2+tzz**2+2*txz**2)*(tauII[ii]/(tauII[ii]**2+A1**2)**0.5)
+  EVP_vol   = -phis*cdl*math.sin(math.pi*theta[ii]/180)*DP[ii]*dotlam[ii]
+  EVP = EVP_shear + EVP_vol
+  E = EV + EVP
+
+  print('Energy dissipation: Total = ',E)
+  print('Shear: V = ',EV_shear,' VP = ',EVP_shear)
+  print('Vol: V = ',EV_vol,' VP = ',EVP_vol)
+  print('Total: V = ',EV,' VP = ',EVP)
+  print('\n')
+
   # Plot DP vs tauII
   scal = 1e-6
   # im = ax.imshow(F,extent=extentE,origin='lower')

@@ -75,7 +75,7 @@
 typedef struct {
   PetscInt       nx, nz;
   PetscScalar    L, H, Hs, xmin, zmin;
-  PetscScalar    k_hat, g, Ttop, Tbot, R, Vext, rhof, q, age, Gamma, Tinit;
+  PetscScalar    k_hat, g, Ttop, Tbot, R, Vext, uT, rhof, q, age, Gamma, Tinit;
   PetscScalar    hs_factor, drho, kphi0, n, mu, eta_min, eta_max, phi_min, phi0, eta_K, Zmax, beta, EoR, Teta0, zetaExp;
   PetscInt       ts_scheme, adv_scheme, tout, tstep, ppcell, Nmax, rheology, two_phase, model_setup, restart, inflow_bc;
   PetscScalar    dt_out, tmax, dtmax, tf_tol, strain_max, hcc, phi_max_bc, sigma_bc;
@@ -106,7 +106,7 @@ typedef struct {
 } ScalParams;
 
 typedef struct {
-  PetscScalar    L, H, Hs, xmin, zmin, Vext, Vin, R, delta, eta_min, eta_max, eta_K, Zmax;
+  PetscScalar    L, H, Hs, xmin, zmin, Vext, Vin, uT, R, delta, eta_min, eta_max, eta_K, Zmax;
   PetscScalar    Tbot, Ttop, Ra, Gamma, rhof;
   PetscScalar    tmax, dtmax, t, dt, dt_out, dzin, dzin_fs;
   PetscScalar    Vin_free, Vin_rock;
@@ -161,9 +161,7 @@ PetscErrorCode DecompactRheologyVars(PetscInt,PetscScalar*,PetscScalar*,PetscSca
 
 // boundary conditions
 PetscErrorCode FormBCList_PV(DM, Vec, DMStagBCList, void*);
-PetscErrorCode FormBCList_PV_YBC(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_PV_Stokes(DM, Vec, DMStagBCList, void*);
-PetscErrorCode FormBCList_PV_YBC_Stokes(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_T(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_phi(DM, Vec, DMStagBCList, void*);
 

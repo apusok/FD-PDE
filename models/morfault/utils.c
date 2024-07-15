@@ -130,7 +130,7 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
       PetscScalar age, T, nd_T, xp, zp, rp;
       
       if ((usr->par->model_setup<=1) || (usr->par->model_setup==3) || (usr->par->model_setup==5) || (usr->par->model_setup==10)) age = usr->par->age*1.0e6*SEC_YEAR; // constant age in Myr
-      else age  = usr->par->age*1.0e6*SEC_YEAR + dim_param(fabs(coordx[i][icenter]),usr->scal->x)/dim_param(usr->nd->Vext,usr->scal->v); // age varying with distance from axis + initial age
+      else age  = usr->par->age*1.0e6*SEC_YEAR + dim_param(fabs(coordx[i][icenter]),usr->scal->x)/dim_param(usr->nd->uT,usr->scal->v); // age varying with distance from axis + initial age
 
       // half-space cooling temperature - take into account free surface
       T = HalfSpaceCoolingTemp(Tm,Ts,-Hs-dim_param(coordz[j][icenter],usr->scal->x),usr->scal->kappa,age,usr->par->hs_factor); 

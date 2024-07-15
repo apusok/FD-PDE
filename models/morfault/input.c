@@ -138,6 +138,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->Tbot, 1523.15, "Tbot", "Temperature on bottom boundary - also potential T [K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->R, 8.314, "R", "Gas constant [J/mol/K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->Vext, 1.0, "Vext", "Extension velocity [cm/yr]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->uT, par->Vext, "uT", "Spreading velocity entering temperature profile [cm/yr]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->hs_factor, 2.0, "hs_factor", "Half-space cooling factor [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->drho, 500, "drho", "Reference density difference matrix-magma [kg/m3]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->rhof, 2500, "rhof", "Liquid density [kg/m3]"); CHKERRQ(ierr);
@@ -569,6 +570,7 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
 
   // transform to SI units necessary params
   nd->Vext  = par->Vext*1.0e-2/SEC_YEAR; //[cm/yr] to [m/s]
+  nd->uT    = par->uT*1.0e-2/SEC_YEAR; //[cm/yr] to [m/s]
   nd->tmax  = par->tmax*SEC_YEAR;      //[yr] to [s]
   nd->dtmax = par->dtmax*SEC_YEAR;     //[yr] to [s]
   nd->dt_out= par->dt_out*SEC_YEAR;    //[yr] to [s]
@@ -581,6 +583,7 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   nd->Hs    = nd_param(par->Hs,scal->x);
   nd->Vext  = nd_param(nd->Vext,scal->v);
   nd->Vin   = 2.0*nd->Vext*nd->H/nd->L;
+  nd->uT    = nd_param(nd->uT,scal->v);
   nd->Tbot  = nd_paramT(par->Tbot,par->Ttop,scal->DT);
   nd->Ttop  = nd_paramT(par->Ttop,par->Ttop,scal->DT);
   nd->Gamma = nd_param(par->Gamma,scal->Gamma);

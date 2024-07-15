@@ -16,14 +16,13 @@ class SimStruct:
 # ---------------------------------------
 A = SimStruct()
 
-sim = 'run37_flow_dike_dt1e2_etaK1e20_abs/'
-A.input = '../'+sim
-A.output_path_dir = '../Figures/'+sim
-A.path_dir = './'
+sim = 'run37_flow_dike_dt1e2_etaK1e20_abs_phimin1e-4/'
+A.input = '/Users/apusok/Documents/morfault/'+sim
+A.output_path_dir = '/Users/apusok/Documents/morfault/Figures/'+sim
 log_file ='log_out.out'
 
 # Create directories
-A.input_dir = A.path_dir+A.input
+A.input_dir = A.input
 A.output_dir = A.output_path_dir
 
 print('# OUTPUT: Solver residuals '+A.input_dir)
