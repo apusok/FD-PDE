@@ -143,12 +143,12 @@ PetscScalar ViscosityHarmonicAvg(PetscScalar eta, PetscScalar eta_min, PetscScal
 }
 
 // ---------------------------------------
-static PetscErrorCode tau_a(PetscScalar tauIIp, PetscScalar DPt, PetscScalar eta_ve, PetscScalar zeta_ve, PetscScalar C, PetscScalar sigmat, PetscScalar aP, PetscScalar theta, PetscScalar cdl, PetscScalar eta_vp, PetscScalar a[5])
+static PetscErrorCode tau_a(PetscScalar tauIIp, PetscScalar DPt, PetscScalar eta_ve, PetscScalar cdl_zeta_ve, PetscScalar C, PetscScalar sigmat, PetscScalar aP, PetscScalar theta, PetscScalar eta_K, PetscScalar a[5])
 {
   PetscFunctionBegin;
   a[0] = C*PetscCosScalar(theta) - sigmat*PetscSinScalar(theta);
   a[1] = C*PetscCosScalar(theta) + aP*PetscSinScalar(theta);
-  a[2] = (cdl*zeta_ve*PetscPowScalar(PetscSinScalar(theta),2) + eta_vp)/eta_ve;
+  a[2] = (cdl_zeta_ve*PetscPowScalar(PetscSinScalar(theta),2) + eta_K)/eta_ve;
   a[3] = a[1] + DPt * PetscSinScalar(theta);
   a[4] = a[0]*(a[2] + 1.0) - a[3] - a[2]*tauIIp;
   PetscFunctionReturn(0);
@@ -169,22 +169,22 @@ static PetscScalar dftau(PetscScalar a[5], PetscScalar tauIIt, PetscScalar x)
   return result;
 }
 
-static PetscScalar lamtau(PetscScalar a[5], PetscScalar x, PetscScalar DPt, PetscScalar sint, PetscScalar cdl, PetscScalar zeta_ve, PetscScalar eta_vp)
+static PetscScalar lamtau(PetscScalar a[5], PetscScalar x, PetscScalar DPt, PetscScalar sint, PetscScalar cdl_zeta_ve, PetscScalar eta_K)
 { PetscScalar aa, result;
   aa = PetscPowScalar(x*x + a[0]*a[0], 0.5);
-  result = (aa - a[1] - DPt*sint)/(cdl*zeta_ve*sint*sint + eta_vp);
+  result = (aa - a[1] - DPt*sint)/(cdl_zeta_ve*sint*sint + eta_K);
   return result;
 }
 
 // ---------------------------------------
-static PetscScalar ResF(PetscScalar xsol[3], PetscScalar *a,PetscScalar theta,PetscScalar eta_vp)
+static PetscScalar ResF(PetscScalar xsol[3], PetscScalar *a,PetscScalar theta,PetscScalar eta_K)
 { 
   PetscScalar tauII, DP, dotlam, F;
   tauII = xsol[0];
   DP    = xsol[1];
   dotlam= xsol[2];
 
-  F = PetscPowScalar(tauII*tauII + a[0]*a[0], 0.5) - (a[1] + DP*PetscSinScalar(theta)) - eta_vp*dotlam;
+  F = PetscPowScalar(tauII*tauII + a[0]*a[0], 0.5) - (a[1] + DP*PetscSinScalar(theta)) - eta_K*dotlam;
   return F;
 }
 
@@ -209,6 +209,7 @@ static PetscScalar VEVP_hyper_tau(PetscScalar a[5],PetscScalar tauIIt, PetscScal
 
   // initial guess
   xn = (-a[4]+PetscPowScalar(a[4]*a[4] + 4.0*a[0]*a[2]*(a[2]+1.0)*tauIIt, 0.5 ))*0.5/(a[2]+1.0);
+
   xn1 = xn;
   f = ftau(a, tauIIt, xn);
 
@@ -245,38 +246,37 @@ static PetscScalar VEVP_hyper_tau(PetscScalar a[5],PetscScalar tauIIt, PetscScal
 PetscErrorCode Plastic_LocalSolver(PetscScalar *xve,PetscScalar C, PetscScalar sigmat, PetscScalar theta, PetscScalar aP, PetscScalar phi, void *ctx, PetscScalar xsol[3])
 { 
   UsrData        *usr = (UsrData*)ctx;
-  PetscScalar     F,a[5],tauIIt,DPt,zeta_ve,eta_ve,eta_vp, cdl, sint;
+  PetscScalar     F,a[5],tauIIt,DPt,cdl_zeta_ve,eta_ve,eta_K, sint;
   PetscErrorCode  ierr;
   PetscFunctionBegin;
 
-  tauIIt  = xve[0];
-  DPt     = xve[1];
-  eta_ve  = xve[2];
-  zeta_ve = xve[3];
-  eta_vp  = usr->nd->eta_K;
-  cdl     = 0.0; // should be function of phi
-  sint    = PetscSinScalar(theta);
+  tauIIt      = xve[0];
+  DPt         = xve[1];
+  eta_ve      = xve[2];
+  cdl_zeta_ve = xve[3];
+  eta_K  = usr->nd->eta_K;
+  sint   = PetscSinScalar(theta);
+
+  // get coefficients A
+  ierr = tau_a(tauIIt,DPt,eta_ve,cdl_zeta_ve,C,sigmat,aP,theta,eta_K,a); CHKERRQ(ierr);
 
   // trial solution
   xsol[0] = tauIIt; // tauII
   xsol[1] = DPt;    // DP
   xsol[2] = 0.0;    // dotlam
   
-  // get coefficients A
-  ierr = tau_a(tauIIt,DPt,eta_ve,zeta_ve,C,sigmat,aP,theta,cdl,eta_vp,a); CHKERRQ(ierr);
-
   // check if it yields
-  F = ResF(xsol,a,theta,eta_vp); CHKERRQ(ierr);
+  F = ResF(xsol,a,theta,eta_K); CHKERRQ(ierr);
   
   if (F>0) { // yield
-    if (xsol[0] <= usr->par->tf_tol) { // case 2
+    if (xsol[0] < usr->par->tf_tol) { // case 2
       xsol[0] = 0.0; 
-      xsol[2] = (a[0]-a[1]-DPt*sint)/(cdl*zeta_ve*sint*sint + eta_vp);
-      xsol[1] = DPt + cdl * zeta_ve * sint * xsol[2]; 
+      xsol[2] = (a[0]-a[1]-DPt*sint)/(cdl_zeta_ve*sint*sint + eta_K);
+      xsol[1] = DPt + cdl_zeta_ve * sint * xsol[2]; 
     } else { // case 3
       xsol[0] = VEVP_hyper_tau(a, tauIIt, usr->par->tf_tol, usr->par->Nmax); CHKERRQ(ierr);
-      xsol[2] = lamtau(a,xsol[0],DPt,sint,cdl,zeta_ve,eta_vp);
-      xsol[1] = DPt + cdl * zeta_ve * sint * xsol[2]; 
+      xsol[2] = lamtau(a,xsol[0],DPt,sint,cdl_zeta_ve,eta_K);
+      xsol[1] = DPt + cdl_zeta_ve * sint * xsol[2]; 
     }
     //PetscPrintf(PETSC_COMM_WORLD, "TEST, tau = %1.6f, dp = %1.6f, lam = %1.6f\n", xsol[0], xsol[1], xsol[2]);
   }

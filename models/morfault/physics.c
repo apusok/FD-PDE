@@ -1066,9 +1066,8 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
     // PetscScalar xsoft, noise;
     // xsoft = strain/usr->par->strain_max;
     // noise = 0.0;
-    // if (xsoft >= 1.0) xsoft = 1.0;
-    // mC[iph]     = mC[iph]     * (1.0+noise) * (1.0 - usr->par->hcc*xsoft );
-    // mtheta[iph] = mtheta[iph] * (1.0+noise) * (1.0 - usr->par->hcc*xsoft );
+    // mC[iph]     = mC[iph]     * (1.0+noise) * PetscMax((1.0-usr->par->hcc*xsoft),usr->par->hcc);
+    // mtheta[iph] = mtheta[iph] * (1.0+noise) * PetscMax((1.0-usr->par->hcc*xsoft),usr->par->hcc);
 
     // effective deviatoric and volumetric strain rates
     exxp = ((exx-div13) + 0.5*told_xx*inv_meta_e[iph]);
@@ -1261,9 +1260,8 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
     PetscScalar xsoft, noise;
     xsoft = strain/usr->par->strain_max;
     noise = 0.0;
-    if (xsoft >= 1.0) xsoft = 1.0;
-    mC[iph]     = mC[iph]     * (1.0+noise) * (1.0 - usr->par->hcc*xsoft );
-    mtheta[iph] = mtheta[iph] * (1.0+noise) * (1.0 - usr->par->hcc*xsoft );
+    mC[iph]     = mC[iph]     * (1.0+noise) * PetscMax((1.0-usr->par->hcc*xsoft),usr->par->hcc);
+    mtheta[iph] = mtheta[iph] * (1.0+noise) * PetscMax((1.0-usr->par->hcc*xsoft),usr->par->hcc);
 
     // effective deviatoric and volumetric strain rates
     exxp = ((exx-div13) + 0.5*told_xx*inv_meta_e[iph]);
@@ -1284,27 +1282,28 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
       theta_rad = PETSC_PI*mtheta[iph]/180;
 
       // Fluid pressure 
-      aP = Pf*AlphaP(phi,usr->par->phi_min)/phis;
+      aP = Pf*PetscExpScalar(-phi/usr->par->phi_min)/phis; // Pf*AlphaP(phi,usr->par->phi_min)/phis;
 
       // plasticity F = (Y,lambdadot,tauII,dP)
-      PetscScalar xve[4], stressSol[3];
+      PetscScalar xve[4], stressSol[3], cdl;
+      cdl    = PetscExpScalar(-usr->par->phi_min/phi);
       xve[0] = tIIt;
       xve[1] = dpt;
       xve[2] = meta_ve[iph];
-      xve[3] = mzeta_ve[iph];
+      xve[3] = cdl*mzeta_ve[iph];
 
-      // ierr = Plastic_LocalSolver(xve,mC[iph],msigmat[iph],theta_rad,aP,phi,usr,stressSol); CHKERRQ(ierr);
-      {
-        PetscScalar Cc, Ct, stressP[2], stressA[5], mzeta_ve_dl,cdl;
-        aP = Pf*PetscSinScalar(theta_rad)*AlphaP(phi,usr->par->phi_min)/phis;
-        Cc = mC[iph];
-        Ct = msigmat[iph];
-        stressP[0] = tIIt;
-        stressP[1] = dpt;
-        cdl  = PetscExpScalar(-usr->par->phi_min/phi);
-        mzeta_ve_dl = mzeta_ve[iph]*cdl;
-        ierr = VEVP_hyper_sol_Y(usr->par->Nmax, usr->par->tf_tol, Cc, Ct, aP, theta_rad, meta_ve[iph], mzeta_ve_dl, usr->nd->eta_K, stressP, stressA, stressSol); CHKERRQ(ierr);
-      }
+      ierr = Plastic_LocalSolver(xve,mC[iph],msigmat[iph],theta_rad,aP,phi,usr,stressSol); CHKERRQ(ierr);
+      // { 
+      //   PetscScalar Cc, Ct, stressP[2], stressA[5], mzeta_ve_dl,cdl;
+      //   aP = Pf*AlphaP(phi,usr->par->phi_min)/phis;
+      //   Cc = mC[iph];
+      //   Ct = msigmat[iph];
+      //   stressP[0] = tIIt;
+      //   stressP[1] = dpt;
+      //   cdl  = PetscExpScalar(-usr->par->phi_min/phi);
+      //   mzeta_ve_dl = mzeta_ve[iph]*cdl;
+      //   ierr = VEVP_hyper_sol_Y(usr->par->Nmax, usr->par->tf_tol, Cc, Ct, aP, theta_rad, meta_ve[iph], mzeta_ve_dl, usr->nd->eta_K, stressP, stressA, stressSol); CHKERRQ(ierr);
+      // }
       mdotlam[iph] = stressSol[2];
 
       // effective viscosities
@@ -1389,7 +1388,7 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
 }
 
 // ---------------------------------------
-// RheologyPointwise_VEVP_DominantPhase
+// RheologyPointwise_VEVP_DominantPhase - SHOULD BE REMOVED
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "RheologyPointwise_VEVP_DominantPhase"

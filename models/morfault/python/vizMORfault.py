@@ -82,6 +82,84 @@ def correct_path_marker_data(fname):
   except OSError:
     print('Cannot open:', fname)
 
+# ---------------------------------------
+def parse_solver_log_file(fname):
+  tstep = 0
+  try: # try to open directory
+
+    finished_sim = 0
+
+    # parse number of timesteps
+    f = open(fname, 'r')
+    i0=0
+    for line in f:
+      if '# TIMESTEP' in line:
+        i0+=1
+      if '# Runtime:' in line: 
+        finished_sim = 1
+    f.close()
+    tstep = i0
+
+    # parse number of PV and T SNES iterations
+    iPV=0
+    iT =0
+    PVsolver = 0
+    Tsolver  = 0
+    f = open(fname, 'r')
+    for line in f:
+      if '# (PV) Mechanics' in line: 
+        PVsolver = 1
+        Tsolver  = 0
+      if '# (T) Energy' in line: 
+        PVsolver = 0
+        Tsolver  = 1
+      if 'SNES Function norm' in line:
+        if (PVsolver==1):
+          iPV+=1
+        if (Tsolver==1):
+          iT+=1
+    f.close()
+
+    # Convergence 
+    sol = EmptyStruct()
+    sol.iPV = iPV
+    sol.iT  = iT
+    sol.tstep = tstep
+    sol.PVres  = np.zeros(iPV)
+    sol.PViter = np.zeros(iPV)
+    sol.Tres  = np.zeros(iT)
+    sol.Titer = np.zeros(iT)
+    #add dt, runtime
+
+    # Parse output and save residual info
+    iPV=0
+    iT =0
+    PVsolver = 0
+    Tsolver  = 0
+    f = open(fname, 'r')
+    for line in f:
+      if '# (PV) Mechanics' in line: 
+        PVsolver = 1
+        Tsolver  = 0
+      if '# (T) Energy' in line: 
+        PVsolver = 0
+        Tsolver  = 1
+      if 'SNES Function norm' in line:
+        if (PVsolver==1):
+          sol.PVres[iPV]  = float(line[23:41])
+          sol.PViter[iPV] = float(line[0:4])
+          iPV+=1
+        if (Tsolver==1):
+          sol.Tres[iT]  = float(line[23:41])
+          sol.Titer[iT] = float(line[0:4])
+          iT+=1
+    f.close()
+
+    return sol
+  except OSError:
+    print('Cannot open:', fname)
+    return 0
+
 # ---------------------------------
 def parse_parameters_file(fname,fdir):
   try: 
@@ -819,6 +897,28 @@ def plot_standard(fig,ax,X,extent,title,lblx,lblz):
   ax.set_ylabel(lblz)
   ax.set_title(title)
   return im
+
+# ---------------------------------
+def plot_solver_residuals(A,fname):
+
+  fig = plt.figure(1,figsize=(10,10))
+
+  ax = plt.subplot(2,1,1)
+  pl = ax.plot(np.log10(A.sol.PVres), linewidth=0.1)
+  # ax.plot(np.log10(A.sol.PVres_diverged[1:-1]), 'r*')
+  plt.grid(True)
+  ax.set_xlabel('Iteration')
+  ax.set_ylabel('log10(PV residual)')
+
+  ax = plt.subplot(2,1,2)
+  ax.plot(np.log10(A.sol.Tres), linewidth=0.1)
+  # ax.plot(np.log10(A.sol.Tres_diverged[1:-1]), 'r*')
+  plt.grid(True)
+  ax.set_xlabel('Iteration')
+  ax.set_ylabel('log10(T residual)')
+
+  plt.savefig(fname+'.pdf', bbox_inches = 'tight')
+  plt.close()
 
 # ---------------------------------
 def plot_T(A,istart,iend,jstart,jend,fname,istep,dim):
