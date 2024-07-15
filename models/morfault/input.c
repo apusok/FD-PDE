@@ -170,6 +170,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->phi_max_bc, 1e-3, "phi_max_bc", "Amplitude of initial porosity pulse"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->sigma_bc, 1e-3, "sigma_bc", "Width of initial porosity pulse"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->sigma_bc_h, 1e-3, "sigma_bc_h", "Height of initial porosity pulse"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->z_bc,usr->par->zmin+usr->par->H*0.2, "zbc", "Depth of initial porosity pulse [km]"); CHKERRQ(ierr);
 
   // material phases for markers (markers carry only phase id)
   ierr = PetscBagRegisterInt(bag, &par->marker_phases, 6, "marker_phases", "Number of marker phases [-]"); CHKERRQ(ierr);
@@ -582,6 +583,7 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   nd->Ttop  = nd_paramT(par->Ttop,par->Ttop,scal->DT);
   nd->Gamma = nd_param(par->Gamma,scal->Gamma);
   nd->rhof  = nd_param(par->rhof,scal->rho);
+  nd->z_bc  = nd_param(par->z_bc,scal->x);
 
   nd->eta_min = nd_param(par->eta_min,scal->eta);
   nd->eta_max = nd_param(par->eta_max,scal->eta);

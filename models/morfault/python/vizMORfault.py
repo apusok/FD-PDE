@@ -1930,7 +1930,7 @@ def plot_mark_eta_eps_tau_T_phi(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
 
   # temperature contour
   if (dim):
-    levels = [0, 250, 500, 750, 1000, 1200, 1300,]
+    levels = [0, 250, 500, 750, 1000, 1200, 1250, 1300,]
     fmt = r'%0.0f $^o$C'
     ts = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, X[jstart:jend  ,istart:iend  ], levels=levels,linewidths=(1.0,), extend='both',cmap='plasma')
     ax.clabel(ts, fmt=fmt, fontsize=14)
@@ -2498,7 +2498,7 @@ def plot_phi_eps_div_lam(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
   cmap1 = plt.cm.get_cmap('binary',10)
 
   if (dim):
-    levels = [0, 250, 500, 750, 1000, 1300, 1500]
+    levels = [0, 250, 500, 750, 1000, 1200, 1300, 1500]
     fmt = r'%0.0f $^o$C'
     ts = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, X[jstart:jend  ,istart:iend  ], levels=levels,linewidths=(1.0,), extend='both',cmap=cmap1)
     ax.clabel(ts, fmt=fmt, fontsize=10-2)
@@ -2542,6 +2542,60 @@ def plot_phi_eps_div_lam(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
   ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
   ax.set_xlabel(lblx)
   ax.set_title(r'$\dot{\lambda}$ [1/s]')
+
+  # plt.tight_layout()
+  plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_phi_cider(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
+  make_dir(fdir)
+  fig = plt.figure(1,figsize=(6,8))
+  fontsize0 = 14
+
+  scalx = get_scaling(A,'x',dim,1)
+  scalv = get_scaling(A,'v',dim,1)
+  lblx = get_label(A,'x',dim)
+  lblz = get_label(A,'z',dim)
+  scalt = get_scaling(A,'t',dim,1)
+  t = A.nd.t*scalt
+  
+  markx = A.mark.x[A.mark.id==0]
+  markz = A.mark.z[A.mark.id==0]
+
+  extentE=[min(A.grid.xc[istart:iend  ])*scalx, max(A.grid.xc[istart:iend  ])*scalx, min(A.grid.zc[jstart:jend  ])*scalx, max(A.grid.zc[jstart:jend  ])*scalx]
+  extentV=[min(A.grid.xv[istart:iend+1])*scalx, max(A.grid.xv[istart:iend+1])*scalx, min(A.grid.zv[jstart:jend+1])*scalx, max(A.grid.zv[jstart:jend+1])*scalx]
+
+  nplots = 1
+  ax = plt.subplot(1,nplots,1)
+  X = 1.0 - A.phis
+  X[X<1e-10] = 1e-10
+  cmap1 = plt.cm.get_cmap('inferno', 20)
+  im = ax.imshow(np.log10(X[jstart:jend  ,istart:iend  ]),extent=extentE,cmap=cmap1,origin='lower')
+  im2 = ax.scatter(markx*scalx,markz*scalx,c='w',s=0.5,linewidths=None)
+  im.set_clim(-6,-1)
+  cbar = fig.colorbar(im,ax=ax,orientation='horizontal', shrink=0.7)
+  cbar.set_label(r'log$_{10}\phi$', fontsize=fontsize0+2)
+  cbar.ax.tick_params(labelsize=fontsize0)
+
+  ax.axis('image')
+  ax.set_xlim([min(A.grid.xv[istart:iend  ])*scalx,max(A.grid.xv[istart:iend  ])*scalx])
+  ax.set_ylim([min(A.grid.zv[jstart:jend  ])*scalx,max(A.grid.zv[jstart:jend  ])*scalx])
+  ax.set_xlabel(lblx,fontsize=fontsize0)
+  ax.set_ylabel(lblz,fontsize=fontsize0)
+  plt.yticks(fontsize=fontsize0)
+  plt.xticks(fontsize=fontsize0)
+  ax.set_title('t = '+str(round(t/1.0e3,0))+' [kyr]',fontsize=fontsize0+2)
+
+  # temperature contour
+  X = scale_TC(A,'T','T',dim,1)
+  cmap1 = plt.cm.get_cmap('binary',10)
+
+  if (dim):
+    levels = [0, 250, 500, 750, 1000, 1200, 1300, 1500]
+    fmt = r'%0.0f $^o$C'
+    ts = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, X[jstart:jend  ,istart:iend  ], levels=levels,linewidths=(1.0,), extend='both',cmap=cmap1)
+    ax.clabel(ts, fmt=fmt, fontsize=fontsize0)
 
   # plt.tight_layout()
   plt.savefig(fdir+fname+'.png', bbox_inches = 'tight')

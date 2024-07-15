@@ -96,7 +96,7 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, iT, icenter;
-  PetscScalar    **coordx,**coordz, ***xx, Tm, Ts, xmor, Hs;
+  PetscScalar    **coordx,**coordz, ***xx, Tm, Ts, xmor, Hs, Tiso, ziso;
   Vec            x, xlocal;
   DM             dm;
   PetscErrorCode ierr;
@@ -108,6 +108,7 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
   Tm   = usr->par->Tbot;
   xmor = usr->nd->xmin+usr->nd->L/2.0;
   Hs   = usr->par->Hs;
+  Tiso = 1200+T_KELVIN; // deg C
 
   ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -118,6 +119,7 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
   ierr = DMCreateLocalVector(dm, &xlocal); CHKERRQ(ierr);
   ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
   
+  ziso = usr->nd->zmin;
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
@@ -130,6 +132,9 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
       T = HalfSpaceCoolingTemp(Tm,Ts,-Hs-dim_param(coordz[j][icenter],usr->scal->x),usr->scal->kappa,age,usr->par->hs_factor); 
       if (T-Ts<0.0) T = Ts;
 
+      // save depth to isotherm
+      if ((i==(int)nx*0.5) & (T>=Tiso)) ziso = PetscMax(ziso,coordz[j][icenter]);
+
       // nd_T = (T - usr->par->T0)/usr->par->DT;
       nd_T = nd_paramT(T,Ts,usr->scal->DT);
 
@@ -137,6 +142,7 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
       xx[j][i][iT] = nd_T;
     }
   }
+  usr->nd->z_bc = ziso;
 
   // Restore arrays
   ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -170,7 +176,8 @@ PetscErrorCode SetInitialPorosityField(void *ctx)
   sigma_v = usr->par->sigma_bc_h; 
 
   xc = 0.0;
-  zc = usr->nd->zmin+usr->nd->H*0.2; 
+  // zc = usr->nd->zmin+usr->nd->H*0.2; // default
+  zc = usr->nd->z_bc;
 
   ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);

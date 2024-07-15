@@ -78,7 +78,7 @@ typedef struct {
   PetscScalar    k_hat, g, Ttop, Tbot, R, Vext, uT, rhof, q, age, Gamma;
   PetscScalar    hs_factor, drho, kphi0, n, mu, eta_min, eta_max, phi_min, phi0, eta_K, Zmax, beta, EoR, Teta0, zetaExp;
   PetscInt       ts_scheme, adv_scheme, tout, tstep, ppcell, Nmax, rheology, two_phase, model_setup, model_setup_phi, restart, inflow_bc;
-  PetscScalar    dt_out, tmax, dtmax, tf_tol, strain_max, hcc, phi_max_bc, sigma_bc, sigma_bc_h;
+  PetscScalar    dt_out, tmax, dtmax, tf_tol, strain_max, hcc, phi_max_bc, sigma_bc, sigma_bc_h, z_bc;
   PetscInt       mat0_id, mat1_id, mat2_id, mat3_id, mat4_id, mat5_id, marker_phases, matid_default;
   PetscScalar    mat0_rho0, mat0_alpha, mat0_cp, mat0_kT, mat0_kappa; 
   PetscScalar    mat1_rho0, mat1_alpha, mat1_cp, mat1_kT, mat1_kappa; 
@@ -107,7 +107,7 @@ typedef struct {
 typedef struct {
   PetscScalar    L, H, Hs, xmin, zmin, Vext, Vin, uT, R, delta, eta_min, eta_max, eta_K, Zmax;
   PetscScalar    Tbot, Ttop, Ra, Gamma, rhof;
-  PetscScalar    tmax, dtmax, t, dt, dt_out, dzin, dzin_fs;
+  PetscScalar    tmax, dtmax, t, dt, dt_out, dzin, dzin_fs, z_bc;
   PetscScalar    Vin_free, Vin_rock;
   PetscInt       istep;
 } NdParams;

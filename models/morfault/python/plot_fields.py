@@ -21,9 +21,11 @@ def sortTimesteps(tdir):
 
 # Parameters
 A.dimensional = 1 # 0-nd, 1-dim
-sim = 'run51_V_eta1e19_Vext0_zeta01e21/'
-A.input = '/Users/apusok/Documents/morfault/'+sim
-A.output_path_dir = '/Users/apusok/Documents/morfault/Figures/'+sim
+sim = 'cider00/'
+A.input = '../'+sim
+# A.input = '/Users/apusok/Documents/morfault/'+sim
+A.output_path_dir = '../Figures/'+sim
+# A.output_path_dir = '/Users/apusok/Documents/morfault/Figures/'+sim
 
 # search timesteps in folder
 tdir = os.listdir(A.input)
@@ -63,7 +65,7 @@ for ii in range(0,nt):
 
 # Create directories - default to check for files
 A.input_dir = A.input
-A.output_dir = A.output_path_dir+'fields_alpha_eta/'
+A.output_dir = A.output_path_dir+'fields2/'
 # A.output_dir = A.output_path_dir+'plastic2/'  
 
 vizB.make_dir(A.output_path_dir)
@@ -91,8 +93,8 @@ A.nx = A.grid.nx
 A.nz = A.grid.nz
 
 # plot entire domain
-istart = 60
-iend   = 140 #A.nx
+istart = 0
+iend   = A.nx
 jstart = 0
 jend   = A.nz
 
@@ -199,8 +201,11 @@ if (flg_output):
     # vizB.plot_mark_eps_phi_column3(A,istart,iend,jstart,jend,A.output_dir,'out_mark_eps_phi_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_phi_eps_divv(A,istart,iend,jstart,jend,A.output_dir,'out_mark_eps_phi_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_phi_eps(A,istart,iend,jstart,jend,A.output_dir,'out_phi_eps_ts'+str(istep),istep,A.dimensional)
-    vizB.plot_bulk_darcy_alpha(A,istart,iend,jstart,jend,A.output_dir,'out_bulk_darcy_alpha_ts'+str(istep),istep,A.dimensional)
-
+    # vizB.plot_bulk_darcy_alpha(A,istart,iend,jstart,jend,A.output_dir,'out_bulk_darcy_alpha_ts'+str(istep),istep,A.dimensional)
+    # vizB.plot_phi_eps_div_eta_zeta_lam(A,istart,iend,jstart,jend,A.output_path_dir+'phi_eps_div_eta_zeta_lam/','out_phi_eps_div_eta_zeta_lam_ts'+str(istep),istep,A.dimensional)
+    # vizB.plot_phi_eps_div_lam(A,istart,iend,jstart,jend,A.output_path_dir+'plot_phi_eps_div_lam/','out_plot_phi_eps_div_lam_ts'+str(istep),istep,A.dimensional)
+    vizB.plot_phi_cider(A,istart,iend,jstart,jend,A.output_path_dir+'out_phi_cider/','out_phi_cider_ts'+str(istep),istep,A.dimensional)
+  
     # vizB.plot_T(A,istart,iend,jstart,jend,A.output_path_dir+'T/','out_xT_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_MPhase(A,istart,iend,jstart,jend,A.output_path_dir+'MPhase/','out_xMPhase_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_P(A,istart,iend,jstart,jend,A.output_path_dir+'P/','out_xP_ts'+str(istep),istep,A.dimensional,3)
