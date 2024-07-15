@@ -936,6 +936,9 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmPlith, Vec xPl
       phi[3] = (Q[4]+Q[0])*0.5; 
       
       for (ii = 0; ii < 4; ii++) {
+        // correct for negative porosity
+        if (phi[ii]<0.0) phi[ii] = 0.0;
+
         // permeability
         Kphi = Permeability(phi[ii],usr->par->n);
 
@@ -1976,7 +1979,8 @@ PetscErrorCode CorrectPorosityFreeSurface(DM dm, Vec x, DM dmphase, Vec xphase)
     for (i = sx; i <sx+nx; i++) {
       PetscScalar phi;
       phi = 1.0 - xx[j][i][iE];
-      if (xxphase[j][i][isurf]>0.0 && phi>0.0) xx[j][i][iE] = 1.0;
+      // if (xxphase[j][i][isurf]>0.0 && phi>0.0) xx[j][i][iE] = 1.0;
+      if (xxphase[j][i][isurf]>0.0) xx[j][i][iE] = 1.0;
     }
   }
 

@@ -154,6 +154,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   if (par->adv_scheme==0) advtype = ADV_UPWIND;
   if (par->adv_scheme==1) advtype = ADV_UPWIND2;
   if (par->adv_scheme==2) advtype = ADV_FROMM;
+  if (par->adv_scheme==3) advtype = ADV_UPWIND_MINMOD;
 
   TimeStepSchemeType timesteptype;
   if (par->ts_scheme ==  0) timesteptype = TS_FORWARD_EULER;
@@ -187,7 +188,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   fdphi->output_solver_failure_report = PETSC_FALSE;
 
   // ierr = FDPDEAdvDiffSetAdvectSchemeType(fdphi,advtype);CHKERRQ(ierr);
-  ierr = FDPDEAdvDiffSetAdvectSchemeType(fdphi,ADV_UPWIND);CHKERRQ(ierr);
+  ierr = FDPDEAdvDiffSetAdvectSchemeType(fdphi,ADV_UPWIND_MINMOD);CHKERRQ(ierr);
   ierr = FDPDEAdvDiffSetTimeStepSchemeType(fdphi,timesteptype);CHKERRQ(ierr);
   ierr = FDPDEView(fdphi); CHKERRQ(ierr);
 
@@ -381,13 +382,13 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = IntegratePlasticStrain(usr->dmPlith,usr->xstrain,usr->xplast,usr); CHKERRQ(ierr);
 
     // Correct negative porosity
-    ierr = CorrectNegativePorosity(usr->dmphi,usr->xphi);CHKERRQ(ierr);
+    // ierr = CorrectNegativePorosity(usr->dmphi,usr->xphi);CHKERRQ(ierr);
 
     // Correct porosity at the free surface
     ierr = CorrectPorosityFreeSurface(usr->dmphi,usr->xphi,usr->dmMPhase,usr->xMPhase);CHKERRQ(ierr);
 
     // Set timestep for T
-    ierr   = FDPDEAdvDiffSetTimestep(fdT,nd->dt); CHKERRQ(ierr);
+    ierr = FDPDEAdvDiffSetTimestep(fdT,nd->dt); CHKERRQ(ierr);
 
     // Solve energy
     PetscPrintf(PETSC_COMM_WORLD,"\n# (T) Energy Solver \n");
