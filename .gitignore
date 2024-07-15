@@ -1,5 +1,6 @@
 # PDFs
 *.pdf
+*.png
 
 # EXECs
 *.o
@@ -17,6 +18,7 @@ out_*
 *.info
 __pycache__
 *.pyc
+parameters.py
 
 # Logfiles
 *.out
