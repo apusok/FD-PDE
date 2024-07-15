@@ -73,7 +73,7 @@
 typedef struct {
   PetscInt       nx, nz;
   PetscScalar    L, H, Hs, xmin, zmin;
-  PetscScalar    k_hat, g, Ttop, Tbot, R, Vext, rhof, q, age, Gamma;
+  PetscScalar    k_hat, g, Ttop, Tbot, R, Vext, rhof, q, age, Gamma, Tinit;
   PetscScalar    hs_factor, drho, kphi0, n, mu, eta_min, eta_max, phi_min, phi0, eta_K, Zmax, beta, EoR, Teta0, zetaExp;
   PetscInt       ts_scheme, adv_scheme, tout, tstep, ppcell, Nmax, rheology, two_phase, model_setup, restart, inflow_bc;
   PetscScalar    dt_out, tmax, dtmax, tf_tol, strain_max, hcc, phi_max_bc, sigma_bc;

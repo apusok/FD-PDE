@@ -1,4 +1,4 @@
-# Run: ./morfault.app -log_view -options_file model_input.opts > log_out.out
+# Run: ../morfault.app -log_view -options_file model_input.opts > log_out.out
 
 # domain parameters
 -L 200.0e3
@@ -7,11 +7,11 @@
 -zmin -100e3
 -Hs 10e3
 
--nx 50
--nz 25
+-nx 100
+-nz 50
 -ppcell 3
 
--tstep 1
+-tstep 0
 -tout 1
 -dt_out 1e10
 -tmax 10e6
@@ -21,7 +21,8 @@
 
 -two_phase 1 # 0-single 1-twophase
 -rheology 1 # 0-VEP 1-VEVP (Avg) 2-VEVP (Dom)
--model_setup 2 # 0-mechanical seed 1-thermal perturbation 2-age-dep thermal pert
+-model_setup 4 # 0-mechanical seed 1-thermal seed 2-var age 3-const age 4-const T
+-Tinit 1023
 
 -Vext 1.0
 -Tbot 1623.15

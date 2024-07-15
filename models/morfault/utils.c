@@ -22,8 +22,11 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ct
 
   // initialize constant solid porosity field
   ierr = VecSet(usr->xphi,1.0-usr->par->phi0); CHKERRQ(ierr);
-  // ierr = SetInitialPorosityField(usr);CHKERRQ(ierr);
 
+  if ((usr->par->model_setup==5) || (usr->par->model_setup==6)) {
+    ierr = SetInitialPorosityField(usr);CHKERRQ(ierr);
+  }
+  
   // set swarm initial size and coordinates
   PetscInt ppcell[] = {usr->par->ppcell,usr->par->ppcell};
   ierr = MPointCoordLayout_DomainVolumeWithCellList(usr->dmswarm,0,NULL,0.5,ppcell,COOR_INITIALIZE);CHKERRQ(ierr);
@@ -41,7 +44,7 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ct
   usr->plasticity = PETSC_FALSE; 
   PetscPrintf(PETSC_COMM_WORLD,"# (PV) Rheology: VISCO-ELASTIC \n");
   usr->nd->dt = usr->nd->dtmax;
-  // ierr = FDPDESolve(fdPV,NULL);CHKERRQ(ierr);
+  ierr = FDPDESolve(fdPV,NULL);CHKERRQ(ierr);
   ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
   ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
   ierr = FDPDEGetSolutionGuess(fdPV,&xguess); CHKERRQ(ierr); 
@@ -126,7 +129,7 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
     for (i = sx; i <sx+nx; i++) {
       PetscScalar age, T, nd_T, xp, zp, rp;
       
-      if (usr->par->model_setup<=1) age = usr->par->age*1.0e6*SEC_YEAR; // constant age in Myr
+      if ((usr->par->model_setup<=1) || (usr->par->model_setup==3) || (usr->par->model_setup==5)) age = usr->par->age*1.0e6*SEC_YEAR; // constant age in Myr
       else age  = usr->par->age*1.0e6*SEC_YEAR + dim_param(fabs(coordx[i][icenter]),usr->scal->x)/dim_param(usr->nd->Vext,usr->scal->v); // age varying with distance from axis + initial age
 
       // half-space cooling temperature - take into account free surface
@@ -140,6 +143,9 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
         rp = PetscSqrtScalar(xp*xp+zp*zp);
         if (rp<=r) {T += (r-rp)/r*usr->par->incl_dT;}
       }
+
+      // constant initial T
+      if (usr->par->model_setup==4) { T = usr->par->Tinit; }
 
       // nd_T = (T - usr->par->T0)/usr->par->DT;
       nd_T = nd_paramT(T,Ts,usr->scal->DT);
@@ -166,7 +172,8 @@ PetscErrorCode SetInitialPorosityField(void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, iE, icenter;
-  PetscScalar    **coordx,**coordz, ***xx, Hs;
+  PetscScalar    **coordx,**coordz, ***xx;
+  PetscScalar    xc, zc, phi_max,sigma,sigma_v;
   Vec            x, xlocal;
   DM             dm;
   PetscErrorCode ierr;
@@ -174,7 +181,13 @@ PetscErrorCode SetInitialPorosityField(void *ctx)
 
   dm  = usr->dmphi;
   x   = usr->xphi;
-  Hs  = usr->nd->Hs;
+
+  phi_max = usr->par->phi_max_bc; // 1e-3;
+  sigma   = usr->par->sigma_bc;   // 0.1 - 0.001;
+  sigma_v = 1e-3;
+
+  xc = 0.0;
+  zc = usr->nd->zmin+usr->nd->H*0.2; 
 
   ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
@@ -188,8 +201,13 @@ PetscErrorCode SetInitialPorosityField(void *ctx)
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
-      if (coordz[j][icenter]<=-Hs){ xx[j][i][iE] = 1.0-usr->par->phi0; } 
-      else                        { xx[j][i][iE] = 1.0-usr->par->phi0;}
+      PetscScalar phi, xp, zp;
+      xp = coordx[i][icenter] - xc;
+      zp = coordz[j][icenter] - zc;
+      phi = usr->par->phi0 + phi_max*PetscExpScalar(-xp*xp/sigma - zp*zp/sigma_v);
+
+      xx[j][i][iE] = 1.0-phi; 
+
     }
   }
 

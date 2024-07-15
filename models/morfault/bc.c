@@ -283,10 +283,14 @@ PetscErrorCode FormBCList_T(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   for (k=0; k<n_bc; k++) {
     // value_bc[k] = usr->nd->Tbot;
     
-    if (usr->par->model_setup<=1) age = usr->par->age*1.0e6*SEC_YEAR; // constant age
+    if ((usr->par->model_setup<=1) || (usr->par->model_setup==3) || (usr->par->model_setup==5)) age = usr->par->age*1.0e6*SEC_YEAR; // constant age
     else age  = usr->par->age*1.0e6*SEC_YEAR + dim_param(fabs(x_bc[2*k]),usr->scal->x)/dim_param(usr->nd->Vext,usr->scal->v); // variable age
 
     Tbot = HalfSpaceCoolingTemp(usr->par->Tbot,usr->par->Ttop,usr->par->H-usr->par->Hs,usr->scal->kappa,age,usr->par->hs_factor); 
+    
+    // constant initial T
+    if (usr->par->model_setup==4) { Tbot = usr->par->Tinit;}
+
     nd_T = nd_paramT(Tbot,usr->par->Ttop,usr->scal->DT);
     value_bc[k] = nd_T;
     type_bc[k] = BC_DIRICHLET_STAG;
@@ -341,7 +345,8 @@ PetscErrorCode FormBCList_phi(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
     // phi = usr->par->phi0;
-    phi = usr->par->phi0 + phi_max*PetscExpScalar(-x_bc[2*k]*x_bc[2*k]/sigma);
+    if (usr->par->model_setup<5) phi = usr->par->phi0 + phi_max*PetscExpScalar(-x_bc[2*k]*x_bc[2*k]/sigma);
+    else phi = 0.0;
     value_bc[k] = 1.0 - phi;
     type_bc[k] = BC_DIRICHLET_STAG;
   }

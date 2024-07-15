@@ -148,6 +148,8 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->incl_z, -120e3, "incl_z", "Inclusion Z-start point [m]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->incl_r, 20e3, "incl_r", "Inclusion radius [m]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->incl_dT, 10, "incl_dT", "Inclusion T perturbation [K]"); CHKERRQ(ierr);
+  // constant initial T with model_setup 4
+  ierr = PetscBagRegisterScalar(bag, &par->Tinit, 1023.0, "Tinit", "Constant initial temperature [K]"); CHKERRQ(ierr);
 
   // two-phase flow parameters
   ierr = PetscBagRegisterScalar(bag, &par->n, 3.0, "n", "Exponent in porosity-permeability relationship [-]"); CHKERRQ(ierr);
@@ -306,7 +308,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   ierr = PetscBagRegisterInt(bag, &par->rheology,0, "rheology", "0-VEP 1-VEVP (AveragePhase)"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->two_phase,0, "two_phase", "0-single (Stokes) 1-two_phase (StokesDarcy)"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(bag, &par->model_setup,0, "model_setup", "0-weak inclusion 1-temp perturbation 2-age-dep temp profile"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->model_setup,0, "model_setup", "0-mechanical seed, 1-thermal seed, 2-var age, 3-const age, 4-const T, 5-source, const age, 6-source, age"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->inflow_bc,0, "inflow_bc", "0-bottom, 1-top and bottom"); CHKERRQ(ierr);
   
   // boolean options
