@@ -1510,6 +1510,8 @@ def plot_matProp(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
   ax = plt.subplot(4,4,4)
   plot_standard(fig,ax,np.log10(A.matProp.etaP[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 P '+lbl,lblx,lblz,0,0)
 
+  X = A.matProp.zeta*scal
+  print(X[X<=1e15])
   lbl  = get_label(A,'zeta',dim)
   ax = plt.subplot(4,4,5)
   plot_standard(fig,ax,np.log10(A.matProp.zeta[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 '+lbl,lblx,lblz,0,0)

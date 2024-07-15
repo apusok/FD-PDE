@@ -21,7 +21,8 @@ def sortTimesteps(tdir):
 
 # Parameters
 A.dimensional = 1 # 0-nd, 1-dim
-sim = 'run31_01_SD_phimax5e-3_HR/'
+# sim = 'run31_02_SD_phimax5e-3_Zmax100_HR/'
+sim = 'run31_04_SD_phimax5e-3_Zmax5_HR/'
 A.input = '../'+sim
 A.output_path_dir = '../Figures/'+sim
 A.path_dir = './'
@@ -160,7 +161,7 @@ if (flg_output):
     A.eps = vizB.parse_Tensor_file('out_xeps_ts'+str(istep),fdir)
     A.tau = vizB.parse_Tensor_file('out_xtau_ts'+str(istep),fdir)
     A.tauold = vizB.parse_Tensor_file('out_xtauold_ts'+str(istep),fdir)
-    A.PVcoeff = vizB.parse_PVcoeff_file('out_xPVcoeff_ts'+str(istep),fdir)
+    # A.PVcoeff = vizB.parse_PVcoeff_file('out_xPVcoeff_ts'+str(istep),fdir)
     # A.PVcoeff = vizB.parse_PVcoeff_Stokes_file('out_xPVcoeff_ts'+str(istep),fdir)
     A.matProp = vizB.parse_matProp_file('out_matProp_ts'+str(istep),fdir)
     A.Vfx, A.Vfz, A.Vx, A.Vz = vizB.parse_Vel_file('out_xVel_ts'+str(istep),fdir)
@@ -174,6 +175,8 @@ if (flg_output):
 
     # Calculate individual deformation strain rates
     # A.rheol = vizB.calc_dom_rheology_mechanism(A)
+
+    # vizB.plot_mark_eps_phi(A,istart,iend,jstart,jend,A.output_dir,'out_mark_eps_phi_ts'+str(istep),istep,A.dimensional)
 
     # Plots: A.output_path_dir+'fields2/'
     # vizB.plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,A.output_path_dir+'fields0/','out_mark_eta_eps_tau_ts'+str(istep),istep,A.dimensional)

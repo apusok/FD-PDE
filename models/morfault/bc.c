@@ -126,30 +126,48 @@ PetscErrorCode FormBCList_PV(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 PetscErrorCode FormBCList_PV_Stokes(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
-  PetscInt       k,n_bc,*idx_bc; //, sx, sz, nx, nz, Nx, Nz, j, icenter;
-  PetscScalar    *value_bc,*x_bc, vext; //, ***xwt, tol, **coordx,**coordz;
+  PetscInt       k, n_bc, *idx_bc, sx, sz, nx, nz, Nx, Nz, j, icenter;
+  PetscScalar    *value_bc,*x_bc,vext,***xwt,**coordx,**coordz;
+  PetscScalar    zl, zr, Hl, Hr;
   BCType         *type_bc;
-  // Vec            xMPhaselocal;
+  Vec            xMPhaselocal;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
   vext = usr->nd->Vext;
-  // tol  = 1e-2;
 
-  // ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  // ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  // ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  // ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr);
+  if (usr->par->inflow_bc>0) { // top and bottom inflow
+    ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
+    ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+    ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+    ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr);
 
-  // // get material phase fractions
-  // ierr = DMCreateLocalVector(usr->dmMPhase, &xMPhaselocal); CHKERRQ(ierr);
-  // ierr = DMGlobalToLocalBegin(usr->dmMPhase,usr->xMPhase,INSERT_VALUES,xMPhaselocal); CHKERRQ(ierr);
-  // ierr = DMGlobalToLocalEnd  (usr->dmMPhase,usr->xMPhase,INSERT_VALUES,xMPhaselocal); CHKERRQ(ierr);
-  // ierr = DMStagVecGetArray(usr->dmMPhase, xMPhaselocal, &xwt); CHKERRQ(ierr);
+    // get material phase fractions
+    ierr = DMCreateLocalVector(usr->dmMPhase, &xMPhaselocal); CHKERRQ(ierr);
+    ierr = DMGlobalToLocal(usr->dmMPhase,usr->xMPhase,INSERT_VALUES,xMPhaselocal); CHKERRQ(ierr);
+    ierr = DMStagVecGetArray(usr->dmMPhase, xMPhaselocal, &xwt); CHKERRQ(ierr);
 
-  // PetscInt iwtl,iwtr;
-  // ierr = DMStagGetLocationSlot(usr->dmMPhase, LEFT, 0, &iwtl); CHKERRQ(ierr);
-  // ierr = DMStagGetLocationSlot(usr->dmMPhase, RIGHT, 0, &iwtr); CHKERRQ(ierr);
+    PetscInt iwtl,iwtr;
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, LEFT, 0, &iwtl); CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(usr->dmMPhase, RIGHT, 0, &iwtr); CHKERRQ(ierr);
+
+    zl = usr->nd->H + usr->nd->zmin;
+    zr = usr->nd->H + usr->nd->zmin;
+    for (j=sz; j<sz+nz; j++) {
+      if (xwt[j][0   ][iwtl]>0.0) zl = PetscMin(zl,coordz[j][icenter]);
+      if (xwt[j][Nx-1][iwtr]>0.0) zr = PetscMin(zr,coordz[j][icenter]);
+    }
+
+    Hl = usr->nd->H + usr->nd->zmin - zl;
+    Hr = usr->nd->H + usr->nd->zmin - zr;
+
+    usr->nd->Vin_free = vext*(Hl+Hr)/usr->nd->L;
+    usr->nd->Vin_rock = usr->nd->Vin - usr->nd->Vin_free;
+
+    ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+    ierr = DMStagVecRestoreArray(usr->dmMPhase,xMPhaselocal,&xwt);CHKERRQ(ierr);
+    ierr = VecDestroy(&xMPhaselocal); CHKERRQ(ierr);
+  }
 
   // Vx  
   // DOWN Boundary: dVx/dz = 0
@@ -174,19 +192,6 @@ PetscErrorCode FormBCList_PV_Stokes(DM dm, Vec x, DMStagBCList bclist, void *ctx
     value_bc[k] = -vext;
     type_bc[k] = BC_DIRICHLET;
   }
-  // for (k=0; k<n_bc; k++) {
-  //   for (j=sz; j<sz+nz; j++) {
-  //     if (x_bc[2*k+1]==coordz[j][icenter]) {
-  //       if (xwt[j][0][iwtl]>=1.0-tol) { // sticky-water
-  //         value_bc[k] = 0.0;
-  //         type_bc[k] = BC_DIRICHLET;
-  //       } else { 
-  //         value_bc[k] = -vext;
-  //         type_bc[k] = BC_DIRICHLET;
-  //       }
-  //     }
-  //   }
-  // }
   ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // RIGHT Boundary: Vx = Vext
@@ -195,19 +200,6 @@ PetscErrorCode FormBCList_PV_Stokes(DM dm, Vec x, DMStagBCList bclist, void *ctx
     value_bc[k] = vext;
     type_bc[k] = BC_DIRICHLET;
   }
-  // for (k=0; k<n_bc; k++) {
-  //   for (j=sz; j<sz+nz; j++) {
-  //     if (x_bc[2*k+1]==coordz[j][icenter]) {
-  //       if (xwt[j][Nx-1][iwtl]>=1.0-tol) { // sticky-water
-  //         value_bc[k] = 0.0;
-  //         type_bc[k] = BC_DIRICHLET;
-  //       } else { 
-  //         value_bc[k] = vext;
-  //         type_bc[k] = BC_DIRICHLET;
-  //       }
-  //     }
-  //   }
-  // }
   ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
   // Vz
@@ -230,15 +222,17 @@ PetscErrorCode FormBCList_PV_Stokes(DM dm, Vec x, DMStagBCList bclist, void *ctx
   // DOWN Boundary: Vz = Vin
   ierr = DMStagBCListGetValues(bclist,'s','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    value_bc[k] = usr->nd->Vin;
+    // value_bc[k] = usr->nd->Vin;
+    value_bc[k] = usr->nd->Vin_rock;
     type_bc[k] = BC_DIRICHLET;
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
 
-  // UP Boundary: Vz = 0
+  // UP Boundary: Vz = -Vin_free
   ierr = DMStagBCListGetValues(bclist,'n','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    value_bc[k] = 0.0;
+    // value_bc[k] = 0.0;
+    value_bc[k] = -usr->nd->Vin_free;
     type_bc[k] = BC_DIRICHLET;
   }
   ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -250,10 +244,6 @@ PetscErrorCode FormBCList_PV_Stokes(DM dm, Vec x, DMStagBCList bclist, void *ctx
     type_bc[k] = BC_DIRICHLET_STAG;
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
-
-  // ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  // ierr = DMStagVecRestoreArray(usr->dmMPhase,xMPhaselocal,&xwt);CHKERRQ(ierr);
-  // ierr = VecDestroy(&xMPhaselocal); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

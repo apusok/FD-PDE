@@ -75,7 +75,7 @@ typedef struct {
   PetscScalar    L, H, Hs, xmin, zmin;
   PetscScalar    k_hat, g, Ttop, Tbot, R, Vext, rhof, q, age, Gamma;
   PetscScalar    hs_factor, drho, kphi0, n, mu, eta_min, eta_max, phi_min, phi0, eta_K, Zmax, beta, EoR, Teta0, zetaExp;
-  PetscInt       ts_scheme, adv_scheme, tout, tstep, ppcell, Nmax, rheology, two_phase, model_setup, restart;
+  PetscInt       ts_scheme, adv_scheme, tout, tstep, ppcell, Nmax, rheology, two_phase, model_setup, restart, inflow_bc;
   PetscScalar    dt_out, tmax, dtmax, tf_tol, strain_max, hcc, phi_max_bc, sigma_bc;
   PetscScalar    incl_x, incl_z, incl_r, incl_dT;
   PetscInt       mat0_id, mat1_id, mat2_id, mat3_id, mat4_id, mat5_id, marker_phases, matid_default;
@@ -106,7 +106,8 @@ typedef struct {
 typedef struct {
   PetscScalar    L, H, Hs, xmin, zmin, Vext, Vin, R, delta, eta_min, eta_max, eta_K, Zmax;
   PetscScalar    Tbot, Ttop, Ra, Gamma;
-  PetscScalar    tmax, dtmax, t, dt, dt_out, dzin;
+  PetscScalar    tmax, dtmax, t, dt, dt_out, dzin, dzin_fs;
+  PetscScalar    Vin_free, Vin_rock;
   PetscInt       istep;
 } NdParams;
 
@@ -182,6 +183,7 @@ PetscErrorCode Plastic_LocalSolver(PetscScalar*,PetscScalar,PetscScalar,PetscSca
 // utils
 PetscErrorCode SetSwarmInitialCondition(DM,void*);
 PetscErrorCode AddMarkerInflux(DM,void*);
+PetscErrorCode AddMarkerInflux_FreeSurface(DM,void*);
 PetscErrorCode SetInitialConditions(FDPDE, FDPDE,FDPDE,void*);
 PetscErrorCode HalfSpaceCooling_MOR(void*);
 PetscErrorCode SetInitialPorosityField(void*);

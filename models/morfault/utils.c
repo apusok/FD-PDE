@@ -333,10 +333,13 @@ PetscErrorCode AddMarkerInflux(DM dmswarm, void *ctx)
   dzcell = usr->nd->H/usr->par->nz/usr->par->ppcell;
 
   // influx
-  usr->nd->dzin += usr->nd->Vin*usr->nd->dt;
+  // usr->nd->dzin += usr->nd->Vin*usr->nd->dt;
+  usr->nd->dzin += usr->nd->Vin_rock*usr->nd->dt;
   mx = (int)(usr->nd->L/dxcell);
   mz = (int)(usr->nd->dzin/dzcell);
   nmark_in = mx*mz;
+
+  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK ROCK %1.12e %1.12e %d %d %d #\n",usr->nd->dzin,usr->nd->Vin_rock,mx,mz,nmark_in);
 
   if (nmark_in==0) { PetscFunctionReturn(0); }
   
@@ -399,6 +402,97 @@ PetscErrorCode AddMarkerInflux(DM dmswarm, void *ctx)
 
   // reset
   usr->nd->dzin = 0.0;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// AddMarkerInflux_FreeSurface
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "AddMarkerInflux_FreeSurface"
+PetscErrorCode AddMarkerInflux_FreeSurface(DM dmswarm, void *ctx)
+{
+  UsrData   *usr = (UsrData*)ctx;
+  PetscScalar *pcoor,*pfield,*pfield0, *pfield1, *pfield2,*pfield3, *pfield4, *pfield5;
+  PetscInt  npoints,p,nmark_in,mx,mz,cnt;
+  PetscScalar  dxcell, dzcell, dzin, value;
+  PetscRandom    rnd;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  dxcell = usr->nd->L/usr->par->nx/usr->par->ppcell;
+  dzcell = usr->nd->H/usr->par->nz/usr->par->ppcell;
+
+  // influx
+  usr->nd->dzin_fs += usr->nd->Vin_free*usr->nd->dt;
+  mx = (int)(usr->nd->L/dxcell);
+  mz = (int)(usr->nd->dzin_fs/dzcell);
+  nmark_in = mx*mz;
+
+  // PetscPrintf(PETSC_COMM_WORLD,"# BREAK FREE %1.12e %1.12e %d %d %d #\n",usr->nd->dzin_fs,usr->nd->Vin_free,mx,mz,nmark_in);
+
+  if (nmark_in==0) { PetscFunctionReturn(0); }
+  
+  ierr = DMSwarmAddNPoints(dmswarm,nmark_in); // inserted at (0,0)
+  ierr = DMSwarmGetLocalSize(dmswarm,&npoints);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,DMSwarmPICField_coor,NULL,NULL,(void**)&pcoor);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,"id",NULL,NULL,(void**)&pfield);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,"id0",NULL,NULL,(void**)&pfield0);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,"id1",NULL,NULL,(void**)&pfield1);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,"id2",NULL,NULL,(void**)&pfield2);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,"id3",NULL,NULL,(void**)&pfield3);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,"id4",NULL,NULL,(void**)&pfield4);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,"id5",NULL,NULL,(void**)&pfield5);CHKERRQ(ierr);
+
+  ierr = PetscRandomCreate(PETSC_COMM_SELF,&rnd);CHKERRQ(ierr);
+  ierr = PetscRandomSetInterval(rnd,0.0,dxcell*0.5);CHKERRQ(ierr);
+  ierr = PetscRandomSetFromOptions(rnd);CHKERRQ(ierr);
+
+  PetscScalar dx0, dz0;
+  dx0 = usr->nd->xmin+dxcell*0.5;
+  dz0 = usr->nd->H+usr->nd->zmin-dzcell*0.5;
+
+  for (p=0; p<npoints; p++) {
+    PetscScalar xcoor,zcoor;
+    
+    xcoor = pcoor[2*p+0];
+    zcoor = pcoor[2*p+1];
+    if ((xcoor==0.0) && (zcoor==0.0)) {
+      ierr = PetscRandomGetValue(rnd,&value);CHKERRQ(ierr);
+      pcoor[2*p+0] = dx0+value;
+      ierr = PetscRandomGetValue(rnd,&value);CHKERRQ(ierr);
+      pcoor[2*p+1] = dz0+value;
+
+      dx0 += dxcell;
+      if (dx0>usr->nd->xmin+usr->nd->L) {
+        dx0  = usr->nd->xmin+dxcell*0.5;
+        dz0 -= dzcell;
+      }
+
+      pfield[p] = usr->par->mat0_id; // sticky-water id=0
+      pfield0[p] = 1;
+      pfield1[p] = 0;
+      pfield2[p] = 0;
+      pfield3[p] = 0;
+      pfield4[p] = 0;
+      pfield5[p] = 0;
+    }
+  }
+
+  ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,"id",NULL,NULL,(void**)&pfield);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,"id0",NULL,NULL,(void**)&pfield0);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,"id1",NULL,NULL,(void**)&pfield1);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,"id2",NULL,NULL,(void**)&pfield2);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,"id3",NULL,NULL,(void**)&pfield3);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,"id4",NULL,NULL,(void**)&pfield4);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,"id5",NULL,NULL,(void**)&pfield5);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,DMSwarmPICField_coor,NULL,NULL,(void**)&pcoor);CHKERRQ(ierr);
+  ierr = DMSwarmMigrate(dmswarm,PETSC_TRUE);CHKERRQ(ierr);
+
+  // reset
+  usr->nd->dzin_fs = 0.0;
 
   PetscFunctionReturn(0);
 }
@@ -992,6 +1086,11 @@ PetscErrorCode OutputParameters(void *ctx)
   ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->eta_max,1,PETSC_DOUBLE);CHKERRQ(ierr);
   ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->eta_K,1,PETSC_DOUBLE);CHKERRQ(ierr);
 
+  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->Vin_free,1,PETSC_DOUBLE);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->Vin_rock,1,PETSC_DOUBLE);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->dzin,1,PETSC_DOUBLE);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->dzin_fs,1,PETSC_DOUBLE);CHKERRQ(ierr);
+
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['L'] = v\n");
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['H'] = v\n");
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['xmin'] = v\n");
@@ -1004,6 +1103,11 @@ PetscErrorCode OutputParameters(void *ctx)
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['eta_min'] = v\n");
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['eta_max'] = v\n");
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['eta_K'] = v\n");
+
+  fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['Vin_free'] = v\n");
+  fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['Vin_rock'] = v\n");
+  fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['dzin'] = v\n");
+  fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['dzin_fs'] = v\n");
 
   ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->istep,1,PETSC_INT);CHKERRQ(ierr);
   ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->t,1,PETSC_DOUBLE);CHKERRQ(ierr);
@@ -1112,6 +1216,11 @@ PetscErrorCode LoadParametersFromFile(void *ctx)
   ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->eta_min,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
   ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->eta_max,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
   ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->eta_K,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
+
+  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->Vin_free,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->Vin_rock,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->dzin,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->dzin_fs,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
   
   ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->istep,1,NULL,PETSC_INT);CHKERRQ(ierr);
   ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->t,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);

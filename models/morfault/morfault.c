@@ -396,6 +396,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = MPoint_AdvectRK1(usr->dmswarm,usr->dmPV,usr->xPV,nd->dt);CHKERRQ(ierr);
     ierr = DMSwarmGetSize(usr->dmswarm,&nmark1);CHKERRQ(ierr);
     ierr = AddMarkerInflux(usr->dmswarm,usr); CHKERRQ(ierr);
+    ierr = AddMarkerInflux_FreeSurface(usr->dmswarm,usr); CHKERRQ(ierr);
     ierr = DMSwarmGetSize(usr->dmswarm,&nmark2);CHKERRQ(ierr);
     ierr = UpdateMarkerPhaseFractions(usr->dmswarm,usr->dmMPhase,usr->xMPhase,usr);CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"# (DMSWARM) Marker number: Initial = %d After advection = %d After influx = %d \n",nmark0,nmark1,nmark2);

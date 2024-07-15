@@ -307,6 +307,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterInt(bag, &par->rheology,0, "rheology", "0-VEP 1-VEVP (AveragePhase)"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->two_phase,0, "two_phase", "0-single (Stokes) 1-two_phase (StokesDarcy)"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->model_setup,0, "model_setup", "0-weak inclusion 1-temp perturbation 2-age-dep temp profile"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(bag, &par->inflow_bc,0, "inflow_bc", "0-bottom, 1-top and bottom"); CHKERRQ(ierr);
   
   // boolean options
   ierr = PetscBagRegisterBool(bag, &par->log_info,PETSC_FALSE, "model_log_info", "Output profiling data (T/F)"); CHKERRQ(ierr);
@@ -591,9 +592,13 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   nd->dtmax = nd_param(nd->dtmax,scal->t);
   nd->dt_out= nd_param(nd->dt_out,scal->t);
 
-  nd->dt    = 0.0;
-  nd->t     = 0.0;
-  nd->dzin  = 0.0;
+  nd->dt      = 0.0;
+  nd->t       = 0.0;
+  nd->dzin    = 0.0;
+  nd->dzin_fs = 0.0;
+
+  nd->Vin_free = 0.0;
+  nd->Vin_rock = nd->Vin;
 
   // non-dimensional parameters
   nd->delta = PetscSqrtScalar(scal->eta*scal->kphi/usr->par->mu);

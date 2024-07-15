@@ -132,8 +132,7 @@ PetscScalar ElasticShearModulus(PetscScalar G0, PetscScalar phi)
 #define __FUNCT__ "PoroElasticModulus"
 PetscScalar PoroElasticModulus(PetscScalar Z0, PetscScalar Zmax, PetscScalar phi) 
 { 
-  if (phi == 0.0) return Z0;
-  else            return PetscMin((1.0-phi)*Z0*PetscPowScalar(phi,-0.5),Zmax);
+  return PetscMin((1.0-phi)*Z0*PetscPowScalar(phi,-0.5),Zmax);
 }
 
 // ---------------------------------------
