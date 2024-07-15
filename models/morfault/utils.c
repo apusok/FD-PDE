@@ -831,6 +831,74 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmPlith, Vec xPl
 }
 
 // ---------------------------------------
+// Compute timestep based on Liquid Velocity - assumed to be used with dmVel, xVel
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "LiquidVelocityExplicitTimestep"
+PetscErrorCode LiquidVelocityExplicitTimestep(DM dm, Vec x, PetscScalar *dt)
+{
+  PetscScalar    domain_dt, global_dt, eps, dx, dz, cell_dt, cell_dt_x, cell_dt_z;
+  PetscInt       iprev=-1, inext=-1;
+  PetscInt       i, j, sx, sz, nx, nz, v_slot[4];
+  PetscScalar    **coordx, **coordz, ***_xlocal;
+  Vec            xlocal;
+  PetscErrorCode ierr;
+  PetscFunctionBeginUser;
+
+  ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArrayRead(dm,xlocal,&_xlocal);CHKERRQ(ierr);
+
+  domain_dt = 1.0e32;
+  eps = 1.0e-32; /* small shift to avoid dividing by zero */
+
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev);CHKERRQ(ierr); 
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
+
+  // get slots
+  ierr = DMStagGetLocationSlot(dm,DMSTAG_LEFT,  VEL_FACE_VF, &v_slot[0]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm,DMSTAG_RIGHT, VEL_FACE_VF, &v_slot[1]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm,DMSTAG_DOWN,  VEL_FACE_VF, &v_slot[2]);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm,DMSTAG_UP,    VEL_FACE_VF, &v_slot[3]);CHKERRQ(ierr);
+
+  // Loop over elements - velocity is located on edge and c=1
+  for (j = sz; j<sz+nz; j++) {
+    for (i = sx; i<sx+nx; i++) {
+      PetscScalar   xx[4];
+      
+      xx[0] = _xlocal[j][i][v_slot[0]];
+      xx[1] = _xlocal[j][i][v_slot[1]];
+      xx[2] = _xlocal[j][i][v_slot[2]];
+      xx[3] = _xlocal[j][i][v_slot[3]];
+
+      dx = coordx[0][inext]-coordx[0][iprev];
+      dz = coordz[0][inext]-coordz[0][iprev];
+
+      /* compute dx, dy for this cell */
+      cell_dt_x = dx / PetscMax(PetscMax(PetscAbsScalar(xx[0]), PetscAbsScalar(xx[1])), eps);
+      cell_dt_z = dz / PetscMax(PetscMax(PetscAbsScalar(xx[2]), PetscAbsScalar(xx[3])), eps);
+      cell_dt   = PetscMin(cell_dt_x,cell_dt_z);
+      domain_dt = PetscMin(domain_dt,cell_dt);
+    }
+  }
+
+  // MPI exchange global min/max
+  ierr = MPI_Allreduce(&domain_dt,&global_dt,1,MPI_DOUBLE,MPI_MIN,PetscObjectComm((PetscObject)dm));CHKERRQ(ierr);
+
+  // Return vectors and arrays
+  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArrayRead(dm,xlocal,&_xlocal);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
+
+  // Return value
+  *dt = global_dt;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
 // CreateDirectory
 // ---------------------------------------
 #undef __FUNCT__
@@ -1515,6 +1583,40 @@ PetscErrorCode IntegratePlasticStrain(DM dm, Vec lam, Vec dotlam, void *ctx)
 
   ierr = DMStagVecRestoreArray(dm,dotlamlocal,&_dotlam);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dm, &dotlamlocal ); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// CorrectNegativePorosity
+// ---------------------------------------
+PetscErrorCode CorrectNegativePorosity(DM dm, Vec x)
+{
+  PetscInt       i, j, sx, sz, nx, nz, iE;
+  PetscScalar    ***xx;
+  Vec            xlocal;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &iE); CHKERRQ(ierr);
+
+  ierr = DMCreateLocalVector(dm, &xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+  
+  // Loop over local domain
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      if (xx[j][i][iE]>1.0) xx[j][i][iE] = 1.0;
+    }
+  }
+
+  // Restore arrays
+  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

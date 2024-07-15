@@ -99,7 +99,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   NdParams       *nd;
   Params         *par;
   PetscInt       nx, nz; 
-  PetscScalar    xmin, xmax, zmin, zmax, dt, dt_phi;
+  PetscScalar    xmin, xmax, zmin, zmax, dt, dt_phi, dt_vf, dt_T;
   FDPDE          fdPV, fdT, fdphi;
   DM             dmPV, dmT, dmphi, dmswarm, dmTcoeff, dmphicoeff;
   Vec            xPV, xT, xphi, xTprev, xTcoeff, xTcoeffprev, xphiprev, xphicoeff, xphicoeffprev;
@@ -305,12 +305,17 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = PetscTime(&start_time); CHKERRQ(ierr);
 
     // Get a guess for timestep
-    ierr   = FDPDEAdvDiffComputeExplicitTimestep(fdT,&dt);CHKERRQ(ierr);
+    ierr   = FDPDEAdvDiffComputeExplicitTimestep(fdT,&dt_T);CHKERRQ(ierr);
     ierr   = FDPDEAdvDiffComputeExplicitTimestep(fdphi,&dt_phi);CHKERRQ(ierr);
-    dt     = PetscMin(dt,dt_phi);
+    ierr   = LiquidVelocityExplicitTimestep(usr->dmVel,usr->xVel,&dt_vf);CHKERRQ(ierr);
+
+    dt     = PetscMin(dt_T,dt_phi);
+    dt     = PetscMin(dt,dt_vf);
     nd->dt = PetscMin(dt,nd->dtmax);
     ierr   = FDPDEAdvDiffSetTimestep(fdT,nd->dt); CHKERRQ(ierr);
     ierr   = FDPDEAdvDiffSetTimestep(fdphi,nd->dt); CHKERRQ(ierr);
+
+    PetscPrintf(PETSC_COMM_WORLD,"# Time-step (non-dimensional): dt_T = %1.12e dt_phi = %1.12e dt_vf = %1.12e dtmax = %1.12e \n",dt_T,dt_phi,dt_vf,nd->dtmax);
 
     // Update lithostatic pressure 
     ierr = UpdateLithostaticPressure(usr->dmPlith,usr->xPlith,usr);CHKERRQ(ierr);
@@ -320,7 +325,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     SNESConvergedReason reason;
     converged = PETSC_FALSE;
     while (!converged) {
-      PetscPrintf(PETSC_COMM_WORLD,"# (PV) Time-step (iteration): dt = %1.12e \n",nd->dt);
+      // PetscPrintf(PETSC_COMM_WORLD,"# (PV) Time-step (iteration): dt = %1.12e \n",nd->dt);
       ierr = FDPDESolve(fdPV,&converged);CHKERRQ(ierr);
       ierr = SNESGetConvergedReason(fdPV->snes,&reason); CHKERRQ(ierr);
       if (!converged) { 
@@ -343,7 +348,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     PetscPrintf(PETSC_COMM_WORLD,"\n# (phi) Porosity Solver \n");
     converged = PETSC_FALSE;
     while (!converged) {
-      PetscPrintf(PETSC_COMM_WORLD,"# (phi) Time-step (iteration): dt = %1.12e \n",nd->dt);
+      // PetscPrintf(PETSC_COMM_WORLD,"# (phi) Time-step (iteration): dt = %1.12e \n",nd->dt);
       ierr = FDPDESolve(fdphi,&converged);CHKERRQ(ierr);
       ierr = SNESGetConvergedReason(fdphi->snes,&reason); CHKERRQ(ierr);
       if (!converged) { 
@@ -356,6 +361,9 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = VecCopy(xphi,usr->xphi);CHKERRQ(ierr);
     ierr = VecDestroy(&xphi);CHKERRQ(ierr);
 
+    // Correct negative porosity
+    ierr = CorrectNegativePorosity(usr->dmphi,usr->xphi);CHKERRQ(ierr);
+
     // Correct porosity at the free surface
     ierr = CorrectPorosityFreeSurface(usr->dmphi,usr->xphi,usr->dmMPhase,usr->xMPhase);CHKERRQ(ierr);
 
@@ -363,14 +371,15 @@ PetscErrorCode Numerical_solution(void *ctx)
     PetscPrintf(PETSC_COMM_WORLD,"\n# (T) Energy Solver \n");
     converged = PETSC_FALSE;
     while (!converged) {
-      PetscPrintf(PETSC_COMM_WORLD,"# Time-step (iteration): dt = %1.12e \n",nd->dt);
+      // PetscPrintf(PETSC_COMM_WORLD,"# Time-step (iteration): dt = %1.12e \n",nd->dt);
       ierr = FDPDESolve(fdT,&converged);CHKERRQ(ierr);
-      if (!converged) { // Reduce dt if not converged
-        nd->dt *= 1e-1;
-        ierr = FDPDEAdvDiffSetTimestep(fdT,nd->dt); CHKERRQ(ierr);
+      if (!converged) { 
+        break; 
+        // nd->dt *= 1e-1;
+        // ierr = FDPDEAdvDiffSetTimestep(fdT,nd->dt); CHKERRQ(ierr);
       }
     }
-    PetscPrintf(PETSC_COMM_WORLD,"# Time-step (non-dimensional): dt = %1.12e dtmax = %1.12e dtmax_grid = %1.12e\n",nd->dt,nd->dtmax,dt);
+    // PetscPrintf(PETSC_COMM_WORLD,"# Time-step (non-dimensional): dt = %1.12e dtmax = %1.12e dtmax_grid = %1.12e\n",nd->dt,nd->dtmax,dt);
 
     // Get solution
     ierr = FDPDEGetSolution(fdT,&xT);CHKERRQ(ierr);

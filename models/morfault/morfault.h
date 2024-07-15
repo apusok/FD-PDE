@@ -192,6 +192,7 @@ PetscErrorCode DoOutput(FDPDE,FDPDE,FDPDE,void*);
 PetscErrorCode UpdateStrainRates(DM,Vec,void*); // need optimization
 PetscErrorCode IntegratePlasticStrain(DM,Vec,Vec,void*);
 PetscErrorCode ComputeFluidAndBulkVelocity(DM,Vec,DM,Vec,DM,Vec,DM,Vec,void*);
+PetscErrorCode LiquidVelocityExplicitTimestep(DM,Vec,PetscScalar*);
 PetscErrorCode CreateDirectory(const char*);
 PetscErrorCode LoadRestartFromFile(FDPDE,FDPDE,FDPDE,void*);
 PetscErrorCode OutputParameters(void*); 
@@ -199,6 +200,7 @@ PetscErrorCode LoadParametersFromFile(void*);
 PetscErrorCode DMSwarmReadBinaryXDMF_Seq(DM,const char*,PetscInt,const char*[1]);
 PetscErrorCode GetMarkerDensityPerCell(DM,DM,PetscInt[2]);
 PetscErrorCode CorrectPorosityFreeSurface(DM,Vec,DM,Vec);
+PetscErrorCode CorrectNegativePorosity(DM,Vec);
 
 PetscErrorCode GetMatPhaseFraction(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscInt,PetscScalar*);
 PetscErrorCode GetCornerAvgFromCenter(PetscScalar*,PetscScalar*);

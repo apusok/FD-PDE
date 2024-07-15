@@ -5,17 +5,17 @@
 -H 100.0e3
 -xmin -100e3
 -zmin -100e3
--Hs 20e3
+-Hs 10e3
 
 -nx 50
 -nz 25
 -ppcell 3
 
--tstep 20
+-tstep 1
 -tout 1
 -dt_out 1e10
 -tmax 10e6
--dtmax 1e3 # diverge for larger dt=1e4
+-dtmax 1e2 # diverge for larger dt=1e4
 -ts_scheme 2
 -adv_scheme 2
 
@@ -29,11 +29,14 @@
 -age 30
 -strain_max 1.0
 -hcc 0.5
--phi0 1e-4
+-phi0 0.0
 
 -eta_min 1.0e15
 -eta_max 1.0e25
 -phi_min 1e-3
+
+-phi_max_bc 5e-3
+-sigma_bc 1e-3
 
 -incl_x 0e3
 -incl_z -60e3
@@ -55,8 +58,8 @@
 -mat0_C 1e10
 -mat0_sigmat 2.5e9
 -mat0_theta 30
--mat0_cp 1200
--mat0_kT 0.0
+-mat0_cp 4200
+-mat0_kT 0.6
 
 # sediments - weak seed
 -mat1_rho0 3300
@@ -170,12 +173,13 @@
 -pv_snes_atol 1e-8
 -pv_snes_rtol 1e-50
 -pv_snes_stol 1e-8
--pv_snes_max_it 200
+-pv_snes_max_it 50
 -pv_snes_monitor
 # -pv_snes_view
 -pv_snes_monitor_true_residual
 -pv_ksp_monitor_true_residual
 -pv_ksp_gmres_restart 300
+-pv_ksp_max_it 500
 -pv_snes_converged_reason
 -pv_ksp_converged_reason
 -pv_ksp_type fgmres
