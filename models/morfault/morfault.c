@@ -130,6 +130,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKESDARCY2FIELD,&fdPV);CHKERRQ(ierr);
     ierr = FDPDESetUp(fdPV);CHKERRQ(ierr);
     ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV,bc_description_PV,usr); CHKERRQ(ierr);
+    // ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV_YBC,bc_description_PV,usr); CHKERRQ(ierr);
     ierr = FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV,coeff_description_PV,usr); CHKERRQ(ierr);
   }
 
@@ -138,6 +139,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKES,&fdPV);CHKERRQ(ierr);
     ierr = FDPDESetUp(fdPV);CHKERRQ(ierr);
     ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV_Stokes,bc_description_PV,usr); CHKERRQ(ierr);
+    // ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV_YBC_Stokes,bc_description_PV,usr); CHKERRQ(ierr);
     ierr = FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV_Stokes,coeff_description_PV,usr); CHKERRQ(ierr);
     usr->par->phi0 = 0.0;
   }

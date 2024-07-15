@@ -870,7 +870,7 @@ def parse_matProp_file(fname,fdir):
     data_c = data['X_cell']
  
     matProp = EmptyStruct()
-    dof = 15
+    dof = 17
     matProp.eta = data_c[0::dof].reshape(nz,nx)
     matProp.etaV = data_c[1::dof].reshape(nz,nx)
     matProp.etaE = data_c[2::dof].reshape(nz,nx)

@@ -403,6 +403,8 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
       _matProp[j][i][imat[MATPROP_ELEMENT_THETA]]  = theta[0];
       _matProp[j][i][imat[MATPROP_ELEMENT_RHO]]    = rho;
       _matProp[j][i][imat[MATPROP_ELEMENT_KPHI]]   = Kphi;
+      _matProp[j][i][imat[MATPROP_ELEMENT_CHIP]]   = chip[0];
+      _matProp[j][i][imat[MATPROP_ELEMENT_CHIS]]   = chis[0];
     }
   }
 
@@ -831,6 +833,8 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
       _matProp[j][i][imat[MATPROP_ELEMENT_THETA]]  = theta[0];
       _matProp[j][i][imat[MATPROP_ELEMENT_RHO]]    = rho;
       _matProp[j][i][imat[MATPROP_ELEMENT_KPHI]]   = Kphi;
+      _matProp[j][i][imat[MATPROP_ELEMENT_CHIP]]   = chip[0];
+      _matProp[j][i][imat[MATPROP_ELEMENT_CHIS]]   = chis[0];
     }
   }
 

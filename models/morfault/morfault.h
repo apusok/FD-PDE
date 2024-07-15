@@ -65,7 +65,9 @@
 #define MATPROP_ELEMENT_THETA   12
 #define MATPROP_ELEMENT_RHO     13
 #define MATPROP_ELEMENT_KPHI    14
-#define MATPROP_NPROP           15
+#define MATPROP_ELEMENT_CHIP    15
+#define MATPROP_ELEMENT_CHIS    16
+#define MATPROP_NPROP           17
 
 // ---------------------------------------
 // Application Context
@@ -159,7 +161,9 @@ PetscErrorCode DecompactRheologyVars(PetscInt,PetscScalar*,PetscScalar*,PetscSca
 
 // boundary conditions
 PetscErrorCode FormBCList_PV(DM, Vec, DMStagBCList, void*);
+PetscErrorCode FormBCList_PV_YBC(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_PV_Stokes(DM, Vec, DMStagBCList, void*);
+PetscErrorCode FormBCList_PV_YBC_Stokes(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_T(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_phi(DM, Vec, DMStagBCList, void*);
 
