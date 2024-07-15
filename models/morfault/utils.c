@@ -41,7 +41,7 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ct
   usr->plasticity = PETSC_FALSE; 
   PetscPrintf(PETSC_COMM_WORLD,"# (PV) Rheology: VISCO-ELASTIC \n");
   usr->nd->dt = usr->nd->dtmax;
-  ierr = FDPDESolve(fdPV,NULL);CHKERRQ(ierr);
+  // ierr = FDPDESolve(fdPV,NULL);CHKERRQ(ierr);
   ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
   ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
   ierr = FDPDEGetSolutionGuess(fdPV,&xguess); CHKERRQ(ierr); 
@@ -606,12 +606,13 @@ PetscErrorCode GetMarkerDensityPerCell(DM dmswarm, DM dm, PetscInt nmark[2])
 PetscErrorCode UpdateLithostaticPressure(DM dm, Vec x, void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
-  PetscInt       i, j, sx, sz, nx, nz, idx, icenter, iwtc[MAX_MAT_PHASE];
+  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, idx, icenter, iwtc[MAX_MAT_PHASE];
   PetscScalar    **coordx,**coordz, ***xx, ***xwt, rho0[MAX_MAT_PHASE], wt[MAX_MAT_PHASE];
   Vec            xlocal,xMPhaselocal;
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
+  ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
   ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
   ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
   ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
@@ -635,16 +636,22 @@ PetscErrorCode UpdateLithostaticPressure(DM dm, Vec x, void *ctx)
 
   // Loop over local domain
   for (i = sx; i <sx+nx; i++) {
-    for (j = sz+nz-1; j > -1; j--) { // start from top column - not parallel!
+    for (j = sz+nz-1; j > sz-1; j--) { // start from top column - not parallel!
       PetscInt    iph;
-      PetscScalar rho;
+      PetscScalar rho, dz;
+      
       // solid material density
       for (iph = 0; iph < usr->nph; iph++) { rho0[iph] = Density(usr->mat_nd[iph].rho0,usr->mat[iph].rho_func); }
-
-      // get material phase fraction
       ierr = GetMatPhaseFraction(i,j,xwt,iwtc,usr->nph,wt); CHKERRQ(ierr);
       rho = WeightAverageValue(rho0,wt,usr->nph); 
-      xx[j][i][idx] = LithostaticPressure(rho,coordz[j][icenter]); 
+
+      if (j==sz+nz-1) {
+        dz  = 0.5*(coordz[j][icenter]-coordz[j+1][icenter]);
+        xx[j][i][idx] = LithostaticPressure(rho,dz);
+      } else {
+        dz  = coordz[j][icenter]-coordz[j+1][icenter];
+        xx[j][i][idx] = xx[j+1][i][idx] + LithostaticPressure(rho,dz); 
+      }
     }
   }
 
