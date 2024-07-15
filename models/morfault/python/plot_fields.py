@@ -21,7 +21,7 @@ def sortTimesteps(tdir):
 
 # Parameters
 A.dimensional = 1 # 0-nd, 1-dim
-sim = 'run41_01_SD_setup6_sigmabc1e-2/'
+sim = 'run43_01a_SD_setup6_Kphi1e-7_sigmabc1e-2_upwind/'
 A.input = '/Users/apusok/Documents/morfault/'+sim
 A.output_path_dir = '/Users/apusok/Documents/morfault/Figures/'+sim
 
@@ -58,8 +58,8 @@ for ii in range(0,nt):
 
 # Create directories - default to check for files
 A.input_dir = A.input
-# A.output_dir = A.output_path_dir+'fields2/'
-A.output_dir = A.output_path_dir+'plastic2/'  
+A.output_dir = A.output_path_dir+'fields_egu2/'
+# A.output_dir = A.output_path_dir+'plastic2/'  
 
 vizB.make_dir(A.output_path_dir)
 vizB.make_dir(A.output_dir)
@@ -192,6 +192,9 @@ if (flg_output):
     # vizB.plot_mark_eps_phi(A,istart,iend,jstart,jend,A.output_dir,'out_mark_eps_phi_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_mark_divs_phi(A,istart,iend,jstart,jend,A.output_dir,'out_mark_divs_phi_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_mark_eps_phi_column3(A,istart,iend,jstart,jend,A.output_dir,'out_mark_eps_phi_ts'+str(istep),istep,A.dimensional)
+    # vizB.plot_phi_eps_divv(A,istart,iend,jstart,jend,A.output_dir,'out_mark_eps_phi_ts'+str(istep),istep,A.dimensional)
+    # vizB.plot_phi_eps(A,istart,iend,jstart,jend,A.output_dir,'out_phi_eps_ts'+str(istep),istep,A.dimensional)
+    vizB.plot_phi_eps(A,istart,iend,jstart,jend,A.output_dir,'out_phi_eps_ts'+str(istep),istep,A.dimensional)
 
     # vizB.plot_T(A,istart,iend,jstart,jend,A.output_path_dir+'T/','out_xT_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_MPhase(A,istart,iend,jstart,jend,A.output_path_dir+'MPhase/','out_xMPhase_ts'+str(istep),istep,A.dimensional)
@@ -208,7 +211,7 @@ if (flg_output):
     # vizB.plot_Tcoeff(A,istart,iend,jstart,jend,A.output_path_dir+'Tcoeff/','out_xTcoeff_ts'+str(istep),istep,A.dimensional,0)
     # vizB.plot_Tcoeff(A,istart,iend,jstart,jend,A.output_path_dir+'phicoeff/','out_xphicoeff_ts'+str(istep),istep,A.dimensional,1)
     # vizB.plot_plastic(A,istart,iend,jstart,jend,A.output_path_dir+'plastic/','out_xplastic_ts'+str(istep),istep,A.dimensional)
-    vizB.plot_plastic_v2(A,istart,iend,jstart,jend,A.output_path_dir+'plastic2/','out_xplastic_ts'+str(istep),istep,A.dimensional)
+    # vizB.plot_plastic_v2(A,istart,iend,jstart,jend,A.output_path_dir+'plastic2/','out_xplastic_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_individual_eps(A,istart,iend,jstart,jend,A.output_path_dir+'eps_ind/','out_individual_eps_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_phi(A,istart,iend,jstart,jend,A.output_path_dir+'phi/','out_xphi_ts'+str(istep),istep,A.dimensional)
 
