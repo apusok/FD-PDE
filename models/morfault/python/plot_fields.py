@@ -21,7 +21,7 @@ def sortTimesteps(tdir):
 
 # Parameters
 A.dimensional = 1 # 0-nd, 1-dim
-sim = 'cider00/'
+sim = 'meltcryst_test1_30Myr_uT1/'
 A.input = '../'+sim
 # A.input = '/Users/apusok/Documents/morfault/'+sim
 A.output_path_dir = '../Figures/'+sim
@@ -112,7 +112,7 @@ if (flg_output):
   print('  >> '+A.output_dir+'  >> TRUE')
 
   # Loop over timesteps
-  for istep1 in range(0,nt,5):
+  for istep1 in range(0,nt,1):
     istep = time_list[istep1]
   # for istep in time_list:
     fdir  = A.input_dir+'Timestep'+str(istep)
@@ -189,12 +189,12 @@ if (flg_output):
     # Calculate individual deformation strain rates
     # A.rheol = vizB.calc_dom_rheology_mechanism(A)
 
-    # vizB.plot_mark_eps_phi(A,istart,iend,jstart,jend,A.output_dir,'out_mark_eps_phi_ts'+str(istep),istep,A.dimensional)
+    vizB.plot_mark_eps_phi(A,istart,iend,jstart,jend,A.output_dir,'out_mark_eps_phi_ts'+str(istep),istep,A.dimensional)
 
     # Plots: A.output_path_dir+'fields2/'
     # vizB.plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,A.output_path_dir+'fields0/','out_mark_eta_eps_tau_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_mark_eta_eps_tau2(A,istart,iend,jstart,jend,A.output_path_dir+'fields00/','out_mark_eta_eps_tau2_ts'+str(istep),istep,A.dimensional)
-    # vizB.plot_mark_eta_eps_tau_T_phi(A,istart,iend,jstart,jend,A.output_path_dir+'fields1/','out_mark_eta_eps_tau_T_phi_ts'+str(istep),istep,A.dimensional)
+    vizB.plot_mark_eta_eps_tau_T_phi(A,istart,iend,jstart,jend,A.output_path_dir+'fields1/','out_mark_eta_eps_tau_T_phi_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_def_mechanisms(A,istart,iend,jstart,jend,A.output_path_dir+'def_mech/','out_def_mechanisms_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_mark_eps_phi(A,istart,iend,jstart,jend,A.output_dir,'out_mark_eps_phi_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_mark_divs_phi(A,istart,iend,jstart,jend,A.output_dir,'out_mark_divs_phi_ts'+str(istep),istep,A.dimensional)
@@ -204,7 +204,7 @@ if (flg_output):
     # vizB.plot_bulk_darcy_alpha(A,istart,iend,jstart,jend,A.output_dir,'out_bulk_darcy_alpha_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_phi_eps_div_eta_zeta_lam(A,istart,iend,jstart,jend,A.output_path_dir+'phi_eps_div_eta_zeta_lam/','out_phi_eps_div_eta_zeta_lam_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_phi_eps_div_lam(A,istart,iend,jstart,jend,A.output_path_dir+'plot_phi_eps_div_lam/','out_plot_phi_eps_div_lam_ts'+str(istep),istep,A.dimensional)
-    vizB.plot_phi_cider(A,istart,iend,jstart,jend,A.output_path_dir+'out_phi_cider/','out_phi_cider_ts'+str(istep),istep,A.dimensional)
+    # vizB.plot_phi_cider(A,istart,iend,jstart,jend,A.output_path_dir+'out_phi_cider/','out_phi_cider_ts'+str(istep),istep,A.dimensional)
   
     # vizB.plot_T(A,istart,iend,jstart,jend,A.output_path_dir+'T/','out_xT_ts'+str(istep),istep,A.dimensional)
     # vizB.plot_MPhase(A,istart,iend,jstart,jend,A.output_path_dir+'MPhase/','out_xMPhase_ts'+str(istep),istep,A.dimensional)

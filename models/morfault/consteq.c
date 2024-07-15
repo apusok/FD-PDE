@@ -103,6 +103,16 @@ PetscScalar CompactionViscosity(PetscScalar zeta0, PetscScalar T, PetscScalar ph
 }
 
 // ---------------------------------------
+// Tsolidus_1Component (Wallner and Schmeling, 2016) - dimensional (K)
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "Tsolidus_1Component"
+PetscScalar Tsolidus_1Component(PetscScalar Tsol0, PetscScalar z) 
+{ // Input: Tsol0 in K, z in m
+  return Tsol0 - 2.5*(z*1e-3); 
+}
+
+// ---------------------------------------
 // TensileStrength - can add user function to switch 
 // ---------------------------------------
 #undef __FUNCT__

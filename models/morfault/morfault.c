@@ -380,9 +380,11 @@ PetscErrorCode Numerical_solution(void *ctx)
     // Correct negative porosity
     // ierr = CorrectNegativePorosity(usr->dmphi,usr->xphi);CHKERRQ(ierr);
 
-    // Correct porosity at the free surface
-    ierr = CorrectPorosityFreeSurface(usr->dmphi,usr->xphi,usr->dmMPhase,usr->xMPhase);CHKERRQ(ierr);
-
+    if (usr->par->model_energy==0) {
+      // Correct porosity at the free surface
+      ierr = CorrectPorosityFreeSurface(usr->dmphi,usr->xphi,usr->dmMPhase,usr->xMPhase);CHKERRQ(ierr);
+    }
+    
     // Set timestep for T
     ierr = FDPDEAdvDiffSetTimestep(fdT,nd->dt); CHKERRQ(ierr);
 
@@ -403,6 +405,11 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = FDPDEGetSolution(fdT,&xT);CHKERRQ(ierr);
     ierr = VecCopy(xT,usr->xT);CHKERRQ(ierr);
     ierr = VecDestroy(&xT);CHKERRQ(ierr);
+
+    if (usr->par->model_energy==1) {
+      // Melting and crystallisation - Boukare et al 2017
+      ierr = PhaseDiagram_1Component(usr->dmT,usr->xT,usr->dmphi,usr->xphi,usr->dmMPhase,usr->xMPhase,usr);CHKERRQ(ierr);
+    }
 
     // Advect markers - RK1
     PetscPrintf(PETSC_COMM_WORLD,"\n# (DMSWARM) Advect and update lithological phase fractions \n");

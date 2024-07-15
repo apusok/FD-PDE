@@ -75,9 +75,9 @@
 typedef struct {
   PetscInt       nx, nz;
   PetscScalar    L, H, Hs, xmin, zmin;
-  PetscScalar    k_hat, g, Ttop, Tbot, R, Vext, uT, rhof, q, age, Gamma;
+  PetscScalar    k_hat, g, Ttop, Tbot, R, Vext, uT, rhof, q, age, Gamma, La, Tsol0;
   PetscScalar    hs_factor, drho, kphi0, n, mu, eta_min, eta_max, phi_min, phi0, eta_K, Zmax, beta, EoR, Teta0, zetaExp;
-  PetscInt       ts_scheme, adv_scheme, tout, tstep, ppcell, Nmax, rheology, two_phase, model_setup, model_setup_phi, restart, inflow_bc;
+  PetscInt       ts_scheme, adv_scheme, tout, tstep, ppcell, Nmax, rheology, two_phase, model_setup, model_setup_phi, model_energy, restart, inflow_bc;
   PetscScalar    dt_out, tmax, dtmax, tf_tol, strain_max, hcc, phi_max_bc, sigma_bc, sigma_bc_h, z_bc;
   PetscInt       mat0_id, mat1_id, mat2_id, mat3_id, mat4_id, mat5_id, marker_phases, matid_default;
   PetscScalar    mat0_rho0, mat0_alpha, mat0_cp, mat0_kT, mat0_kappa; 
@@ -176,6 +176,7 @@ PetscScalar CompactionViscosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,
 PetscScalar ArrheniusTerm_Viscosity(PetscScalar,PetscScalar,PetscScalar); 
 PetscScalar LiquidVelocity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar); 
 PetscScalar Mixture(PetscScalar,PetscScalar,PetscScalar);
+PetscScalar Tsolidus_1Component(PetscScalar,PetscScalar); 
 PetscScalar TensileStrength(PetscScalar,PetscScalar,PetscScalar,PetscInt); 
 PetscScalar ElasticShearModulus(PetscScalar,PetscScalar); 
 PetscScalar PoroElasticModulus(PetscScalar,PetscScalar,PetscScalar);
@@ -206,6 +207,7 @@ PetscErrorCode GetMarkerDensityPerCell(DM,DM,PetscInt[2]);
 PetscErrorCode CorrectPorosityFreeSurface(DM,Vec,DM,Vec);
 PetscErrorCode CorrectNegativePorosity(DM,Vec);
 PetscErrorCode CheckNegativePorosity(DM,Vec,PetscBool*);
+PetscErrorCode PhaseDiagram_1Component(DM,Vec,DM,Vec,DM,Vec,void*);
 
 PetscErrorCode GetMatPhaseFraction(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscInt,PetscScalar*);
 PetscErrorCode GetCornerAvgFromCenter(PetscScalar*,PetscScalar*);

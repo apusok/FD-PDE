@@ -155,6 +155,11 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->Teta0, 1672.82, "Teta0", "Temperature at which viscosity is equal to eta0 [K]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->Gamma, 0.0, "Gamma", "Melting rate [kg/m3/s]"); CHKERRQ(ierr);
 
+  // melting-crystallisation
+  ierr = PetscBagRegisterInt(bag, &par->model_energy,0, "model_energy", "0-no melt/cryst, 1-one comp"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->La, 7e5, "La", "Latent heat [J/K]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->Tsol0, 1478, "Tsol0", "Melting T at surface [K]"); CHKERRQ(ierr);
+
   // regularization
   ierr = PetscBagRegisterScalar(bag, &par->eta_min, 1.0e15, "eta_min", "Cutoff minimum shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->eta_max, 1.0e25, "eta_max", "Cutoff maximum shear viscosity [Pa.s]"); CHKERRQ(ierr);

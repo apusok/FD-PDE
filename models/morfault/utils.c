@@ -1708,6 +1708,102 @@ PetscErrorCode IntegratePlasticStrain(DM dm, Vec lam, Vec dotlam, void *ctx)
 }
 
 // ---------------------------------------
+// PhaseDiagram_1Component
+// ---------------------------------------
+PetscErrorCode PhaseDiagram_1Component(DM dmT, Vec xT, DM dm, Vec x, DM dmphase, Vec xphase, void *ctx)
+{
+  UsrData        *usr = (UsrData*) ctx;
+  PetscInt       i, j, sx, sz, nx, nz, iE, isurf, icenter, iwtc[MAX_MAT_PHASE];
+  PetscScalar    ***xx, ***xwt, ***xxT;
+  Vec            xlocal, xphaselocal, xTlocal;
+  PetscScalar    **coordx,**coordz, T0, DT, L;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  DT = usr->scal->DT;
+  T0 = usr->par->Ttop;
+  L  = usr->par->La;
+
+  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &iE); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmphase, ELEMENT, 0, &isurf); CHKERRQ(ierr);
+
+  ierr = DMCreateLocalVector(dm, &xlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
+
+  ierr = DMCreateLocalVector(dmT, &xTlocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmT, xT, INSERT_VALUES, xTlocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmT, xTlocal, &xxT); CHKERRQ(ierr);
+
+  // get material phase fractions
+  ierr = DMCreateLocalVector(dmphase, &xphaselocal); CHKERRQ(ierr);
+  ierr = DMGlobalToLocal (dmphase, xphase, INSERT_VALUES, xphaselocal); CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmphase, xphaselocal, &xwt); CHKERRQ(ierr);
+
+  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 0, &iwtc[0]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 1, &iwtc[1]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 2, &iwtc[2]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 3, &iwtc[3]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 4, &iwtc[4]); CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 5, &iwtc[5]); CHKERRQ(ierr);
+  
+  // Loop over local domain
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      PetscInt iph;
+      PetscScalar  Tsol, T, phi, phinew, z, nd_T;
+      PetscScalar cp, cp0[MAX_MAT_PHASE], wt[MAX_MAT_PHASE];
+
+      // solid material heat capacity
+      for (iph = 0; iph < usr->nph; iph++) { cp0[iph] = usr->mat[iph].cp; }
+      ierr = GetMatPhaseFraction(i,j,xwt,iwtc,usr->nph,wt); CHKERRQ(ierr);
+      cp = WeightAverageValue(cp0,wt,usr->nph); 
+
+      z = (coordz[j][icenter]+usr->nd->Hs)*usr->scal->x;
+      Tsol = Tsolidus_1Component(usr->par->Tsol0,z);
+      T = xxT[j][i][iE]*DT+T0;
+      phi = 1.0 - xx[j][i][iE];
+      phinew = phi;
+
+      // if (i==0) PetscPrintf(PETSC_COMM_WORLD,"# cp = %1.12e z = %1.12e Tsol = %1.12e T = %1.12e\n",cp,z,Tsol,T);
+
+      if (T>Tsol) {
+        phinew = phi + PetscMin(1.0-phi,cp*(T-Tsol)/L);
+      }
+      if (T<Tsol) {
+        phinew = phi - PetscMin(phi,cp*(Tsol-T)/L);
+      }
+      T = T-(phinew-phi)*L/cp;
+      nd_T = nd_paramT(T,T0,DT);
+
+      // return values
+      xxT[j][i][iE] = nd_T;
+      xx[j][i][iE] = 1.0 - phinew;
+    }
+  }
+
+  // Restore arrays
+  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
+
+  ierr = DMStagVecRestoreArray(dmT,xTlocal,&xxT); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dmT,xTlocal,INSERT_VALUES,xT); CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd  (dmT,xTlocal,INSERT_VALUES,xT); CHKERRQ(ierr);
+  ierr = VecDestroy(&xTlocal); CHKERRQ(ierr);
+
+  ierr = DMStagVecRestoreArray(dmphase,xphaselocal,&xwt); CHKERRQ(ierr);
+  ierr = VecDestroy(&xphaselocal); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
 // CorrectNegativePorosity
 // ---------------------------------------
 PetscErrorCode CorrectNegativePorosity(DM dm, Vec x)
