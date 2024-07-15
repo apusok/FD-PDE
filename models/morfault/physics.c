@@ -955,6 +955,7 @@ PetscErrorCode RheologyPointwise(PetscInt i, PetscInt j, PetscScalar ***xwt, Pet
   PetscFunctionBeginUser;
 
   if (usr->par->rheology==0) { ierr = RheologyPointwise_VEP(i,j,xwt,iwt,T,phi,P,eps,tauold,ix,res,usr);CHKERRQ(ierr); }
+  if (usr->par->rheology==1) { ierr = RheologyPointwise_VE_VP(i,j,xwt,iwt,T,phi,P,eps,tauold,ix,res,usr);CHKERRQ(ierr); }
 
   PetscFunctionReturn(0);
 }
@@ -1031,10 +1032,11 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
     // plastic viscosity
     if (usr->plasticity) { 
       PetscScalar Y;
-      Y = mC[iph]; // von Mises
-      // Y = C*PetscCosScalar(PETSC_PI*theta/180) + Pf*PetscSinScalar(PETSC_PI*theta/180); // Drucker-Prager Pf
-      // Y = C*PetscCosScalar(PETSC_PI*theta/180) + Plith*PetscSinScalar(PETSC_PI*theta/180); // Drucker-Prager Plith
-      // Y = C + Plith*PetscSinScalar(PETSC_PI*theta/180); // Drucker-Prager Plith
+      // Y = mC[iph]; // von Mises
+      // Y = mC[iph]*PetscCosScalar(PETSC_PI*mtheta[iph]/180) + Pf*PetscSinScalar(PETSC_PI*mtheta[iph]/180); // Drucker-Prager Pf 1
+      Y = mC[iph]*PetscCosScalar(PETSC_PI*mtheta[iph]/180) + Plith*PetscSinScalar(PETSC_PI*mtheta[iph]/180); // Drucker-Prager Plith 2
+      // Y = mC[iph] + Plith*PetscSinScalar(PETSC_PI*mtheta[iph]/180); // Drucker-Prager 3
+      // Y = mC[iph] + Pf*PetscSinScalar(PETSC_PI*mtheta[iph]/180); // Drucker-Prager 4
       meta_p[iph]   = Y/(2.0*eIIp); 
       mzeta_p[iph]  = PetscMin(usr->nd->eta_max,Y/PetscAbs(exx+ezz)); 
     } else { 
@@ -1044,8 +1046,6 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
 
     meta_VEP[iph]  = PetscMin(meta_p[iph],meta_ve[iph]);
     mzeta_VEP[iph] = PetscMin(mzeta_p[iph],meta_ve[iph]);
-
-    // if (i==25) PetscPrintf(PETSC_COMM_WORLD,"# BREAK A0 [%d %d %d] %1.12e #\n",i,j,iph,meta_VEP[iph]);
 
     // effective viscosities
     meta[iph] = ViscosityHarmonicAvg(meta_VEP[iph],usr->nd->eta_min,usr->nd->eta_max)*phis;
@@ -1112,6 +1112,22 @@ PetscErrorCode RheologyPointwise_VEP(PetscInt i, PetscInt j, PetscScalar ***xwt,
   res[18] = C;
   res[19] = sigmat;
   res[20] = theta;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// RheologyPointwise_VE_VP
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "RheologyPointwise_VE_VP"
+PetscErrorCode RheologyPointwise_VE_VP(PetscInt i, PetscInt j, PetscScalar ***xwt, PetscInt *iwt, PetscScalar T, PetscScalar phi, PetscScalar *P, 
+                                 PetscScalar *eps, PetscScalar *tauold, PetscInt *ix, PetscScalar *res, void *ctx)
+{
+  UsrData        *usr = (UsrData*)ctx;
+  PetscErrorCode ierr;
+  PetscFunctionBeginUser;
+
 
   PetscFunctionReturn(0);
 }

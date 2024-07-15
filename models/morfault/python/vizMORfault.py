@@ -1334,8 +1334,10 @@ def plot_Tcoeff(A,istart,iend,jstart,jend,fname,istep,dim):
 def plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,fname,istep,dim):
 
   fig = plt.figure(1,figsize=(28,5))
+  t = istep
 
   scalx = get_scaling(A,'x',dim,1)
+  scalv = get_scaling(A,'v',dim,1)
   lblx = get_label(A,'x',dim)
   lblz = get_label(A,'z',dim)
 
@@ -1349,7 +1351,7 @@ def plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,fname,istep,dim):
   ax.set_xlim(min(A.grid.xv[istart:iend]*scalx), max(A.grid.xv[istart:iend]*scalx))
   ax.set_ylim(min(A.grid.zv[istart:iend]*scalx), max(A.grid.zv[istart:iend]*scalx))
   ax.set_aspect('equal')
-  ax.set_title('PIC'+' tstep = '+str(istep), fontweight='bold')
+  ax.set_title('PIC'+' tstep = '+str(istep)+' time = '+str(t)+' [kyr]', fontweight='bold')
   ax.set_xlabel(lblx)
   ax.set_ylabel(lblz)
 
@@ -1357,6 +1359,11 @@ def plot_mark_eta_eps_tau(A,istart,iend,jstart,jend,fname,istep,dim):
   scal = get_scaling(A,'eta',dim,0)
   lbl  = get_label(A,'eta',dim)
   plot_standard(fig,ax,np.log10(A.matProp.eta[jstart:jend  ,istart:iend  ]*scal),extentE,'log10 '+lbl+' tstep = '+str(istep),lblx,lblz)
+
+  maxV = 1
+  nind = 5
+  Q  = ax.quiver(A.grid.xc[istart:iend:nind]*scalx, A.grid.zc[jstart:jend:nind]*scalx, A.Vscx[jstart:jend:nind,istart:iend:nind]*scalv/maxV, A.Vscz[jstart:jend:nind,istart:iend:nind]*scalv/maxV, 
+      color='black', scale_units='xy', scale=0.25, units='width', pivot='tail', width=0.003, headwidth=5, headaxislength=5, minlength=0)
 
   ax = plt.subplot(1,4,3)
   lblII  = get_label(A,'epsII',dim)

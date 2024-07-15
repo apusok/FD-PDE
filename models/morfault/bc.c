@@ -262,10 +262,14 @@ PetscErrorCode FormBCList_T(DM dm, Vec x, DMStagBCList bclist, void *ctx)
 {
   UsrData     *usr = (UsrData*)ctx;
   PetscInt    k,n_bc,*idx_bc;
-  PetscScalar *value_bc;
+  PetscScalar *value_bc, Tbot, nd_T, age;
   BCType      *type_bc;
   PetscErrorCode ierr;
   PetscFunctionBegin;
+
+  age = usr->par->age*1.0e6*SEC_YEAR;
+  Tbot = HalfSpaceCoolingTemp(usr->par->Tbot,usr->par->Ttop,usr->par->H-usr->par->Hs,usr->scal->kappa,age,usr->par->hs_factor); 
+  nd_T = nd_paramT(Tbot,usr->par->Ttop,usr->scal->DT);
 
   // Left: dT/dx=0
   ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
@@ -286,7 +290,8 @@ PetscErrorCode FormBCList_T(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   // DOWN: T = Tbot
   ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
   for (k=0; k<n_bc; k++) {
-    value_bc[k] = usr->nd->Tbot;
+    // value_bc[k] = usr->nd->Tbot;
+    value_bc[k] = nd_T;
     type_bc[k] = BC_DIRICHLET_STAG;
   }
   ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
