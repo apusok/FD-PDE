@@ -142,7 +142,9 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
       xx[j][i][iT] = nd_T;
     }
   }
-  usr->nd->z_bc = ziso;
+  if (usr->nd->z_bc==0.0) {
+    usr->nd->z_bc = ziso;
+  }
 
   // Restore arrays
   ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
@@ -1038,6 +1040,12 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdT, FDPDE fdphi,void *ctx)
   ierr = DMStagViewBinaryPython(usr->dmphi,xphiguess,fout);CHKERRQ(ierr);
   ierr = VecDestroy(&xphiguess);CHKERRQ(ierr);
 
+  Vec  xTguess;
+  ierr = FDPDEGetSolutionGuess(fdT,&xTguess);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xTguess_ts%d",usr->par->fdir_out,usr->nd->istep);
+  ierr = DMStagViewBinaryPython(usr->dmT,xTguess,fout);CHKERRQ(ierr);
+  ierr = VecDestroy(&xTguess);CHKERRQ(ierr);
+
   // material properties
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_matProp_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(usr->dmmatProp,usr->xmatProp,fout);CHKERRQ(ierr);
@@ -1676,10 +1684,20 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ctx
   // initialize guess and previous solution in fdT
   ierr = FDPDEAdvDiffGetPrevSolution(fdT,&xTprev);CHKERRQ(ierr);
   ierr = VecCopy(usr->xT,xTprev);CHKERRQ(ierr);
+
   ierr = FDPDEGetSolutionGuess(fdT,&xTguess);CHKERRQ(ierr);
-  ierr = VecCopy(xTprev,xTguess);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xTguess_ts%d",usr->par->fdir_out,usr->nd->istep);
+  ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
+  ierr = VecCopy(x,xTguess);CHKERRQ(ierr);
+  ierr = VecDestroy(&x); CHKERRQ(ierr);
+  ierr = DMDestroy(&dm); CHKERRQ(ierr);
   ierr = VecDestroy(&xTprev);CHKERRQ(ierr);
   ierr = VecDestroy(&xTguess);CHKERRQ(ierr);
+
+  // ierr = FDPDEGetSolutionGuess(fdT,&xTguess);CHKERRQ(ierr);
+  // ierr = VecCopy(xTprev,xTguess);CHKERRQ(ierr);
+  // ierr = VecDestroy(&xTprev);CHKERRQ(ierr);
+  // ierr = VecDestroy(&xTguess);CHKERRQ(ierr);
 
   ierr = FDPDEAdvDiffGetPrevCoefficient(fdT,&xTcoeffprev);CHKERRQ(ierr);
   ierr = FDPDEGetCoefficient(fdT,NULL,&xTcoeff);CHKERRQ(ierr);

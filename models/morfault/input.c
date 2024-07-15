@@ -175,7 +175,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->phi_max_bc, 1e-3, "phi_max_bc", "Amplitude of initial porosity pulse"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->sigma_bc, 1e-3, "sigma_bc", "Width of initial porosity pulse"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->sigma_bc_h, 1e-3, "sigma_bc_h", "Height of initial porosity pulse"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterScalar(bag, &par->z_bc,usr->par->zmin+usr->par->H*0.2, "zbc", "Depth of initial porosity pulse [km]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->z_bc,0.0, "zbc", "Depth of initial porosity pulse [km]"); CHKERRQ(ierr);
 
   // material phases for markers (markers carry only phase id)
   ierr = PetscBagRegisterInt(bag, &par->marker_phases, 6, "marker_phases", "Number of marker phases [-]"); CHKERRQ(ierr);

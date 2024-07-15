@@ -2462,6 +2462,7 @@ def plot_phi_eps_div_eta_zeta_lam(A,istart,iend,jstart,jend,fdir,fname,istep,dim
 def plot_phi_eps_div_lam(A,istart,iend,jstart,jend,fdir,fname,istep,dim):
   make_dir(fdir)
   fig = plt.figure(1,figsize=(17,6))
+  # fig = plt.figure(1,figsize=(35,6))
 
   scalx = get_scaling(A,'x',dim,1)
   scalv = get_scaling(A,'v',dim,1)
