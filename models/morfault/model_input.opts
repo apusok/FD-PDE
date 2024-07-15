@@ -7,11 +7,11 @@
 -zmin -100e3
 -Hs 20e3
 
--nx 100
--nz 50
+-nx 50
+-nz 25
 -ppcell 3
 
--tstep 1
+-tstep 20
 -tout 1
 -dt_out 1e10
 -tmax 10e6
@@ -19,20 +19,26 @@
 -ts_scheme 2
 -adv_scheme 2
 
--rheology 1 # 0-VEP 1-VEVP 
+-two_phase 1 # 0-single 1-twophase
+-rheology 1 # 0-VEP 1-VEVP (Avg) 2-VEVP (Dom)
+-model_setup 2 # 0-mechanical seed 1-thermal perturbation 2-age-dep thermal pert
 
 -Vext 1.0
 -Tbot 1623.15
--eta_K 1e20 # converged with 1e2
--age 40
+-eta_K 1e20
+-age 30
+-strain_max 1.0
+-hcc 0.5
+-phi0 1e-4
 
 -eta_min 1.0e15
 -eta_max 1.0e25
+-phi_min 1e-3
 
 -incl_x 0e3
--incl_z -50e3
--incl_r 5e3
--incl_dT 10
+-incl_z -60e3
+-incl_r 10e3
+-incl_dT 50
 
 # Marker phases
 -marker_phases 6
@@ -44,11 +50,13 @@
 -mat0_eta_function 0  # Eta function: 0-constant
 -mat0_zeta0 1e20
 -mat0_zeta_function 0  # Zeta function: 0-constant
--mat0_G 1e20
--mat0_Z0 1e40
+-mat0_G 6.7e10
+-mat0_Z0 5e9
 -mat0_C 1e10
--mat0_sigmat 5e8
+-mat0_sigmat 2.5e9
 -mat0_theta 30
+-mat0_cp 1200
+-mat0_kT 0.0
 
 # sediments - weak seed
 -mat1_rho0 3300
@@ -57,10 +65,10 @@
 -mat1_eta_function 0  # Eta function: 0-constant
 -mat1_zeta0 1e22
 -mat1_zeta_function 0  # Zeta function: 0-constant
--mat1_G 1e20
--mat1_Z0 1e40
+-mat1_G 6.7e10
+-mat1_Z0 5e9
 -mat1_C 1e10
--mat1_sigmat 5e8
+-mat1_sigmat 2.5e9
 -mat1_theta 30
 
 # upper crust (basalt)
@@ -71,9 +79,9 @@
 -mat2_zeta0 1e19
 -mat2_zeta_function 2  # Zeta function: 0-constant
 -mat2_G 6.7e10
--mat2_Z0 1e40
--mat2_C 1e6
--mat2_sigmat 5e6
+-mat2_Z0 5e9
+-mat2_C 1e7
+-mat2_sigmat 2.5e6
 -mat2_theta 30
 
 # lower crust (gabbro)
@@ -84,9 +92,9 @@
 -mat3_zeta0 1e19
 -mat3_zeta_function 2  # Zeta function: 0-constant
 -mat3_G 6.7e10
--mat3_Z0 1e40
--mat3_C 1e6
--mat3_sigmat 5e6
+-mat3_Z0 5e9
+-mat3_C 1e7
+-mat3_sigmat 2.5e6
 -mat3_theta 30
 
 # lithospheric mantle
@@ -97,9 +105,9 @@
 -mat4_zeta0 1e19
 -mat4_zeta_function 2  # Zeta function: 0-constant
 -mat4_G 6.7e10
--mat4_Z0 1e40
--mat4_C 1e6
--mat4_sigmat 5e6
+-mat4_Z0 5e9
+-mat4_C 1e7
+-mat4_sigmat 2.5e6
 -mat4_theta 30
 
 # asthenosphere
@@ -110,9 +118,9 @@
 -mat5_zeta0 1e19
 -mat5_zeta_function 2  # Zeta function: 0-constant
 -mat5_G 6.7e10
--mat5_Z0 1e40
--mat5_C 1e6
--mat5_sigmat 5e6
+-mat5_Z0 5e9
+-mat5_C 1e7
+-mat5_sigmat 2.5e6
 -mat5_theta 30
 
 # solver options
@@ -126,6 +134,17 @@
 -t_snes_converged_reason 
 -t_ksp_converged_reason 
 -t_ksp_monitor
+
+-phi_pc_type lu 
+#-phi_pc_factor_mat_solver_type mumps
+-phi_pc_factor_mat_solver_type umfpack 
+-phi_pc_factor_mat_ordering_type external
+-phi_snes_atol 1e-8 
+-phi_snes_rtol 1e-20
+-phi_snes_monitor
+-phi_snes_converged_reason 
+-phi_ksp_converged_reason 
+-phi_ksp_monitor
 
 -log_view
 
@@ -144,12 +163,13 @@
 # -pv_ksp_monitor
 
 -pv_pc_factor_mat_solver_type umfpack
+-pv_pc_factor_mat_ordering_type external
 -pv_pc_type lu
 -pv_snes_linesearch_type bt
 -pv_snes_linesearch_monitor
--pv_snes_atol 1e-10
+-pv_snes_atol 1e-8
 -pv_snes_rtol 1e-50
--pv_snes_stol 1e-10
+-pv_snes_stol 1e-8
 -pv_snes_max_it 200
 -pv_snes_monitor
 # -pv_snes_view

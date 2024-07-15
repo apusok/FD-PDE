@@ -81,6 +81,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   usr->dmPV = NULL;
   usr->dmT  = NULL;
+  usr->dmphi = NULL;
   usr->dmswarm = NULL;
   usr->dmVel = NULL;
   usr->dmMPhase = NULL;
@@ -157,6 +158,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->q, -0.5, "q", "Exponent of the porosity-dependent relation of poro-elastic modulus"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->zetaExp, -1.0, "zetaExp", "Porosity exponent in bulk viscosity [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->Teta0, 1672.82, "Teta0", "Temperature at which viscosity is equal to eta0 [K]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->Gamma, 0.0, "Gamma", "Melting rate [kg/m3/s]"); CHKERRQ(ierr);
 
   // regularization
   ierr = PetscBagRegisterScalar(bag, &par->eta_min, 1.0e15, "eta_min", "Cutoff minimum shear viscosity [Pa.s]"); CHKERRQ(ierr);
@@ -470,9 +472,10 @@ PetscErrorCode InputPrintData(UsrData *usr)
   // Print scal and nd params
   PetscPrintf(usr->comm,"# --------------------------------------- #\n"); 
   PetscPrintf(usr->comm,"# Characteristic scales:\n");
-  PetscPrintf(usr->comm,"#     [x]   = %1.12e (m    ) [v]     = %1.12e (m/s    ) [t]    = %1.12e (s   )\n",scal->x,scal->v,scal->t);
-  PetscPrintf(usr->comm,"#     [kphi]= %1.12e (m2   ) [tau]   = %1.12e (Pa     ) [eta]  = %1.12e (Pa.s)\n",scal->kphi,scal->tau,scal->eta);
-  PetscPrintf(usr->comm,"#     [rho] = %1.12e (kg/m3) [DT]    = %1.12e (K      ) [kappa]= %1.12e (m2/s)\n",scal->rho,scal->DT,scal->kappa);
+  PetscPrintf(usr->comm,"#     [x]    = %1.12e (m    )   [v]     = %1.12e (m/s    ) [t]    = %1.12e (s   )\n",scal->x,scal->v,scal->t);
+  PetscPrintf(usr->comm,"#     [kphi] = %1.12e (m2   )   [tau]   = %1.12e (Pa     ) [eta]  = %1.12e (Pa.s)\n",scal->kphi,scal->tau,scal->eta);
+  PetscPrintf(usr->comm,"#     [rho]  = %1.12e (kg/m3)   [DT]    = %1.12e (K      ) [kappa]= %1.12e (m2/s)\n",scal->rho,scal->DT,scal->kappa);
+  PetscPrintf(usr->comm,"#     [Gamma]= %1.12e (kg/m3/s) \n",scal->Gamma);
  
   PetscPrintf(usr->comm,"# --------------------------------------- #\n");
   PetscPrintf(usr->comm,"# Nondimensional parameters:\n");
@@ -526,6 +529,7 @@ PetscErrorCode DefineScalingParameters(UsrData *usr)
   scal->kappa = usr->mat[id].kappa;
   scal->kT    = usr->mat[id].kT;
   scal->kphi  = par->kphi0;
+  scal->Gamma = scal->v*scal->rho/scal->x;
 
   usr->scal = scal;
 
@@ -570,6 +574,7 @@ PetscErrorCode NondimensionalizeParameters(UsrData *usr)
   nd->Vin   = 2.0*nd->Vext*nd->H/nd->L;
   nd->Tbot  = nd_paramT(par->Tbot,par->Ttop,scal->DT);
   nd->Ttop  = nd_paramT(par->Ttop,par->Ttop,scal->DT);
+  nd->Gamma = nd_param(par->Gamma,scal->Gamma);
 
   nd->eta_min = nd_param(par->eta_min,scal->eta);
   nd->eta_max = nd_param(par->eta_max,scal->eta);

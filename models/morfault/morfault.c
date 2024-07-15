@@ -25,6 +25,13 @@ const char coeff_description_T[] =
 "  C =  0 \n"
 "  v - Stokes-Darcy v_s velocity \n";
 
+const char coeff_description_phi[] =
+"  << Solid Porosity Coefficients (dimensionless) >> \n"
+"  A = 1.0 \n"
+"  B = 0 \n"
+"  C = Gamma/rhos \n"
+"  u = [ux, uz] - StokesDarcy solid velocity \n";
+
 const char bc_description_PV[] =
 "  << Stokes-Darcy BCs >> \n"
 "  LEFT: Vx = -Vext, dVz/dx = 0, dp/dz = 0\n"
@@ -39,9 +46,13 @@ const char bc_description_T[] =
 "  DOWN: T = Tbot \n"
 "  UP: T = Ttop \n";
 
-// ---------------------------------------
-// MAIN
-// ---------------------------------------
+const char bc_description_phi[] =
+"  << Porosity BCs >> \n"
+"  LEFT: dphis/dx = 0 \n"
+"  RIGHT: dphis/dx = 0 \n"
+"  DOWN: phis = phis_bot \n"
+"  UP: dphis/dz = 0 \n";
+
 // ---------------------------------------
 // MAIN
 // ---------------------------------------
@@ -88,10 +99,10 @@ PetscErrorCode Numerical_solution(void *ctx)
   NdParams       *nd;
   Params         *par;
   PetscInt       nx, nz; 
-  PetscScalar    xmin, xmax, zmin, zmax, dt, phi0;
-  FDPDE          fdPV, fdT;
-  DM             dmPV, dmT, dmswarm, dmTcoeff;
-  Vec            xPV, xT, xTprev,xTcoeff, xTcoeffprev; //xPVguess;
+  PetscScalar    xmin, xmax, zmin, zmax, dt, dt_phi;
+  FDPDE          fdPV, fdT, fdphi;
+  DM             dmPV, dmT, dmphi, dmswarm, dmTcoeff, dmphicoeff;
+  Vec            xPV, xT, xphi, xTprev, xTcoeff, xTcoeffprev, xphiprev, xphicoeff, xphicoeffprev;
   PetscBool      converged;
   char           fout[FNAME_LENGTH];
   PetscLogDouble start_time, end_time;
@@ -120,7 +131,6 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = FDPDESetUp(fdPV);CHKERRQ(ierr);
     ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV,bc_description_PV,usr); CHKERRQ(ierr);
     ierr = FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV,coeff_description_PV,usr); CHKERRQ(ierr);
-    phi0 = usr->par->phi0;
   }
 
   if (usr->par->two_phase == 0) {
@@ -129,13 +139,24 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = FDPDESetUp(fdPV);CHKERRQ(ierr);
     ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV_Stokes,bc_description_PV,usr); CHKERRQ(ierr);
     ierr = FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV_Stokes,coeff_description_PV,usr); CHKERRQ(ierr);
-    phi0 = 0.0;
+    usr->par->phi0 = 0.0;
   }
 
   ierr = SNESSetFromOptions(fdPV->snes); CHKERRQ(ierr);
   ierr = SNESSetOptionsPrefix(fdPV->snes,"pv_"); CHKERRQ(ierr);
   fdPV->output_solver_failure_report = PETSC_FALSE;
   ierr = FDPDEView(fdPV); CHKERRQ(ierr);
+
+  // Set up advection and time-stepping
+  AdvectSchemeType advtype;
+  if (par->adv_scheme==0) advtype = ADV_UPWIND;
+  if (par->adv_scheme==1) advtype = ADV_UPWIND2;
+  if (par->adv_scheme==2) advtype = ADV_FROMM;
+
+  TimeStepSchemeType timesteptype;
+  if (par->ts_scheme ==  0) timesteptype = TS_FORWARD_EULER;
+  if (par->ts_scheme ==  1) timesteptype = TS_BACKWARD_EULER;
+  if (par->ts_scheme ==  2) timesteptype = TS_CRANK_NICHOLSON;
 
   // Set up Temperature system (T)
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
@@ -148,35 +169,44 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = SNESSetOptionsPrefix(fdT->snes,"t_"); CHKERRQ(ierr);
   fdT->output_solver_failure_report = PETSC_FALSE;
 
-  // Set up advection and time-stepping
-  AdvectSchemeType advtype;
-  if (par->adv_scheme==0) advtype = ADV_UPWIND;
-  if (par->adv_scheme==1) advtype = ADV_UPWIND2;
-  if (par->adv_scheme==2) advtype = ADV_FROMM;
   ierr = FDPDEAdvDiffSetAdvectSchemeType(fdT,advtype);CHKERRQ(ierr);
-
-  TimeStepSchemeType timesteptype;
-  if (par->ts_scheme ==  0) timesteptype = TS_FORWARD_EULER;
-  if (par->ts_scheme ==  1) timesteptype = TS_BACKWARD_EULER;
-  if (par->ts_scheme ==  2) timesteptype = TS_CRANK_NICHOLSON;
   ierr = FDPDEAdvDiffSetTimeStepSchemeType(fdT,timesteptype);CHKERRQ(ierr);
   ierr = FDPDEView(fdT); CHKERRQ(ierr);
+
+  // Set up porosity evolution system
+  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscPrintf(PETSC_COMM_WORLD,"# Set-up POROSITY (solid): FD-PDE AdvDiff (phi) \n");
+  ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ADVDIFF,&fdphi);CHKERRQ(ierr);
+  ierr = FDPDESetUp(fdphi);CHKERRQ(ierr);
+  ierr = FDPDESetFunctionBCList(fdphi,FormBCList_phi,bc_description_phi,usr); CHKERRQ(ierr);
+  ierr = FDPDESetFunctionCoefficient(fdphi,FormCoefficient_phi,coeff_description_phi,usr); CHKERRQ(ierr);
+  ierr = SNESSetFromOptions(fdphi->snes); CHKERRQ(ierr);
+  ierr = SNESSetOptionsPrefix(fdphi->snes,"phi_"); CHKERRQ(ierr);
+  fdphi->output_solver_failure_report = PETSC_FALSE;
+
+  ierr = FDPDEAdvDiffSetAdvectSchemeType(fdphi,advtype);CHKERRQ(ierr);
+  ierr = FDPDEAdvDiffSetTimeStepSchemeType(fdphi,timesteptype);CHKERRQ(ierr);
+  ierr = FDPDEView(fdphi); CHKERRQ(ierr);
 
   // Log info
   if (usr->par->log_info) {
     fdPV->log_info = PETSC_TRUE;
     fdT->log_info  = PETSC_TRUE;
+    fdphi->log_info  = PETSC_TRUE;
   }
   
   // Prepare data for coupling T-PV
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-  PetscPrintf(PETSC_COMM_WORLD,"# Preparing data for PV-T coupling \n");
+  PetscPrintf(PETSC_COMM_WORLD,"# Preparing data for PV-T-phi coupling \n");
 
   ierr = FDPDEGetDM(fdPV,&dmPV); CHKERRQ(ierr);
   usr->dmPV = dmPV;
 
   ierr = FDPDEGetDM(fdT,&dmT); CHKERRQ(ierr);
   usr->dmT = dmT;
+
+  ierr = FDPDEGetDM(fdphi,&dmphi); CHKERRQ(ierr);
+  usr->dmphi = dmphi;
 
   { // Processor information
     PetscInt nRanks0, nRanks1, nRanks2, nRanks3, size;
@@ -192,11 +222,11 @@ PetscErrorCode Numerical_solution(void *ctx)
 
   ierr = FDPDEGetSolution(fdT,&xT);CHKERRQ(ierr);
   ierr = VecDuplicate(xT,&usr->xT);CHKERRQ(ierr);
-  ierr = VecDuplicate(xT,&usr->xphi);CHKERRQ(ierr); 
-  // ---------- SET CONSTANT POROSITY -------------
-  ierr = VecSet(usr->xphi,phi0); CHKERRQ(ierr);
-  // ------------------------------------------
   ierr = VecDestroy(&xT);CHKERRQ(ierr);
+
+  ierr = FDPDEGetSolution(fdphi,&xphi);CHKERRQ(ierr);
+  ierr = VecDuplicate(xphi,&usr->xphi);CHKERRQ(ierr);
+  ierr = VecDestroy(&xphi);CHKERRQ(ierr);
 
   // Create dmeps/vec for strain rates - center and corner
   ierr = DMStagCreateCompatibleDMStag(dmPV,4,0,4,0,&usr->dmeps); CHKERRQ(ierr);
@@ -258,12 +288,12 @@ PetscErrorCode Numerical_solution(void *ctx)
     // Initial condition and initial PV guess 
     PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
     PetscPrintf(PETSC_COMM_WORLD,"# Set initial conditions and PV guess \n");
-    ierr = SetInitialConditions(fdPV,fdT,usr);CHKERRQ(ierr);
+    ierr = SetInitialConditions(fdPV,fdT,fdphi,usr);CHKERRQ(ierr);
   } else { 
     // Restart from file
     PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
     PetscPrintf(PETSC_COMM_WORLD,"# Restart from timestep %d \n",par->restart);
-    ierr = LoadRestartFromFile(fdPV,fdT,usr);CHKERRQ(ierr);
+    ierr = LoadRestartFromFile(fdPV,fdT,fdphi,usr);CHKERRQ(ierr);
   } 
 
   nd->istep++;
@@ -276,8 +306,11 @@ PetscErrorCode Numerical_solution(void *ctx)
 
     // Get a guess for timestep
     ierr   = FDPDEAdvDiffComputeExplicitTimestep(fdT,&dt);CHKERRQ(ierr);
+    ierr   = FDPDEAdvDiffComputeExplicitTimestep(fdphi,&dt_phi);CHKERRQ(ierr);
+    dt     = PetscMin(dt,dt_phi);
     nd->dt = PetscMin(dt,nd->dtmax);
     ierr   = FDPDEAdvDiffSetTimestep(fdT,nd->dt); CHKERRQ(ierr);
+    ierr   = FDPDEAdvDiffSetTimestep(fdphi,nd->dt); CHKERRQ(ierr);
 
     // Update lithostatic pressure 
     ierr = UpdateLithostaticPressure(usr->dmPlith,usr->xPlith,usr);CHKERRQ(ierr);
@@ -295,18 +328,33 @@ PetscErrorCode Numerical_solution(void *ctx)
       }
     }
 
+    // Get solution
     ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
     ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
-    // ierr = FDPDEGetSolutionGuess(fdPV,&xPVguess); CHKERRQ(ierr); 
-    // ierr = VecCopy(usr->xPV,xPVguess);CHKERRQ(ierr);
-    // ierr = VecDestroy(&xPVguess);CHKERRQ(ierr);
     ierr = VecDestroy(&xPV);CHKERRQ(ierr);
 
     // Integrate the plastic strain
     ierr = IntegratePlasticStrain(usr->dmPlith,usr->xstrain,usr->xplast,usr); CHKERRQ(ierr);
 
     // Update fluid velocity
-    ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmPlith,usr->xPlith,usr->dmT,usr->xphi,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
+    ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmPlith,usr->xPlith,usr->dmphi,usr->xphi,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
+
+    // // Porosity Solver - solve for phi_new, t
+    PetscPrintf(PETSC_COMM_WORLD,"\n# (phi) Porosity Solver \n");
+    converged = PETSC_FALSE;
+    while (!converged) {
+      PetscPrintf(PETSC_COMM_WORLD,"# (phi) Time-step (iteration): dt = %1.12e \n",nd->dt);
+      ierr = FDPDESolve(fdphi,&converged);CHKERRQ(ierr);
+      ierr = SNESGetConvergedReason(fdphi->snes,&reason); CHKERRQ(ierr);
+      if (!converged) { 
+        break; 
+      }
+    }
+
+    // Get solution
+    ierr = FDPDEGetSolution(fdphi,&xphi);CHKERRQ(ierr);
+    ierr = VecCopy(xphi,usr->xphi);CHKERRQ(ierr);
+    ierr = VecDestroy(&xphi);CHKERRQ(ierr);
 
     // Solve energy
     PetscPrintf(PETSC_COMM_WORLD,"\n# (T) Energy Solver \n");
@@ -348,12 +396,20 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = VecCopy(xTcoeff,xTcoeffprev);CHKERRQ(ierr);
     ierr = VecDestroy(&xTcoeffprev);CHKERRQ(ierr);
 
+    ierr = FDPDEAdvDiffGetPrevSolution(fdphi,&xphiprev);CHKERRQ(ierr);
+    ierr = VecCopy(usr->xphi,xphiprev);CHKERRQ(ierr);
+    ierr = VecDestroy(&xphiprev);CHKERRQ(ierr);
+    ierr = FDPDEGetCoefficient(fdphi,&dmphicoeff,&xphicoeff);CHKERRQ(ierr);
+    ierr = FDPDEAdvDiffGetPrevCoefficient(fdphi,&xphicoeffprev);CHKERRQ(ierr);
+    ierr = VecCopy(xphicoeff,xphicoeffprev);CHKERRQ(ierr);
+    ierr = VecDestroy(&xphicoeffprev);CHKERRQ(ierr);
+
     // Update time
     nd->t += nd->dt;
 
     // Output solution
     if ((nd->istep % par->tout == 0 ) || (fmod(nd->t,nd->dt_out) < nd->dt)) {
-      ierr = DoOutput(fdPV,fdT,usr);CHKERRQ(ierr);
+      ierr = DoOutput(fdPV,fdT,fdphi,usr);CHKERRQ(ierr);
     }
 
     // copy xtau, xDP to old
@@ -370,6 +426,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   // Destroy objects
   ierr = FDPDEDestroy(&fdPV);CHKERRQ(ierr);
   ierr = FDPDEDestroy(&fdT);CHKERRQ(ierr);
+  ierr = FDPDEDestroy(&fdphi);CHKERRQ(ierr);
 
   ierr = VecDestroy(&usr->xPV);CHKERRQ(ierr);
   ierr = VecDestroy(&usr->xT);CHKERRQ(ierr);
@@ -388,6 +445,7 @@ PetscErrorCode Numerical_solution(void *ctx)
 
   ierr = DMDestroy(&usr->dmPV);CHKERRQ(ierr);
   ierr = DMDestroy(&usr->dmT);CHKERRQ(ierr);
+  ierr = DMDestroy(&usr->dmphi);CHKERRQ(ierr);
   ierr = DMDestroy(&dmswarm);CHKERRQ(ierr);
   ierr = DMDestroy(&usr->dmVel);CHKERRQ(ierr);
   ierr = DMDestroy(&usr->dmMPhase);CHKERRQ(ierr);

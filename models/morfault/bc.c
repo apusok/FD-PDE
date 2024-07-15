@@ -308,3 +308,52 @@ PetscErrorCode FormBCList_T(DM dm, Vec x, DMStagBCList bclist, void *ctx)
  
   PetscFunctionReturn(0);
 }
+
+// ---------------------------------------
+// FormBCList_phi
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FormBCList_phi"
+PetscErrorCode FormBCList_phi(DM dm, Vec x, DMStagBCList bclist, void *ctx)
+{
+  UsrData     *usr = (UsrData*)ctx;
+  PetscInt    k,n_bc,*idx_bc;
+  PetscScalar *value_bc,*x_bc;
+  BCType      *type_bc;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  
+  // Left: dphis/dx = 0
+  ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = 0.0;
+    type_bc[k] = BC_NEUMANN;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+
+  // RIGHT: dphis/dx = 0
+  ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = 0.0;
+    type_bc[k] = BC_NEUMANN;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+
+  // DOWN: phis = 1.0 - func(phi0)
+  ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = 1.0 - usr->par->phi0;
+    type_bc[k] = BC_DIRICHLET_STAG;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+
+  // UP: dphis/dz = 0 
+  ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+  for (k=0; k<n_bc; k++) {
+    value_bc[k] = 0.0;
+    type_bc[k] = BC_NEUMANN;
+  }
+  ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);
+ 
+  PetscFunctionReturn(0);
+}

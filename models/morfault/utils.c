@@ -8,17 +8,20 @@
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "SetInitialConditions"
-PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdT, void *ctx)
+PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
-  DM             dmTcoeff;
-  Vec            xPV, xguess, xTprev, xTguess, xTcoeff, xTcoeffprev;
+  DM             dmTcoeff, dmphicoeff;
+  Vec            xPV, xguess, xTprev, xTguess, xTcoeff, xTcoeffprev, xphiprev, xphiguess, xphicoeff, xphicoeffprev;
   PetscErrorCode ierr;
   
   PetscFunctionBeginUser;
 
   // initialize T: half-space cooling model
   ierr = HalfSpaceCooling_MOR(usr);CHKERRQ(ierr);
+
+  // initialize constant solid porosity field
+  ierr = VecSet(usr->xphi,1.0-usr->par->phi0); CHKERRQ(ierr);
 
   // set swarm initial size and coordinates
   PetscInt ppcell[] = {usr->par->ppcell,usr->par->ppcell};
@@ -47,7 +50,7 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdT, void *ctx)
   usr->plasticity = PETSC_TRUE; 
 
   // Update fluid velocity to zero and v=vs
-  ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmPlith,usr->xPlith,usr->dmT,usr->xphi,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
+  ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmPlith,usr->xPlith,usr->dmphi,usr->xphi,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
 
   // Initialize guess and previous solution in fdT
   ierr = FDPDEAdvDiffGetPrevSolution(fdT,&xTprev);CHKERRQ(ierr);
@@ -57,15 +60,28 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdT, void *ctx)
   ierr = VecDestroy(&xTprev);CHKERRQ(ierr);
   ierr = VecDestroy(&xTguess);CHKERRQ(ierr);
 
-  // Set initial coefficient structure
   ierr = FDPDEGetCoefficient(fdT,&dmTcoeff,&xTcoeff);CHKERRQ(ierr);
   ierr = FDPDEAdvDiffGetPrevCoefficient(fdT,&xTcoeffprev);CHKERRQ(ierr);
   ierr = FormCoefficient_T(fdT,usr->dmT,usr->xT,dmTcoeff,xTcoeffprev,usr);CHKERRQ(ierr);
   ierr = VecCopy(xTcoeffprev,xTcoeff);CHKERRQ(ierr);
   ierr = VecDestroy(&xTcoeffprev);CHKERRQ(ierr);
 
+  // Initialize guess and previous solution in fdphi
+  ierr = FDPDEAdvDiffGetPrevSolution(fdphi,&xphiprev);CHKERRQ(ierr);
+  ierr = VecCopy(usr->xphi,xphiprev);CHKERRQ(ierr);
+  ierr = FDPDEGetSolutionGuess(fdphi,&xphiguess);CHKERRQ(ierr);
+  ierr = VecCopy(xphiprev,xphiguess);CHKERRQ(ierr);
+  ierr = VecDestroy(&xphiprev);CHKERRQ(ierr);
+  ierr = VecDestroy(&xphiguess);CHKERRQ(ierr);
+
+  ierr = FDPDEGetCoefficient(fdphi,&dmphicoeff,&xphicoeff);CHKERRQ(ierr);
+  ierr = FDPDEAdvDiffGetPrevCoefficient(fdphi,&xphicoeffprev);CHKERRQ(ierr);
+  ierr = FormCoefficient_phi(fdphi,usr->dmphi,usr->xphi,dmphicoeff,xphicoeffprev,usr);CHKERRQ(ierr);
+  ierr = VecCopy(xphicoeffprev,xphicoeff);CHKERRQ(ierr);
+  ierr = VecDestroy(&xphicoeffprev);CHKERRQ(ierr);
+
   // Output initial conditions
-  ierr = DoOutput(fdPV,fdT,usr);CHKERRQ(ierr);
+  ierr = DoOutput(fdPV,fdT,fdphi,usr);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -510,12 +526,12 @@ PetscErrorCode UpdateLithostaticPressure(DM dm, Vec x, void *ctx)
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "DoOutput"
-PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdT, void *ctx)
+PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdT, FDPDE fdphi,void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
   char           fout[FNAME_LENGTH];
-  DM             dmPVcoeff, dmTcoeff;
-  Vec            xPVcoeff, xTcoeff;
+  DM             dmPVcoeff, dmTcoeff, dmphicoeff;
+  Vec            xPVcoeff, xTcoeff, xphicoeff;
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
 
@@ -537,7 +553,7 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdT, void *ctx)
   ierr = DMStagViewBinaryPython(usr->dmT,usr->xT,fout);CHKERRQ(ierr);
 
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xphi_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagViewBinaryPython(usr->dmT,usr->xphi,fout);CHKERRQ(ierr);
+  ierr = DMStagViewBinaryPython(usr->dmphi,usr->xphi,fout);CHKERRQ(ierr);
 
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xVel_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(usr->dmVel,usr->xVel,fout);CHKERRQ(ierr);
@@ -556,6 +572,10 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdT, void *ctx)
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xTcoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(dmTcoeff,xTcoeff,fout);CHKERRQ(ierr);
 
+  ierr = FDPDEGetCoefficient(fdphi,&dmphicoeff,&xphicoeff);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xphicoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
+  ierr = DMStagViewBinaryPython(dmphicoeff,xphicoeff,fout);CHKERRQ(ierr);
+
   ierr = FDPDEGetCoefficient(fdPV,&dmPVcoeff,&xPVcoeff);CHKERRQ(ierr);
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPVcoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(dmPVcoeff,xPVcoeff,fout);CHKERRQ(ierr);
@@ -570,6 +590,9 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdT, void *ctx)
 
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_resT_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagViewBinaryPython(usr->dmT,fdT->r,fout);CHKERRQ(ierr);
+
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_resphi_ts%d",usr->par->fdir_out,usr->nd->istep);
+  ierr = DMStagViewBinaryPython(usr->dmphi,fdphi->r,fout);CHKERRQ(ierr);
 
   // pressures
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPlith_ts%d",usr->par->fdir_out,usr->nd->istep);
@@ -707,12 +730,12 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmPlith, Vec xPl
       gradPlith[2] = (p[0]-p[3])/dz;
       gradPlith[3] = (p[4]-p[0])/dz;
 
-      // porosity
-      Q[0] = _xphilocal[j][i][phi_slot];
-      if (i == 0   ) im = i; else im = i-1; Q[1] = _xphilocal[j][im][phi_slot];
-      if (i == Nx-1) im = i; else im = i+1; Q[2] = _xphilocal[j][im][phi_slot];
-      if (j == 0   ) jm = j; else jm = j-1; Q[3] = _xphilocal[jm][i][phi_slot];
-      if (j == Nz-1) jm = j; else jm = j+1; Q[4] = _xphilocal[jm][i][phi_slot];
+      // get porosity - from solid porosity
+      Q[0] = 1.0 - _xphilocal[j][i][phi_slot];
+      if (i == 0   ) im = i; else im = i-1; Q[1] = 1.0 - _xphilocal[j][im][phi_slot];
+      if (i == Nx-1) im = i; else im = i+1; Q[2] = 1.0 - _xphilocal[j][im][phi_slot];
+      if (j == 0   ) jm = j; else jm = j-1; Q[3] = 1.0 - _xphilocal[jm][i][phi_slot];
+      if (j == Nz-1) jm = j; else jm = j+1; Q[4] = 1.0 - _xphilocal[jm][i][phi_slot];
 
       // porosity on edges
       phi[0] = (Q[1]+Q[0])*0.5; 
@@ -1012,11 +1035,11 @@ PetscErrorCode LoadParametersFromFile(void *ctx)
 // ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "LoadRestartFromFile"
-PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, void *ctx)
+PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, FDPDE fdphi, void *ctx)
 {
   UsrData        *usr = (UsrData*)ctx;
   DM             dm;
-  Vec            x, xTprev, xTcoeff, xTcoeffprev;
+  Vec            x, xTprev, xTcoeff, xTcoeffprev, xphiprev, xphicoeff, xphicoeffprev;
   char           fout[FNAME_LENGTH];
   PetscViewer    viewer;
   PetscErrorCode ierr;
@@ -1066,6 +1089,12 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, void *ctx)
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
 
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_resphi_ts%d",usr->par->fdir_out,usr->nd->istep);
+  ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
+  ierr = VecCopy(x,fdphi->r);CHKERRQ(ierr);
+  ierr = VecDestroy(&x); CHKERRQ(ierr);
+  ierr = DMDestroy(&dm); CHKERRQ(ierr);
+
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xDP_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
   ierr = VecCopy(x,usr->xDP_old);CHKERRQ(ierr);
@@ -1095,7 +1124,6 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, void *ctx)
   ierr = VecCopy(usr->xT,xTprev);CHKERRQ(ierr);
   ierr = VecDestroy(&xTprev);CHKERRQ(ierr);
 
-  // load coefficient structure
   ierr = FDPDEAdvDiffGetPrevCoefficient(fdT,&xTcoeffprev);CHKERRQ(ierr);
   ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xTcoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
   ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
@@ -1104,8 +1132,21 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdT, void *ctx)
   ierr = VecDestroy(&x); CHKERRQ(ierr);
   ierr = DMDestroy(&dm); CHKERRQ(ierr);
 
+  // initialize guess and previous solution in fdphi
+  ierr = FDPDEAdvDiffGetPrevSolution(fdphi,&xphiprev);CHKERRQ(ierr);
+  ierr = VecCopy(usr->xphi,xphiprev);CHKERRQ(ierr);
+  ierr = VecDestroy(&xphiprev);CHKERRQ(ierr);
+
+  ierr = FDPDEAdvDiffGetPrevCoefficient(fdphi,&xphicoeffprev);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xphicoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
+  ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
+  ierr = VecCopy(x,xphicoeffprev);CHKERRQ(ierr);
+  ierr = VecDestroy(&xphicoeffprev);CHKERRQ(ierr);
+  ierr = VecDestroy(&x); CHKERRQ(ierr);
+  ierr = DMDestroy(&dm); CHKERRQ(ierr);
+
   // Output load conditions
-  ierr = DoOutput(fdPV,fdT,usr);CHKERRQ(ierr);
+  ierr = DoOutput(fdPV,fdT,fdphi,usr);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

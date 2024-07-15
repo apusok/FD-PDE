@@ -41,6 +41,7 @@
 #define PVCOEFF_FACE_D2     1 
 #define PVCOEFF_FACE_D3     2 
 
+// TCOEFF and PHICOEFF have same structure
 #define TCOEFF_ELEMENT_A   0
 #define TCOEFF_ELEMENT_C   1 
 #define TCOEFF_FACE_B      0 
@@ -71,7 +72,7 @@
 typedef struct {
   PetscInt       nx, nz;
   PetscScalar    L, H, Hs, xmin, zmin;
-  PetscScalar    k_hat, g, Ttop, Tbot, R, Vext, rhof, q, age;
+  PetscScalar    k_hat, g, Ttop, Tbot, R, Vext, rhof, q, age, Gamma;
   PetscScalar    hs_factor, drho, kphi0, n, mu, eta_min, eta_max, phi_min, phi0, eta_K, lambda, EoR, Teta0, zetaExp;
   PetscInt       ts_scheme, adv_scheme, tout, tstep, ppcell, Nmax, rheology, two_phase, model_setup, restart;
   PetscScalar    dt_out, tmax, dtmax, tf_tol, strain_max, hcc;
@@ -98,12 +99,12 @@ typedef struct {
 } Params;
 
 typedef struct {
-  PetscScalar    x, v, t, tau, rho, eta, kappa, kT, kphi, DT;
+  PetscScalar    x, v, t, tau, rho, eta, kappa, kT, kphi, DT, Gamma;
 } ScalParams;
 
 typedef struct {
   PetscScalar    L, H, Hs, xmin, zmin, Vext, Vin, R, delta, eta_min, eta_max, eta_K;
-  PetscScalar    Tbot, Ttop, Ra;
+  PetscScalar    Tbot, Ttop, Ra, Gamma;
   PetscScalar    tmax, dtmax, t, dt, dt_out, dzin;
   PetscInt       istep;
 } NdParams;
@@ -125,7 +126,7 @@ typedef struct {
   MPI_Comm      comm;
   PetscMPIInt   rank;
   PetscBool     plasticity;
-  DM            dmPV, dmT, dmswarm, dmVel, dmMPhase, dmPlith, dmeps, dmmatProp;
+  DM            dmphi, dmPV, dmT, dmswarm, dmVel, dmMPhase, dmPlith, dmeps, dmmatProp;
   Vec           xPV, xT, xphi, xVel, xMPhase, xPlith, xeps, xtau, xtau_old;
   Vec           xDP, xDP_old, xplast, xmatProp, xstrain;
 } UsrData;
@@ -146,6 +147,7 @@ PetscErrorCode Numerical_solution(void*);
 PetscErrorCode FormCoefficient_PV(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormCoefficient_PV_Stokes(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormCoefficient_T(FDPDE, DM, Vec, DM, Vec, void*);
+PetscErrorCode FormCoefficient_phi(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode RheologyPointwise(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
 PetscErrorCode RheologyPointwise_VEP(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
 PetscErrorCode RheologyPointwise_VEVP(PetscInt,PetscInt,PetscScalar***,PetscInt*,PetscScalar,PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt*,PetscScalar*,void*);
@@ -157,6 +159,7 @@ PetscErrorCode DecompactRheologyVars(PetscInt,PetscScalar*,PetscScalar*,PetscSca
 PetscErrorCode FormBCList_PV(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_PV_Stokes(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_T(DM, Vec, DMStagBCList, void*);
+PetscErrorCode FormBCList_phi(DM, Vec, DMStagBCList, void*);
 
 // constitutive equations
 PetscScalar HalfSpaceCoolingTemp(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
@@ -176,16 +179,16 @@ PetscErrorCode Plastic_LocalSolver(PetscScalar*,PetscScalar,PetscScalar,PetscSca
 // utils
 PetscErrorCode SetSwarmInitialCondition(DM,void*);
 PetscErrorCode AddMarkerInflux(DM,void*);
-PetscErrorCode SetInitialConditions(FDPDE, FDPDE, void*);
+PetscErrorCode SetInitialConditions(FDPDE, FDPDE,FDPDE,void*);
 PetscErrorCode HalfSpaceCooling_MOR(void*);
 PetscErrorCode UpdateMarkerPhaseFractions(DM,DM,Vec,void*);
 PetscErrorCode UpdateLithostaticPressure(DM,Vec,void*);
-PetscErrorCode DoOutput(FDPDE,FDPDE,void*);
+PetscErrorCode DoOutput(FDPDE,FDPDE,FDPDE,void*);
 PetscErrorCode UpdateStrainRates(DM,Vec,void*); // need optimization
 PetscErrorCode IntegratePlasticStrain(DM,Vec,Vec,void*);
 PetscErrorCode ComputeFluidAndBulkVelocity(DM,Vec,DM,Vec,DM,Vec,DM,Vec,void*);
 PetscErrorCode CreateDirectory(const char*);
-PetscErrorCode LoadRestartFromFile(FDPDE, FDPDE, void*);
+PetscErrorCode LoadRestartFromFile(FDPDE,FDPDE,FDPDE,void*);
 PetscErrorCode OutputParameters(void*); 
 PetscErrorCode LoadParametersFromFile(void*);
 PetscErrorCode DMSwarmReadBinaryXDMF_Seq(DM,const char*,PetscInt,const char*[1]);
