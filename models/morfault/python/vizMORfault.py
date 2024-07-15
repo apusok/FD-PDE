@@ -243,7 +243,7 @@ def create_scaling():
     scal.v = scal.rho*scal.g*scal.x**2/scal.eta
     scal.t = scal.x/scal.v
     scal.eps = scal.v/scal.x
-    scal.K = 1.0e-7
+    scal.Kphi = 1.0e-7
     scal.P = scal.eta*scal.v/scal.x
     scal.T0 = scal.T_KELVIN
     scal.DT = 1523.15 - scal.T_KELVIN
@@ -334,7 +334,7 @@ def create_labels():
     # lbl.nd.resH = r'res $H$ [-]'
     lbl.nd.eta = r'$\eta$ [-]'
     lbl.nd.zeta = r'$\zeta$ [-]'
-    lbl.nd.K = r'$K$ [-]'
+    lbl.nd.Kphi = r'$K_\phi$ [-]'
     lbl.nd.rho = r'$\rho$ [-]'
     lbl.nd.rhof = r'$\rho_f$ [-]'
     lbl.nd.rhos = r'$\rho_s$ [-]'
@@ -379,7 +379,7 @@ def create_labels():
     # lbl.dim.resH = r'res $H$ [J/kg]'
     lbl.dim.eta = r'$\eta$ [Pa.s]'
     lbl.dim.zeta = r'$\zeta$ [Pa.s]'
-    lbl.dim.K = r'$K$ [m2]'
+    lbl.dim.Kphi = r'$K_\phi$ [m2]'
     lbl.dim.rho = r'$\rho$ [kg/m3]'
     lbl.dim.rhof = r'$\rho_f$ [kg/m3]'
     lbl.dim.rhos = r'$\rho_s$ [kg/m3]'
@@ -780,7 +780,7 @@ def parse_matProp_file(fname,fdir):
     data_c = data['X_cell']
  
     matProp = EmptyStruct()
-    dof = 14
+    dof = 15
     matProp.eta = data_c[0::dof].reshape(nz,nx)
     matProp.etaV = data_c[1::dof].reshape(nz,nx)
     matProp.etaE = data_c[2::dof].reshape(nz,nx)
@@ -795,6 +795,7 @@ def parse_matProp_file(fname,fdir):
     matProp.sigmat = data_c[11::dof].reshape(nz,nx)
     matProp.theta = data_c[12::dof].reshape(nz,nx)
     matProp.rho = data_c[13::dof].reshape(nz,nx)
+    matProp.Kphi = data_c[14::dof].reshape(nz,nx)
 
     return matProp
   except OSError:
@@ -1378,22 +1379,27 @@ def plot_matProp(A,istart,iend,jstart,jend,fname,istep,dim):
   plot_standard(fig,ax,A.matProp.G[jstart:jend  ,istart:iend  ]*scal,extentE,lbl,lblx,lblz,0,0)
 
   ax = plt.subplot(4,4,11)
+  scal = get_scaling(A,'rho',dim,0)
+  lbl  = get_label(A,'rho',dim)
+  im = plot_standard(fig,ax,A.matProp.rho[jstart:jend  ,istart:iend  ]*scal,extentE,lbl,lblx,lblz,0,0)
+
+  ax = plt.subplot(4,4,12)
+  scal = get_scaling(A,'Kphi',dim,0)
+  lbl  = get_label(A,'Kphi',dim)
+  im = plot_standard(fig,ax,A.matProp.Kphi[jstart:jend  ,istart:iend  ]*scal,extentE,lbl,lblx,lblz,0,0)
+
+  ax = plt.subplot(4,4,13)
   lbl  = get_label(A,'C',dim)
   scal = get_scaling(A,'P',dim,1)
   plot_standard(fig,ax,A.matProp.C[jstart:jend  ,istart:iend  ]*scal,extentE,lbl,lblx,lblz,0,0)
 
-  ax = plt.subplot(4,4,13)
+  ax = plt.subplot(4,4,14)
   lbl  = get_label(A,'sigmat',dim)
   im = plot_standard(fig,ax,A.matProp.sigmat[jstart:jend  ,istart:iend  ]*scal,extentE,lbl,lblx,lblz,0,0)
 
-  ax = plt.subplot(4,4,14)
+  ax = plt.subplot(4,4,15)
   lbl  = get_label(A,'theta',dim)
   im = plot_standard(fig,ax,A.matProp.theta[jstart:jend  ,istart:iend  ],extentE,lbl,lblx,lblz,0,0)
-
-  ax = plt.subplot(4,4,15)
-  scal = get_scaling(A,'rho',dim,0)
-  lbl  = get_label(A,'rho',dim)
-  im = plot_standard(fig,ax,A.matProp.rho[jstart:jend  ,istart:iend  ]*scal,extentE,lbl,lblx,lblz,0,0)
 
   # plt.tight_layout() 
   plt.savefig(fname+'.png', bbox_inches = 'tight')

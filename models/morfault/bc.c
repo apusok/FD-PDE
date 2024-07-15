@@ -324,6 +324,7 @@ PetscErrorCode FormBCList_phi(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   PetscFunctionBegin;
 
   phi_max = 1.0e-3;
+  // phi_max = 0.0;
   
   // Left: dphis/dx = 0
   ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);CHKERRQ(ierr);

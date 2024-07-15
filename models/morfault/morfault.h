@@ -64,7 +64,8 @@
 #define MATPROP_ELEMENT_SIGMAT  11
 #define MATPROP_ELEMENT_THETA   12
 #define MATPROP_ELEMENT_RHO     13
-#define MATPROP_NPROP           14
+#define MATPROP_ELEMENT_KPHI    14
+#define MATPROP_NPROP           15
 
 // ---------------------------------------
 // Application Context
@@ -175,6 +176,9 @@ PetscScalar PoroElasticModulus(PetscScalar,PetscScalar);
 PetscScalar TensorSecondInvariant(PetscScalar,PetscScalar,PetscScalar);
 PetscScalar ViscosityHarmonicAvg(PetscScalar,PetscScalar,PetscScalar); 
 PetscErrorCode Plastic_LocalSolver(PetscScalar*,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,void*,PetscScalar[]);
+
+PetscScalar ShearViscosity_harmonic(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt,PetscScalar,PetscScalar); 
+PetscScalar CompactionViscosity_harmonic(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt,PetscScalar,PetscScalar);
 
 // utils
 PetscErrorCode SetSwarmInitialCondition(DM,void*);

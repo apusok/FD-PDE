@@ -222,8 +222,8 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
   ierr = DMStagGetLocationSlot(usr->dmeps, UP_RIGHT, 2, &ixzn[3]); CHKERRQ(ierr);
   ierr = DMStagGetLocationSlot(usr->dmeps, UP_RIGHT, 3, &iIIn[3]); CHKERRQ(ierr);
 
-  PetscInt imat[14];
-  for (ii = 0; ii < 14; ii++) { ierr = DMStagGetLocationSlot(usr->dmmatProp, ELEMENT, ii, &imat[ii]); CHKERRQ(ierr); }
+  PetscInt imat[MATPROP_NPROP];
+  for (ii = 0; ii < MATPROP_NPROP; ii++) { ierr = DMStagGetLocationSlot(usr->dmmatProp, ELEMENT, ii, &imat[ii]); CHKERRQ(ierr); }
   
   // Loop over local domain - set initial density and viscosity
   for (j = sz; j < sz+nz; j++) {
@@ -250,7 +250,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
 
       // correct for liquid porosity - not the same as phic[ii] = 1.0e-4; 
       for (ii = 0; ii < 9; ii++) { 
-        // phic[ii] = 1.0e-4;
+        // phic[ii] = usr->par->phi0;
         phic[ii] = 1.0 - phic[ii]; 
         if (phic[ii]<0.0) phic[ii] = 0.0;
       }
@@ -355,7 +355,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
 
       { // face
         PetscScalar   phi[4], K[4], B[4], D2[4], D3[4], rho0[6], rhof[4], rhos[4], rhog[4], wt[6];
-        PetscScalar   divchitau[4],gradchidp[4];
+        PetscScalar   divchitau[4],gradchidp[4], bf[4];
         PetscInt      idx[6];
 
         // porosity on edges - not for variable grid spacing
@@ -391,10 +391,18 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
           ierr = GetMatPhaseFraction(i,j,xwt,idx,usr->nph,wt); CHKERRQ(ierr);
           rhos[ii] = WeightAverageValue(rho0,wt,usr->nph); 
           rhog[ii] = Mixture(rhos[ii],rhof[ii],phi[ii])*k_hat[ii];
+
+          // bf[ii] = gradPlith[ii]-rhog[ii]; // original
+          if (ii<2) bf[ii] = gradPlith[ii];
+          else      bf[ii] = phi[ii]*k_hat[ii];
           
-          B[ii] = gradPlith[ii]-rhog[ii]-divchitau[ii]+gradchidp[ii];
+          B[ii] = bf[ii]-divchitau[ii]+gradchidp[ii];
           D2[ii] = -K[ii]*usr->nd->R*usr->nd->R;
-          D3[ii] = -K[ii]*usr->nd->R*usr->nd->R*(gradPlith[ii]-rhof[ii]*k_hat[ii]);
+
+          // D3[ii] = -K[ii]*usr->nd->R*usr->nd->R*(gradPlith[ii]-rhof[ii]*k_hat[ii]); // original
+          if (ii<2) bf[ii] = gradPlith[ii];
+          else      bf[ii] = k_hat[ii];
+          D3[ii] = -K[ii]*usr->nd->R*usr->nd->R*bf[ii];
 
           // B = body force+elasticity (edges, c=0)
           c[j][i][b_slot[ii]] = B[ii];
@@ -403,7 +411,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
           c[j][i][d2_slot[ii]] = D2[ii];
 
           // D3 = -R^2*Kphi*(grad(Plith)-rho_ell/drho*k_hat) (edges, c=2)
-          c[j][i][d2_slot[ii]] = D3[ii];
+          c[j][i][d3_slot[ii]] = D3[ii];
         }
       }
 
@@ -422,6 +430,10 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
       ierr = GetMatPhaseFraction(i,j,xwt,iwtc,usr->nph,wt); CHKERRQ(ierr);
       rho = WeightAverageValue(rho0,wt,usr->nph);
 
+      // get permeability element
+      PetscScalar Kphi;
+      Kphi  = Permeability(phic[0],usr->par->n);
+
       // save material properties for output
       _matProp[j][i][imat[MATPROP_ELEMENT_ETA]]    = eta_eff[0];
       _matProp[j][i][imat[MATPROP_ELEMENT_ETA_V]]  = eta_v[0];
@@ -437,6 +449,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
       _matProp[j][i][imat[MATPROP_ELEMENT_SIGMAT]] = sigmat[0];
       _matProp[j][i][imat[MATPROP_ELEMENT_THETA]]  = theta[0];
       _matProp[j][i][imat[MATPROP_ELEMENT_RHO]]    = rho;
+      _matProp[j][i][imat[MATPROP_ELEMENT_KPHI]]   = Kphi;
     }
   }
 
@@ -704,8 +717,8 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
   ierr = DMStagGetLocationSlot(usr->dmeps, UP_RIGHT, 2, &ixzn[3]); CHKERRQ(ierr);
   ierr = DMStagGetLocationSlot(usr->dmeps, UP_RIGHT, 3, &iIIn[3]); CHKERRQ(ierr);
 
-  PetscInt imat[14];
-  for (ii = 0; ii < 14; ii++) { ierr = DMStagGetLocationSlot(usr->dmmatProp, ELEMENT, ii, &imat[ii]); CHKERRQ(ierr); }
+  PetscInt imat[MATPROP_NPROP];
+  for (ii = 0; ii < MATPROP_NPROP; ii++) { ierr = DMStagGetLocationSlot(usr->dmmatProp, ELEMENT, ii, &imat[ii]); CHKERRQ(ierr); }
 
   // Loop over local domain - set initial density and viscosity
   for (j = sz; j < sz+nz; j++) {
@@ -731,7 +744,7 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
       ierr = Get9PointCenterValues(i,j,iP,Nx,Nz,_strain,strain);CHKERRQ(ierr);
 
       // correct for liquid porosity
-      for (ii = 0; ii < 9; ii++) { phic[ii] = 1.0 - phic[ii]; }
+      for (ii = 0; ii < 9; ii++) { phic[ii] = 0.0; }
 
       gradPlith[0] = (Plc[0]-Plc[1])/dx;
       gradPlith[1] = (Plc[2]-Plc[0])/dx;
@@ -830,7 +843,7 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
       
       { // face
         PetscScalar   phi[4], K[4], B[4], D2[4], D3[4], rho0[6], rhof[4], rhos[4], rhog[4], wt[6];
-        PetscScalar   divchitau[4],gradchidp[4];
+        PetscScalar   divchitau[4],gradchidp[4],bf[4];
         PetscInt      idx[6];
 
         // porosity on edges - not for variable grid spacing
@@ -866,7 +879,12 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
           ierr = GetMatPhaseFraction(i,j,xwt,idx,usr->nph,wt); CHKERRQ(ierr);
           rhos[ii] = WeightAverageValue(rho0,wt,usr->nph); 
           rhog[ii] = Mixture(rhos[ii],rhof[ii],phi[ii])*k_hat[ii];
-          B[ii] = gradPlith[ii]-rhog[ii]-divchitau[ii]+gradchidp[ii];
+
+          bf[ii] = gradPlith[ii]-rhog[ii]; // original
+          // if (ii<2) bf[ii] = gradPlith[ii];
+          // else      bf[ii] = 0.0;
+
+          B[ii] = bf[ii]-divchitau[ii]+gradchidp[ii];
 
           // B = body force+elasticity (edges, c=0)
           c[j][i][b_slot[ii]] = B[ii];
@@ -888,6 +906,10 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
       ierr = GetMatPhaseFraction(i,j,xwt,iwtc,usr->nph,wt); CHKERRQ(ierr);
       rho = WeightAverageValue(rho0,wt,usr->nph);
 
+      // get permeability element
+      PetscScalar Kphi;
+      Kphi  = Permeability(phic[0],usr->par->n);
+
       // save material properties for output
       _matProp[j][i][imat[MATPROP_ELEMENT_ETA]]    = eta_eff[0];
       _matProp[j][i][imat[MATPROP_ELEMENT_ETA_V]]  = eta_v[0];
@@ -903,6 +925,7 @@ PetscErrorCode FormCoefficient_PV_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec
       _matProp[j][i][imat[MATPROP_ELEMENT_SIGMAT]] = sigmat[0];
       _matProp[j][i][imat[MATPROP_ELEMENT_THETA]]  = theta[0];
       _matProp[j][i][imat[MATPROP_ELEMENT_RHO]]    = rho;
+      _matProp[j][i][imat[MATPROP_ELEMENT_KPHI]]   = Kphi;
     }
   }
 
@@ -1246,13 +1269,16 @@ PetscErrorCode RheologyPointwise_VEVP(PetscInt i, PetscInt j, PetscScalar ***xwt
     meta_v[iph] = ViscosityHarmonicAvg(meta_v[iph],usr->nd->eta_min,usr->nd->eta_max);
     mzeta_v[iph]= ViscosityHarmonicAvg(mzeta_v[iph],usr->nd->eta_min,usr->nd->eta_max);
 
+    // meta_v[iph]  = ShearViscosity_harmonic(usr->mat_nd[iph].eta0,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->lambda,usr->mat_nd[iph].eta_func,usr->nd->eta_min,usr->nd->eta_max);
+    // mzeta_v[iph] = CompactionViscosity_harmonic(usr->mat_nd[iph].zeta0,Tdim,phi,usr->par->EoR,usr->par->Teta0,usr->par->phi_min,usr->par->zetaExp,usr->mat_nd[iph].zeta_func,usr->nd->eta_min,usr->nd->eta_max); 
+
     inv_meta_v[iph]  = 1.0/meta_v[iph];
     inv_mzeta_v[iph] = 1.0/mzeta_v[iph];
 
     // elastic rheology
     meta_e[iph]  = usr->mat_nd[iph].G*dt;
     mzeta_e[iph] = usr->mat_nd[iph].Z0*dt;
-    // mzeta_e[iph] = usr->mat_nd[iph].Z0*PetscPowScalar(phi,-0.5)*dt; // PoroElasticModulus(usr->mat_nd[iph].Z0,phi)*dt;
+    // mzeta_e[iph] = usr->mat_nd[iph].Z0*PetscPowScalar(phi,-0.5)*dt;
 
     inv_meta_e[iph]  = 1.0/meta_e[iph];
     inv_mzeta_e[iph] = 1.0/mzeta_e[iph];

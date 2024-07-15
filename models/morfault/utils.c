@@ -189,7 +189,7 @@ PetscErrorCode SetInitialPorosityField(void *ctx)
   for (j = sz; j < sz+nz; j++) {
     for (i = sx; i <sx+nx; i++) {
       if (coordz[j][icenter]<=-Hs){ xx[j][i][iE] = 1.0-usr->par->phi0; } 
-      else                        { xx[j][i][iE] = 1.0;}
+      else                        { xx[j][i][iE] = 1.0-usr->par->phi0;}
     }
   }
 
@@ -772,8 +772,10 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmPlith, Vec xPl
 
       gradPlith[0] = (p[0]-p[1])/dx;
       gradPlith[1] = (p[2]-p[0])/dx;
-      gradPlith[2] = (p[0]-p[3])/dz;
-      gradPlith[3] = (p[4]-p[0])/dz;
+      // gradPlith[2] = (p[0]-p[3])/dz;
+      // gradPlith[3] = (p[4]-p[0])/dz;
+      gradPlith[2] = 0.0;
+      gradPlith[3] = 0.0;
 
       // get porosity - from solid porosity
       Q[0] = 1.0 - _xphilocal[j][i][phi_slot];
@@ -793,7 +795,8 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmPlith, Vec xPl
         Kphi = Permeability(phi[ii],usr->par->n);
 
         // fluid buoyancy - revise for more complex density model
-        Bf = usr->par->rhof/usr->scal->rho*k_hat[ii];
+        // Bf = usr->par->rhof/usr->scal->rho*k_hat[ii]; // orig
+        Bf = k_hat[ii]; 
 
         // fluid velocity
         vf = FluidVelocity(A,Kphi,vs[ii],phi[ii],gradP[ii],gradPlith[ii],Bf);

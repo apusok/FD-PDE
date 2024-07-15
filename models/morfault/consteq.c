@@ -110,6 +110,43 @@ PetscScalar CompactionViscosity(PetscScalar zeta0, PetscScalar T, PetscScalar ph
 }
 
 // ---------------------------------------
+PetscScalar ShearViscosity_harmonic(PetscScalar eta0, PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar lambda, PetscInt func, PetscScalar eta_min, PetscScalar eta_max) 
+{ 
+  PetscScalar eta, eta_arr;
+  // constant 
+  if (func == 0) { eta = eta0; } 
+
+  // phi-dependent, with harmonic averaging
+  if (func == 1) { eta = eta0*exp(-lambda*phi); } 
+
+  // T,phi-dep, with harmonic averaging
+  if (func == 2) { 
+    eta_arr = eta0*ArrheniusTerm_Viscosity(T,EoR,Teta0);
+    eta_arr = 1.0/(1.0/eta_arr + 1.0/eta_max) + eta_min;
+    eta = eta_arr*exp(-lambda*phi);
+  }
+  return eta;
+}
+
+PetscScalar CompactionViscosity_harmonic(PetscScalar zeta0, PetscScalar T, PetscScalar phi, PetscScalar EoR, PetscScalar Teta0, PetscScalar phi_min, PetscScalar zetaExp, PetscInt func, PetscScalar eta_min, PetscScalar eta_max) 
+{ 
+  PetscScalar zeta, zeta_arr;
+  // constant
+  if (func == 0) { zeta = zeta0; }  
+
+  // phi-dependent, with 1/(phi+phi_min)
+  if (func == 1) { zeta = zeta0*pow(phi+phi_min,zetaExp); }
+
+  // T,phi-dep, with harmonic averaging and with 1/(phi+phi_min)
+  if (func == 2) { 
+    zeta_arr = zeta0*ArrheniusTerm_Viscosity(T,EoR,Teta0);
+    zeta_arr = 1.0/(1.0/zeta_arr + 1.0/eta_max) + eta_min;
+    zeta = zeta_arr*pow(phi+phi_min,zetaExp);
+  }
+  return zeta;
+}
+
+// ---------------------------------------
 // Poro-elastic modulus
 // ---------------------------------------
 #undef __FUNCT__

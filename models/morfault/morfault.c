@@ -243,8 +243,8 @@ PetscErrorCode Numerical_solution(void *ctx)
   ierr = DMStagSetUniformCoordinatesProduct(usr->dmVel,xmin,xmax,zmin,zmax,0.0,0.0);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(usr->dmVel,&usr->xVel);CHKERRQ(ierr);
 
-  // Create dmmatProp for material properties (dof=14 in center)
-  ierr = DMStagCreateCompatibleDMStag(usr->dmPV,0,0,14,0,&usr->dmmatProp); CHKERRQ(ierr);
+  // Create dmmatProp for material properties (dof=MATPROP_NPROP in center)
+  ierr = DMStagCreateCompatibleDMStag(usr->dmPV,0,0,MATPROP_NPROP,0,&usr->dmmatProp); CHKERRQ(ierr);
   ierr = DMSetUp(usr->dmmatProp); CHKERRQ(ierr);
   ierr = DMStagSetUniformCoordinatesProduct(usr->dmmatProp,xmin,xmax,zmin,zmax,0.0,0.0);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(usr->dmmatProp,&usr->xmatProp);CHKERRQ(ierr);
