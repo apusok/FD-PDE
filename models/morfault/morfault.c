@@ -380,8 +380,8 @@ PetscErrorCode Numerical_solution(void *ctx)
     // Correct negative porosity
     // ierr = CorrectNegativePorosity(usr->dmphi,usr->xphi);CHKERRQ(ierr);
 
+    // Correct porosity at the free surface
     if (usr->par->model_energy==0) {
-      // Correct porosity at the free surface
       ierr = CorrectPorosityFreeSurface(usr->dmphi,usr->xphi,usr->dmMPhase,usr->xMPhase);CHKERRQ(ierr);
     }
     
@@ -406,8 +406,8 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = VecCopy(xT,usr->xT);CHKERRQ(ierr);
     ierr = VecDestroy(&xT);CHKERRQ(ierr);
 
+    // Melting and crystallisation - Boukare et al 2017
     if (usr->par->model_energy==1) {
-      // Melting and crystallisation - Boukare et al 2017
       ierr = PhaseDiagram_1Component(usr->dmT,usr->xT,usr->dmphi,usr->xphi,usr->dmMPhase,usr->xMPhase,usr);CHKERRQ(ierr);
     }
 
@@ -417,8 +417,9 @@ PetscErrorCode Numerical_solution(void *ctx)
     ierr = DMSwarmGetSize(usr->dmswarm,&nmark0);CHKERRQ(ierr);
     ierr = MPoint_AdvectRK1(usr->dmswarm,usr->dmPV,usr->xPV,nd->dt);CHKERRQ(ierr);
     ierr = DMSwarmGetSize(usr->dmswarm,&nmark1);CHKERRQ(ierr);
-    ierr = AddMarkerInflux(usr->dmswarm,usr); CHKERRQ(ierr);
-    ierr = AddMarkerInflux_FreeSurface(usr->dmswarm,usr); CHKERRQ(ierr);
+    // ierr = AddMarkerInflux(usr->dmswarm,usr); CHKERRQ(ierr);
+    // ierr = AddMarkerInflux_FreeSurface(usr->dmswarm,usr); CHKERRQ(ierr);
+    ierr = MarkerControl(usr->dmswarm,usr); CHKERRQ(ierr);
     ierr = DMSwarmGetSize(usr->dmswarm,&nmark2);CHKERRQ(ierr);
     ierr = UpdateMarkerPhaseFractions(usr->dmswarm,usr->dmMPhase,usr->xMPhase,usr);CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"# (DMSWARM) Marker number: Initial = %d After advection = %d After influx = %d \n",nmark0,nmark1,nmark2);

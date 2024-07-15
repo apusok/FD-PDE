@@ -414,8 +414,8 @@ PetscErrorCode AddMarkerInflux_FreeSurface(DM dmswarm, void *ctx)
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  dxcell = usr->nd->L/usr->par->nx/usr->par->ppcell;
-  dzcell = usr->nd->H/usr->par->nz/usr->par->ppcell;
+  dxcell = usr->nd->L/usr->par->nx/(usr->par->ppcell+1);
+  dzcell = usr->nd->H/usr->par->nz/(usr->par->ppcell+1);
 
   // influx
   usr->nd->dzin_fs += usr->nd->Vin_free*usr->nd->dt;
@@ -484,6 +484,308 @@ PetscErrorCode AddMarkerInflux_FreeSurface(DM dmswarm, void *ctx)
 
   // reset
   usr->nd->dzin_fs = 0.0;
+
+  PetscFunctionReturn(0);
+}
+
+// ---------------------------------------
+// MarkerControl - not parallel
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "MarkerControl"
+PetscErrorCode MarkerControl(DM dmswarm, void *ctx)
+{
+  UsrData        *usr = (UsrData*)ctx;
+  PetscInt       i,j,iE, icenter, sx, sz, nx, nz, p, npoints;
+  PetscInt       *pcellid;
+  PetscScalar    **coordx, **coordz, ***cnt_sw, ***cnt_nw, ***cnt_se, ***cnt_ne;
+  PetscScalar    *pcoor,*pfield,*pfield0, *pfield1, *pfield2,*pfield3, *pfield4, *pfield5;
+  DM             dmcell;
+  Vec            cnt_sw_local, cnt_nw_local, cnt_se_local, cnt_ne_local;
+
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  // Count nmarker/quarter of cell 
+  dmcell = usr->dmphi;
+  ierr = DMStagGetCorners(dmcell, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateArraysRead(dmcell,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagGetProductCoordinateLocationSlot(dmcell,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr);
+  ierr = DMStagGetLocationSlot(dmcell,DMSTAG_ELEMENT,0,&iE);CHKERRQ(ierr);
+
+  ierr = DMSwarmGetLocalSize(dmswarm,&npoints);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,DMSwarmPICField_coor,NULL,NULL,(void**)&pcoor);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&pcellid);CHKERRQ(ierr);
+
+  // local vectors
+  ierr = DMCreateLocalVector(dmcell,&cnt_sw_local);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dmcell,&cnt_nw_local);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dmcell,&cnt_se_local);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dmcell,&cnt_ne_local);CHKERRQ(ierr);
+
+  ierr = DMStagVecGetArray(dmcell,cnt_sw_local,&cnt_sw);CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmcell,cnt_nw_local,&cnt_nw);CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmcell,cnt_se_local,&cnt_se);CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmcell,cnt_ne_local,&cnt_ne);CHKERRQ(ierr);
+
+  // count markers/quarter of cell
+  for (p=0; p<npoints; p++) {
+    PetscInt cellid = -1;
+    PetscInt geid[]={0,0,0};
+    PetscScalar xcoor, zcoor, xc, zc;
+    
+    cellid = pcellid[p];
+    ierr = DMStagGetLocalElementGlobalIndices(dmcell,cellid,geid);CHKERRQ(ierr);
+
+    xcoor = pcoor[2*p+0];
+    zcoor = pcoor[2*p+1];
+
+    xc = coordx[geid[0]][icenter];
+    zc = coordz[geid[1]][icenter];
+
+    if ((xcoor<=xc) & (zcoor<=zc)) cnt_sw[geid[1]][geid[0]][iE] += 1.0;
+    if ((xcoor<=xc) & (zcoor> zc)) cnt_nw[geid[1]][geid[0]][iE] += 1.0;
+    if ((xcoor> xc) & (zcoor<=zc)) cnt_se[geid[1]][geid[0]][iE] += 1.0;
+    if ((xcoor> xc) & (zcoor> zc)) cnt_ne[geid[1]][geid[0]][iE] += 1.0;
+  }
+
+  ierr = DMSwarmRestoreField(dmswarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&pcellid);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,DMSwarmPICField_coor,NULL,NULL,(void**)&pcoor);CHKERRQ(ierr);
+
+  // count number markers to insert
+  PetscInt nmark_in;
+  nmark_in = 0;
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      if (cnt_sw[j][i][iE]==0.0) nmark_in+=1;
+      if (cnt_nw[j][i][iE]==0.0) nmark_in+=1; 
+      if (cnt_se[j][i][iE]==0.0) nmark_in+=1;
+      if (cnt_ne[j][i][iE]==0.0) nmark_in+=1;
+    }
+  }
+
+  PetscPrintf(PETSC_COMM_WORLD,"# (DMSWARM) Marker control: insert %d markers \n",nmark_in);
+
+  // return if needed
+  if (nmark_in==0) { 
+    ierr = DMStagRestoreProductCoordinateArraysRead(dmcell,&coordx,&coordz,NULL);CHKERRQ(ierr);
+    ierr = DMStagVecRestoreArray(dmcell,cnt_sw_local,&cnt_sw);CHKERRQ(ierr);
+    ierr = DMStagVecRestoreArray(dmcell,cnt_nw_local,&cnt_nw);CHKERRQ(ierr);
+    ierr = DMStagVecRestoreArray(dmcell,cnt_se_local,&cnt_se);CHKERRQ(ierr);
+    ierr = DMStagVecRestoreArray(dmcell,cnt_ne_local,&cnt_ne);CHKERRQ(ierr);
+    
+    ierr = VecDestroy(&cnt_sw_local);CHKERRQ(ierr);
+    ierr = VecDestroy(&cnt_nw_local);CHKERRQ(ierr);
+    ierr = VecDestroy(&cnt_se_local);CHKERRQ(ierr);
+    ierr = VecDestroy(&cnt_ne_local);CHKERRQ(ierr);
+
+    PetscFunctionReturn(0); 
+  }
+
+  PetscScalar dxcell;
+  dxcell = usr->nd->L/usr->par->nx/4;
+
+  // add new markers
+  ierr = DMSwarmAddNPoints(dmswarm,nmark_in); // inserted at (0,0)
+  ierr = DMSwarmGetLocalSize(dmswarm,&npoints);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,DMSwarmPICField_coor,NULL,NULL,(void**)&pcoor);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,"id",NULL,NULL,(void**)&pfield);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,"id0",NULL,NULL,(void**)&pfield0);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,"id1",NULL,NULL,(void**)&pfield1);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,"id2",NULL,NULL,(void**)&pfield2);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,"id3",NULL,NULL,(void**)&pfield3);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,"id4",NULL,NULL,(void**)&pfield4);CHKERRQ(ierr);
+  ierr = DMSwarmGetField(dmswarm,"id5",NULL,NULL,(void**)&pfield5);CHKERRQ(ierr);
+
+  // allocate memory arrays for coords
+  PetscScalar *pcoorx_new, *pcoorz_new, *pid_new;
+  ierr = PetscCalloc1(nmark_in,&pcoorx_new);CHKERRQ(ierr);
+  ierr = PetscCalloc1(nmark_in,&pcoorz_new);CHKERRQ(ierr);
+  ierr = PetscCalloc1(nmark_in,&pid_new);CHKERRQ(ierr);
+
+  PetscRandom rnd;
+  ierr = PetscRandomCreate(PETSC_COMM_SELF,&rnd);CHKERRQ(ierr);
+  ierr = PetscRandomSetInterval(rnd,0.0,dxcell*0.5);CHKERRQ(ierr);
+  ierr = PetscRandomSetFromOptions(rnd);CHKERRQ(ierr);
+
+  PetscInt ip = 0;
+
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      PetscScalar value, dist;
+
+      if (cnt_sw[j][i][iE]==0.0) {
+        // generate new coord
+        ierr = PetscRandomGetValue(rnd,&value);CHKERRQ(ierr);
+        pcoorx_new[ip] = coordx[i][icenter]-dxcell+value;
+        ierr = PetscRandomGetValue(rnd,&value);CHKERRQ(ierr);
+        pcoorz_new[ip] = coordz[j][icenter]-dxcell+value;
+
+        // determine phase_id based on closest marker
+        dist = usr->nd->L;
+        for (p=0; p<npoints; p++) {
+          PetscScalar pcoorx,pcoorz, xd, zd,dist_old;
+    
+          pcoorx = pcoor[2*p+0];
+          pcoorz = pcoor[2*p+1];
+
+          xd = pcoorx-pcoorx_new[ip];
+          zd = pcoorz-pcoorz_new[ip];
+
+          dist_old = dist;
+          dist = PetscMin(dist,PetscPowScalar((xd*xd+zd*zd),0.5));
+
+          if (dist<dist_old) {
+            pid_new[ip] = pfield[p];
+          }
+        }
+        ip += 1;
+      }
+
+      if (cnt_nw[j][i][iE]==0.0) {
+        // generate new coord
+        ierr = PetscRandomGetValue(rnd,&value);CHKERRQ(ierr);
+        pcoorx_new[ip] = coordx[i][icenter]-dxcell+value;
+        ierr = PetscRandomGetValue(rnd,&value);CHKERRQ(ierr);
+        pcoorz_new[ip] = coordz[j][icenter]+dxcell+value;
+
+        // determine phase_id based on closest marker
+        dist = usr->nd->L;
+        for (p=0; p<npoints; p++) {
+          PetscScalar pcoorx,pcoorz, xd, zd,dist_old;
+    
+          pcoorx = pcoor[2*p+0];
+          pcoorz = pcoor[2*p+1];
+
+          xd = pcoorx-pcoorx_new[ip];
+          zd = pcoorz-pcoorz_new[ip];
+
+          dist_old = dist;
+          dist = PetscMin(dist,PetscPowScalar((xd*xd+zd*zd),0.5));
+
+          if (dist<dist_old) {
+            pid_new[ip] = pfield[p];
+          }
+        }
+        ip += 1;
+      }
+
+      if (cnt_se[j][i][iE]==0.0) {
+        // generate new coord
+        ierr = PetscRandomGetValue(rnd,&value);CHKERRQ(ierr);
+        pcoorx_new[ip] = coordx[i][icenter]+dxcell+value;
+        ierr = PetscRandomGetValue(rnd,&value);CHKERRQ(ierr);
+        pcoorz_new[ip] = coordz[j][icenter]-dxcell+value;
+
+        // determine phase_id based on closest marker
+        dist = usr->nd->L;
+        for (p=0; p<npoints; p++) {
+          PetscScalar pcoorx,pcoorz, xd, zd,dist_old;
+    
+          pcoorx = pcoor[2*p+0];
+          pcoorz = pcoor[2*p+1];
+
+          xd = pcoorx-pcoorx_new[ip];
+          zd = pcoorz-pcoorz_new[ip];
+
+          dist_old = dist;
+          dist = PetscMin(dist,PetscPowScalar((xd*xd+zd*zd),0.5));
+
+          if (dist<dist_old) {
+            pid_new[ip] = pfield[p];
+          }
+        }
+        ip += 1;
+      }
+
+      if (cnt_ne[j][i][iE]==0.0) {
+        // generate new coord
+        ierr = PetscRandomGetValue(rnd,&value);CHKERRQ(ierr);
+        pcoorx_new[ip] = coordx[i][icenter]+dxcell+value;
+        ierr = PetscRandomGetValue(rnd,&value);CHKERRQ(ierr);
+        pcoorz_new[ip] = coordz[j][icenter]+dxcell+value;
+
+        // determine phase_id based on closest marker
+        dist = usr->nd->L;
+        for (p=0; p<npoints; p++) {
+          PetscScalar pcoorx,pcoorz, xd, zd,dist_old;
+    
+          pcoorx = pcoor[2*p+0];
+          pcoorz = pcoor[2*p+1];
+
+          xd = pcoorx-pcoorx_new[ip];
+          zd = pcoorz-pcoorz_new[ip];
+
+          dist_old = dist;
+          dist = PetscMin(dist,PetscPowScalar((xd*xd+zd*zd),0.5));
+
+          if (dist<dist_old) {
+            pid_new[ip] = pfield[p];
+          }
+        }
+        ip += 1;
+      }
+    }
+  }
+
+  // assign new particles
+  ip = 0;
+  for (p=0; p<npoints; p++) {
+    PetscScalar pcoorx,pcoorz;
+
+    pcoorx = pcoor[2*p+0];
+    pcoorz = pcoor[2*p+1];
+
+    if ((pcoorx==0.0) && (pcoorz==0.0)) {
+      pcoor[2*p+0] = pcoorx_new[ip];
+      pcoor[2*p+1] = pcoorz_new[ip];
+
+      pfield[p] = pid_new[ip];
+
+      pfield0[p] = 0;
+      pfield1[p] = 0;
+      pfield2[p] = 0;
+      pfield3[p] = 0;
+      pfield4[p] = 0;
+      pfield5[p] = 0;
+
+      if (pid_new[ip] == 0) pfield0[p] = 1;
+      if (pid_new[ip] == 1) pfield1[p] = 1;
+      if (pid_new[ip] == 2) pfield2[p] = 1;
+      if (pid_new[ip] == 3) pfield3[p] = 1;
+      if (pid_new[ip] == 4) pfield4[p] = 1;
+      if (pid_new[ip] == 5) pfield5[p] = 1;
+
+      ip += 1;
+    }
+  }
+
+  ierr = PetscFree(pcoorx_new);CHKERRQ(ierr);
+  ierr = PetscFree(pcoorz_new);CHKERRQ(ierr);
+  ierr = PetscFree(pid_new);CHKERRQ(ierr);
+
+  ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,"id",NULL,NULL,(void**)&pfield);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,"id0",NULL,NULL,(void**)&pfield0);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,"id1",NULL,NULL,(void**)&pfield1);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,"id2",NULL,NULL,(void**)&pfield2);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,"id3",NULL,NULL,(void**)&pfield3);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,"id4",NULL,NULL,(void**)&pfield4);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,"id5",NULL,NULL,(void**)&pfield5);CHKERRQ(ierr);
+  ierr = DMSwarmRestoreField(dmswarm,DMSwarmPICField_coor,NULL,NULL,(void**)&pcoor);CHKERRQ(ierr);
+  ierr = DMSwarmMigrate(dmswarm,PETSC_TRUE);CHKERRQ(ierr);
+
+  // clean 
+  ierr = DMStagRestoreProductCoordinateArraysRead(dmcell,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dmcell,cnt_sw_local,&cnt_sw);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dmcell,cnt_nw_local,&cnt_nw);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dmcell,cnt_se_local,&cnt_se);CHKERRQ(ierr);
+  ierr = DMStagVecRestoreArray(dmcell,cnt_ne_local,&cnt_ne);CHKERRQ(ierr);
+  
+  ierr = VecDestroy(&cnt_sw_local);CHKERRQ(ierr);
+  ierr = VecDestroy(&cnt_nw_local);CHKERRQ(ierr);
+  ierr = VecDestroy(&cnt_se_local);CHKERRQ(ierr);
+  ierr = VecDestroy(&cnt_ne_local);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -1768,7 +2070,7 @@ PetscErrorCode PhaseDiagram_1Component(DM dmT, Vec xT, DM dm, Vec x, DM dmphase,
       phi = 1.0 - xx[j][i][iE];
       phinew = phi;
 
-      // if (i==0) PetscPrintf(PETSC_COMM_WORLD,"# cp = %1.12e z = %1.12e Tsol = %1.12e T = %1.12e\n",cp,z,Tsol,T);
+      // PetscPrintf(PETSC_COMM_WORLD,"# i=%d j=%d cp = %1.12e z = %1.12e Tsol = %1.12e T = %1.12e phi= %1.12e\n",i,j,cp,z,Tsol,T,phi);
 
       if (T>Tsol) {
         phinew = phi + PetscMin(1.0-phi,cp*(T-Tsol)/L);

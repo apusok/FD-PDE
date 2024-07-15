@@ -188,6 +188,7 @@ PetscErrorCode Plastic_LocalSolver(PetscScalar*,PetscScalar,PetscScalar,PetscSca
 PetscErrorCode SetSwarmInitialCondition(DM,void*);
 PetscErrorCode AddMarkerInflux(DM,void*);
 PetscErrorCode AddMarkerInflux_FreeSurface(DM,void*);
+PetscErrorCode MarkerControl(DM,void*);
 PetscErrorCode SetInitialConditions(FDPDE, FDPDE,FDPDE,void*);
 PetscErrorCode HalfSpaceCooling_MOR(void*);
 PetscErrorCode SetInitialPorosityField(void*);
