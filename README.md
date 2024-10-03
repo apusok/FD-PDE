@@ -1,9 +1,7 @@
-# FD-PDE (Release version)
-Release version of the FD-PDE framework developed for magma dynamics and other applications in geodynamics.
+# FD-PDE Framework (Release version)
+Release version of the **FD-PDE framework** developed for magma dynamics and other applications in geodynamics.
 
-The FD-PDE Framework was created within the **RIFT-O-MAT** (Magma-Assisted Tectonics) project, funded by the European Research Council under Horizon 2020 research and innovation program, and awarded to PI Richard Katz.
-
-The goal of the RIFT-O-MAT project is to create analytical and numerical tools to understand how magmatism promotes and shapes rifts in continental and oceanic lithosphere.
+The FD-PDE Framework was created within the **RIFT-O-MAT** (Magma-Assisted Tectonics) project, funded by the European Research Council under Horizon 2020 research and innovation program, and awarded to PI Richard Katz. The goal of the RIFT-O-MAT project is to create analytical and numerical tools to understand how magmatism promotes and shapes rifts in continental and oceanic lithosphere.
 
 ## License: MIT License
 
@@ -13,20 +11,28 @@ The goal of the RIFT-O-MAT project is to create analytical and numerical tools t
 - Yuan Li
 - Richard Katz
 
+## Publications using the FD-PDE framework
+- Pusok, A. E., Li, Y., Davis, T., May, D. A. and Katz, R. F. (submitted). Inefficient melt transport across a weakened lithosphere led to reduced magmatism in the Turkana Depression. 
+- Li, Y., Pusok, A. E., Davis, T., May, D. and Katz, R. F. (2023). Continuum approximation of dyking with a theory for poro-viscoelastic–viscoplastic deformation. Geophys. J. Int., 234(3):2007–2031. doi: [10.1093/gji/ggad173](http://doi.org/10.1093/gji/ggad173).
+- Pusok, A. E., Katz, R. F., May, D. A. and Li, Y. (2022). Chemical heterogeneity, convection and asymmetry beneath mid-ocean ridges. Geophys. J. Int., 231(3):2055–2078. doi: [10.1093/gji/ggac309](http://doi.org/10.1093/gji/ggac309).
+- [FD-PDE manual and benchmarks (pdf)](https://drive.google.com/file/d/137Dtu2ykuf7zL_C8NnR_8sGFxV8qRWOw/view?usp=sharing).
+
+## Citing the FD-PDE framework
+- Pusok, A. E., May, D. A., Li, Y., Katz, R. F. (2022), FD-PDE framework: v1.0.0. doi:[10.5281/zenodo.6900871](http://doi.org/10.5281/zenodo.6900871).
+
+
 ## Repository contents
 - `src/`: source code for FD-PDE framework
 - `tests/`: tests for FD-PDE framework
 - `models/`: model applications using the FD-PDE Framework
-- `models/morfault/`: lithosphere extension and magma extraction model (in prep.)
-- `models/mbuoy3/`: mid-ocean ridge code used in Pusok et al. (GJI, 2022)
+- `models/morfault/`: lithosphere extension and magma extraction model used in Pusok et al. (in prep.)
+- `models/mbuoy3/`: mid-ocean ridge code used in [Pusok et al. (GJI, 2022)](http://doi.org/10.1093/gji/ggac309)
 - `utils/`: python routines for I/O of PETSc objects
 
 Models are described in detail below. 
 
 ## Description
-The **FD-PDE framework** uses finite difference staggered grids for solving partial differential equations (PDEs) for single-/two-phase flow magma dynamics. 
-
-The FD-PDE framework is based on [PETSc](https://petsc.org/release/) and make use of the new features for staggered grids, such as DMStag. Governing equations are discretized as default PDEs (i.e., FDPDE Type), and the user only specifies coefficients, constitutive equations, and boundary conditions. 
+The **FD-PDE framework** uses finite difference staggered grids for solving partial differential equations (PDEs) for single-/two-phase flow magma dynamics. The framework is based on [PETSc](https://petsc.org/release/) and makes use of the new features for staggered grids, such as DMStag. Governing equations are discretized as object PDEs (i.e., FDPDE Type), and the user only specifies coefficients, constitutive equations, and boundary conditions. 
 
 Documentation for the FD-PDE Framework and tests can be found: [FD-PDE Benchmarks](https://drive.google.com/file/d/137Dtu2ykuf7zL_C8NnR_8sGFxV8qRWOw/view?usp=sharing).
 
@@ -35,32 +41,34 @@ Tests are located in `/FD-PDE/tests/`.
 
 ## Dependencies
 ### PETSc
-The current Petsc version (3.14) should be obtained from [petsc](https://gitlab.com/petsc/petsc.git):
+The PETSc version (3.14) can be obtained from [petsc](https://gitlab.com/petsc/petsc.git):
 
 `git clone -b maint https://gitlab.com/petsc/petsc.git petsc`
 
-Do `git pull` in the petsc directory anytime to obtain new patches that have been added.
+`git checkout v3.14`
+
+<!-- Do `git pull` in the petsc directory anytime to obtain new patches that have been added. -->
 
 Configure options (change `<PATH>` accordingly):
 
-DEBUG:
+DEBUG version:
 
 `./configure --prefix=<PATH_DEBUG> --download-fblaslapack --download-hdf5 --download-mumps --download-scalapack --download-parmetis --download-metis --download-cmake --with-debugging --download-mpich --enable-shared --download-pastix --download-ptscotch --with-cxx-dialect=C++11 --download-superlu_dist --download-spooles --download-suitesparse --download-ml --download-hypre --download-hwloc --download-make`
 
-OPTIMIZED:
+OPTIMIZED version (recommended for model runs):
 
 `./configure --prefix=<PATH_OPT> --FOPTFLAGS=-O2 --CXXOPTFLAGS=-O2 --COPTFLAGS=-O2 --download-fblaslapack --download-hdf5 --download-mumps --download-scalapack --download-parmetis --download-metis --download-cmake --with-debugging=0 --download-mpich --enable-shared --download-pastix --download-ptscotch --with-cxx-dialect=C++11 --download-superlu_dist --download-spooles --download-suitesparse --download-ml --download-hypre --download-hwloc --download-make`
 
-Specify PETSc environment variable for bash (can be specified in `~/.bashrc` or `~/.bash_profile`):
+Specify PETSc environment variable for bash (in `~/.bashrc` or `~/.bash_profile`):
 
 `export PETSC_DIR=<PATH>`
 
 ### Python
 
-Python3 is used for testing and post-processing. Preferred way to install python is through [anaconda3](https://www.anaconda.com) (multi-platform), which will install all the right executables (especially conda, which is similar to brew/port). The executables should be installed in `/Users/user/anaconda3/bin/`. Check: `which python`
+Python3 is used for testing and post-processing. Preferred way to install python is through [anaconda3](https://www.anaconda.com) (multi-platform), which will install all the right executables. Check installation with: `which python`
 and `which conda`.
 
-Update anaconda (occasionally) with: `conda update --all`
+<!-- Update anaconda (occasionally) with: `conda update --all` -->
 
 To use the visualization tools developed within the FD-PDE Framework, update the environmental variable (change `<PATH_FDPDE>` accordingly):
 
@@ -79,9 +87,9 @@ In `FD-PDE/src/`:
 
 ## `morfault`
 
-**Publication: in prep.** 
+**Publication:** Pusok, A. E., Li, Y., Davis, T., May, D. A. and Katz, R. F. (submitted). Inefficient melt transport across a weakened lithosphere led to reduced magmatism in the Turkana Depression.
 
-**morfault** is a 2-D lithosphere extension and magma extraction model. It couples magma transport with visco-elasto-viscoplastic rheology. 
+**morfault** is a 2-D lithosphere extension and magma extraction model. It couples magma transport with visco-elasto-viscoplastic rheology (Li et al., 2023). 
 
 To compile the code, in `FD-PDE/models/morfault/`:
 - Clean executable: `make clean_all`
@@ -96,6 +104,9 @@ Post-processing and visualization scripts are located in `morfault/python` run:
 * `plot_fields_3panels.py`
 
 More output routines can be found in `vizMORfault.py`, which can be loaded as a module in any new script. Warning: paths need to be updated locally. 
+
+<!-- ![morfault_example](/img/morfault_example.jpg)
+*Melt extraction models using morfault. Maps represent porosity; left: model with a thin, brittle layer and small Maxwell time, right: model with a thick, brittle layer and high Maxwell time.* -->
 
 ## `mbuoy3`
 

@@ -26,11 +26,11 @@
 -model_energy 0 # 0-no melt/cryst, 1-one comp
 -inflow_bc 1
 
--Vext 0.0
+-Vext 0.0 # cm/yr
 -uT 10.0
 -Tbot 1623.15
 -eta_K 1e20
--age 2
+-age 2 # Ma
 -strain_max 1.0
 -hcc 0.5
 -phi0 0.0
