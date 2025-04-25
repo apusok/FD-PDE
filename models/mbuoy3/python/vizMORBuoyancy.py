@@ -3315,9 +3315,10 @@ def plot_youtube_full_ridge(A,istart,iend,jstart,jend,fname,istep,dim,iplot,beta
   ax = plt.subplot(2,1,1)
   cmap1 = plt.cm.get_cmap('inferno', 20)
   im = ax.imshow(np.log10(A.Enth.phi[jstart:jend  ,istart:iend  ]),extent=extentE,cmap=cmap1,origin='lower')
-  im.set_clim(-4,-1)
+  im.set_clim(-4,0)
   cbar = fig.colorbar(im,ax=ax, shrink=0.9)
-  cbar.ax.set_title(r'log$_{10}\phi$')
+  # cbar.ax.set_title(r'log$_{10}\phi$')
+  cbar.ax.set_yticklabels([r'$<0.01\%$',r'$0.1\%$',r'$1\%$',r'$10\%$',r'$100\%$'])
 
   xa = A.grid.xc[istart:iend:4]*scalx
   xa = np.arange(sstart,send,8)
@@ -3359,7 +3360,7 @@ def plot_youtube_full_ridge(A,istart,iend,jstart,jend,fname,istep,dim,iplot,beta
   ax.set_ylabel(lblz)
   # ax.set_title(r'Porosity, $U_0 = 4$ cm/yr, time = '+str(round(t/1.0e6,2))+' Myr')
   plt.title(r'time = '+str(round(t/1.0e6,2))+' Myr', loc='left')
-  plt.title(r'Porosity')
+  plt.title(r'\textbf{foalab.earth.ox.ac.uk}'+'\nPorosity')
   plt.title(r'$U_0 = 4$ cm/yr', loc='right')
 
   # -----------------------
@@ -3386,7 +3387,7 @@ def plot_youtube_full_ridge(A,istart,iend,jstart,jend,fname,istep,dim,iplot,beta
   im = ax.imshow(X[jstart:jend+1,istart:iend  ]*scal-rho0,extent=extentE,cmap=cmap1,origin='lower', norm=divnorm)
   # nrho = -125
   cbar = fig.colorbar(im,ax=ax, shrink=0.9,ticks=np.arange(nrho, 50.1,25))
-  cbar.ax.set_title(r'$\overline{\rho}-\rho_0$ [kg/m]$^3$')
+  cbar.ax.set_title(r'$\overline{\rho}-\rho_0$ [kg/m$^3$]')
 
   # solidus contour
   if (istep>0):
@@ -3423,5 +3424,6 @@ def plot_youtube_full_ridge(A,istart,iend,jstart,jend,fname,istep,dim,iplot,beta
   lbl = 'Residual buoyancy'
   ax.set_title(lbl)
 
+  # fig.suptitle('foalab.earth.ox.ac.uk',fontweight='bold',color='white')
   plt.savefig(fname+'.png', bbox_inches = 'tight')
   plt.close()

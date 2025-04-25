@@ -1468,7 +1468,7 @@ PetscErrorCode ComputeGamma(DM dmmatProp, Vec xmatProp, DM dmPV, Vec xPV, DM dmE
       dz[2] = (dz[0]+dz[1])*0.5;
 
       // advection term div(phis*vs) - assume backward Euler+Fromm scheme: gamma = dphi/dt - adv^new
-      ierr = AdvectionResidual(v,phis,dx,dz,ADV_FROMM,&adv); CHKERRQ(ierr);
+      ierr = AdvectionResidual(v,phis,dx,dz,usr->nd->dt,ADV_FROMM,&adv); CHKERRQ(ierr);
 
       // update gamma
       xx[j][i][idx] = (phi[0]-phiold[0])/usr->nd->dt - adv;

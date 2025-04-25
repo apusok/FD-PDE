@@ -45,11 +45,11 @@ all:
 	-$(PCC) $(CFLAGS) -O2 -o $@ -c $< $(PETSC_CC_INCLUDES)
 
 mbuoy3: mbuoy3.o $(FDPDE_OBJ) ${MODEL_OBJ}
-	${RM} mbuoy3.app
-	-${CLINKER} -O2 -o mbuoy3.app mbuoy3.o $(FDPDE_OBJ) ${MODEL_OBJ} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
+	${RM} mbuoy3
+	-${CLINKER} -O2 -o mbuoy3 mbuoy3.o $(FDPDE_OBJ) ${MODEL_OBJ} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
 
 clean_all:
 	@echo "# -------------------------------- #"
 	@echo "#            Full clean            #"
 	@echo "# -------------------------------- #"
-	@rm -rf $(FDPDE_OBJ) $(MODEL_OBJ) mbuoy3.app
+	@rm -rf $(FDPDE_OBJ) $(MODEL_OBJ) mbuoy3
