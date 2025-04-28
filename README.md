@@ -28,7 +28,7 @@ Original publication:
 - Pusok, A. E., Katz, R. F., May, D. A. and Li, Y. (2022). Chemical heterogeneity, convection and asymmetry beneath mid-ocean ridges. Geophys. J. Int., 231(3):2055–2078. doi: [10.1093/gji/ggac309](http://doi.org/10.1093/gji/ggac309).
 
 Versions:
-- Pusok, A. E., May, D. A., Li, Y., Davis, T., Katz, R. F. (2025), FD-PDE framework, morfault: v2.0.0. doi: tbc.
+- Pusok, A. E., Li, Y., May, D. A., Katz, R. F. (2025), FD-PDE framework, morfault: v1.1.0. doi: tbc.
 
 - Pusok, A. E., May, D. A., Li, Y., Katz, R. F. (2022), FD-PDE framework: v1.0.0. doi:[10.5281/zenodo.6900871](http://doi.org/10.5281/zenodo.6900871).
 
