@@ -12,13 +12,13 @@ The FD-PDE Framework was created within the **RIFT-O-MAT** (Magma-Assisted Tecto
 - Richard Katz
 
 ## Publications using the FD-PDE framework
-- Pusok, A. E., Li, Y., Davis, T., May, D. A. and Katz, R. F. (2025). Inefficient melt transport across a weakened lithosphere led to anomalous rift architecture in the Turkana Depression. GRL.
+- Pusok, A. E., Li, Y., Davis, T., May, D. A. and Katz, R. F. (2025). Inefficient melt transport across a weakened lithosphere led to anomalous rift architecture in the Turkana Depression. GRL, 52:1-12, doi: [10.1029/2025GL115228](https://doi.org/10.1029/2025GL115228)
 
-- Li. Y., Davis, T., Pusok, A.E., Katz, R.F. (2025). Models of buoyancy-driven dykes using continuum plasticity and fracture mechanics: a comparison. GMD, EGUsphere (preprint), doi: [10.5194/egusphere-2024-3504](https://egusphere.copernicus.org/preprints/2024/egusphere-2024-3504/).
+- Li. Y., Davis, T., Pusok, A.E., Katz, R.F. (2025). Models of buoyancy-driven dykes using continuum plasticity and fracture mechanics: a comparison. GMD, EGUsphere, doi: [10.5194/egusphere-2024-3504](https://egusphere.copernicus.org/preprints/2024/egusphere-2024-3504/).
 
-- Li, Y., Pusok, A. E., Davis, T., May, D. and Katz, R. F. (2023). Continuum approximation of dyking with a theory for poro-viscoelastic–viscoplastic deformation. Geophys. J. Int., 234(3):2007–2031. doi: [10.1093/gji/ggad173](http://doi.org/10.1093/gji/ggad173).
+- Li, Y., Pusok, A. E., Davis, T., May, D. and Katz, R. F. (2023). Continuum approximation of dyking with a theory for poro-viscoelastic–viscoplastic deformation. Geophys. J. Int., 234(3):2007–2031, doi: [10.1093/gji/ggad173](http://doi.org/10.1093/gji/ggad173).
 
-- Pusok, A. E., Katz, R. F., May, D. A. and Li, Y. (2022). Chemical heterogeneity, convection and asymmetry beneath mid-ocean ridges. Geophys. J. Int., 231(3):2055–2078. doi: [10.1093/gji/ggac309](http://doi.org/10.1093/gji/ggac309).
+- Pusok, A. E., Katz, R. F., May, D. A. and Li, Y. (2022). Chemical heterogeneity, convection and asymmetry beneath mid-ocean ridges. Geophys. J. Int., 231(3):2055–2078, doi: [10.1093/gji/ggac309](http://doi.org/10.1093/gji/ggac309).
 
 ## Manual and benchmarks
 Documentation for the FD-PDE Framework and tests can be found here: [FD-PDE Benchmarks (pdf)](https://drive.google.com/file/d/1eMRSPnwmhr6tx4p1jTDj8rqTavWykSwH/view?usp=sharing).
@@ -28,16 +28,18 @@ Original publication:
 - Pusok, A. E., Katz, R. F., May, D. A. and Li, Y. (2022). Chemical heterogeneity, convection and asymmetry beneath mid-ocean ridges. Geophys. J. Int., 231(3):2055–2078. doi: [10.1093/gji/ggac309](http://doi.org/10.1093/gji/ggac309).
 
 Versions:
-- Pusok, A. E., Li, Y., May, D. A., Katz, R. F. (2025), FD-PDE framework, morfault: v1.1.0. doi: tbc.
+- Pusok, A. E., Li, Y., May, D. A., Katz, R. F. (2025), FD-PDE framework, morfault: v1.1.0. doi:[10.5281/zenodo.15297276](https://doi.org/10.5281/zenodo.15297276)
 
 - Pusok, A. E., May, D. A., Li, Y., Katz, R. F. (2022), FD-PDE framework: v1.0.0. doi:[10.5281/zenodo.6900871](http://doi.org/10.5281/zenodo.6900871).
 
+Other repositories using FD-PDE:
+- Codes in Li et al. (2023, 2025) using the poro-viscoelasto-viscoplastic theory can be found [here](https://github.com/YuanLiAC/poroVEVP).
 
 ## Repository contents
 - `src/`: source code for FD-PDE framework
 - `tests/`: tests for FD-PDE framework
 - `models/`: model applications using the FD-PDE Framework
-- `models/morfault/`: lithosphere extension and magma extraction model used in Pusok et al. (2025)
+- `models/morfault/`: lithosphere extension and magma extraction model used in [Pusok et al. (2025)](https://doi.org/10.1029/2025GL115228)
 - `models/mbuoy3/`: mid-ocean ridge code used in [Pusok et al. (GJI, 2022)](http://doi.org/10.1093/gji/ggac309)
 - `utils/`: python routines for I/O of PETSc objects
 
@@ -98,7 +100,7 @@ To run the tests in `FD-PDE/tests/`:
 
 ## `morfault`
 
-**Publication:** Pusok, A. E., Li, Y., Davis, T., May, D. A. and Katz, R. F. (2025). Inefficient melt transport across a weakened lithosphere led to anomalous rift architecture in the Turkana Depression. GRL.
+**Publication:** Pusok, A. E., Li, Y., Davis, T., May, D. A. and Katz, R. F. (2025). Inefficient melt transport across a weakened lithosphere led to anomalous rift architecture in the Turkana Depression, *Geophysical Research Letters*, [DOI: 10.1029/2025GL115228](https://doi.org/10.1029/2025GL115228)
 
 **morfault** is a 2-D lithosphere extension and magma extraction model. It couples magma transport with visco-elasto-viscoplastic rheology (Li et al., 2023). 
 
