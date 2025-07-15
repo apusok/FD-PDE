@@ -50,11 +50,10 @@ Use: internal
 PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd)
 {
   EnthalpyData   *en;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   // Initialize data
-  ierr = PetscStrallocpy(enthalpy_description,&fd->description); CHKERRQ(ierr);
+  PetscCall(PetscStrallocpy(enthalpy_description,&fd->description)); 
 
   // ENTHALPY Stencil dofs: dmstag - H, C
   fd->dof0  = 0; fd->dof1  = 0; if (!fd->dof2) {fd->dof2 = 2;} 
@@ -69,7 +68,7 @@ PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd)
   fd->ops->setup              = FDPDESetup_Enthalpy;
 
   // allocate memory to fd-pde context data
-  ierr = PetscCalloc1(1,&en);CHKERRQ(ierr);
+  PetscCall(PetscCalloc1(1,&en));
 
   en->xprev = NULL;
   en->coeffprev = NULL;
@@ -92,7 +91,7 @@ PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd)
   // fd-pde context data
   fd->data = en;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -106,20 +105,19 @@ Use: internal
 PetscErrorCode FDPDESetup_Enthalpy(FDPDE fd)
 {
   EnthalpyData   *en;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   en = fd->data;
 
   // Create DMStag and vector for pressure/enthalpy
-  ierr = DMStagCreateCompatibleDMStag(fd->dmstag,0,0,1,0,&en->dmP); CHKERRQ(ierr);
-  ierr = DMSetUp(en->dmP); CHKERRQ(ierr);
-  ierr = DMStagSetUniformCoordinatesProduct(en->dmP,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(en->dmP,&en->xP);CHKERRQ(ierr);
+  PetscCall(DMStagCreateCompatibleDMStag(fd->dmstag,0,0,1,0,&en->dmP)); 
+  PetscCall(DMSetUp(en->dmP)); 
+  PetscCall(DMStagSetUniformCoordinatesProduct(en->dmP,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0));
+  PetscCall(DMCreateGlobalVector(en->dmP,&en->xP));
   // initialize zero pressure vector
-  ierr = VecSet(en->xP,0.0);CHKERRQ(ierr);
+  PetscCall(VecSet(en->xP,0.0));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -144,7 +142,7 @@ PetscErrorCode FDPDEView_Enthalpy(FDPDE fd)
   PetscPrintf(fd->comm,"  # Enthalpy Method description:\n");
   PetscPrintf(fd->comm,"    %s\n",en->description_enthalpy);
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -158,17 +156,16 @@ Use: internal
 PetscErrorCode FDPDEDestroy_Enthalpy(FDPDE fd)
 {
   EnthalpyData   *en;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   // enthalpy data
   en = fd->data;
-  if (en->xprev)     { ierr = VecDestroy(&en->xprev);CHKERRQ(ierr); }
-  if (en->coeffprev) { ierr = VecDestroy(&en->coeffprev);CHKERRQ(ierr); }
+  if (en->xprev)     { PetscCall(VecDestroy(&en->xprev)); }
+  if (en->coeffprev) { PetscCall(VecDestroy(&en->coeffprev)); }
 
-  ierr = VecDestroy(&en->xP);CHKERRQ(ierr);
-  ierr = DMDestroy(&en->dmP);CHKERRQ(ierr);
-  if (en->xPprev) { ierr = VecDestroy(&en->xPprev);CHKERRQ(ierr); }
+  PetscCall(VecDestroy(&en->xP));
+  PetscCall(DMDestroy(&en->dmP));
+  if (en->xPprev) { PetscCall(VecDestroy(&en->xPprev)); }
 
   en->form_enthalpy_method = NULL;
   en->form_TP        = NULL;
@@ -178,10 +175,10 @@ PetscErrorCode FDPDEDestroy_Enthalpy(FDPDE fd)
   en->user_context_bc= NULL;
   en->user_context_tp= NULL;
 
-  ierr = PetscFree(en->description_enthalpy);CHKERRQ(ierr);
-  ierr = PetscFree(en);CHKERRQ(ierr);
+  PetscCall(PetscFree(en->description_enthalpy));
+  PetscCall(PetscFree(en));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -194,11 +191,10 @@ PetscErrorCode FDPDEDestroy_Enthalpy(FDPDE fd)
 #define __FUNCT__ "JacobianCreate_Enthalpy"
 PetscErrorCode JacobianCreate_Enthalpy(FDPDE fd,Mat *J)
 {
-  PetscErrorCode ierr;
   PetscFunctionBegin;
-  ierr = DMCreateMatrix(fd->dmstag,J); CHKERRQ(ierr);
-  ierr = JacobianPreallocator_Enthalpy(fd,*J);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(DMCreateMatrix(fd->dmstag,J)); 
+  PetscCall(JacobianPreallocator_Enthalpy(fd,*J));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -217,45 +213,43 @@ PetscErrorCode JacobianPreallocator_Enthalpy(FDPDE fd,Mat J)
   Mat            preallocator = NULL;
   PetscScalar    *xx;
   DMStagStencil  *point;
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
+  PetscFunctionBegin;
 
   // Assign pointers and other variables
   Nx = fd->Nx;
   Nz = fd->Nz;
 
   // MatPreallocate begin
-  ierr = MatPreallocatePhaseBegin(J, &preallocator); CHKERRQ(ierr);
+  PetscCall(MatPreallocatePhaseBegin(J, &preallocator)); 
   
   // Get local domain
-  ierr = DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  PetscCall(DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
   
   // Zero entries
-  ierr = PetscCalloc1(nEntries,&xx); CHKERRQ(ierr);
-  ierr = PetscCalloc1(nEntries,&point); CHKERRQ(ierr);
+  PetscCall(PetscCalloc1(nEntries,&xx)); 
+  PetscCall(PetscCalloc1(nEntries,&point)); 
 
   // Get non-zero pattern for preallocator
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
       for (ii = 0; ii<fd->dof2; ii++) { // loop over all dofs
-        ierr = EnthalpyNonzeroStencil(i,j,ii,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point);CHKERRQ(ierr);
-        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+        PetscCall(EnthalpyNonzeroStencil(i,j,ii,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point));
+        PetscCall(DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries,point,xx,INSERT_VALUES)); 
       }
     }
   }
   
   // Push the non-zero pattern defined within preallocator into the Jacobian
-  ierr = MatPreallocatePhaseEnd(J); CHKERRQ(ierr);
+  PetscCall(MatPreallocatePhaseEnd(J)); 
 
   // Matrix assembly
-  ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-  ierr = MatAssemblyEnd  (J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+  PetscCall(MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY)); 
+  PetscCall(MatAssemblyEnd  (J,MAT_FINAL_ASSEMBLY)); 
 
-  ierr = PetscFree(xx);CHKERRQ(ierr);
-  ierr = PetscFree(point);CHKERRQ(ierr);
+  PetscCall(PetscFree(xx));
+  PetscCall(PetscFree(point));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -293,7 +287,7 @@ PetscErrorCode EnthalpyNonzeroStencil(PetscInt i,PetscInt j, PetscInt ii, PetscI
     if (j >= Nz-2) point[8] = point[0];
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -312,14 +306,13 @@ Use: user
 PetscErrorCode FDPDEEnthalpySetAdvectSchemeType(FDPDE fd, AdvectSchemeType advtype)
 {
   EnthalpyData   *en;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine for setting Advection Type works only for FD-PDE Type = ENTHALPY!");
   en = fd->data;
   en->advtype = advtype;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -338,7 +331,6 @@ Use: user
 PetscErrorCode FDPDEEnthalpySetTimeStepSchemeType(FDPDE fd, TimeStepSchemeType timesteptype)
 {
   EnthalpyData   *en;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine for setting TimeStepSchemeType should be used only for FD-PDE Type = ENTHALPY!");
@@ -368,12 +360,12 @@ PetscErrorCode FDPDEEnthalpySetTimeStepSchemeType(FDPDE fd, TimeStepSchemeType t
 
   if (en->timesteptype != TS_NONE) {
     // Create vectors for time-stepping if required
-    ierr = VecDuplicate(fd->x,&en->xprev);CHKERRQ(ierr);
-    ierr = VecDuplicate(fd->coeff,&en->coeffprev);CHKERRQ(ierr);
-    ierr = VecDuplicate(en->xP,&en->xPprev);CHKERRQ(ierr);
+    PetscCall(VecDuplicate(fd->x,&en->xprev));
+    PetscCall(VecDuplicate(fd->coeff,&en->coeffprev));
+    PetscCall(VecDuplicate(en->xP,&en->xPprev));
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -392,7 +384,6 @@ Use: user
 PetscErrorCode FDPDEEnthalpySetTimestep(FDPDE fd, PetscScalar dt)
 {
   EnthalpyData   *en;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
@@ -401,7 +392,7 @@ PetscErrorCode FDPDEEnthalpySetTimestep(FDPDE fd, PetscScalar dt)
   en = fd->data;
   if (dt) en->dt = dt;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -422,7 +413,6 @@ Use: user
 PetscErrorCode FDPDEEnthalpyGetTimestep(FDPDE fd, PetscScalar *dt)
 {
   EnthalpyData   *en;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
@@ -431,7 +421,7 @@ PetscErrorCode FDPDEEnthalpyGetTimestep(FDPDE fd, PetscScalar *dt)
   en = fd->data;
   if (dt) *dt = en->dt;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -459,8 +449,7 @@ PetscErrorCode FDPDEEnthalpyComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
   DM             dmcoeff;
   Vec            coefflocal;
   PetscLogDouble tlog[2];
-  PetscErrorCode ierr;
-  PetscFunctionBeginUser;
+  PetscFunctionBegin;
 
   PetscTime(&tlog[0]);
   // Check fd-pde for type and setup
@@ -470,29 +459,29 @@ PetscErrorCode FDPDEEnthalpyComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
   en = fd->data;
   dmcoeff = fd->dmcoeff;
 
-  ierr = DMGetLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(dmcoeff,coefflocal,&_coeff);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dmcoeff, &coefflocal)); 
+  PetscCall(DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmcoeff,coefflocal,&_coeff));
 
   domain_dt = 1.0e32;
   eps = 1.0e-32; /* small shift to avoid dividing by zero */
 
-  ierr = DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_LEFT,&iprev);CHKERRQ(ierr); 
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
+  PetscCall(DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL));
+  PetscCall(DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
+  PetscCall(DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_LEFT,&iprev)); 
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_RIGHT,&inext)); 
 
   // get location slots
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, COEFF_vs,&vs_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,COEFF_vs,&vs_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   COEFF_vs,&vs_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, COEFF_vs,&vs_slot[3]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, COEFF_vs,&vs_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,COEFF_vs,&vs_slot[1]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   COEFF_vs,&vs_slot[2]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, COEFF_vs,&vs_slot[3]));
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, COEFF_vf,&vf_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,COEFF_vf,&vf_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   COEFF_vf,&vf_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, COEFF_vf,&vf_slot[3]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, COEFF_vf,&vf_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,COEFF_vf,&vf_slot[1]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   COEFF_vf,&vf_slot[2]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, COEFF_vf,&vf_slot[3]));
 
   // Loop over elements - max velocity(vs,vf)
   for (j = sz; j<sz+nz; j++) {
@@ -524,12 +513,12 @@ PetscErrorCode FDPDEEnthalpyComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
   }
 
   // MPI exchange global min/max
-  ierr = MPI_Allreduce(&domain_dt,&global_dt,1,MPI_DOUBLE,MPI_MIN,PetscObjectComm((PetscObject)dmcoeff));CHKERRQ(ierr);
+  PetscCall(MPI_Allreduce(&domain_dt,&global_dt,1,MPI_DOUBLE,MPI_MIN,PetscObjectComm((PetscObject)dmcoeff)));
 
   // Return vectors and arrays
-  ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(dmcoeff,coefflocal,&_coeff);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmcoeff,&coefflocal); CHKERRQ(ierr);
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL));
+  PetscCall(DMStagVecRestoreArrayRead(dmcoeff,coefflocal,&_coeff));
+  PetscCall(DMRestoreLocalVector(dmcoeff,&coefflocal)); 
 
   // Return value
   *dt = global_dt;
@@ -539,7 +528,7 @@ PetscErrorCode FDPDEEnthalpyComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
     printf("  FDPDEEnthalpyComputeExplicitTimestep: total        %1.2e\n",tlog[1]-tlog[0]);
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -563,7 +552,6 @@ Use: user
 PetscErrorCode FDPDEEnthalpyGetPrevSolution(FDPDE fd, Vec *xprev)
 {
   EnthalpyData   *en;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
@@ -573,10 +561,10 @@ PetscErrorCode FDPDEEnthalpyGetPrevSolution(FDPDE fd, Vec *xprev)
 
   if (xprev) {
     *xprev = en->xprev;
-    ierr = PetscObjectReference((PetscObject)en->xprev);CHKERRQ(ierr);
+    PetscCall(PetscObjectReference((PetscObject)en->xprev));
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -600,7 +588,6 @@ Use: user
 PetscErrorCode FDPDEEnthalpyGetPrevCoefficient(FDPDE fd, Vec *coeffprev)
 {
   EnthalpyData   *en;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
@@ -610,10 +597,10 @@ PetscErrorCode FDPDEEnthalpyGetPrevCoefficient(FDPDE fd, Vec *coeffprev)
 
   if (coeffprev) {
     *coeffprev = en->coeffprev;
-    ierr = PetscObjectReference((PetscObject)en->coeffprev);CHKERRQ(ierr);
+    PetscCall(PetscObjectReference((PetscObject)en->coeffprev));
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -634,7 +621,7 @@ PetscErrorCode FDPDEEnthalpySetNumberComponentsPhaseDiagram(FDPDE fd, PetscInt n
   if (n>MAX_COMPONENTS) SETERRQ(fd->comm,PETSC_ERR_SUP,"Supported only %d maximum chemical components!",MAX_COMPONENTS);
   fd->dof2  = n; 
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -669,7 +656,6 @@ Use: user
 PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, EnthEvalErrorCode(*form_enthalpy_method)(PetscScalar,PetscScalar[],PetscScalar,PetscScalar*,PetscScalar*,PetscScalar*,PetscScalar*,PetscInt,void*), const char description[],void *data)
 {
   EnthalpyData   *en;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
@@ -678,9 +664,9 @@ PetscErrorCode FDPDEEnthalpySetEnthalpyMethod(FDPDE fd, EnthEvalErrorCode(*form_
   en = fd->data;
   en->form_enthalpy_method = form_enthalpy_method;
   en->user_context = data;
-  if (description) { ierr = PetscStrallocpy(description,&en->description_enthalpy); CHKERRQ(ierr); }
+  if (description) { PetscCall(PetscStrallocpy(description,&en->description_enthalpy));  }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -694,7 +680,6 @@ Use: user
 PetscErrorCode FDPDEEnthalpySetPotentialTemp(FDPDE fd, PetscErrorCode(*form_TP)(PetscScalar,PetscScalar,PetscScalar*,void*),void *data)
 {
   EnthalpyData   *en;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
@@ -704,7 +689,7 @@ PetscErrorCode FDPDEEnthalpySetPotentialTemp(FDPDE fd, PetscErrorCode(*form_TP)(
   en->form_TP = form_TP;
   en->user_context_tp = data;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -718,7 +703,6 @@ Use: user
 PetscErrorCode FDPDEEnthalpySetUserBC(FDPDE fd, PetscErrorCode(*form_user_bc)(DM,Vec,PetscScalar***,void*),void *data)
 {
   EnthalpyData   *en;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
@@ -728,7 +712,7 @@ PetscErrorCode FDPDEEnthalpySetUserBC(FDPDE fd, PetscErrorCode(*form_user_bc)(DM
   en->form_user_bc = form_user_bc;
   en->user_context_bc = data;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -769,7 +753,6 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
   PetscScalar    ***xx, *xE, ***_xlocal, ***_Plocal;
   EnthalpyData   *en;
   PetscLogDouble tlog[2];
-  PetscErrorCode ierr;
   PetscFunctionBegin;
   
   PetscTime(&tlog[0]);
@@ -782,37 +765,37 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
   dof_new = nvars + 3*en->ncomponents;
   
   // create new dm with all variables in center
-  ierr = DMStagCreateCompatibleDMStag(dm,0,0,dof_new,0,&dmnew); CHKERRQ(ierr);
-  ierr = DMSetUp(dmnew); CHKERRQ(ierr);
-  ierr = DMStagSetUniformCoordinatesProduct(dmnew,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  PetscCall(DMStagCreateCompatibleDMStag(dm,0,0,dof_new,0,&dmnew)); 
+  PetscCall(DMSetUp(dmnew)); 
+  PetscCall(DMStagSetUniformCoordinatesProduct(dmnew,fd->x0,fd->x1,fd->z0,fd->z1,0.0,0.0));
+  PetscCall(DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
   
   // create global vector
-  ierr = DMCreateGlobalVector(dmnew,&xnew);CHKERRQ(ierr);
-  ierr = DMCreateLocalVector(dmnew, &xnewlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dmnew, xnewlocal, &xx); CHKERRQ(ierr);
+  PetscCall(DMCreateGlobalVector(dmnew,&xnew));
+  PetscCall(DMCreateLocalVector(dmnew, &xnewlocal)); 
+  PetscCall(DMStagVecGetArray(dmnew, xnewlocal, &xx)); 
   
-  ierr = DMGetLocalVector(dm,&xlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dm,xlocal,&_xlocal); CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dm,&xlocal)); 
+  PetscCall(DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal)); 
+  PetscCall(DMStagVecGetArray(dm,xlocal,&_xlocal)); 
   
-  ierr = DMGetLocalVector(en->dmP, &Plocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (en->dmP, en->xP, INSERT_VALUES, Plocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(en->dmP,Plocal,&_Plocal);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(en->dmP, &Plocal)); 
+  PetscCall(DMGlobalToLocal (en->dmP, en->xP, INSERT_VALUES, Plocal)); 
+  PetscCall(DMStagVecGetArrayRead(en->dmP,Plocal,&_Plocal));
   
-  ierr = PetscCalloc1(dof_sol,&xE); CHKERRQ(ierr);
-  ierr = PetscCalloc1(dof_sol,&dm_slot);CHKERRQ(ierr);
-  ierr = PetscCalloc1(dof_new,&dmnew_slot);CHKERRQ(ierr);
+  PetscCall(PetscCalloc1(dof_sol,&xE)); 
+  PetscCall(PetscCalloc1(dof_sol,&dm_slot));
+  PetscCall(PetscCalloc1(dof_new,&dmnew_slot));
   
   // get slot indices
-  ierr = DMStagGetLocationSlot(en->dmP,DMSTAG_ELEMENT,0,&dmP_slot); CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(en->dmP,DMSTAG_ELEMENT,0,&dmP_slot)); 
 
   for (c=0; c<dof_sol; c++) {
-    ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,c,&dm_slot[c]);CHKERRQ(ierr);
+    PetscCall(DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,c,&dm_slot[c]));
   }
   
   for (c=0; c<dof_new; c++) {
-    ierr = DMStagGetLocationSlot(dmnew,DMSTAG_ELEMENT,c,&dmnew_slot[c]);CHKERRQ(ierr);
+    PetscCall(DMStagGetLocationSlot(dmnew,DMSTAG_ELEMENT,c,&dmnew_slot[c]));
   }
 
   // loop
@@ -840,13 +823,13 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
       P = _Plocal[j][i][dmP_slot];
       
       // calculate enthalpy method
-      thermo_dyn_error_code = en->form_enthalpy_method(H,C,P,&T,&phi,CF,CS,en->ncomponents,en->user_context);CHKERRQ(ierr);
+      thermo_dyn_error_code = en->form_enthalpy_method(H,C,P,&T,&phi,CF,CS,en->ncomponents,en->user_context);
       if (thermo_dyn_error_code != 0) {
         SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SIG,"A successful Enthalpy Method is required but has failed! Investigate the enthalpy failure reports for detailed information.");
       }
       
       // update TP
-      if (en->form_TP) { ierr = en->form_TP(T,P,&TP,en->user_context_tp);CHKERRQ(ierr); }
+      if (en->form_TP) { PetscCall(en->form_TP(T,P,&TP,en->user_context_tp)); }
       else TP = T;
       
       {
@@ -874,32 +857,32 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
     }
   }
   
-  ierr = PetscFree(dm_slot);CHKERRQ(ierr);
-  ierr = PetscFree(dmnew_slot);CHKERRQ(ierr);
-  ierr = PetscFree(xE);CHKERRQ(ierr);
+  PetscCall(PetscFree(dm_slot));
+  PetscCall(PetscFree(dmnew_slot));
+  PetscCall(PetscFree(xE));
   
-  ierr = DMStagVecRestoreArray(dm,xlocal,&_xlocal); CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArray(dmnew,xnewlocal,&xx);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dmnew,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dmnew,xnewlocal,INSERT_VALUES,xnew); CHKERRQ(ierr);
-  ierr = VecDestroy(&xnewlocal); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
+  PetscCall(DMStagVecRestoreArray(dm,xlocal,&_xlocal)); 
+  PetscCall(DMStagVecRestoreArray(dmnew,xnewlocal,&xx));
+  PetscCall(DMLocalToGlobalBegin(dmnew,xnewlocal,INSERT_VALUES,xnew)); 
+  PetscCall(DMLocalToGlobalEnd  (dmnew,xnewlocal,INSERT_VALUES,xnew)); 
+  PetscCall(VecDestroy(&xnewlocal)); 
+  PetscCall(DMRestoreLocalVector(dm,&xlocal)); 
 
-  ierr = DMStagVecRestoreArrayRead(en->dmP,Plocal,&_Plocal);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(en->dmP, &Plocal); CHKERRQ(ierr);
+  PetscCall(DMStagVecRestoreArrayRead(en->dmP,Plocal,&_Plocal));
+  PetscCall(DMRestoreLocalVector(en->dmP, &Plocal)); 
   
   if (_dmnew) *_dmnew = dmnew;
-  else { ierr = DMDestroy(&dmnew);CHKERRQ(ierr); }
+  else { PetscCall(DMDestroy(&dmnew)); }
   
   if (_xnew) *_xnew  = xnew;
-  else { ierr = VecDestroy(&xnew);CHKERRQ(ierr); }
+  else { PetscCall(VecDestroy(&xnew)); }
 
   PetscTime(&tlog[1]);
   if (fd->log_info) {
     printf("  FDPDEEnthalpyUpdateDiagnostics: total              %1.2e\n",tlog[1]-tlog[0]);
   }
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -923,8 +906,6 @@ Use: user
 PetscErrorCode FDPDEEnthalpyGetPressure(FDPDE fd, DM *dmP, Vec *xP)
 {
   EnthalpyData   *en;
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
@@ -934,14 +915,14 @@ PetscErrorCode FDPDEEnthalpyGetPressure(FDPDE fd, DM *dmP, Vec *xP)
 
   if (dmP) { 
     *dmP = en->dmP;
-    ierr = PetscObjectReference((PetscObject)en->dmP);CHKERRQ(ierr); 
+    PetscCall(PetscObjectReference((PetscObject)en->dmP)); 
   }
   if (xP) { 
     *xP  = en->xP;
-    ierr = PetscObjectReference((PetscObject)en->xP);CHKERRQ(ierr); 
+    PetscCall(PetscObjectReference((PetscObject)en->xP)); 
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -965,7 +946,6 @@ Use: user
 PetscErrorCode FDPDEEnthalpyGetPrevPressure(FDPDE fd, Vec *Pprev)
 {
   EnthalpyData   *en;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
@@ -975,8 +955,8 @@ PetscErrorCode FDPDEEnthalpyGetPrevPressure(FDPDE fd, Vec *Pprev)
 
   if (Pprev) {
     *Pprev = en->xPprev;
-    ierr = PetscObjectReference((PetscObject)en->xPprev);CHKERRQ(ierr);
+    PetscCall(PetscObjectReference((PetscObject)en->xPprev));
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

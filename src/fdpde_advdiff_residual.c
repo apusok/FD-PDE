@@ -22,7 +22,6 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
   DMStagBCList   bclist;
   PetscScalar    **coordx,**coordz;
   PetscScalar    ***ff;
-  PetscErrorCode ierr;
 
   PetscFunctionBegin;
 
@@ -42,29 +41,29 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
   // Update BC list
   bclist = fd->bclist;
   if (fd->bclist->evaluate) {
-    ierr = fd->bclist->evaluate(dm,x,bclist,bclist->data);CHKERRQ(ierr);
+    PetscCall(fd->bclist->evaluate(dm,x,bclist,bclist->data));
   }
 
   // Update coefficients
-  ierr = fd->ops->form_coefficient(fd,dm,x,dmcoeff,fd->coeff,fd->user_context);CHKERRQ(ierr);
+  PetscCall(fd->ops->form_coefficient(fd,dm,x,dmcoeff,fd->coeff,fd->user_context));
 
   // Get local domain
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  PetscCall(DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
 
   // Map global vectors to local domain
-  ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dm, &xlocal)); 
+  PetscCall(DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal)); 
 
-  ierr = DMGetLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dmcoeff, &coefflocal)); 
+  PetscCall(DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal)); 
 
   // Map the previous time step vectors
   if (ad->timesteptype != TS_NONE) {
-    ierr = DMGetLocalVector(dm, &xprevlocal); CHKERRQ(ierr);
-    ierr = DMGlobalToLocal (dm, ad->xprev, INSERT_VALUES, xprevlocal); CHKERRQ(ierr);
+    PetscCall(DMGetLocalVector(dm, &xprevlocal)); 
+    PetscCall(DMGlobalToLocal (dm, ad->xprev, INSERT_VALUES, xprevlocal)); 
 
-    ierr = DMGetLocalVector(dmcoeff, &coeffprevlocal); CHKERRQ(ierr);
-    ierr = DMGlobalToLocal (dmcoeff, ad->coeffprev, INSERT_VALUES, coeffprevlocal); CHKERRQ(ierr);
+    PetscCall(DMGetLocalVector(dmcoeff, &coeffprevlocal)); 
+    PetscCall(DMGlobalToLocal (dmcoeff, ad->coeffprev, INSERT_VALUES, coeffprevlocal)); 
 
     // Check time step
     if (!ad->dt) {
@@ -73,42 +72,42 @@ PetscErrorCode FormFunction_AdvDiff(SNES snes, Vec x, Vec f, void *ctx)
   }
 
   // Get dm coordinates array
-  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL));
 
   // Create residual local vector
-  ierr = DMCreateLocalVector(dm, &flocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dm, flocal, &ff); CHKERRQ(ierr);
+  PetscCall(DMCreateLocalVector(dm, &flocal)); 
+  PetscCall(DMStagVecGetArray(dm, flocal, &ff)); 
 
   // Loop over elements
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
-      ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j,-1,0.0,fd->dm_btype0,fd->dm_btype1,&fval); CHKERRQ(ierr);
-      ierr = DMStagGetLocationSlot(dm, DMSTAG_ELEMENT, 0, &idx); CHKERRQ(ierr);
+      PetscCall(AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j,-1,0.0,fd->dm_btype0,fd->dm_btype1,&fval)); 
+      PetscCall(DMStagGetLocationSlot(dm, DMSTAG_ELEMENT, 0, &idx)); 
       ff[j][i][idx] = fval;
     }
   }
 
   // Boundary conditions - only element dofs
-  ierr = DMStagBCListApply_AdvDiff(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,ad,Nx,Nz,fd->dm_btype0,fd->dm_btype1,ff);CHKERRQ(ierr);
+  PetscCall(DMStagBCListApply_AdvDiff(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,bclist->bc_e,bclist->nbc_element,coordx,coordz,ad,Nx,Nz,fd->dm_btype0,fd->dm_btype1,ff));
 
   // Restore arrays, local vectors
-  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArray(dm,flocal,&ff); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmcoeff,&coefflocal); CHKERRQ(ierr);
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL));
+  PetscCall(DMStagVecRestoreArray(dm,flocal,&ff)); 
+  PetscCall(DMRestoreLocalVector(dm,&xlocal)); 
+  PetscCall(DMRestoreLocalVector(dmcoeff,&coefflocal)); 
 
   if (ad->timesteptype != TS_NONE) {
-    ierr = DMRestoreLocalVector(dm, &xprevlocal); CHKERRQ(ierr);
-    ierr = DMRestoreLocalVector(dmcoeff, &coeffprevlocal); CHKERRQ(ierr);
+    PetscCall(DMRestoreLocalVector(dm, &xprevlocal)); 
+    PetscCall(DMRestoreLocalVector(dmcoeff, &coeffprevlocal)); 
   }
 
   // Map local to global
-  ierr = DMLocalToGlobalBegin(dm,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dm,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
+  PetscCall(DMLocalToGlobalBegin(dm,flocal,INSERT_VALUES,f)); 
+  PetscCall(DMLocalToGlobalEnd  (dm,flocal,INSERT_VALUES,f)); 
 
-  ierr = VecDestroy(&flocal); CHKERRQ(ierr);
+  PetscCall(VecDestroy(&flocal)); 
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -125,28 +124,26 @@ PetscErrorCode AdvDiffResidual(DM dm, Vec xlocal, DM dmcoeff,Vec coefflocal, Vec
   PetscScalar   A, A0, A1;
   DMStagStencil point;
 
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
 
   if (ad->timesteptype == TS_NONE) {
     // steady-state operator
-    ierr = AdvDiffSteadyStateOperator(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,ad->dt,bc_type,bc_val,dm_btype0,dm_btype1,&fval,&A); CHKERRQ(ierr);
+    PetscCall(AdvDiffSteadyStateOperator(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,ad->dt,bc_type,bc_val,dm_btype0,dm_btype1,&fval,&A)); 
   } else { 
     // time-dependent solution
-    ierr = AdvDiffSteadyStateOperator(dm,xprevlocal,dmcoeff,coeffprevlocal,coordx,coordz,i,j,ad->advtype,ad->dt,bc_type,bc_val,dm_btype0,dm_btype1,&fval0,&A0); CHKERRQ(ierr);
-    ierr = AdvDiffSteadyStateOperator(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,ad->dt,bc_type,bc_val,dm_btype0,dm_btype1,&fval1,&A1); CHKERRQ(ierr);
+    PetscCall(AdvDiffSteadyStateOperator(dm,xprevlocal,dmcoeff,coeffprevlocal,coordx,coordz,i,j,ad->advtype,ad->dt,bc_type,bc_val,dm_btype0,dm_btype1,&fval0,&A0)); 
+    PetscCall(AdvDiffSteadyStateOperator(dm,xlocal,dmcoeff,coefflocal,coordx,coordz,i,j,ad->advtype,ad->dt,bc_type,bc_val,dm_btype0,dm_btype1,&fval1,&A1)); 
 
     point.i = i; point.j = j; point.loc = DMSTAG_ELEMENT; point.c = 0;
-    ierr = DMStagVecGetValuesStencil(dm,xlocal,1,&point,&xx); CHKERRQ(ierr);
-    ierr = DMStagVecGetValuesStencil(dm,xprevlocal,1,&point,&xxprev); CHKERRQ(ierr);
+    PetscCall(DMStagVecGetValuesStencil(dm,xlocal,1,&point,&xx)); 
+    PetscCall(DMStagVecGetValuesStencil(dm,xprevlocal,1,&point,&xxprev)); 
 
     fval = xx - xxprev + ad->dt*(ad->theta*fval1/A1 + (1-ad->theta)*fval0/A0 );
   }
 
   *_fval = fval;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -165,13 +162,12 @@ PetscErrorCode AdvDiffSteadyStateOperator(DM dm, Vec xlocal, DM dmcoeff,Vec coef
   PetscScalar    A, B_Left, B_Right, B_Up, B_Down, C;
   PetscScalar    dQ2dx, dQ2dz, diff, adv;
   DMStagStencil  point[10];
-  PetscErrorCode ierr;
 
   PetscFunctionBegin;
 
   // Get variables
-  ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr); 
-  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr); 
+  PetscCall(DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL)); 
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter)); 
 
   // Coefficients
   point[0].i = i; point[0].j = j; point[0].loc = DMSTAG_ELEMENT; point[0].c = 0; // A
@@ -185,7 +181,7 @@ PetscErrorCode AdvDiffSteadyStateOperator(DM dm, Vec xlocal, DM dmcoeff,Vec coef
   point[8].i = i; point[8].j = j; point[8].loc = DMSTAG_DOWN;    point[8].c = 1; // u_down
   point[9].i = i; point[9].j = j; point[9].loc = DMSTAG_UP;      point[9].c = 1; // u_up
 
-  ierr = DMStagVecGetValuesStencil(dmcoeff,coefflocal,10,point,cx); CHKERRQ(ierr);
+  PetscCall(DMStagVecGetValuesStencil(dmcoeff,coefflocal,10,point,cx)); 
 
   // Assign variables
   A = cx[0];
@@ -244,7 +240,7 @@ PetscErrorCode AdvDiffSteadyStateOperator(DM dm, Vec xlocal, DM dmcoeff,Vec coef
     if (j == Nz-1) { point[4] = point[0]; point[8] = point[3]; }
   }
 
-  ierr = DMStagVecGetValuesStencil(dm,xlocal,9,point,xx); CHKERRQ(ierr);
+  PetscCall(DMStagVecGetValuesStencil(dm,xlocal,9,point,xx)); 
 
   // add Neumann BC
   if (bc_type == 0) { xx[1] = xx[0] - bc_val*dx[1]; xx[5] = xx[2] - 3.0*bc_val*dx[1]; } // left 
@@ -262,13 +258,13 @@ PetscErrorCode AdvDiffSteadyStateOperator(DM dm, Vec xlocal, DM dmcoeff,Vec coef
   diff = dQ2dx/dx[2] + dQ2dz/dz[2];
 
   // Calculate diffadv residual
-  ierr = AdvectionResidual(u,xx,dx,dz,dt,advtype,&adv); CHKERRQ(ierr);
+  PetscCall(AdvectionResidual(u,xx,dx,dz,dt,advtype,&adv)); 
   ffi  = A*adv - diff + C;
 
   *ff = ffi;
   *_A = A;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -284,8 +280,7 @@ PetscErrorCode DMStagBCListApply_AdvDiff(DM dm, Vec xlocal,DM dmcoeff, Vec coeff
 {
   PetscScalar    xx, fval;
   PetscInt       i, j, ibc, idx;
-  PetscErrorCode ierr;
-  PetscFunctionBeginUser;
+  PetscFunctionBegin;
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
@@ -294,7 +289,7 @@ PetscErrorCode DMStagBCListApply_AdvDiff(DM dm, Vec xlocal,DM dmcoeff, Vec coeff
       i   = bclist[ibc].point.i;
       j   = bclist[ibc].point.j;
       idx = bclist[ibc].idx;
-      ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j,-1,0.0,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
+      PetscCall(AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j,-1,0.0,dm_btype0,dm_btype1,&fval)); 
       ff[j][i][idx] = fval;
     }
 
@@ -308,7 +303,7 @@ PetscErrorCode DMStagBCListApply_AdvDiff(DM dm, Vec xlocal,DM dmcoeff, Vec coeff
       idx = bclist[ibc].idx;
 
       // Get residual value
-      ierr = DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx); CHKERRQ(ierr);
+      PetscCall(DMStagVecGetValuesStencil(dm, xlocal, 1, &bclist[ibc].point, &xx)); 
       ff[j][i][idx] = xx - bclist[ibc].val;
     }
 
@@ -319,32 +314,32 @@ PetscErrorCode DMStagBCListApply_AdvDiff(DM dm, Vec xlocal,DM dmcoeff, Vec coeff
       idx = bclist[ibc].idx;
 
       if (i == 0) { // left
-        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i  ,j,0,bclist[ibc].val,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
+        PetscCall(AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i  ,j,0,bclist[ibc].val,dm_btype0,dm_btype1,&fval)); 
         ff[j][i  ][idx] = fval;
-        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i+1,j,4,bclist[ibc].val,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
+        PetscCall(AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i+1,j,4,bclist[ibc].val,dm_btype0,dm_btype1,&fval)); 
         ff[j][i+1][idx] = fval;
       }
       if (i == Nx-1) { // right
-        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i  ,j,1,bclist[ibc].val,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
+        PetscCall(AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i  ,j,1,bclist[ibc].val,dm_btype0,dm_btype1,&fval)); 
         ff[j][i  ][idx] = fval;
-        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i-1,j,5,bclist[ibc].val,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
+        PetscCall(AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i-1,j,5,bclist[ibc].val,dm_btype0,dm_btype1,&fval)); 
         ff[j][i-1][idx] = fval;
       }
       if (j == 0) { // down
-        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j  ,2,bclist[ibc].val,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
+        PetscCall(AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j  ,2,bclist[ibc].val,dm_btype0,dm_btype1,&fval)); 
         ff[j  ][i][idx] = fval;
-        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j+1,6,bclist[ibc].val,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
+        PetscCall(AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j+1,6,bclist[ibc].val,dm_btype0,dm_btype1,&fval)); 
         ff[j+1][i][idx] = fval;
       }
       if (j == Nz-1) { // up
-        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j  ,3,bclist[ibc].val,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
+        PetscCall(AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j  ,3,bclist[ibc].val,dm_btype0,dm_btype1,&fval)); 
         ff[j  ][i][idx] = fval;
-        ierr = AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j-1,7,bclist[ibc].val,dm_btype0,dm_btype1,&fval); CHKERRQ(ierr);
+        PetscCall(AdvDiffResidual(dm,xlocal,dmcoeff,coefflocal,xprevlocal,coeffprevlocal,coordx,coordz,ad,i,j-1,7,bclist[ibc].val,dm_btype0,dm_btype1,&fval)); 
         ff[j-1][i][idx] = fval;
       }
     }
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 

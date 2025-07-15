@@ -61,7 +61,7 @@ PetscErrorCode AdvectionResidual(PetscScalar v[], PetscScalar x[], PetscScalar d
 
   *val = fval;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------

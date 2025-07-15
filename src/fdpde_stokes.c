@@ -31,11 +31,10 @@ Use: internal
 #define __FUNCT__ "FDPDECreate_Stokes"
 PetscErrorCode FDPDECreate_Stokes(FDPDE fd)
 {
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   // Initialize data
-  ierr = PetscStrallocpy(stokes_description,&fd->description); CHKERRQ(ierr);
+  PetscCall(PetscStrallocpy(stokes_description,&fd->description)); 
 
   // STOKES Stencil dofs: dmstag - Vx, Vz (edges), P (element)
   fd->dof0  = 0; fd->dof1  = 1; fd->dof2  = 1; 
@@ -51,7 +50,7 @@ PetscErrorCode FDPDECreate_Stokes(FDPDE fd)
   fd->ops->destroy             = NULL;
   fd->data                     = NULL;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -72,22 +71,20 @@ PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd,Mat J)
   const PetscInt nEntries=STENCIL_STOKES_MOMENTUM_NONLIN;
   PetscScalar    *xx;
   DMStagStencil  *point;
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
+  PetscFunctionBegin;
 
   // Assign pointers and other variables
   Nx = fd->Nx;
   Nz = fd->Nz;
 
   // MatPreallocate begin
-  ierr = MatPreallocatePhaseBegin(J, &preallocator); CHKERRQ(ierr);
+  PetscCall(MatPreallocatePhaseBegin(J, &preallocator)); 
   
   // Get local domain
-  ierr = DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  PetscCall(DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
   
-  ierr = PetscCalloc1(nEntries,&xx); CHKERRQ(ierr);
-  ierr = PetscCalloc1(nEntries,&point); CHKERRQ(ierr);
+  PetscCall(PetscCalloc1(nEntries,&xx)); 
+  PetscCall(PetscCalloc1(nEntries,&point)); 
 
   if (!fd->linearsolve) nEntries_true = STENCIL_STOKES_MOMENTUM_NONLIN;
   else                  nEntries_true = STENCIL_STOKES_MOMENTUM_LIN;
@@ -97,40 +94,40 @@ PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd,Mat J)
     for (i = sx; i<sx+nx; i++) {
 
       // Continuity equation 
-      ierr = ContinuityStencil(i,j,point); CHKERRQ(ierr);
-      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,5,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      PetscCall(ContinuityStencil(i,j,point)); 
+      PetscCall(DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,5,point,xx,INSERT_VALUES));
 
       // X-momentum equation 
-      ierr = XMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,0); CHKERRQ(ierr);
-      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      PetscCall(XMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,0)); 
+      PetscCall(DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES)); 
 
       if (i==Nx-1){
-        ierr = XMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,1); CHKERRQ(ierr);
-        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+        PetscCall(XMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,1)); 
+        PetscCall(DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES)); 
       }
 
       // Z-momentum equation 
-      ierr = ZMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,0); CHKERRQ(ierr);
-      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      PetscCall(ZMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,0)); 
+      PetscCall(DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES)); 
 
       if (j==Nz-1){
-        ierr = ZMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,1); CHKERRQ(ierr);
-      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+        PetscCall(ZMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,1)); 
+        PetscCall(DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES)); 
       }
     }
   }
   
   // Push the non-zero pattern defined within preallocator into the Jacobian
-  ierr = MatPreallocatePhaseEnd(J); CHKERRQ(ierr);
+  PetscCall(MatPreallocatePhaseEnd(J)); 
 
   // Matrix assembly
-  ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-  ierr = MatAssemblyEnd  (J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+  PetscCall(MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY)); 
+  PetscCall(MatAssemblyEnd  (J,MAT_FINAL_ASSEMBLY)); 
 
-  ierr = PetscFree(xx);CHKERRQ(ierr);
-  ierr = PetscFree(point);CHKERRQ(ierr);
+  PetscCall(PetscFree(xx));
+  PetscCall(PetscFree(point));
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -144,11 +141,10 @@ PetscErrorCode JacobianPreallocator_Stokes(FDPDE fd,Mat J)
 #define __FUNCT__ "JacobianCreate_Stokes"
 PetscErrorCode JacobianCreate_Stokes(FDPDE fd,Mat *J)
 {
-  PetscErrorCode ierr;
   PetscFunctionBegin;
-  ierr = DMCreateMatrix(fd->dmstag,J); CHKERRQ(ierr);
-  ierr = JacobianPreallocator_Stokes(fd,*J);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(DMCreateMatrix(fd->dmstag,J)); 
+  PetscCall(JacobianPreallocator_Stokes(fd,*J));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -166,7 +162,7 @@ PetscErrorCode ContinuityStencil(PetscInt i,PetscInt j, DMStagStencil *point)
   point[2].i = i; point[2].j = j; point[2].loc = DMSTAG_RIGHT;   point[2].c = 0;
   point[3].i = i; point[3].j = j; point[3].loc = DMSTAG_DOWN;    point[3].c = 0;
   point[4].i = i; point[4].j = j; point[4].loc = DMSTAG_UP;      point[4].c = 0;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -296,7 +292,7 @@ PetscErrorCode XMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, 
     }
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -424,5 +420,5 @@ PetscErrorCode ZMomentumStencil(PetscInt i,PetscInt j,PetscInt Nx, PetscInt Nz, 
       point[26] = point[0]; 
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -67,16 +67,15 @@ typedef struct {
 
 PetscErrorCode EnthalpyPackCtx_InitDM(DM dm, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, PetscScalar **cx,PetscScalar **cz,EnthalpyPackCtx *ctx)
 {
-  PetscErrorCode ierr;
   ctx->dm = dm;
   ctx->dm_btype0 = dm_btype0;
   ctx->dm_btype1 = dm_btype1;
   ctx->coordx = (const PetscScalar**)cx;
   ctx->coordz = (const PetscScalar**)cz;
-  ierr = DMStagGetCorners(dm, &ctx->sx, &ctx->sz, NULL, &ctx->nx, &ctx->nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGetGlobalSizes(dm,&ctx->Nx,&ctx->Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&ctx->icenter);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(DMStagGetCorners(dm, &ctx->sx, &ctx->sz, NULL, &ctx->nx, &ctx->nz, NULL, NULL, NULL, NULL)); 
+  PetscCall(DMStagGetGlobalSizes(dm,&ctx->Nx,&ctx->Nz,NULL));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&ctx->icenter));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode EnthalpyPackCtx_InitState(ThermoState *thm,ThermoState *thm_k,
@@ -89,7 +88,7 @@ PetscErrorCode EnthalpyPackCtx_InitState(ThermoState *thm,ThermoState *thm_k,
   ctx->cff      = (const CoeffState*)cff;
   ctx->cff_prev = (const CoeffState*)cff_k;
   ctx->en       = (const EnthalpyData*)en;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode EnthalpyPackCtx_Init_IJ(PetscInt i,PetscInt j,PetscInt icomp,EnthalpyPackCtx *ctx)
@@ -97,7 +96,7 @@ PetscErrorCode EnthalpyPackCtx_Init_IJ(PetscInt i,PetscInt j,PetscInt icomp,Enth
   ctx->i = i;
   ctx->j = j;
   ctx->icomp = icomp;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode EnthalpyResidual_pack(EnthalpyPackCtx*,PetscScalar*);
@@ -135,7 +134,6 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   DMStagBCList   bclist;
   PetscScalar    **coordx,**coordz;
   PetscScalar    ***ff;
-  PetscErrorCode ierr;
   PetscLogDouble tlog[11];
   PetscInt       slot_h,slot_c[20];
   EnthalpyPackCtx pack;
@@ -158,27 +156,27 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   Nz = fd->Nz;
 
   // Get local domain
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
+  PetscCall(DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL));
 
   // Create residual local vector
-  ierr = DMCreateLocalVector(dm, &flocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dm, flocal, &ff); CHKERRQ(ierr);
+  PetscCall(DMCreateLocalVector(dm, &flocal)); 
+  PetscCall(DMStagVecGetArray(dm, flocal, &ff)); 
 
   // Map global vectors to local domain
-  ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
-  ierr = DMGetLocalVector(dmP, &Plocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmP, en->xP, INSERT_VALUES, Plocal); CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dm, &xlocal)); 
+  PetscCall(DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal)); 
+  PetscCall(DMGetLocalVector(dmP, &Plocal)); 
+  PetscCall(DMGlobalToLocal (dmP, en->xP, INSERT_VALUES, Plocal)); 
 
   // Map the previous time step vectors
   if (en->timesteptype != TS_NONE) {
-    ierr = DMGetLocalVector(dm, &xprevlocal); CHKERRQ(ierr);
-    ierr = DMGlobalToLocal (dm, en->xprev, INSERT_VALUES, xprevlocal); CHKERRQ(ierr);
-    ierr = DMGetLocalVector(dmcoeff, &coeffprevlocal); CHKERRQ(ierr);
-    ierr = DMGlobalToLocal (dmcoeff, en->coeffprev, INSERT_VALUES, coeffprevlocal); CHKERRQ(ierr);
-    ierr = DMGetLocalVector(dmP, &Pprevlocal); CHKERRQ(ierr);
-    ierr = DMGlobalToLocal (dmP, en->xPprev, INSERT_VALUES, Pprevlocal); CHKERRQ(ierr);
+    PetscCall(DMGetLocalVector(dm, &xprevlocal)); 
+    PetscCall(DMGlobalToLocal (dm, en->xprev, INSERT_VALUES, xprevlocal)); 
+    PetscCall(DMGetLocalVector(dmcoeff, &coeffprevlocal)); 
+    PetscCall(DMGlobalToLocal (dmcoeff, en->coeffprev, INSERT_VALUES, coeffprevlocal)); 
+    PetscCall(DMGetLocalVector(dmP, &Pprevlocal)); 
+    PetscCall(DMGlobalToLocal (dmP, en->xPprev, INSERT_VALUES, Pprevlocal)); 
 
     // Check time step
     if (!en->dt) {
@@ -188,55 +186,55 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   PetscTime(&tlog[1]);
 
   if (en->timesteptype != TS_NONE) {
-    ierr = PetscCalloc1((size_t)((nx+4)*(nz+4)),&thm_prev);CHKERRQ(ierr);
-    ierr = PetscCalloc1((size_t)((nx+4)*(nz+4)),&cff_prev);CHKERRQ(ierr);
-    ierr = ApplyEnthalpyMethod(fd,dm,xprevlocal,dmP,Pprevlocal,fd->dm_btype0,fd->dm_btype1,en,thm_prev,"prev"); CHKERRQ(ierr);
-    ierr = UpdateCoeffStructure(fd,dmcoeff,coeffprevlocal,cff_prev);CHKERRQ(ierr);
+    PetscCall(PetscCalloc1((size_t)((nx+4)*(nz+4)),&thm_prev));
+    PetscCall(PetscCalloc1((size_t)((nx+4)*(nz+4)),&cff_prev));
+    PetscCall(ApplyEnthalpyMethod(fd,dm,xprevlocal,dmP,Pprevlocal,fd->dm_btype0,fd->dm_btype1,en,thm_prev,"prev")); 
+    PetscCall(UpdateCoeffStructure(fd,dmcoeff,coeffprevlocal,cff_prev));
   }
   PetscTime(&tlog[2]);
 
   // update enthalpy and coeff cell data
-  ierr = PetscCalloc1((size_t)((nx+4)*(nz+4)),&thm);CHKERRQ(ierr);
-  ierr = PetscCalloc1((size_t)((nx+4)*(nz+4)),&cff);CHKERRQ(ierr);
-  ierr = ApplyEnthalpyMethod(fd,dm,xlocal,dmP,Plocal,fd->dm_btype0,fd->dm_btype1,en,thm,NULL); CHKERRQ(ierr);
+  PetscCall(PetscCalloc1((size_t)((nx+4)*(nz+4)),&thm));
+  PetscCall(PetscCalloc1((size_t)((nx+4)*(nz+4)),&cff));
+  PetscCall(ApplyEnthalpyMethod(fd,dm,xlocal,dmP,Plocal,fd->dm_btype0,fd->dm_btype1,en,thm,NULL)); 
   PetscTime(&tlog[3]);
 
   // Update coefficients after enthalpy (for dependency of coeff on porosity)
-  ierr = fd->ops->form_coefficient(fd,dm,x,dmcoeff,fd->coeff,fd->user_context);CHKERRQ(ierr);
+  PetscCall(fd->ops->form_coefficient(fd,dm,x,dmcoeff,fd->coeff,fd->user_context));
   PetscTime(&tlog[4]);
   
-  ierr = DMGetLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
-  ierr = UpdateCoeffStructure(fd,dmcoeff,coefflocal,cff);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dmcoeff, &coefflocal)); 
+  PetscCall(DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal)); 
+  PetscCall(UpdateCoeffStructure(fd,dmcoeff,coefflocal,cff));
   PetscTime(&tlog[5]);
 
   // Update BC list
   bclist = fd->bclist;
   if (fd->bclist->evaluate) {
-    ierr = fd->bclist->evaluate(dm,x,bclist,bclist->data);CHKERRQ(ierr);
+    PetscCall(fd->bclist->evaluate(dm,x,bclist,bclist->data));
   }
   PetscTime(&tlog[6]);
 
   // Residual evaluation
-  ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,0,&slot_h); CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,0,&slot_h)); 
   for (ii = 0; ii<en->ncomponents-1; ii++) { // solve only for the first N-1 components
-    ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,ii+1,&slot_c[ii]); CHKERRQ(ierr);
+    PetscCall(DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,ii+1,&slot_c[ii])); 
   }
   
-  ierr = EnthalpyPackCtx_InitDM(dm,fd->dm_btype0,fd->dm_btype1,coordx,coordz,&pack);CHKERRQ(ierr);
-  ierr = EnthalpyPackCtx_InitState(thm,thm_prev,cff,cff_prev,en,&pack);CHKERRQ(ierr);
+  PetscCall(EnthalpyPackCtx_InitDM(dm,fd->dm_btype0,fd->dm_btype1,coordx,coordz,&pack));
+  PetscCall(EnthalpyPackCtx_InitState(thm,thm_prev,cff,cff_prev,en,&pack));
 
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
       // enthalpy
-      ierr = EnthalpyPackCtx_Init_IJ(i,j,-1,&pack);CHKERRQ(ierr);
-      ierr = EnthalpyResidual_pack(&pack,&fval); CHKERRQ(ierr);
+      PetscCall(EnthalpyPackCtx_Init_IJ(i,j,-1,&pack));
+      PetscCall(EnthalpyResidual_pack(&pack,&fval)); 
       ff[j][i][slot_h] = fval;
 
       // bulk composition
       for (ii = 0; ii<en->ncomponents-1; ii++) { // solve only for the first N-1 components
-        ierr = EnthalpyPackCtx_Init_IJ(i,j,ii,&pack);CHKERRQ(ierr);
-        ierr = BulkCompositionResidual_pack(&pack,&fval); CHKERRQ(ierr);
+        PetscCall(EnthalpyPackCtx_Init_IJ(i,j,ii,&pack));
+        PetscCall(BulkCompositionResidual_pack(&pack,&fval)); 
         ff[j][i][slot_c[ii]] = fval;
       }
     }
@@ -245,35 +243,35 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
 
   // Boundary conditions - only element dofs
   if (en->form_user_bc) { // internal BC
-    ierr = en->form_user_bc(dm,x,ff,en->user_context);CHKERRQ(ierr);
+    PetscCall(en->form_user_bc(dm,x,ff,en->user_context));
   }
   PetscTime(&tlog[8]);
-  ierr = DMStagBCListApply_Enthalpy(dm,xlocal,bclist->bc_e,bclist->nbc_element,ff,pack);CHKERRQ(ierr);
+  PetscCall(DMStagBCListApply_Enthalpy(dm,xlocal,bclist->bc_e,bclist->nbc_element,ff,pack));
   PetscTime(&tlog[9]);
 
   // Restore arrays, local vectors
-  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArray(dm,flocal,&ff); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmcoeff,&coefflocal); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmP, &Plocal); CHKERRQ(ierr);
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL));
+  PetscCall(DMStagVecRestoreArray(dm,flocal,&ff)); 
+  PetscCall(DMRestoreLocalVector(dm,&xlocal)); 
+  PetscCall(DMRestoreLocalVector(dmcoeff,&coefflocal)); 
+  PetscCall(DMRestoreLocalVector(dmP, &Plocal)); 
 
-  ierr = PetscFree(thm);CHKERRQ(ierr);
-  ierr = PetscFree(cff);CHKERRQ(ierr);
+  PetscCall(PetscFree(thm));
+  PetscCall(PetscFree(cff));
 
   if (en->timesteptype != TS_NONE) {
-    ierr = PetscFree(thm_prev);CHKERRQ(ierr);
-    ierr = PetscFree(cff_prev);CHKERRQ(ierr);
-    ierr = DMRestoreLocalVector(dm, &xprevlocal); CHKERRQ(ierr);
-    ierr = DMRestoreLocalVector(dmcoeff, &coeffprevlocal); CHKERRQ(ierr);
-    ierr = DMRestoreLocalVector(dmP, &Pprevlocal); CHKERRQ(ierr);
+    PetscCall(PetscFree(thm_prev));
+    PetscCall(PetscFree(cff_prev));
+    PetscCall(DMRestoreLocalVector(dm, &xprevlocal)); 
+    PetscCall(DMRestoreLocalVector(dmcoeff, &coeffprevlocal)); 
+    PetscCall(DMRestoreLocalVector(dmP, &Pprevlocal)); 
   }
 
   // Map local to global
-  ierr = DMLocalToGlobalBegin(dm,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dm,flocal,INSERT_VALUES,f); CHKERRQ(ierr);
+  PetscCall(DMLocalToGlobalBegin(dm,flocal,INSERT_VALUES,f)); 
+  PetscCall(DMLocalToGlobalEnd  (dm,flocal,INSERT_VALUES,f)); 
 
-  ierr = VecDestroy(&flocal); CHKERRQ(ierr);
+  PetscCall(VecDestroy(&flocal)); 
   PetscTime(&tlog[10]);
 
   if (fd->log_info) {
@@ -291,7 +289,7 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
     printf("----------------------------------------------------------------------\n");
   }
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -303,7 +301,6 @@ Use: internal
 PetscErrorCode UpdateCoeffStructure(FDPDE fd, DM dmcoeff,Vec coefflocal,CoeffState *cff)
 {
   PetscInt       i,j,sx,sz,nx,nz,idx;
-  PetscErrorCode ierr;
   
   const PetscReal ***_coeff;
   PetscInt       ii,dof0,dof1,dof2;
@@ -313,9 +310,9 @@ PetscErrorCode UpdateCoeffStructure(FDPDE fd, DM dmcoeff,Vec coefflocal,CoeffSta
   
   PetscFunctionBegin;
   
-  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGetDOF(dmcoeff,&dof0,&dof1,&dof2,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(dmcoeff,coefflocal,&_coeff);CHKERRQ(ierr);
+  PetscCall(DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
+  PetscCall(DMStagGetDOF(dmcoeff,&dof0,&dof1,&dof2,NULL));
+  PetscCall(DMStagVecGetArrayRead(dmcoeff,coefflocal,&_coeff));
 
   for (ii = 0; ii<dof2; ii++) { // element
     DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,ii,&slot_cell[ii]);
@@ -353,9 +350,9 @@ PetscErrorCode UpdateCoeffStructure(FDPDE fd, DM dmcoeff,Vec coefflocal,CoeffSta
       }
     }
   }
-  ierr = DMStagVecRestoreArrayRead(dmcoeff,coefflocal,&_coeff);CHKERRQ(ierr);
+  PetscCall(DMStagVecRestoreArrayRead(dmcoeff,coefflocal,&_coeff));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -372,7 +369,6 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmP, Vec Plocal
   PetscBool      passed = PETSC_TRUE;
   PetscMPIInt    rank;
   PetscBool      flgx = PETSC_FALSE, flgz=PETSC_FALSE;
-  PetscErrorCode ierr;
   
   PetscInt       dof0,dof1,dof2,*dm_slot,dmP_slot;
   const PetscScalar ***_xlocal,***_Plocal;
@@ -382,18 +378,18 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmP, Vec Plocal
   Nx = fd->Nx;
   Nz = fd->Nz;
   
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  PetscCall(DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
+  PetscCall(MPI_Comm_rank(PETSC_COMM_WORLD,&rank));
   
-  ierr = DMStagVecGetArrayRead(dm,xlocal,&_xlocal);CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(dmP,Plocal,&_Plocal);CHKERRQ(ierr);
+  PetscCall(DMStagVecGetArrayRead(dm,xlocal,&_xlocal));
+  PetscCall(DMStagVecGetArrayRead(dmP,Plocal,&_Plocal));
 
-  ierr = DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL);CHKERRQ(ierr);
-  ierr = PetscCalloc1(dof2,&dm_slot); CHKERRQ(ierr);
+  PetscCall(DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL));
+  PetscCall(PetscCalloc1(dof2,&dm_slot)); 
   for (ii = 0; ii<dof2; ii++) {
-    ierr = DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,ii,&dm_slot[ii]); CHKERRQ(ierr);
+    PetscCall(DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,ii,&dm_slot[ii])); 
   }
-  ierr = DMStagGetLocationSlot(dmP,DMSTAG_ELEMENT,0,&dmP_slot); CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmP,DMSTAG_ELEMENT,0,&dmP_slot)); 
   
   if (dm_btype0==DM_BOUNDARY_PERIODIC) flgx = PETSC_TRUE;
   if (dm_btype1==DM_BOUNDARY_PERIODIC) flgz = PETSC_TRUE;
@@ -427,7 +423,7 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmP, Vec Plocal
         thermo_dyn_error_code = en->form_enthalpy_method(H,C,P,&T,&phi,CF,CS,en->ncomponents,en->user_context);
         if (thermo_dyn_error_code != 0) passed = PETSC_FALSE;
         
-        if (en->form_TP) { ierr = en->form_TP(T,P,&TP,en->user_context_tp);CHKERRQ(ierr); }
+        if (en->form_TP) { PetscCall(en->form_TP(T,P,&TP,en->user_context_tp)); }
         else TP = T;
         
         thm[idx].P  = P;
@@ -445,9 +441,9 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmP, Vec Plocal
     }
   }
   
-  ierr = PetscFree(dm_slot);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(dm,xlocal,&_xlocal);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(dmP,Plocal,&_Plocal);CHKERRQ(ierr);
+  PetscCall(PetscFree(dm_slot));
+  PetscCall(DMStagVecRestoreArrayRead(dm,xlocal,&_xlocal));
+  PetscCall(DMStagVecRestoreArrayRead(dmP,Plocal,&_Plocal));
 
   // output failure report to file per rank
   if (!passed) {
@@ -456,21 +452,21 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmP, Vec Plocal
     PetscViewer viewer;
     PetscMPIInt rank;
     
-    ierr = MPI_Comm_rank(fd->comm,&rank);CHKERRQ(ierr);
+    PetscCall(MPI_Comm_rank(fd->comm,&rank));
     if (prefix) PetscSNPrintf(fname,PETSC_MAX_PATH_LEN-1,"enthalpy_failure_%s_%D.rank%D.report",prefix,en->nreports,rank);
     else PetscSNPrintf(fname,PETSC_MAX_PATH_LEN-1,"enthalpy_failure_%D.rank%D.report",en->nreports,rank);
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_SELF,fname,&viewer);CHKERRQ(ierr);
-    ierr = ApplyEnthalpyReport_Failure(fd,viewer,en,thm);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+    PetscCall(PetscViewerASCIIOpen(PETSC_COMM_SELF,fname,&viewer));
+    PetscCall(ApplyEnthalpyReport_Failure(fd,viewer,en,thm));
+    PetscCall(PetscViewerDestroy(&viewer));
     en->nreports++;
     
-    ierr = PetscOptionsGetBool(NULL,NULL,"-stop_enthalpy_failed",&stop_failed,NULL);CHKERRQ(ierr);
+    PetscCall(PetscOptionsGetBool(NULL,NULL,"-stop_enthalpy_failed",&stop_failed,NULL));
     if (stop_failed) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SIG,"The Enthalpy Method has failed! Investigate the enthalpy failure reports for detailed information.");
   }
-  ierr = MPI_Allreduce(&en->nreports,&gnreports,1,MPI_INT,MPI_MAX,fd->comm);CHKERRQ(ierr);
+  PetscCall(MPI_Allreduce(&en->nreports,&gnreports,1,MPI_INT,MPI_MAX,fd->comm));
   en->nreports = gnreports;
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -483,11 +479,10 @@ PetscErrorCode ApplyEnthalpyReport_Failure(FDPDE fd,PetscViewer viewer, Enthalpy
 {
   PetscInt   ii,i,j,sx,sz,nx,nz,idx, its;
   const char *vname;
-  PetscErrorCode ierr;  
 
   PetscFunctionBegin;
 
-  ierr = PetscViewerFileGetName(viewer,&vname);CHKERRQ(ierr);
+  PetscCall(PetscViewerFileGetName(viewer,&vname));
   PetscPrintf(PETSC_COMM_SELF,"=====================================================================\n");
   PetscPrintf(PETSC_COMM_SELF,"====  ENTHALPY METHOD has failed! \n");
   PetscPrintf(PETSC_COMM_SELF,"====  Please inspect the following file to diagnose the problem\n");
@@ -508,12 +503,12 @@ PetscErrorCode ApplyEnthalpyReport_Failure(FDPDE fd,PetscViewer viewer, Enthalpy
 
   PetscViewerASCIIPrintf(viewer,"[SNES summary]\n");
   PetscViewerASCIIPushTab(viewer);
-  ierr = SNESGetIterationNumber(fd->snes,&its);CHKERRQ(ierr);
+  PetscCall(SNESGetIterationNumber(fd->snes,&its));
   PetscViewerASCIIPrintf(viewer,"iterations performed: %D\n",its);
   PetscViewerASCIIPopTab(viewer);
 
   // output enthalpy data cell wise
-  ierr = DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  PetscCall(DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
 
   PetscViewerASCIIPrintf(viewer,"[ENTHALPY ERRORS]\n");
   PetscViewerASCIIPushTab(viewer);
@@ -549,7 +544,7 @@ PetscErrorCode ApplyEnthalpyReport_Failure(FDPDE fd,PetscViewer viewer, Enthalpy
   }
   PetscViewerASCIIPopTab(viewer);
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -566,7 +561,6 @@ PetscErrorCode EnthalpySteadyStateOperator_pack(EnthalpyPackCtx *pack,AdvectSche
   PetscScalar    dx[3], dz[3];
   PetscScalar    A1, B1, D1, C1_Left, C1_Right, C1_Down, C1_Up, v[5], vs[5];
   PetscScalar    dQ2dx, dQ2dz, diff, adv1, adv2;
-  PetscErrorCode ierr;
   
   DM dm = pack->dm;
   const ThermoState *thm = pack->thm;
@@ -665,13 +659,13 @@ PetscErrorCode EnthalpySteadyStateOperator_pack(EnthalpyPackCtx *pack,AdvectSche
   diff = dQ2dx/dx[2] + dQ2dz/dz[2];
   
   // Calculate adv residual
-  ierr = AdvectionResidual(v, xxTP,  dx,dz,pack->en->dt,advtype,&adv1); CHKERRQ(ierr);
-  ierr = AdvectionResidual(vs,xxPHIs,dx,dz,pack->en->dt,advtype,&adv2); CHKERRQ(ierr);
+  PetscCall(AdvectionResidual(v, xxTP,  dx,dz,pack->en->dt,advtype,&adv1)); 
+  PetscCall(AdvectionResidual(vs,xxPHIs,dx,dz,pack->en->dt,advtype,&adv2)); 
   
   ffi  = A1*adv1 +B1*adv2 + diff + D1;
   *ff = ffi;
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -685,16 +679,15 @@ PetscErrorCode EnthalpyResidual_pack(EnthalpyPackCtx *pack, PetscScalar *_fval)
   PetscInt       idx;
   PetscScalar    xx, xxprev;
   PetscScalar    fval=0.0, fval0=0.0, fval1=0.0;
-  PetscErrorCode ierr;
-  
+
   PetscFunctionBegin;
   if (pack->en->timesteptype == TS_NONE) {
     // steady-state operator
-    ierr = EnthalpySteadyStateOperator_pack(pack,pack->en->advtype,1,&fval); CHKERRQ(ierr);
+    PetscCall(EnthalpySteadyStateOperator_pack(pack,pack->en->advtype,1,&fval)); 
   } else {
     // time-dependent solution
-    ierr = EnthalpySteadyStateOperator_pack(pack,pack->en->advtype,0,&fval0); CHKERRQ(ierr);
-    ierr = EnthalpySteadyStateOperator_pack(pack,pack->en->advtype,1,&fval1); CHKERRQ(ierr);
+    PetscCall(EnthalpySteadyStateOperator_pack(pack,pack->en->advtype,0,&fval0)); 
+    PetscCall(EnthalpySteadyStateOperator_pack(pack,pack->en->advtype,1,&fval1)); 
     
     idx = SingleDimIndex(pack->i-pack->sx+2,pack->j-pack->sz+2,pack->nz+4);
     xx     = pack->thm[idx].H;
@@ -704,7 +697,7 @@ PetscErrorCode EnthalpyResidual_pack(EnthalpyPackCtx *pack, PetscScalar *_fval)
   }
   *_fval = fval;
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -723,7 +716,6 @@ PetscErrorCode BulkCompositionSteadyStateOperator_pack(EnthalpyPackCtx *pack,Adv
   PetscScalar    phi_Left, phi_Right, phi_Down, phi_Up;
   PetscScalar    dQ2dx, dQ2dz, diff, adv1, adv2;
   DMStagStencil  point[15];
-  PetscErrorCode ierr;
   
   DM dm = pack->dm;
   const ThermoState *thm = pack->thm;
@@ -833,13 +825,13 @@ PetscErrorCode BulkCompositionSteadyStateOperator_pack(EnthalpyPackCtx *pack,Adv
   diff = dQ2dx/dx[2] + dQ2dz/dz[2];
   
   // Calculate adv residual
-  ierr = AdvectionResidual(vs,f1,dx,dz,pack->en->dt,advtype,&adv1); CHKERRQ(ierr);
-  ierr = AdvectionResidual(vf,f2,dx,dz,pack->en->dt,advtype,&adv2); CHKERRQ(ierr);
+  PetscCall(AdvectionResidual(vs,f1,dx,dz,pack->en->dt,advtype,&adv1)); 
+  PetscCall(AdvectionResidual(vf,f2,dx,dz,pack->en->dt,advtype,&adv2)); 
   
   ffi  = A2*adv1 + B2*adv2 + diff + D2;
   *ff = ffi;
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -853,7 +845,6 @@ PetscErrorCode BulkCompositionResidual_pack(EnthalpyPackCtx *pack, PetscScalar *
   PetscInt       idx;
   PetscScalar    xx, xxprev;
   PetscScalar    fval=0.0, fval0=0.0, fval1=0.0;
-  PetscErrorCode ierr;
   PetscInt       ii;
   
   PetscFunctionBegin;
@@ -861,11 +852,11 @@ PetscErrorCode BulkCompositionResidual_pack(EnthalpyPackCtx *pack, PetscScalar *
   ii = pack->icomp;
   if (pack->en->timesteptype == TS_NONE) {
     // steady-state operator
-    ierr = BulkCompositionSteadyStateOperator_pack(pack,pack->en->advtype,1,&fval); CHKERRQ(ierr);
+    PetscCall(BulkCompositionSteadyStateOperator_pack(pack,pack->en->advtype,1,&fval)); 
   } else {
     // time-dependent solution
-    ierr = BulkCompositionSteadyStateOperator_pack(pack,pack->en->advtype,0,&fval0); CHKERRQ(ierr);
-    ierr = BulkCompositionSteadyStateOperator_pack(pack,pack->en->advtype,1,&fval1); CHKERRQ(ierr);
+    PetscCall(BulkCompositionSteadyStateOperator_pack(pack,pack->en->advtype,0,&fval0)); 
+    PetscCall(BulkCompositionSteadyStateOperator_pack(pack,pack->en->advtype,1,&fval1)); 
     
     idx = SingleDimIndex(pack->i-pack->sx+2,pack->j-pack->sz+2,pack->nz+4);
     xx     = pack->thm[idx].C[ii];
@@ -875,7 +866,7 @@ PetscErrorCode BulkCompositionResidual_pack(EnthalpyPackCtx *pack, PetscScalar *
   }
   *_fval = fval;
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -892,10 +883,9 @@ PetscErrorCode DMStagBCListApply_Enthalpy(DM dm, Vec xlocal,DMStagBC *bclist, Pe
   PetscScalar    xx, fval;
   PetscInt       i, j, ii, ibc, idx;
   PetscScalar    ***_xlocal;
-  PetscErrorCode ierr;
-  PetscFunctionBeginUser;
+  PetscFunctionBegin;
 
-  ierr = DMStagVecGetArrayRead(dm,xlocal,&_xlocal);CHKERRQ(ierr);
+  PetscCall(DMStagVecGetArrayRead(dm,xlocal,&_xlocal));
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
@@ -905,13 +895,13 @@ PetscErrorCode DMStagBCListApply_Enthalpy(DM dm, Vec xlocal,DMStagBC *bclist, Pe
       idx = bclist[ibc].idx;
 
       if (bclist[ibc].point.c==0) {
-        ierr = EnthalpyPackCtx_Init_IJ(i,j,-1,&pack);CHKERRQ(ierr);
-        ierr = EnthalpyResidual_pack(&pack,&fval); CHKERRQ(ierr);
+        PetscCall(EnthalpyPackCtx_Init_IJ(i,j,-1,&pack));
+        PetscCall(EnthalpyResidual_pack(&pack,&fval)); 
         ff[j][i][idx] = fval;
       } else {
         ii = bclist[ibc].point.c - 1;
-        ierr = EnthalpyPackCtx_Init_IJ(i,j,ii,&pack);CHKERRQ(ierr);
-        ierr = BulkCompositionResidual_pack(&pack,&fval); CHKERRQ(ierr);
+        PetscCall(EnthalpyPackCtx_Init_IJ(i,j,ii,&pack));
+        PetscCall(BulkCompositionResidual_pack(&pack,&fval)); 
         ff[j][i][idx] = fval;
       }
     }
@@ -938,6 +928,6 @@ PetscErrorCode DMStagBCListApply_Enthalpy(DM dm, Vec xlocal,DMStagBC *bclist, Pe
 
   }
 
-  ierr = DMStagVecRestoreArrayRead(dm,xlocal,&_xlocal);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(DMStagVecRestoreArrayRead(dm,xlocal,&_xlocal));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -1,6 +1,4 @@
-
-#include "petsc.h"
-
+#include <petsc.h>
 #include <petsc/private/dmstagimpl.h>
 
 PetscErrorCode private_DMStagGetStencilType(DM dm,DMStagStencilType *stencilType)
@@ -14,19 +12,18 @@ PetscErrorCode private_DMStagGetStencilType(DM dm,DMStagStencilType *stencilType
  The .c fields in pos must always be set (even if to 0).  */
 static PetscErrorCode private_DMStagStencilToIndexLocal(DM dm,PetscInt n,const DMStagStencil *pos,PetscInt *ix)
 {
-  PetscErrorCode        ierr;
   const DM_Stag * const stag = (DM_Stag*)dm->data;
   PetscInt              idx,dim,startGhost[DMSTAG_MAX_DIM];
   const PetscInt        epe = stag->entriesPerElement;
   
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMSTAG);
-  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
+  PetscCall(DMGetDimension(dm,&dim));
   
 #if defined(PETSC_USE_DEBUG)
-  ierr = DMStagGetGhostCorners(dm,&startGhost[0],&startGhost[1],&startGhost[2],NULL,NULL,NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetGhostCorners(dm,&startGhost[0],&startGhost[1],&startGhost[2],NULL,NULL,NULL));
 #else
-  ierr = DMStagGetGhostCorners(dm,&startGhost[0],&startGhost[1],&startGhost[2],NULL,NULL,NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetGhostCorners(dm,&startGhost[0],&startGhost[1],&startGhost[2],NULL,NULL,NULL));
 #endif
   
   if (dim == 1) {
@@ -36,7 +33,7 @@ static PetscErrorCode private_DMStagStencilToIndexLocal(DM dm,PetscInt n,const D
     }
   } else if (dim == 2) {
     const PetscInt epr = stag->nGhost[0];
-    ierr = DMStagGetGhostCorners(dm,&startGhost[0],&startGhost[1],NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+    PetscCall(DMStagGetGhostCorners(dm,&startGhost[0],&startGhost[1],NULL,NULL,NULL,NULL));
     for (idx=0; idx<n; ++idx) {
       const PetscInt eLocalx = pos[idx].i - startGhost[0];
       const PetscInt eLocaly = pos[idx].j - startGhost[1];
@@ -46,7 +43,7 @@ static PetscErrorCode private_DMStagStencilToIndexLocal(DM dm,PetscInt n,const D
   } else if (dim == 3) {
     const PetscInt epr = stag->nGhost[0];
     const PetscInt epl = stag->nGhost[0]*stag->nGhost[1];
-    ierr = DMStagGetGhostCorners(dm,&startGhost[0],&startGhost[1],&startGhost[2],NULL,NULL,NULL);CHKERRQ(ierr);
+    PetscCall(DMStagGetGhostCorners(dm,&startGhost[0],&startGhost[1],&startGhost[2],NULL,NULL,NULL));
     for (idx=0; idx<n; ++idx) {
       const PetscInt eLocalx = pos[idx].i - startGhost[0];
       const PetscInt eLocaly = pos[idx].j - startGhost[1];
@@ -55,19 +52,18 @@ static PetscErrorCode private_DMStagStencilToIndexLocal(DM dm,PetscInt n,const D
       ix[idx] = eLocal * epe + stag->locationOffsets[pos[idx].loc] + pos[idx].c;
     }
   } else SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_OUTOFRANGE,"Unsupported dimension %d",dim);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscInt* convert_in_place(DM dm,PetscInt n,const DMStagStencil *pos)
+static PetscErrorCode convert_in_place(DM dm,PetscInt n,const DMStagStencil *pos, PetscInt **ix)
 {
-  PetscInt *ix;
-  PetscErrorCode ierr;
-  
+  PetscInt *_ix;  
   PetscFunctionBegin;
-  PetscMalloc1(n,&ix);
-  ierr = private_DMStagStencilToIndexLocal(dm,n,pos,ix);
+  PetscCall(PetscMalloc1(n,&_ix));
+  PetscCall(private_DMStagStencilToIndexLocal(dm,n,pos,_ix));
   //for (i=0; i<n; i++) printf("ix[%d] = %d\n",i,ix[i]);
-  return(ix);
+  *ix = _ix;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode FillStencilCentral_2D(DM dm,PetscInt i,PetscInt j,PetscInt Ni,PetscInt Nj,
@@ -76,10 +72,9 @@ static PetscErrorCode FillStencilCentral_2D(DM dm,PetscInt i,PetscInt j,PetscInt
   PetscInt d,v;
   PetscBool vertices=PETSC_FALSE,edges=PETSC_FALSE,cells=PETSC_FALSE;
   PetscInt dof[3];
-  PetscErrorCode ierr;
   
   PetscFunctionBegin;
-  ierr = DMStagGetDOF(dm,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetDOF(dm,&dof[0],&dof[1],&dof[2],NULL));
   if (dof[0] > 0) vertices = PETSC_TRUE;
   if (dof[1] > 0) edges = PETSC_TRUE;
   if (dof[2] > 0) cells = PETSC_TRUE;
@@ -132,7 +127,7 @@ static PetscErrorCode FillStencilCentral_2D(DM dm,PetscInt i,PetscInt j,PetscInt
     }
   }
   *count = v;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode FillStencilBox_2D(DM dm,PetscInt i,PetscInt j,PetscInt Ni,PetscInt Nj,
@@ -141,11 +136,10 @@ static PetscErrorCode FillStencilBox_2D(DM dm,PetscInt i,PetscInt j,PetscInt Ni,
   PetscInt d,ii,jj,si,sj,ei,ej,v,sw;
   PetscBool vertices=PETSC_FALSE,edges=PETSC_FALSE,cells=PETSC_FALSE;
   PetscInt dof[3];
-  PetscErrorCode ierr;
   
   PetscFunctionBegin;
-  ierr = DMStagGetStencilWidth(dm,&sw);CHKERRQ(ierr);
-  ierr = DMStagGetDOF(dm,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetStencilWidth(dm,&sw));
+  PetscCall(DMStagGetDOF(dm,&dof[0],&dof[1],&dof[2],NULL));
   if (dof[0] > 0) vertices = PETSC_TRUE;
   if (dof[1] > 0) edges = PETSC_TRUE;
   if (dof[2] > 0) cells = PETSC_TRUE;
@@ -205,7 +199,7 @@ static PetscErrorCode FillStencilBox_2D(DM dm,PetscInt i,PetscInt j,PetscInt Ni,
     }
   }
   *count = v;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode FillStencilStar_2D(DM dm,PetscInt i,PetscInt j,PetscInt Ni,PetscInt Nj,
@@ -214,12 +208,11 @@ static PetscErrorCode FillStencilStar_2D(DM dm,PetscInt i,PetscInt j,PetscInt Ni
   PetscInt d,ii,v,sw,star_i[13],star_j[13],nvmax;
   PetscBool vertices=PETSC_FALSE,edges=PETSC_FALSE,cells=PETSC_FALSE;
   PetscInt dof[3];
-  PetscErrorCode ierr;
   
   PetscFunctionBegin;
-  ierr = DMStagGetStencilWidth(dm,&sw);CHKERRQ(ierr);
+  PetscCall(DMStagGetStencilWidth(dm,&sw));
   if (sw > 2) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"No support for anything other than star stencil width of 0, 1 or 2");
-  ierr = DMStagGetDOF(dm,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetDOF(dm,&dof[0],&dof[1],&dof[2],NULL));
   if (dof[0] > 0) vertices = PETSC_TRUE;
   if (dof[1] > 0) edges = PETSC_TRUE;
   if (dof[2] > 0) cells = PETSC_TRUE;
@@ -341,19 +334,18 @@ static PetscErrorCode FillStencilStar_2D(DM dm,PetscInt i,PetscInt j,PetscInt Ni
     }
   }
   *count = v;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode CreateStencilBuffer_2D(DM dm,PetscInt *_max_size,DMStagStencil *point[])
 {
-  PetscErrorCode ierr;
   PetscInt sw,size=0,cellsize,dof[3];
   PetscBool vertices=PETSC_FALSE,edges=PETSC_FALSE,cells=PETSC_FALSE;
   DMStagStencilType stencilType;
   
   PetscFunctionBegin;
-  ierr = DMStagGetStencilWidth(dm,&sw);CHKERRQ(ierr);
-  ierr = DMStagGetDOF(dm,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetStencilWidth(dm,&sw));
+  PetscCall(DMStagGetDOF(dm,&dof[0],&dof[1],&dof[2],NULL));
   if (dof[0] > 0) vertices = PETSC_TRUE;
   if (dof[1] > 0) edges = PETSC_TRUE;
   if (dof[2] > 0) cells = PETSC_TRUE;
@@ -361,7 +353,7 @@ static PetscErrorCode CreateStencilBuffer_2D(DM dm,PetscInt *_max_size,DMStagSte
   if (vertices) cellsize += 4 * dof[0]; /* count all vertices */
   if (edges)    cellsize += 4 * dof[1]; /* counter left/right/up/down edges */
   if (cells)    cellsize += dof[2];
-  ierr = private_DMStagGetStencilType(dm,&stencilType);CHKERRQ(ierr);
+  PetscCall(private_DMStagGetStencilType(dm,&stencilType));
   switch (stencilType) {
     case  DMSTAG_STENCIL_STAR:
     if (sw > 2) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"No support for anything other than star stencil width of 1 or 2");
@@ -385,15 +377,14 @@ static PetscErrorCode CreateStencilBuffer_2D(DM dm,PetscInt *_max_size,DMStagSte
     break;
   }
   
-  ierr = PetscCalloc1(size,point);CHKERRQ(ierr);
+  PetscCall(PetscCalloc1(size,point));
   *_max_size = size;
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode _preallocate_coupled(Mat p,PetscInt i,DM row_dm,PetscInt ncols,DM cols_dm[],PetscInt offset[],PetscBool col_mask[])
 {
-  PetscErrorCode ierr;
   PetscInt j;
   PetscInt *rowidx,*colidx;
   PetscInt ci,cj,sx,sz,nx,nz,Ni,Nj,ii,jj,d;
@@ -408,7 +399,7 @@ static PetscErrorCode _preallocate_coupled(Mat p,PetscInt i,DM row_dm,PetscInt n
   PetscFunctionBegin;
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
   for (j=0; j<ncols; j++) {
-    ierr = private_DMStagGetStencilType(cols_dm[j],&stencilType);CHKERRQ(ierr);
+    PetscCall(private_DMStagGetStencilType(cols_dm[j],&stencilType));
     switch (stencilType) {
       case DMSTAG_STENCIL_STAR:
       fill_stencil[j] = FillStencilStar_2D;
@@ -422,37 +413,36 @@ static PetscErrorCode _preallocate_coupled(Mat p,PetscInt i,DM row_dm,PetscInt n
     }
   }
   
-  ierr = DMStagGetGlobalSizes(row_dm,&Ni,&Nj,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(row_dm,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL); CHKERRQ(ierr);
+  PetscCall(DMStagGetGlobalSizes(row_dm,&Ni,&Nj,NULL));
+  PetscCall(DMStagGetCorners(row_dm,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL));
   
-  ierr = PetscCalloc1(ncols,&indices);CHKERRQ(ierr);
+  PetscCall(PetscCalloc1(ncols,&indices));
   for (d=0; d<ncols; d++) {
     ISLocalToGlobalMapping ltog;
     PetscInt ltog_size;
     
-    ierr = DMGetLocalToGlobalMapping(cols_dm[d],&ltog);CHKERRQ(ierr);
-    ierr = ISLocalToGlobalMappingGetIndices(ltog,(const PetscInt**)&indices[d]);CHKERRQ(ierr);
-    ierr = ISLocalToGlobalMappingGetSize(ltog,&ltog_size);CHKERRQ(ierr);
+    PetscCall(DMGetLocalToGlobalMapping(cols_dm[d],&ltog));
+    PetscCall(ISLocalToGlobalMappingGetIndices(ltog,(const PetscInt**)&indices[d]));
+    PetscCall(ISLocalToGlobalMappingGetSize(ltog,&ltog_size));
     printf("[%d] ltog size %d\n",d,ltog_size);
   }
   
   /* insert */
-  ierr = CreateStencilBuffer_2D(row_dm,&r_max_size,&r_point_buffer);CHKERRQ(ierr);
+  PetscCall(CreateStencilBuffer_2D(row_dm,&r_max_size,&r_point_buffer));
   printf("r_max_size[%d] = %d\n",i,r_max_size);
   
-  ierr = PetscCalloc1(ncols,&c_point_buffer);CHKERRQ(ierr);
-  ierr = PetscCalloc1(ncols,&c_max_size);CHKERRQ(ierr);
+  PetscCall(PetscCalloc1(ncols,&c_point_buffer));
+  PetscCall(PetscCalloc1(ncols,&c_max_size));
   for (j=0; j<ncols; j++) {
-    ierr = CreateStencilBuffer_2D(cols_dm[j],&c_max_size[j],&c_point_buffer[j]);CHKERRQ(ierr);
+    PetscCall(CreateStencilBuffer_2D(cols_dm[j],&c_max_size[j],&c_point_buffer[j]));
     printf("[%d] c_max_size[%d] = %d\n",i,j,c_max_size[j]);
   }
   
   for (cj=sz; cj<sz+nz; cj++) {
     for (ci=sx; ci<sx+nx; ci++) {
       
-      ierr = FillStencilCentral_2D(row_dm,ci,cj,Ni,Nj,&r_used,r_point_buffer);CHKERRQ(ierr);
-      
-      rowidx = convert_in_place(row_dm,r_used,r_point_buffer);
+      PetscCall(FillStencilCentral_2D(row_dm,ci,cj,Ni,Nj,&r_used,r_point_buffer));
+      PetscCall(convert_in_place(row_dm,r_used,r_point_buffer,&rowidx));
       for (ii=0; ii<r_used; ii++) {
         //printf("ii %d : rowidx[jj] %d\n",ii,rowidx[ii]);
         if (rowidx[ii] < 0) { continue; }
@@ -465,9 +455,8 @@ static PetscErrorCode _preallocate_coupled(Mat p,PetscInt i,DM row_dm,PetscInt n
       for (j=0; j<ncols; j++) {
         if (col_mask[j]) continue;
         
-        ierr = fill_stencil[j](cols_dm[j],ci,cj,Ni,Nj,&c_used,c_point_buffer[j]);CHKERRQ(ierr);
-        
-        colidx = convert_in_place(cols_dm[j],c_used,c_point_buffer[j]);
+        PetscCall(fill_stencil[j](cols_dm[j],ci,cj,Ni,Nj,&c_used,c_point_buffer[j]));
+        PetscCall(convert_in_place(cols_dm[j],c_used,c_point_buffer[j],&colidx));
         
         for (jj=0; jj<c_used; jj++) {
           //printf("jj %d : colidx[jj] %d\n",jj,colidx[jj]);
@@ -484,33 +473,32 @@ static PetscErrorCode _preallocate_coupled(Mat p,PetscInt i,DM row_dm,PetscInt n
         
         for (ii=0; ii<r_used; ii++) {
           for (jj=0; jj<c_used; jj++) {
-            {ierr = MatSetValue(p,rowidx[ii],colidx[jj],1.0,INSERT_VALUES);CHKERRQ(ierr);}
+            {PetscCall(MatSetValue(p,rowidx[ii],colidx[jj],1.0,INSERT_VALUES));}
           }
         }
-        ierr = PetscFree(colidx);CHKERRQ(ierr);
+        PetscCall(PetscFree(colidx));
       }
-      ierr = PetscFree(rowidx);CHKERRQ(ierr);
+      PetscCall(PetscFree(rowidx));
     }
   }
   
-  ierr = MatAssemblyBegin(p,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(p,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  PetscCall(MatAssemblyBegin(p,MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(p,MAT_FINAL_ASSEMBLY));
   
   for (j=0; j<ncols; j++) {
-    ierr = PetscFree(c_point_buffer[j]);CHKERRQ(ierr);
+    PetscCall(PetscFree(c_point_buffer[j]));
   }
-  ierr = PetscFree(c_point_buffer);CHKERRQ(ierr);
-  ierr = PetscFree(c_max_size);CHKERRQ(ierr);
-  ierr = PetscFree(r_point_buffer);CHKERRQ(ierr);
+  PetscCall(PetscFree(c_point_buffer));
+  PetscCall(PetscFree(c_max_size));
+  PetscCall(PetscFree(r_point_buffer));
   
-  ierr = PetscFree(indices);CHKERRQ(ierr);
+  PetscCall(PetscFree(indices));
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode FDPDECoupledCreateMatrix(PetscInt ndm,DM dm[],MatType mtype,Mat *A)
 {
-  PetscErrorCode ierr;
   PetscInt i,d;
   PetscInt *offset,*m,*n,*M,*N,sizes[] = {0,0,0,0},Mo;
   PetscBool *col_mask;
@@ -520,7 +508,7 @@ PetscErrorCode FDPDECoupledCreateMatrix(PetscInt ndm,DM dm[],MatType mtype,Mat *
   /* check all DMs are DMSTAG */
   for (d=0; d<ndm; d++) {
     PetscBool isstag;
-    ierr = PetscObjectTypeCompare((PetscObject)dm[d],DMSTAG,&isstag);CHKERRQ(ierr);
+    PetscCall(PetscObjectTypeCompare((PetscObject)dm[d],DMSTAG,&isstag));
     if (!isstag) SETERRQ(PetscObjectComm((PetscObject)dm[d]),PETSC_ERR_ARG_WRONG,"DM[%" PetscInt_FMT "] is not of type DMSTAG",d);
   }
   
@@ -528,9 +516,9 @@ PetscErrorCode FDPDECoupledCreateMatrix(PetscInt ndm,DM dm[],MatType mtype,Mat *
   {
     PetscInt Ni,Nj,jNi,jNj;
     
-    ierr = DMStagGetGlobalSizes(dm[0],&Ni,&Nj,NULL);CHKERRQ(ierr);
+    PetscCall(DMStagGetGlobalSizes(dm[0],&Ni,&Nj,NULL));
     for (d=1; d<ndm; d++) {
-      ierr = DMStagGetGlobalSizes(dm[d],&jNi,&jNj,NULL);CHKERRQ(ierr);
+      PetscCall(DMStagGetGlobalSizes(dm[d],&jNi,&jNj,NULL));
       if (Ni != jNi) SETERRQ(PetscObjectComm((PetscObject)dm[0]),PETSC_ERR_ARG_WRONG,"DM (Ni=%" PetscInt_FMT ") does not match size of DM[0] (Ni=%" PetscInt_FMT ")",Ni,jNi);
       if (Nj != jNj) SETERRQ(PetscObjectComm((PetscObject)dm[0]),PETSC_ERR_ARG_WRONG,"DM (Nj=%" PetscInt_FMT ") does not match size of DM[0] (Nj=%" PetscInt_FMT ")",Nj,jNj);
     }
@@ -538,26 +526,26 @@ PetscErrorCode FDPDECoupledCreateMatrix(PetscInt ndm,DM dm[],MatType mtype,Mat *
   
   /* determine global and local sizes */
   /* compute offsets for insertions */
-  ierr = PetscCalloc1(ndm,&offset);CHKERRQ(ierr);
-  ierr = PetscCalloc1(ndm,&col_mask);CHKERRQ(ierr);
-  ierr = PetscCalloc1(ndm,&m);CHKERRQ(ierr);
-  ierr = PetscCalloc1(ndm,&n);CHKERRQ(ierr);
-  ierr = PetscCalloc1(ndm,&M);CHKERRQ(ierr);
-  ierr = PetscCalloc1(ndm,&N);CHKERRQ(ierr);
+  PetscCall(PetscCalloc1(ndm,&offset));
+  PetscCall(PetscCalloc1(ndm,&col_mask)); 
+  PetscCall(PetscCalloc1(ndm,&m));
+  PetscCall(PetscCalloc1(ndm,&n)); 
+  PetscCall(PetscCalloc1(ndm,&M)); 
+  PetscCall(PetscCalloc1(ndm,&N)); 
   for (d=0; d<ndm; d++) {
     col_mask[d] = PETSC_FALSE;
   }
   for (d=0; d<ndm; d++) {
     Vec x;
     PetscInt size;
-    ierr = DMCreateGlobalVector(dm[d],&x);CHKERRQ(ierr);
-    ierr = VecGetSize(x,&size);
+    PetscCall(DMCreateGlobalVector(dm[d],&x)); 
+    PetscCall(VecGetSize(x,&size));
     M[d] = size;
     N[d] = size;
-    ierr = VecGetLocalSize(x,&size);CHKERRQ(ierr);
+    PetscCall(VecGetLocalSize(x,&size)); 
     m[d] = size;
     n[d] = size;
-    ierr = VecDestroy(&x);CHKERRQ(ierr);
+    PetscCall(VecDestroy(&x)); 
   }
   for (d=1; d<ndm; d++) {
     offset[d] = offset[d-1] + m[d-1];
@@ -569,7 +557,7 @@ PetscErrorCode FDPDECoupledCreateMatrix(PetscInt ndm,DM dm[],MatType mtype,Mat *
     sizes[3] += N[d];
   }
   Mo = 0;
-  /*ierr = MPI_Scan(&sizes[0], &Mo, 1, MPI_INT, MPI_SUM, PetscObjectComm((PetscObject)dm[0]));CHKERRQ(ierr);*/
+  /*PetscCall(MPI_Scan(&sizes[0], &Mo, 1, MPI_INT, MPI_SUM, PetscObjectComm((PetscObject)dm[0]))); */
   /*Mo -= sizes[0];*/
   for (d=0; d<ndm; d++) {
     offset[d] += Mo;
@@ -582,10 +570,10 @@ PetscErrorCode FDPDECoupledCreateMatrix(PetscInt ndm,DM dm[],MatType mtype,Mat *
   printf("sizes MxN %d %d <global>\n",sizes[2],sizes[3]);
   printf("sizes mxn %d %d <local>\n",sizes[0],sizes[1]);
   
-  ierr = MatCreate(PetscObjectComm((PetscObject)dm[0]),&preallocator);CHKERRQ(ierr);
-  ierr = MatSetSizes(preallocator,sizes[0],sizes[1],sizes[2],sizes[3]);CHKERRQ(ierr);
-  ierr = MatSetType(preallocator,MATPREALLOCATOR);CHKERRQ(ierr);
-  ierr = MatSetUp(preallocator);CHKERRQ(ierr);
+  PetscCall(MatCreate(PetscObjectComm((PetscObject)dm[0]),&preallocator)); 
+  PetscCall(MatSetSizes(preallocator,sizes[0],sizes[1],sizes[2],sizes[3])); 
+  PetscCall(MatSetType(preallocator,MATPREALLOCATOR)); 
+  PetscCall(MatSetUp(preallocator)); 
   
   /* preallocate */
   for (i=0; i<ndm; i++) {
@@ -594,30 +582,29 @@ PetscErrorCode FDPDECoupledCreateMatrix(PetscInt ndm,DM dm[],MatType mtype,Mat *
     row_dm  = dm[i];
     cols_dm = dm;
     
-    ierr = _preallocate_coupled(preallocator,i,row_dm,ndm,cols_dm,offset,col_mask);CHKERRQ(ierr);
+    PetscCall(_preallocate_coupled(preallocator,i,row_dm,ndm,cols_dm,offset,col_mask)); 
   }
   
-  ierr = MatCreate(PetscObjectComm((PetscObject)preallocator),A);CHKERRQ(ierr);
-  ierr = MatSetSizes(*A,sizes[0],sizes[1],sizes[2],sizes[3]);CHKERRQ(ierr);
-  ierr = MatSetType(*A,mtype);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(*A);CHKERRQ(ierr);
-  ierr = MatSetUp(*A);CHKERRQ(ierr);
-  ierr = MatPreallocatorPreallocate(preallocator,PETSC_TRUE,*A);CHKERRQ(ierr);
+  PetscCall(MatCreate(PetscObjectComm((PetscObject)preallocator),A)); 
+  PetscCall(MatSetSizes(*A,sizes[0],sizes[1],sizes[2],sizes[3])); 
+  PetscCall(MatSetType(*A,mtype)); 
+  PetscCall(MatSetFromOptions(*A)); 
+  PetscCall(MatSetUp(*A)); 
+  PetscCall(MatPreallocatorPreallocate(preallocator,PETSC_TRUE,*A)); 
   
-  ierr = MatDestroy(&preallocator);CHKERRQ(ierr);
-  ierr = PetscFree(col_mask);CHKERRQ(ierr);
-  ierr = PetscFree(M);CHKERRQ(ierr);
-  ierr = PetscFree(N);CHKERRQ(ierr);
-  ierr = PetscFree(m);CHKERRQ(ierr);
-  ierr = PetscFree(n);CHKERRQ(ierr);
-  ierr = PetscFree(offset);CHKERRQ(ierr);
+  PetscCall(MatDestroy(&preallocator)); 
+  PetscCall(PetscFree(col_mask)); 
+  PetscCall(PetscFree(M)); 
+  PetscCall(PetscFree(N)); 
+  PetscCall(PetscFree(m)); 
+  PetscCall(PetscFree(n)); 
+  PetscCall(PetscFree(offset)); 
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode FDPDECoupledCreateMatrix2(PetscInt ndm,DM dm[],PetscBool mask[],MatType mtype,Mat *A)
 {
-  PetscErrorCode ierr;
   PetscInt i,j,d;
   PetscInt *offset,*m,*n,*M,*N,sizes[] = {0,0,0,0};
   PetscBool *col_mask;
@@ -627,7 +614,7 @@ PetscErrorCode FDPDECoupledCreateMatrix2(PetscInt ndm,DM dm[],PetscBool mask[],M
   /* check all DMs are DMSTAG */
   for (d=0; d<ndm; d++) {
     PetscBool isstag;
-    ierr = PetscObjectTypeCompare((PetscObject)dm[d],DMSTAG,&isstag);CHKERRQ(ierr);
+    PetscCall(PetscObjectTypeCompare((PetscObject)dm[d],DMSTAG,&isstag)); 
     if (!isstag) SETERRQ(PetscObjectComm((PetscObject)dm[d]),PETSC_ERR_ARG_WRONG,"DM[%" PetscInt_FMT "] is not of type DMSTAG",d);
   }
   
@@ -635,9 +622,9 @@ PetscErrorCode FDPDECoupledCreateMatrix2(PetscInt ndm,DM dm[],PetscBool mask[],M
   {
     PetscInt Ni,Nj,jNi,jNj;
     
-    ierr = DMStagGetGlobalSizes(dm[0],&Ni,&Nj,NULL);CHKERRQ(ierr);
+    PetscCall(DMStagGetGlobalSizes(dm[0],&Ni,&Nj,NULL)); 
     for (d=1; d<ndm; d++) {
-      ierr = DMStagGetGlobalSizes(dm[d],&jNi,&jNj,NULL);CHKERRQ(ierr);
+      PetscCall(DMStagGetGlobalSizes(dm[d],&jNi,&jNj,NULL)); 
       if (Ni != jNi) SETERRQ(PetscObjectComm((PetscObject)dm[0]),PETSC_ERR_ARG_WRONG,"DM (Ni=%" PetscInt_FMT ") does not match size of DM[0] (Ni=%" PetscInt_FMT ")",Ni,jNi);
       if (Nj != jNj) SETERRQ(PetscObjectComm((PetscObject)dm[0]),PETSC_ERR_ARG_WRONG,"DM (Nj=%" PetscInt_FMT ") does not match size of DM[0] (Nj=%" PetscInt_FMT ")",Nj,jNj);
     }
@@ -645,19 +632,19 @@ PetscErrorCode FDPDECoupledCreateMatrix2(PetscInt ndm,DM dm[],PetscBool mask[],M
   
   /* determine global and local sizes */
   /* compute offsets for insertions */
-  ierr = PetscCalloc1(ndm,&offset);CHKERRQ(ierr);
-  ierr = PetscCalloc1(ndm,&col_mask);CHKERRQ(ierr);
-  ierr = PetscCalloc1(ndm,&m);CHKERRQ(ierr);
-  ierr = PetscCalloc1(ndm,&n);CHKERRQ(ierr);
-  ierr = PetscCalloc1(ndm,&M);CHKERRQ(ierr);
-  ierr = PetscCalloc1(ndm,&N);CHKERRQ(ierr);
+  PetscCall(PetscCalloc1(ndm,&offset)); 
+  PetscCall(PetscCalloc1(ndm,&col_mask)); 
+  PetscCall(PetscCalloc1(ndm,&m)); 
+  PetscCall(PetscCalloc1(ndm,&n)); 
+  PetscCall(PetscCalloc1(ndm,&M)); 
+  PetscCall(PetscCalloc1(ndm,&N)); 
   for (d=0; d<ndm; d++) {
     col_mask[d] = PETSC_FALSE;
   }
   for (d=0; d<ndm; d++) {
     Vec x;
     PetscInt size;
-    DMCreateGlobalVector(dm[d],&x);CHKERRQ(ierr);
+    DMCreateGlobalVector(dm[d],&x); 
     VecGetSize(x,&size);
     M[d] = size;
     N[d] = size;
@@ -682,10 +669,10 @@ PetscErrorCode FDPDECoupledCreateMatrix2(PetscInt ndm,DM dm[],PetscBool mask[],M
   printf("sizes MxN %d %d <global>\n",sizes[2],sizes[3]);
   printf("sizes mxn %d %d <local>\n",sizes[0],sizes[1]);
   
-  ierr = MatCreate(PetscObjectComm((PetscObject)dm[0]),&preallocator);CHKERRQ(ierr);
-  ierr = MatSetSizes(preallocator,sizes[0],sizes[1],sizes[2],sizes[3]);CHKERRQ(ierr);
-  ierr = MatSetType(preallocator,MATPREALLOCATOR);CHKERRQ(ierr);
-  ierr = MatSetUp(preallocator);CHKERRQ(ierr);
+  PetscCall(MatCreate(PetscObjectComm((PetscObject)dm[0]),&preallocator)); 
+  PetscCall(MatSetSizes(preallocator,sizes[0],sizes[1],sizes[2],sizes[3])); 
+  PetscCall(MatSetType(preallocator,MATPREALLOCATOR)); 
+  PetscCall(MatSetUp(preallocator)); 
   
   /* preallocate */
   for (i=0; i<ndm; i++) {
@@ -698,23 +685,23 @@ PetscErrorCode FDPDECoupledCreateMatrix2(PetscInt ndm,DM dm[],PetscBool mask[],M
       col_mask[j] = mask[i*ndm + j];
     }
     
-    ierr = _preallocate_coupled(preallocator,i,row_dm,ndm,cols_dm,offset,col_mask);CHKERRQ(ierr);
+    PetscCall(_preallocate_coupled(preallocator,i,row_dm,ndm,cols_dm,offset,col_mask)); 
   }
   
-  ierr = MatCreate(PetscObjectComm((PetscObject)preallocator),A);CHKERRQ(ierr);
-  ierr = MatSetSizes(*A,sizes[0],sizes[1],sizes[2],sizes[3]);CHKERRQ(ierr);
-  ierr = MatSetType(*A,mtype);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(*A);CHKERRQ(ierr);
-  ierr = MatSetUp(*A);CHKERRQ(ierr);
-  ierr = MatPreallocatorPreallocate(preallocator,PETSC_TRUE,*A);CHKERRQ(ierr);
+  PetscCall(MatCreate(PetscObjectComm((PetscObject)preallocator),A)); 
+  PetscCall(MatSetSizes(*A,sizes[0],sizes[1],sizes[2],sizes[3])); 
+  PetscCall(MatSetType(*A,mtype)); 
+  PetscCall(MatSetFromOptions(*A)); 
+  PetscCall(MatSetUp(*A)); 
+  PetscCall(MatPreallocatorPreallocate(preallocator,PETSC_TRUE,*A)); 
   
-  ierr = MatDestroy(&preallocator);CHKERRQ(ierr);
-  ierr = PetscFree(col_mask);CHKERRQ(ierr);
-  ierr = PetscFree(M);CHKERRQ(ierr);
-  ierr = PetscFree(N);CHKERRQ(ierr);
-  ierr = PetscFree(m);CHKERRQ(ierr);
-  ierr = PetscFree(n);CHKERRQ(ierr);
-  ierr = PetscFree(offset);CHKERRQ(ierr);
+  PetscCall(MatDestroy(&preallocator)); 
+  PetscCall(PetscFree(col_mask)); 
+  PetscCall(PetscFree(M)); 
+  PetscCall(PetscFree(N)); 
+  PetscCall(PetscFree(m)); 
+  PetscCall(PetscFree(n)); 
+  PetscCall(PetscFree(offset)); 
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

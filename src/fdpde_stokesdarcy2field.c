@@ -29,11 +29,10 @@ Use: internal
 #define __FUNCT__ "FDPDECreate_StokesDarcy2Field"
 PetscErrorCode FDPDECreate_StokesDarcy2Field(FDPDE fd)
 {
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   // Initialize data
-  ierr = PetscStrallocpy(stokesdarcy2_description,&fd->description); CHKERRQ(ierr);
+  PetscCall(PetscStrallocpy(stokesdarcy2_description,&fd->description)); 
 
   // STOKESDARCY2FIELD Stencil dofs: dmstag - Vx, Vz (edges), P (element)
   fd->dof0  = 0; fd->dof1  = 1; fd->dof2  = 1; 
@@ -48,7 +47,7 @@ PetscErrorCode FDPDECreate_StokesDarcy2Field(FDPDE fd)
   fd->ops->view               = NULL;
   fd->ops->destroy            = NULL;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -69,22 +68,20 @@ PetscErrorCode JacobianPreallocator_StokesDarcy2Field(FDPDE fd,Mat J)
   const PetscInt nEntries=STENCIL_STOKES_MOMENTUM_NONLIN;
   PetscScalar    *xx;
   DMStagStencil  *point;
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
+  PetscFunctionBegin;
 
   // Assign pointers and other variables
   Nx = fd->Nx;
   Nz = fd->Nz;
 
   // MatPreallocate begin
-  ierr = MatPreallocatePhaseBegin(J, &preallocator); CHKERRQ(ierr);
+  PetscCall(MatPreallocatePhaseBegin(J, &preallocator)); 
   
   // Get local domain
-  ierr = DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  PetscCall(DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
   
-  ierr = PetscCalloc1(nEntries,&xx); CHKERRQ(ierr);
-  ierr = PetscCalloc1(nEntries,&point); CHKERRQ(ierr);
+  PetscCall(PetscCalloc1(nEntries,&xx)); 
+  PetscCall(PetscCalloc1(nEntries,&point)); 
 
   if (!fd->linearsolve) nEntries_true = STENCIL_STOKES_MOMENTUM_NONLIN;
   else                  nEntries_true = STENCIL_STOKES_MOMENTUM_LIN;
@@ -94,40 +91,40 @@ PetscErrorCode JacobianPreallocator_StokesDarcy2Field(FDPDE fd,Mat J)
     for (i = sx; i<sx+nx; i++) {
 
       // Continuity equation - add terms for Darcy
-      ierr = ContinuityStencil_StokesDarcy2Field(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point); CHKERRQ(ierr);
-      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,9,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      PetscCall(ContinuityStencil_StokesDarcy2Field(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point)); 
+      PetscCall(DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,9,point,xx,INSERT_VALUES)); 
 
       // X-momentum equation - stencil remains the same as Stokes
-      ierr = XMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,0); CHKERRQ(ierr);
-      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      PetscCall(XMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,0)); 
+      PetscCall(DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES)); 
 
       if (i==Nx-1){
-        ierr = XMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,1); CHKERRQ(ierr);
-        ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+        PetscCall(XMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,1)); 
+        PetscCall(DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES)); 
       }
 
       // Z-momentum equation - stencil remains the same as Stokes
-      ierr = ZMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,0); CHKERRQ(ierr);
-      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      PetscCall(ZMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,0)); 
+      PetscCall(DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES)); 
 
       if (j==Nz-1){
-        ierr = ZMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,1); CHKERRQ(ierr);
-      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+        PetscCall(ZMomentumStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point,1)); 
+        PetscCall(DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries_true,point,xx,INSERT_VALUES)); 
       }
     }
   }
   
   // Push the non-zero pattern defined within preallocator into the Jacobian
-  ierr = MatPreallocatePhaseEnd(J); CHKERRQ(ierr);
+  PetscCall(MatPreallocatePhaseEnd(J)); 
 
   // Matrix assembly
-  ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-  ierr = MatAssemblyEnd  (J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+  PetscCall(MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY)); 
+  PetscCall(MatAssemblyEnd  (J,MAT_FINAL_ASSEMBLY)); 
 
-  ierr = PetscFree(xx);CHKERRQ(ierr);
-  ierr = PetscFree(point);CHKERRQ(ierr);
+  PetscCall(PetscFree(xx));
+  PetscCall(PetscFree(point));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -141,11 +138,10 @@ PetscErrorCode JacobianPreallocator_StokesDarcy2Field(FDPDE fd,Mat J)
 #define __FUNCT__ "JacobianCreate_StokesDarcy2Field"
 PetscErrorCode JacobianCreate_StokesDarcy2Field(FDPDE fd,Mat *J)
 {
-  PetscErrorCode ierr;
   PetscFunctionBegin;
-  ierr = DMCreateMatrix(fd->dmstag,J); CHKERRQ(ierr);
-  ierr = JacobianPreallocator_StokesDarcy2Field(fd,*J);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(DMCreateMatrix(fd->dmstag,J)); 
+  PetscCall(JacobianPreallocator_StokesDarcy2Field(fd,*J));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -180,5 +176,5 @@ PetscErrorCode ContinuityStencil_StokesDarcy2Field(PetscInt i,PetscInt j,PetscIn
     if (j == 0   ) point[8] = point[0];
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

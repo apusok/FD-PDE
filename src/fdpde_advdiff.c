@@ -45,11 +45,10 @@ Use: internal
 PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd)
 {
   AdvDiffData    *ad;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   // Initialize data
-  ierr = PetscStrallocpy(advdiff_description,&fd->description); CHKERRQ(ierr);
+  PetscCall(PetscStrallocpy(advdiff_description,&fd->description)); 
 
   // ADVDIFF Stencil dofs: dmstag - Q (element)
   fd->dof0  = 0; fd->dof1  = 0; fd->dof2  = 1; 
@@ -64,7 +63,7 @@ PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd)
   fd->ops->setup              = NULL;
 
   // allocate memory to fd-pde context data
-  ierr = PetscCalloc1(1,&ad);CHKERRQ(ierr);
+  PetscCall(PetscCalloc1(1,&ad));
 
   // vectors
   ad->xprev = NULL;
@@ -73,7 +72,7 @@ PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd)
   // fd-pde context data
   fd->data = ad;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -88,17 +87,16 @@ Use: internal
 PetscErrorCode FDPDEDestroy_AdvDiff(FDPDE fd)
 {
   AdvDiffData    *ad;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   ad = fd->data;
 
-  if (ad->xprev)     { ierr = VecDestroy(&ad->xprev);CHKERRQ(ierr); }
-  if (ad->coeffprev) { ierr = VecDestroy(&ad->coeffprev);CHKERRQ(ierr); }
+  if (ad->xprev)     { PetscCall(VecDestroy(&ad->xprev)); }
+  if (ad->coeffprev) { PetscCall(VecDestroy(&ad->coeffprev)); }
 
-  ierr = PetscFree(ad);CHKERRQ(ierr);
+  PetscCall(PetscFree(ad));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -122,7 +120,7 @@ PetscErrorCode FDPDEView_AdvDiff(FDPDE fd)
   PetscPrintf(fd->comm,"  # Time step Scheme type: %s\n",TimeStepSchemeTypeNames[(int)ad->timesteptype]);
   PetscPrintf(fd->comm,"  # Theta: %g\n",ad->theta);
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -146,7 +144,6 @@ Use: user
 PetscErrorCode FDPDEAdvDiffGetPrevSolution(FDPDE fd, Vec *xprev)
 {
   AdvDiffData    *ad;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ADVDIFF) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ADVDIFF!");
@@ -156,10 +153,10 @@ PetscErrorCode FDPDEAdvDiffGetPrevSolution(FDPDE fd, Vec *xprev)
 
   if (xprev) {
     *xprev = ad->xprev;
-    ierr = PetscObjectReference((PetscObject)ad->xprev);CHKERRQ(ierr);
+    PetscCall(PetscObjectReference((PetscObject)ad->xprev));
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -183,7 +180,6 @@ Use: user
 PetscErrorCode FDPDEAdvDiffGetPrevCoefficient(FDPDE fd, Vec *coeffprev)
 {
   AdvDiffData    *ad;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ADVDIFF) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ADVDIFF!");
@@ -193,10 +189,10 @@ PetscErrorCode FDPDEAdvDiffGetPrevCoefficient(FDPDE fd, Vec *coeffprev)
 
   if (coeffprev) {
     *coeffprev = ad->coeffprev;
-    ierr = PetscObjectReference((PetscObject)ad->coeffprev);CHKERRQ(ierr);
+    PetscCall(PetscObjectReference((PetscObject)ad->coeffprev));
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -215,14 +211,13 @@ Use: user
 PetscErrorCode FDPDEAdvDiffSetAdvectSchemeType(FDPDE fd, AdvectSchemeType advtype)
 {
   AdvDiffData    *ad;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ADVDIFF) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"The Advection Type should be set only for FD-PDE Type = ADVDIFF!");
   ad = fd->data;
   ad->advtype = advtype;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -241,7 +236,6 @@ Use: user
 PetscErrorCode FDPDEAdvDiffSetTimeStepSchemeType(FDPDE fd, TimeStepSchemeType timesteptype)
 {
   AdvDiffData    *ad;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ADVDIFF) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"The TimeStepSchemeType should be set only for FD-PDE Type = ADVDIFF!");
@@ -271,11 +265,11 @@ PetscErrorCode FDPDEAdvDiffSetTimeStepSchemeType(FDPDE fd, TimeStepSchemeType ti
 
   if (ad->timesteptype != TS_NONE) {
     // Create vectors for time-stepping if required
-    ierr = VecDuplicate(fd->x,&ad->xprev);CHKERRQ(ierr);
-    ierr = VecDuplicate(fd->coeff,&ad->coeffprev);CHKERRQ(ierr);
+    PetscCall(VecDuplicate(fd->x,&ad->xprev));
+    PetscCall(VecDuplicate(fd->coeff,&ad->coeffprev));
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -294,7 +288,6 @@ Use: user
 PetscErrorCode FDPDEAdvDiffSetTimestep(FDPDE fd, PetscScalar dt)
 {
   AdvDiffData    *ad;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ADVDIFF) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ADVDIFF!");
@@ -303,7 +296,7 @@ PetscErrorCode FDPDEAdvDiffSetTimestep(FDPDE fd, PetscScalar dt)
   ad = fd->data;
   if (dt) ad->dt = dt;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -324,7 +317,6 @@ Use: user
 PetscErrorCode FDPDEAdvDiffGetTimestep(FDPDE fd, PetscScalar *dt)
 {
   AdvDiffData    *ad;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
 
   if (fd->type != FDPDE_ADVDIFF) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ADVDIFF!");
@@ -333,7 +325,7 @@ PetscErrorCode FDPDEAdvDiffGetTimestep(FDPDE fd, PetscScalar *dt)
   ad = fd->data;
   if (dt) *dt = ad->dt;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -360,8 +352,7 @@ PetscErrorCode FDPDEAdvDiffComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
   PetscScalar    **coordx, **coordz, ***_coeff;
   DM             dmcoeff;
   Vec            coefflocal;
-  PetscErrorCode ierr;
-  PetscFunctionBeginUser;
+  PetscFunctionBegin;
 
   // Check fd-pde for type and setup
   if (fd->type != FDPDE_ADVDIFF) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ADVDIFF!");
@@ -370,23 +361,23 @@ PetscErrorCode FDPDEAdvDiffComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
   ad = fd->data;
   dmcoeff = fd->dmcoeff;
 
-  ierr = DMGetLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(dmcoeff,coefflocal,&_coeff);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dmcoeff, &coefflocal)); 
+  PetscCall(DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmcoeff,coefflocal,&_coeff));
 
   domain_dt = 1.0e32;
   eps = 1.0e-32; /* small shift to avoid dividing by zero */
 
-  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_LEFT,&iprev);CHKERRQ(ierr); 
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_RIGHT,&inext);CHKERRQ(ierr); 
+  PetscCall(DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
+  PetscCall(DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_LEFT,&iprev)); 
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_RIGHT,&inext)); 
 
   // get location slots - velocity is located on edge and c=1
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, 1,&v_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,1,&v_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   1,&v_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, 1,&v_slot[3]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, 1,&v_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,1,&v_slot[1]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   1,&v_slot[2]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, 1,&v_slot[3]));
 
   // Loop over elements 
   for (j = sz; j<sz+nz; j++) {
@@ -410,17 +401,17 @@ PetscErrorCode FDPDEAdvDiffComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
   }
 
   // MPI exchange global min/max
-  ierr = MPI_Allreduce(&domain_dt,&global_dt,1,MPI_DOUBLE,MPI_MIN,PetscObjectComm((PetscObject)dmcoeff));CHKERRQ(ierr);
+  PetscCall(MPI_Allreduce(&domain_dt,&global_dt,1,MPI_DOUBLE,MPI_MIN,PetscObjectComm((PetscObject)dmcoeff)));
 
   // Return vectors and arrays
-  ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(dmcoeff,coefflocal,&_coeff);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmcoeff,&coefflocal); CHKERRQ(ierr);
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL));
+  PetscCall(DMStagVecRestoreArrayRead(dmcoeff,coefflocal,&_coeff));
+  PetscCall(DMRestoreLocalVector(dmcoeff,&coefflocal)); 
 
   // Return value
   *dt = global_dt;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -434,11 +425,10 @@ PetscErrorCode FDPDEAdvDiffComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
 #define __FUNCT__ "JacobianCreate_AdvDiff"
 PetscErrorCode JacobianCreate_AdvDiff(FDPDE fd,Mat *J)
 {
-  PetscErrorCode ierr;
   PetscFunctionBegin;
-  ierr = DMCreateMatrix(fd->dmstag,J); CHKERRQ(ierr);
-  ierr = JacobianPreallocator_AdvDiff(fd,*J);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(DMCreateMatrix(fd->dmstag,J)); 
+  PetscCall(JacobianPreallocator_AdvDiff(fd,*J));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -457,43 +447,42 @@ PetscErrorCode JacobianPreallocator_AdvDiff(FDPDE fd,Mat J)
   Mat            preallocator = NULL;
   PetscScalar    *xx;
   DMStagStencil  *point;
-  PetscErrorCode ierr;
 
-  PetscFunctionBeginUser;
+  PetscFunctionBegin;
 
   // Assign pointers and other variables
   Nx = fd->Nx;
   Nz = fd->Nz;
 
   // MatPreallocate begin
-  ierr = MatPreallocatePhaseBegin(J, &preallocator); CHKERRQ(ierr);
+  PetscCall(MatPreallocatePhaseBegin(J, &preallocator)); 
   
   // Get local domain
-  ierr = DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  PetscCall(DMStagGetCorners(fd->dmstag, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
   
   // Zero entries
-  ierr = PetscCalloc1(nEntries,&xx); CHKERRQ(ierr);
-  ierr = PetscCalloc1(nEntries,&point); CHKERRQ(ierr);
+  PetscCall(PetscCalloc1(nEntries,&xx)); 
+  PetscCall(PetscCalloc1(nEntries,&point)); 
 
   // Get non-zero pattern for preallocator - Loop over all local elements 
   for (j = sz; j<sz+nz; j++) {
     for (i = sx; i<sx+nx; i++) {
-      ierr = EnergyStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point);CHKERRQ(ierr);
-      ierr = DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries,point,xx,INSERT_VALUES); CHKERRQ(ierr);
+      PetscCall(EnergyStencil(i,j,Nx,Nz,fd->dm_btype0,fd->dm_btype1,point));
+      PetscCall(DMStagMatSetValuesStencil(fd->dmstag,preallocator,1,point,nEntries,point,xx,INSERT_VALUES)); 
     }
   }
   
   // Push the non-zero pattern defined within preallocator into the Jacobian
-  ierr = MatPreallocatePhaseEnd(J); CHKERRQ(ierr);
+  PetscCall(MatPreallocatePhaseEnd(J)); 
 
   // Matrix assembly
-  ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-  ierr = MatAssemblyEnd  (J,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+  PetscCall(MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY)); 
+  PetscCall(MatAssemblyEnd  (J,MAT_FINAL_ASSEMBLY)); 
 
-  ierr = PetscFree(xx);CHKERRQ(ierr);
-  ierr = PetscFree(point);CHKERRQ(ierr);
+  PetscCall(PetscFree(xx));
+  PetscCall(PetscFree(point));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -532,5 +521,5 @@ PetscErrorCode EnergyStencil(PetscInt i,PetscInt j, PetscInt Nx, PetscInt Nz, DM
     // if (j >= Nz-2) point[8] = point[0];
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

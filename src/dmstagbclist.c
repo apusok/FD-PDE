@@ -11,14 +11,13 @@ Use: internal
 #define __FUNCT__ "_DMStagBCFillIndices"
 static PetscErrorCode _DMStagBCFillIndices(DM dm,DMStagStencilLocation loc,PetscInt c,PetscInt i,PetscInt j,DMStagBC *bc)
 {
-  PetscErrorCode ierr;
-  PetscFunctionBeginUser;
+  PetscFunctionBegin;
   bc->point.i = i;
   bc->point.j = j;
   bc->point.c = c;
   bc->point.loc = loc;
-  ierr = DMStagGetLocationSlot(dm,loc,c,&bc->idx);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(DMStagGetLocationSlot(dm,loc,c,&bc->idx));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -34,20 +33,19 @@ static PetscErrorCode _DMStagBCFillCoords(PetscInt stratum_id,DM dm,PetscScalar 
 {
   PetscInt       ii=-1,jj=-1,iprev=-1,inext=-1,icenter=-1;
   PetscInt       dof0,dof1,dof2;
-  PetscErrorCode ierr;
-  PetscFunctionBeginUser;
+  PetscFunctionBegin;
   
-  ierr = DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL));
 
-  if (dof2) {ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr);} 
+  if (dof2) {PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter));} 
   if (dof0 || dof1) { 
-    ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
-    ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr);
+    PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev));
+    PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext));
   } 
 
-  // ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr);
-  // ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
-  // ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr);
+  // PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter));
+  // PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev));
+  // PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext));
 
   if ((loc == DMSTAG_DOWN_LEFT)  || (loc == DMSTAG_UP_LEFT)  || (loc == DMSTAG_LEFT))  ii = iprev;
   if ((loc == DMSTAG_ELEMENT)    || (loc == DMSTAG_DOWN)     || (loc == DMSTAG_UP))    ii = icenter;
@@ -60,7 +58,7 @@ static PetscErrorCode _DMStagBCFillCoords(PetscInt stratum_id,DM dm,PetscScalar 
   bc->coord[0] = cx[i][ii];
   bc->coord[1] = cz[j][jj];
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -78,13 +76,12 @@ static PetscErrorCode _DMStagBCListSetupIndices(DMStagBCList list)
   PetscInt              i,j,ii,ndof0,ndof1,ndof2,dof0,dof1,dof2;
   DMStagStencilLocation loc,loc1;
   DM                    dm;
-  PetscErrorCode        ierr;
   
   PetscFunctionBegin;
   dm = list->dm;
-  ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dm,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL));
+  PetscCall(DMStagGetCorners(dm,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL));
+  PetscCall(DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL));
   
   // Save grid info for BC dofs
   ndof0 = ndof1 = ndof2 = 0;
@@ -95,28 +92,28 @@ static PetscErrorCode _DMStagBCListSetupIndices(DMStagBCList list)
           else        { loc = DMSTAG_DOWN_RIGHT; }
           loc = (i == 0) ? DMSTAG_DOWN_LEFT : DMSTAG_DOWN_RIGHT;
           for (ii = 0; ii<dof0; ii++) {
-            ierr = _DMStagBCFillIndices(dm,loc,ii,i,j,&list->bc_v[ndof0++]);CHKERRQ(ierr);
+            PetscCall(_DMStagBCFillIndices(dm,loc,ii,i,j,&list->bc_v[ndof0++]));
           }
           if (i == 0) { loc = DMSTAG_LEFT; }
           else        { loc = DMSTAG_RIGHT; }
           loc = (i == 0) ? DMSTAG_LEFT : DMSTAG_RIGHT;
           loc1 = DMSTAG_DOWN;
           for (ii = 0; ii<dof1; ii++) {
-            ierr = _DMStagBCFillIndices(dm,loc, ii,i,j,&list->bc_f[ndof1++]);CHKERRQ(ierr);
-            ierr = _DMStagBCFillIndices(dm,loc1,ii,i,j,&list->bc_f[ndof1++]);CHKERRQ(ierr);
+            PetscCall(_DMStagBCFillIndices(dm,loc, ii,i,j,&list->bc_f[ndof1++]));
+            PetscCall(_DMStagBCFillIndices(dm,loc1,ii,i,j,&list->bc_f[ndof1++]));
           }
           for (ii = 0; ii<dof2; ii++) {
-            ierr = _DMStagBCFillIndices(dm,DMSTAG_ELEMENT,ii,i,j,&list->bc_e[ndof2++]);CHKERRQ(ierr);
+            PetscCall(_DMStagBCFillIndices(dm,DMSTAG_ELEMENT,ii,i,j,&list->bc_e[ndof2++]));
           }
         if (j == Nz-1) {
             if (i == 0) { loc = DMSTAG_UP_LEFT; }
             else        { loc = DMSTAG_UP_RIGHT; }
             loc = (i == 0) ? DMSTAG_UP_LEFT : DMSTAG_UP_RIGHT;
             for (ii = 0; ii<dof0; ii++) {
-              ierr = _DMStagBCFillIndices(dm,loc,ii,i,j,&list->bc_v[ndof0++]);CHKERRQ(ierr);
+              PetscCall(_DMStagBCFillIndices(dm,loc,ii,i,j,&list->bc_v[ndof0++]));
             }
             for (ii = 0; ii<dof1; ii++) {
-              ierr = _DMStagBCFillIndices(dm,DMSTAG_UP,ii,i,j,&list->bc_f[ndof1++]);CHKERRQ(ierr);
+              PetscCall(_DMStagBCFillIndices(dm,DMSTAG_UP,ii,i,j,&list->bc_f[ndof1++]));
             }
         }
       } else {
@@ -125,35 +122,35 @@ static PetscErrorCode _DMStagBCListSetupIndices(DMStagBCList list)
             else        { loc = DMSTAG_UP_LEFT; }
             loc = (j == 0) ? DMSTAG_DOWN_LEFT : DMSTAG_UP_LEFT;
             for (ii = 0; ii<dof0; ii++) {
-              ierr = _DMStagBCFillIndices(dm,loc,ii,i,j,&list->bc_v[ndof0++]);CHKERRQ(ierr);
+              PetscCall(_DMStagBCFillIndices(dm,loc,ii,i,j,&list->bc_v[ndof0++]));
             }
             if (j == 0) { loc = DMSTAG_DOWN; }
             else        { loc = DMSTAG_UP; }
             loc = (j == 0) ? DMSTAG_DOWN : DMSTAG_UP;
             loc1 = DMSTAG_LEFT;
             for (ii = 0; ii<dof1; ii++) {
-              ierr = _DMStagBCFillIndices(dm,loc, ii,i,j,&list->bc_f[ndof1++]);CHKERRQ(ierr);
-              ierr = _DMStagBCFillIndices(dm,loc1,ii,i,j,&list->bc_f[ndof1++]);CHKERRQ(ierr);
+              PetscCall(_DMStagBCFillIndices(dm,loc, ii,i,j,&list->bc_f[ndof1++]));
+              PetscCall(_DMStagBCFillIndices(dm,loc1,ii,i,j,&list->bc_f[ndof1++]));
             }
             for (ii = 0; ii<dof2; ii++) {
-              ierr = _DMStagBCFillIndices(dm,DMSTAG_ELEMENT,ii,i,j,&list->bc_e[ndof2++]);CHKERRQ(ierr);
+              PetscCall(_DMStagBCFillIndices(dm,DMSTAG_ELEMENT,ii,i,j,&list->bc_e[ndof2++]));
             }
           if (i == Nx-2) {
               if (j == 0) { loc = DMSTAG_DOWN_RIGHT; }
               else        { loc = DMSTAG_UP_RIGHT; }
               loc = (j == 0) ? DMSTAG_DOWN_RIGHT : DMSTAG_UP_RIGHT;
               for (ii = 0; ii<dof0; ii++) {
-                ierr = _DMStagBCFillIndices(dm,loc,ii,i,j,&list->bc_v[ndof0++]);CHKERRQ(ierr);
+                PetscCall(_DMStagBCFillIndices(dm,loc,ii,i,j,&list->bc_v[ndof0++]));
               }
               for (ii = 0; ii<dof1; ii++) {
-                ierr = _DMStagBCFillIndices(dm,DMSTAG_RIGHT,ii,i,j,&list->bc_f[ndof1++]);CHKERRQ(ierr);
+                PetscCall(_DMStagBCFillIndices(dm,DMSTAG_RIGHT,ii,i,j,&list->bc_f[ndof1++]));
               }
           }
         }
       }
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -172,15 +169,14 @@ static PetscErrorCode _DMStagBCListSetupCoordinates(DMStagBCList list)
   PetscBool      isProduct;
   DMType         dmType;
   PetscScalar    **coordx,**coordz;
-  PetscErrorCode ierr;
 
   PetscFunctionBegin;
   dm = list->dm;
-  ierr = DMGetCoordinateDM(dm,&dmCoord);CHKERRQ(ierr);
-  ierr = DMGetType(dmCoord,&dmType);CHKERRQ(ierr);
-  ierr = PetscStrcmp(DMPRODUCT,dmType,&isProduct);CHKERRQ(ierr);
+  PetscCall(DMGetCoordinateDM(dm,&dmCoord));
+  PetscCall(DMGetType(dmCoord,&dmType));
+  PetscCall(PetscStrcmp(DMPRODUCT,dmType,&isProduct));
   if (!isProduct) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Coordinate DM must be of type DMPRODUCT");
-  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL));
   {
     DMStagBC *bcs[] = { list->bc_v , list->bc_f, list->bc_e };
     PetscInt size[] = { list->nbc_vertex , list->nbc_face , list->nbc_element };
@@ -188,12 +184,12 @@ static PetscErrorCode _DMStagBCListSetupCoordinates(DMStagBCList list)
     for (k=0; k<3; k++) {
       for (ii = 0; ii<size[k]; ii++) {
         DMStagBC *b = &bcs[k][ii];
-        ierr = _DMStagBCFillCoords(k,dm,coordx,coordz,b->point.loc,b->point.i,b->point.j,b);CHKERRQ(ierr);
+        PetscCall(_DMStagBCFillCoords(k,dm,coordx,coordz,b->point.loc,b->point.i,b->point.j,b));
       }
     }
   }
-  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -211,13 +207,12 @@ Use: user/internal
 PetscErrorCode DMStagBCListSetupCoordinates(DMStagBCList list)
 {
   DM             dmCoord = NULL;
-  PetscErrorCode ierr;
   
   PetscFunctionBegin;
-  ierr = DMGetCoordinateDM(list->dm,&dmCoord);
+  PetscCall(DMGetCoordinateDM(list->dm,&dmCoord));
   if (!dmCoord) SETERRQ(PetscObjectComm((PetscObject)list->dm),PETSC_ERR_SUP,"DMStag must have coordinates defined. Hint - coordinates must be defined via DMPRODUCT)");
-  ierr = _DMStagBCListSetupCoordinates(list);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(_DMStagBCListSetupCoordinates(list));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -241,7 +236,7 @@ PetscErrorCode DMStagBCListGetVertexBCs(DMStagBCList list,PetscInt *nbc,DMStagBC
   PetscFunctionBegin;
   if (nbc) { *nbc = list->nbc_vertex; }
   if (l) { *l = list->bc_v; }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -265,7 +260,7 @@ PetscErrorCode DMStagBCListGetFaceBCs(DMStagBCList list,PetscInt *nbc,DMStagBC *
   PetscFunctionBegin;
   if (nbc) { *nbc = list->nbc_face; }
   if (l) { *l = list->bc_f; }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -289,7 +284,7 @@ PetscErrorCode DMStagBCListGetElementBCs(DMStagBCList list,PetscInt *nbc,DMStagB
   PetscFunctionBegin;
   if (nbc) { *nbc = list->nbc_element; }
   if (l) { *l = list->bc_e; }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -309,27 +304,26 @@ Use: internal
 #define __FUNCT__ "DMStagBCListCreate"
 PetscErrorCode DMStagBCListCreate(DM dm,DMStagBCList *list)
 {
-  PetscErrorCode ierr;
   PetscInt       dim,Nx,Nz;
   PetscBool      isstag;
   DMStagBCList   l;
   
   PetscFunctionBegin;
   /* check assumptions */
-  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
+  PetscCall(DMGetDimension(dm,&dim));
   if (dim != 2) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Only valid for 2d DM");
-  ierr = PetscObjectTypeCompare((PetscObject)dm,DMSTAG,&isstag);CHKERRQ(ierr);
+  PetscCall(PetscObjectTypeCompare((PetscObject)dm,DMSTAG,&isstag));
   if (!isstag) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Only valid for DMStag");
-  ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL));
   if (Nx < 3) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Implementation of BCList only valid for n-cells-i >= 3. Found nx=%D",Nx);
   if (Nz < 3) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Implementation of BCList only valid for n-cells-j >= 3. Found ny=%D",Nz);
   { /* Check for existence of a coordinateDM - I deliberately don't call CHKERRQ() after DMGetCoordinateDM() so that I can throw the error message below which is more helpful than the error thrown from DMGetCoordinateDM() */
     DM dmCoord = NULL;
-    ierr = DMGetCoordinateDM(dm,&dmCoord);
+    PetscCall(DMGetCoordinateDM(dm,&dmCoord));
     if (!dmCoord) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"DMStag must have coordinates defined. Hint - coordinates must be defined via DMPRODUCT");
   }
   
-  ierr = PetscCalloc1(1,&l);CHKERRQ(ierr);
+  PetscCall(PetscCalloc1(1,&l));
   l->dm = dm;
   l->evaluate = NULL;
   l->data = NULL;
@@ -339,8 +333,8 @@ PetscErrorCode DMStagBCListCreate(DM dm,DMStagBCList *list)
     PetscInt ii,i,j,ndof0,ndof1,ndof2,dof0,dof1,dof2;
     
     // Count local boundary dofs
-    ierr = DMStagGetCorners(dm,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
-    ierr = DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL);CHKERRQ(ierr);
+    PetscCall(DMStagGetCorners(dm,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL));
+    PetscCall(DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL));
     
     // Count boundary dofs
     ndof0 = 0;
@@ -376,13 +370,13 @@ PetscErrorCode DMStagBCListCreate(DM dm,DMStagBCList *list)
     l->nbc_element = ndof2;
     
     /* if we care about allocating empty arrays (although its permitted by petsc), add one extra */
-    ierr = PetscCalloc1(l->nbc_vertex+1, &l->bc_v);CHKERRQ(ierr);
-    ierr = PetscCalloc1(l->nbc_face+1,   &l->bc_f);CHKERRQ(ierr);
-    ierr = PetscCalloc1(l->nbc_element+1,&l->bc_e);CHKERRQ(ierr);
+    PetscCall(PetscCalloc1(l->nbc_vertex+1, &l->bc_v));
+    PetscCall(PetscCalloc1(l->nbc_face+1,   &l->bc_f));
+    PetscCall(PetscCalloc1(l->nbc_element+1,&l->bc_e));
     
-    ierr = _DMStagBCListSetupIndices(l);CHKERRQ(ierr);
+    PetscCall(_DMStagBCListSetupIndices(l));
     
-    ierr = _DMStagBCListSetupCoordinates(l);CHKERRQ(ierr);
+    PetscCall(_DMStagBCListSetupCoordinates(l));
     
     // Initialize list type
     for (ii = 0; ii<l->nbc_vertex; ii++) {
@@ -402,7 +396,7 @@ PetscErrorCode DMStagBCListCreate(DM dm,DMStagBCList *list)
   }
   
   *list = l;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -419,18 +413,17 @@ Use: internal
 #define __FUNCT__ "DMStagBCListDestroy"
 PetscErrorCode DMStagBCListDestroy(DMStagBCList *list)
 {
-  PetscErrorCode ierr;
   DMStagBCList   l;
   PetscFunctionBegin;
-  if (!list) PetscFunctionReturn(0);
-  if (!*list) PetscFunctionReturn(0);
+  if (!list) PetscFunctionReturn(PETSC_SUCCESS);
+  if (!*list) PetscFunctionReturn(PETSC_SUCCESS);
   l = *list;
-  ierr = PetscFree(l->bc_v);CHKERRQ(ierr);
-  ierr = PetscFree(l->bc_f);CHKERRQ(ierr);
-  ierr = PetscFree(l->bc_e);CHKERRQ(ierr);
-  ierr = PetscFree(l);CHKERRQ(ierr);
+  PetscCall(PetscFree(l->bc_v));
+  PetscCall(PetscFree(l->bc_f));
+  PetscCall(PetscFree(l->bc_e));
+  PetscCall(PetscFree(l));
   *list = NULL;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -446,11 +439,10 @@ PetscErrorCode _DMStagBCListGetIndices_J_left_and_right(DMStagBCList list,PetscI
 {
   PetscInt k,Nx,Nz,count=0;
   PetscInt *idx;
-  PetscErrorCode ierr;
   
   PetscFunctionBegin;
-  ierr = DMStagGetGlobalSizes(list->dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  ierr = PetscCalloc1(2*Nx,&idx);CHKERRQ(ierr); /* over allocate */
+  PetscCall(DMStagGetGlobalSizes(list->dm,&Nx,&Nz,NULL));
+  PetscCall(PetscCalloc1(2*Nx,&idx)); /* over allocate */
   for (k=0; k<list->nbc_face; k++) {
     if (list->bc_f[k].point.j == J) {
       DMStagStencilLocation loc = list->bc_f[k].point.loc;
@@ -463,7 +455,7 @@ PetscErrorCode _DMStagBCListGetIndices_J_left_and_right(DMStagBCList list,PetscI
   }
   *n = count;
   *_idx = idx;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -479,13 +471,12 @@ PetscErrorCode _DMStagBCListGetIndices_J_updown(DMStagBCList list,PetscInt dof,P
 {
   PetscInt k,Nx,Nz,count=0;
   PetscInt *idx;
-  PetscErrorCode ierr;
   
   PetscFunctionBegin;
   if (dir != DMSTAG_UP && dir != DMSTAG_DOWN) SETERRQ(PetscObjectComm((PetscObject)list->dm),PETSC_ERR_SUP,"Direction (arg 3) must be either DMSTAG_UP or DMSTAG_DOWN");
   
-  ierr = DMStagGetGlobalSizes(list->dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  ierr = PetscCalloc1(2*Nx,&idx);CHKERRQ(ierr); /* over allocate */
+  PetscCall(DMStagGetGlobalSizes(list->dm,&Nx,&Nz,NULL));
+  PetscCall(PetscCalloc1(2*Nx,&idx)); /* over allocate */
   for (k=0; k<list->nbc_face; k++) {
     if (list->bc_f[k].point.j == J) {
       DMStagStencilLocation loc = list->bc_f[k].point.loc;
@@ -496,7 +487,7 @@ PetscErrorCode _DMStagBCListGetIndices_J_updown(DMStagBCList list,PetscInt dof,P
   }
   *n = count;
   *_idx = idx;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -512,11 +503,10 @@ PetscErrorCode _DMStagBCListGetIndices_I_up_and_down(DMStagBCList list,PetscInt 
 {
   PetscInt k,Nx,Nz,count=0;
   PetscInt *idx;
-  PetscErrorCode ierr;
   
   PetscFunctionBegin;
-  ierr = DMStagGetGlobalSizes(list->dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  ierr = PetscCalloc1(2*Nz,&idx);CHKERRQ(ierr); /* over allocate */
+  PetscCall(DMStagGetGlobalSizes(list->dm,&Nx,&Nz,NULL));
+  PetscCall(PetscCalloc1(2*Nz,&idx)); /* over allocate */
   for (k=0; k<list->nbc_face; k++) {
     if (list->bc_f[k].point.i == II) {
       DMStagStencilLocation loc = list->bc_f[k].point.loc;
@@ -529,7 +519,7 @@ PetscErrorCode _DMStagBCListGetIndices_I_up_and_down(DMStagBCList list,PetscInt 
   }
   *n = count;
   *_idx = idx;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -545,13 +535,12 @@ PetscErrorCode _DMStagBCListGetIndices_I_leftright(DMStagBCList list,PetscInt do
 {
   PetscInt k,Nx,Nz,count=0;
   PetscInt *idx;
-  PetscErrorCode ierr;
   
   PetscFunctionBegin;
   if (dir != DMSTAG_LEFT && dir != DMSTAG_RIGHT) SETERRQ(PetscObjectComm((PetscObject)list->dm),PETSC_ERR_SUP,"Direction (arg 3) must be either DMSTAG_LEFT or DMSTAG_RIGHT");
   
-  ierr = DMStagGetGlobalSizes(list->dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  ierr = PetscCalloc1(2*Nz,&idx);CHKERRQ(ierr); /* over allocate */
+  PetscCall(DMStagGetGlobalSizes(list->dm,&Nx,&Nz,NULL));
+  PetscCall(PetscCalloc1(2*Nz,&idx)); /* over allocate */
   for (k=0; k<list->nbc_face; k++) {
     if (list->bc_f[k].point.i == II) {
       DMStagStencilLocation loc = list->bc_f[k].point.loc;
@@ -562,7 +551,7 @@ PetscErrorCode _DMStagBCListGetIndices_I_leftright(DMStagBCList list,PetscInt do
   }
   *n = count;
   *_idx = idx;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -578,13 +567,12 @@ PetscErrorCode _DMStagBCListGetIndices_center(DMStagBCList list,PetscInt dof,Pet
 {
   PetscInt k,Nx,Nz,count=0;
   PetscInt *idx;
-  PetscErrorCode ierr;
   
   PetscFunctionBegin;
-  ierr = DMStagGetGlobalSizes(list->dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetGlobalSizes(list->dm,&Nx,&Nz,NULL));
 
   if (II == -1) {
-    ierr = PetscCalloc1(Nx,&idx);CHKERRQ(ierr);
+    PetscCall(PetscCalloc1(Nx,&idx));
     for (k=0; k<list->nbc_element; k++) {
       if ((list->bc_e[k].point.j == JJ) && (list->bc_e[k].point.c == dof)) {
         DMStagStencilLocation loc = list->bc_e[k].point.loc;
@@ -595,7 +583,7 @@ PetscErrorCode _DMStagBCListGetIndices_center(DMStagBCList list,PetscInt dof,Pet
     }
   }
   if (JJ == -1) {
-    ierr = PetscCalloc1(Nz,&idx);CHKERRQ(ierr); /* over allocate */
+    PetscCall(PetscCalloc1(Nz,&idx)); /* over allocate */
     for (k=0; k<list->nbc_element; k++) {
       if ((list->bc_e[k].point.i == II) && (list->bc_e[k].point.c == dof)) {
         DMStagStencilLocation loc = list->bc_e[k].point.loc;
@@ -607,7 +595,7 @@ PetscErrorCode _DMStagBCListGetIndices_center(DMStagBCList list,PetscInt dof,Pet
   }
   *n = count;
   *_idx = idx;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -645,23 +633,22 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
   PetscScalar *v,*xc,*xc_stag;
   BCType *t;
   DMStagBC *bc = NULL;
-  PetscErrorCode ierr;
   
   PetscFunctionBegin;
   if (label == '.') SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"No support to get vertex bc DOFs. Only support for getting face bc values. ");
   
   if (!_n || !_idx || !_value || !_type) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Must provide a valid (non-NULL) pointer for n (arg 4), idx (arg 5), value (arg 7), type (arg 8)");
   
-  ierr = DMStagGetGlobalSizes(list->dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetGlobalSizes(list->dm,&Nx,&Nz,NULL));
   
   switch (domain_face) {
     case 'n':
       if (label == '-') {
-        ierr = _DMStagBCListGetIndices_J_left_and_right(list,dof,Nz-1,&n,&idx);CHKERRQ(ierr); // vx
+        PetscCall(_DMStagBCListGetIndices_J_left_and_right(list,dof,Nz-1,&n,&idx)); // vx
       } else if (label == '|') {
-        ierr = _DMStagBCListGetIndices_J_updown(list,dof,Nz-1,DMSTAG_UP,&n,&idx);CHKERRQ(ierr); // vy
+        PetscCall(_DMStagBCListGetIndices_J_updown(list,dof,Nz-1,DMSTAG_UP,&n,&idx)); // vy
       } else if (label == 'o') {
-        _DMStagBCListGetIndices_center(list,dof,-1,Nz-1,&n,&idx);CHKERRQ(ierr);
+        _DMStagBCListGetIndices_center(list,dof,-1,Nz-1,&n,&idx);
       } else {
         SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction[North] No support to get vertex data. Unknown stratum label %s provided - must be one of {'-','|','o'}",&label);
       }
@@ -669,11 +656,11 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
       
     case 's':
       if (label == '-') {
-        ierr = _DMStagBCListGetIndices_J_left_and_right(list,dof,0,&n,&idx);CHKERRQ(ierr);
+        PetscCall(_DMStagBCListGetIndices_J_left_and_right(list,dof,0,&n,&idx));
       } else if (label == '|') {
-        ierr = _DMStagBCListGetIndices_J_updown(list,dof,0,DMSTAG_DOWN,&n,&idx);CHKERRQ(ierr); // vy
+        PetscCall(_DMStagBCListGetIndices_J_updown(list,dof,0,DMSTAG_DOWN,&n,&idx)); // vy
       } else if (label == 'o') {
-        _DMStagBCListGetIndices_center(list,dof,-1,0,&n,&idx);CHKERRQ(ierr);
+        _DMStagBCListGetIndices_center(list,dof,-1,0,&n,&idx);
       } else {
         SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction[South] No support to get vertex data. Unknown stratum label %s provided - must be one of {'-','|','o'}",&label);
       }
@@ -681,11 +668,11 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
 
     case 'e':
       if (label == '-') {
-        ierr = _DMStagBCListGetIndices_I_leftright(list,dof,Nx-1,DMSTAG_RIGHT,&n,&idx);CHKERRQ(ierr); // vx
+        PetscCall(_DMStagBCListGetIndices_I_leftright(list,dof,Nx-1,DMSTAG_RIGHT,&n,&idx)); // vx
       } else if (label == '|') {
-        ierr = _DMStagBCListGetIndices_I_up_and_down(list,dof,Nx-1,&n,&idx);CHKERRQ(ierr); // vy
+        PetscCall(_DMStagBCListGetIndices_I_up_and_down(list,dof,Nx-1,&n,&idx)); // vy
       } else if (label == 'o') {
-        _DMStagBCListGetIndices_center(list,dof,Nx-1,-1,&n,&idx);CHKERRQ(ierr);
+        _DMStagBCListGetIndices_center(list,dof,Nx-1,-1,&n,&idx);
       } else {
         SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction[East] No support to get vertex data. Unknown stratum label %s provided - must be one of {'-','|','o'}",&label);
       }
@@ -693,11 +680,11 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
 
     case 'w':
       if (label == '-') {
-        ierr = _DMStagBCListGetIndices_I_leftright(list,dof,0,DMSTAG_LEFT,&n,&idx);CHKERRQ(ierr); // vx
+        PetscCall(_DMStagBCListGetIndices_I_leftright(list,dof,0,DMSTAG_LEFT,&n,&idx)); // vx
       } else if (label == '|') {
-        ierr = _DMStagBCListGetIndices_I_up_and_down(list,dof,0,&n,&idx);CHKERRQ(ierr); // vy
+        PetscCall(_DMStagBCListGetIndices_I_up_and_down(list,dof,0,&n,&idx)); // vy
       } else if (label == 'o') {
-        _DMStagBCListGetIndices_center(list,dof,0,-1,&n,&idx);CHKERRQ(ierr);
+        _DMStagBCListGetIndices_center(list,dof,0,-1,&n,&idx);
       } else {
         SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction[West] No support to get vertex data. Unknown stratum label %s provided - must be one of {'-','|','o'}",&label);
       }
@@ -708,10 +695,10 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
       break;
   }
 
-  ierr = PetscCalloc1(2*n,&xc);CHKERRQ(ierr);
-  ierr = PetscCalloc1(2*n,&xc_stag);CHKERRQ(ierr);
-  ierr = PetscCalloc1(n,&v);CHKERRQ(ierr);
-  ierr = PetscCalloc1(n,&t);CHKERRQ(ierr);
+  PetscCall(PetscCalloc1(2*n,&xc));
+  PetscCall(PetscCalloc1(2*n,&xc_stag));
+  PetscCall(PetscCalloc1(n,&v));
+  PetscCall(PetscCalloc1(n,&t));
   
   /* copy coords */
   switch (label) {
@@ -735,8 +722,8 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
   PetscScalar *dx, *dz;
   PetscInt start[2], nx_local, nz_local;
   
-  ierr = DMStagCellSizeLocal_2d(list->dm,&nx_local,&nz_local,&dx,&dz); CHKERRQ(ierr);
-  ierr = DMStagGetCorners(list->dm,&start[0],&start[1],NULL,NULL,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+  PetscCall(DMStagCellSizeLocal_2d(list->dm,&nx_local,&nz_local,&dx,&dz)); 
+  PetscCall(DMStagGetCorners(list->dm,&start[0],&start[1],NULL,NULL,NULL,NULL,NULL,NULL,NULL));
 
   for (k=0; k<n; k++) {
     xc_stag[2*k+0] = bc[ idx[k] ].coord[0];
@@ -770,15 +757,15 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
     }
   }
 
-  ierr = PetscFree(dx);CHKERRQ(ierr);
-  ierr = PetscFree(dz);CHKERRQ(ierr);
+  PetscCall(PetscFree(dx));
+  PetscCall(PetscFree(dz));
 
   *_n = n;  *_idx = idx;  *_value = v;  *_type = t;
   if (_xc) { *_xc = xc; }
-  else {ierr = PetscFree(xc);CHKERRQ(ierr);}
+  else {PetscCall(PetscFree(xc));}
   if (_xc_stag) { *_xc_stag = xc_stag; }
-  else {ierr = PetscFree(xc_stag);CHKERRQ(ierr);}
-  PetscFunctionReturn(0);
+  else {PetscCall(PetscFree(xc_stag));}
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -861,7 +848,6 @@ PetscErrorCode DMStagBCListInsertValues(DMStagBCList list,const char label,
   PetscInt *idx;
   PetscScalar *value;
   BCType *type;
-  PetscErrorCode ierr;
   
   PetscFunctionBegin;
   if (!_n || !_idx || !_value || !_type) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Must provide a valid (non-NULL) pointer for n (arg 4) idx (arg 5), value (arg 8), type (arg 9)");
@@ -891,14 +877,14 @@ PetscErrorCode DMStagBCListInsertValues(DMStagBCList list,const char label,
     bc[ idx[k] ].type = type[k];
   }
 
-  ierr = PetscFree(*_idx);CHKERRQ(ierr);
-  ierr = PetscFree(*_value);CHKERRQ(ierr);
-  ierr = PetscFree(*_type);CHKERRQ(ierr);
+  PetscCall(PetscFree(*_idx));
+  PetscCall(PetscFree(*_value));
+  PetscCall(PetscFree(*_type));
   
-  if (_xc) { ierr = PetscFree(*_xc);CHKERRQ(ierr);}
-  if (_xc_stag) { ierr = PetscFree(*_xc_stag);CHKERRQ(ierr);}
+  if (_xc) { PetscCall(PetscFree(*_xc));}
+  if (_xc_stag) { PetscCall(PetscFree(*_xc_stag));}
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -915,13 +901,12 @@ Use: user/internal
 #define __FUNCT__ "DMStagBCListView"
 PetscErrorCode DMStagBCListView(DMStagBCList list)
 {
-  PetscErrorCode ierr;
   PetscInt       i,dof[] = {0,0,0};
   DMStagBC       *bc;
   
   PetscFunctionBegin;
   PetscPrintf(PETSC_COMM_WORLD,"DMStagBCListView\n");
-  ierr = DMStagGetDOF(list->dm,&dof[0],&dof[1],&dof[2],NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetDOF(list->dm,&dof[0],&dof[1],&dof[2],NULL));
   PetscPrintf(PETSC_COMM_WORLD,"  stratum size: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
   
   PetscPrintf(PETSC_COMM_SELF,"  bc_vertices: size %D\n",list->nbc_vertex);
@@ -940,7 +925,7 @@ PetscErrorCode DMStagBCListView(DMStagBCList list)
   for (i=0; i<list->nbc_element; i++) {
     PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j,loc (%D %D %D) dof %D value %+1.2e type %D\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc,bc[i].point.c,bc[i].val,(PetscInt)bc[i].type);
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -967,7 +952,6 @@ static PetscErrorCode _DMStagBCListPinValue(DMStagBCList list,
                                             PetscInt target_cell_i,PetscInt target_cell_j,
                                             const char label,PetscInt dof,PetscScalar val)
 {
-  PetscErrorCode ierr;
   PetscInt       k,d,ndof,stag_dof[] = {0,0,0},len = 0;
   MPI_Comm       comm;
   PetscMPIInt    rank;
@@ -977,10 +961,10 @@ static PetscErrorCode _DMStagBCListPinValue(DMStagBCList list,
   DMStagStencilLocation locset[] = {DMSTAG_NULL_LOCATION,DMSTAG_NULL_LOCATION,DMSTAG_NULL_LOCATION,DMSTAG_NULL_LOCATION};
   
   PetscFunctionBegin;
-  ierr = PetscObjectGetComm((PetscObject)(list->dm),&comm);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+  PetscCall(PetscObjectGetComm((PetscObject)(list->dm),&comm));
+  PetscCall(MPI_Comm_rank(comm,&rank));
   
-  ierr = DMStagGetDOF(list->dm,&stag_dof[0],&stag_dof[1],&stag_dof[2],NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetDOF(list->dm,&stag_dof[0],&stag_dof[1],&stag_dof[2],NULL));
 
   if (label == 'o') {
     len = list->nbc_element;
@@ -1047,7 +1031,7 @@ static PetscErrorCode _DMStagBCListPinValue(DMStagBCList list,
   }
   
   /* Check that one and only one sub-domain identified a pin-point */
-  ierr = MPI_Allreduce(MPI_IN_PLACE,&found,1,MPI_INT,MPI_SUM,comm);CHKERRQ(ierr);
+  PetscCall(MPI_Allreduce(MPI_IN_PLACE,&found,1,MPI_INT,MPI_SUM,comm));
   if (found == 0) SETERRQ(comm,PETSC_ERR_SUP,"No pin-point was identified on any sub-domain");
   if (found > 1) SETERRQ(comm,PETSC_ERR_SUP,"A target pin-points was identified on more than one sub-domain");
   
@@ -1060,7 +1044,7 @@ static PetscErrorCode _DMStagBCListPinValue(DMStagBCList list,
     printf("  pin point: val   %+1.4e\n",bcpoint->val);
   }
   */
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -1075,10 +1059,9 @@ static PetscErrorCode _DMStagBCListPinValue(DMStagBCList list,
 */
 PetscErrorCode DMStagBCListPinValue(DMStagBCList list,const char label,PetscInt dof,PetscScalar val)
 {
-  PetscErrorCode ierr;
   PetscFunctionBegin;
-  ierr = _DMStagBCListPinValue(list,0,0,label,dof,val);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(_DMStagBCListPinValue(list,0,0,label,dof,val));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -1096,25 +1079,24 @@ PetscErrorCode DMStagBCListPinValue(DMStagBCList list,const char label,PetscInt 
 PetscErrorCode DMStagBCListPinCornerValue(DMStagBCList list,DMStagStencilLocation corner,const char label,PetscInt dof,PetscScalar val)
 {
   PetscInt       M,N;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
-  ierr = DMStagGetGlobalSizes(list->dm,&M,&N,NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetGlobalSizes(list->dm,&M,&N,NULL));
   switch (corner) {
     case DMSTAG_DOWN_RIGHT:
-      ierr = _DMStagBCListPinValue(list,0,N-1,label,dof,val);CHKERRQ(ierr);
+      PetscCall(_DMStagBCListPinValue(list,0,N-1,label,dof,val));
       break;
     case DMSTAG_DOWN_LEFT:
-      ierr = _DMStagBCListPinValue(list,0,0,label,dof,val);CHKERRQ(ierr);
+      PetscCall(_DMStagBCListPinValue(list,0,0,label,dof,val));
       break;
     case DMSTAG_UP_RIGHT:
-      ierr = _DMStagBCListPinValue(list,M-1,N-1,label,dof,val);CHKERRQ(ierr);
+      PetscCall(_DMStagBCListPinValue(list,M-1,N-1,label,dof,val));
       break;
     case DMSTAG_UP_LEFT:
-      ierr = _DMStagBCListPinValue(list,M-1,0,label,dof,val);CHKERRQ(ierr);
+      PetscCall(_DMStagBCListPinValue(list,M-1,0,label,dof,val));
       break;
     default:
       SETERRQ(PetscObjectComm((PetscObject)list->dm),PETSC_ERR_SUP,"Corners of domain are identified with {down-right,down-left,up-right,up-left}");
       break;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
