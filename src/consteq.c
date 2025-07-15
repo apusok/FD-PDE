@@ -82,7 +82,7 @@ PetscErrorCode DMStagGetPointStrainRates(DM dm, Vec x, PetscInt n, DMStagStencil
       }
 
       default:
-      SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"DMStagStencil location %d is not supported. Point location must be centers or corners.",point[ix].loc);
+      SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"DMStagStencil location %d is not supported. Point location must be centers or corners.",point[ix].loc);
       break;
     }
 
@@ -341,7 +341,7 @@ PetscErrorCode DMStagGetArrayPointStrainRates(DM dm, PetscScalar ***xx, PetscSca
       break;
     }
     default:
-      SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"DMStagStencil location %d is not supported. Point location must be centers or corners.",loc);
+      SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"DMStagStencil location %d is not supported. Point location must be centers or corners.",loc);
     break;
   }
 

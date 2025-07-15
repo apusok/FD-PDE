@@ -10,6 +10,8 @@
 typedef enum { COOR_INITIALIZE = 0, COOR_APPEND } MPointCoordinateInsertMode;
 typedef enum { SWARM_FIELDS_SAME = 0, SWARM_FIELDS_SUBSET, SWARM_FIELDS_SUPERSET, SWARM_FIELDS_DISJOINT } DMSwarmFieldsCompareType;
 
+const char DMSwarmPICField_cellid[] = "DMSwarm_cellid";
+
 PetscErrorCode DMStagPICCreateDMSwarm(DM,DM*);
 
 PetscErrorCode DMStagPICFinalize(DM);

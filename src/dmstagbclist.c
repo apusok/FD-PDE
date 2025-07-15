@@ -321,8 +321,8 @@ PetscErrorCode DMStagBCListCreate(DM dm,DMStagBCList *list)
   ierr = PetscObjectTypeCompare((PetscObject)dm,DMSTAG,&isstag);CHKERRQ(ierr);
   if (!isstag) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Only valid for DMStag");
   ierr = DMStagGetGlobalSizes(dm,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  if (Nx < 3) SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Implementation of BCList only valid for n-cells-i >= 3. Found nx=%D",Nx);
-  if (Nz < 3) SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Implementation of BCList only valid for n-cells-j >= 3. Found ny=%D",Nz);
+  if (Nx < 3) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Implementation of BCList only valid for n-cells-i >= 3. Found nx=%D",Nx);
+  if (Nz < 3) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Implementation of BCList only valid for n-cells-j >= 3. Found ny=%D",Nz);
   { /* Check for existence of a coordinateDM - I deliberately don't call CHKERRQ() after DMGetCoordinateDM() so that I can throw the error message below which is more helpful than the error thrown from DMGetCoordinateDM() */
     DM dmCoord = NULL;
     ierr = DMGetCoordinateDM(dm,&dmCoord);
@@ -663,7 +663,7 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
       } else if (label == 'o') {
         _DMStagBCListGetIndices_center(list,dof,-1,Nz-1,&n,&idx);CHKERRQ(ierr);
       } else {
-        SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction[North] No support to get vertex data. Unknown stratum label %s provided - must be one of {'-','|','o'}",label);
+        SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction[North] No support to get vertex data. Unknown stratum label %s provided - must be one of {'-','|','o'}",&label);
       }
       break;
       
@@ -675,7 +675,7 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
       } else if (label == 'o') {
         _DMStagBCListGetIndices_center(list,dof,-1,0,&n,&idx);CHKERRQ(ierr);
       } else {
-        SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction[South] No support to get vertex data. Unknown stratum label %s provided - must be one of {'-','|','o'}",label);
+        SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction[South] No support to get vertex data. Unknown stratum label %s provided - must be one of {'-','|','o'}",&label);
       }
       break;
 
@@ -687,7 +687,7 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
       } else if (label == 'o') {
         _DMStagBCListGetIndices_center(list,dof,Nx-1,-1,&n,&idx);CHKERRQ(ierr);
       } else {
-        SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction[East] No support to get vertex data. Unknown stratum label %s provided - must be one of {'-','|','o'}",label);
+        SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction[East] No support to get vertex data. Unknown stratum label %s provided - must be one of {'-','|','o'}",&label);
       }
       break;
 
@@ -699,12 +699,12 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList list,
       } else if (label == 'o') {
         _DMStagBCListGetIndices_center(list,dof,0,-1,&n,&idx);CHKERRQ(ierr);
       } else {
-        SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction[West] No support to get vertex data. Unknown stratum label %s provided - must be one of {'-','|','o'}",label);
+        SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction[West] No support to get vertex data. Unknown stratum label %s provided - must be one of {'-','|','o'}",&label);
       }
       break;
       
     default:
-      SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction %s is not supported. Direction must be one of {'n','e','s','w'}");
+      SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Direction %s is not supported. Direction must be one of {'n','e','s','w'}",&label);
       break;
   }
 

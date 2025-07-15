@@ -77,7 +77,7 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char prefix[])
   ierr = PetscSNPrintf(string,PETSC_MAX_PATH_LEN-1,"%s.py",prefix);CHKERRQ(ierr);
   
   fp = fopen(string,"w");
-  if (!fp) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot open file %s",string);
+  if (!fp) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot open file %s",string);
   
   pythonemit(fp,"import PetscBinaryIO as pio\n");
   pythonemit(fp,"import numpy as np\n\n");
@@ -346,7 +346,7 @@ PetscErrorCode DMStagViewBinaryPython_MPI(DM dm,Vec X,const char prefix[])
   
   if (rank == 0) {
     fp = fopen(string,"w");
-    if (!fp) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot open file %s",string);
+    if (!fp) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot open file %s",string);
   }
   pythonemit(fp,"import PetscBinaryIO as pio\n");
   pythonemit(fp,"import numpy as np\n\n");

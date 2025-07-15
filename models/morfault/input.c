@@ -181,7 +181,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterInt(bag, &par->marker_phases, 6, "marker_phases", "Number of marker phases [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->matid_default, 5, "matid_default", "Default material phase for scaling [-]"); CHKERRQ(ierr);
 
-  if (par->marker_phases > MAX_MAT_PHASE) SETERRQ2(usr->comm,PETSC_ERR_USER,"Number of marker_phases = %d is higher than allowed MAX_MAT_PHASE = %d",par->marker_phases,MAX_MAT_PHASE);
+  if (par->marker_phases > MAX_MAT_PHASE) SETERRQ(usr->comm,PETSC_ERR_USER,"Number of marker_phases = %d is higher than allowed MAX_MAT_PHASE = %d",par->marker_phases,MAX_MAT_PHASE);
 
   ierr = PetscBagRegisterInt(bag, &par->mat0_id, 0, "mat0_id", "Material phase 0 [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterString(bag,&par->mat0_name,FNAME_LENGTH,"mat0_name","stick-water","Name for material phase 0"); CHKERRQ(ierr);

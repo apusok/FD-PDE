@@ -631,7 +631,7 @@ PetscErrorCode FDPDEEnthalpySetNumberComponentsPhaseDiagram(FDPDE fd, PetscInt n
 
   if (fd->type != FDPDE_ENTHALPY) SETERRQ(fd->comm,PETSC_ERR_ARG_WRONG,"This routine is only valid for FD-PDE Type = ENTHALPY!");
   if (fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDEEnthalpySetNumberComponentsPhaseDiagram() before FDPDESetUp()");
-  if (n>MAX_COMPONENTS) SETERRQ1(fd->comm,PETSC_ERR_SUP,"Supported only %d maximum chemical components!",MAX_COMPONENTS);
+  if (n>MAX_COMPONENTS) SETERRQ(fd->comm,PETSC_ERR_SUP,"Supported only %d maximum chemical components!",MAX_COMPONENTS);
   fd->dof2  = n; 
 
   PetscFunctionReturn(0);

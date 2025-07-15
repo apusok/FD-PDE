@@ -54,7 +54,7 @@ static PetscErrorCode private_DMStagStencilToIndexLocal(DM dm,PetscInt n,const D
       const PetscInt eLocal  = epl*eLocalz + epr*eLocaly + eLocalx;
       ix[idx] = eLocal * epe + stag->locationOffsets[pos[idx].loc] + pos[idx].c;
     }
-  } else SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_OUTOFRANGE,"Unsupported dimension %d",dim);
+  } else SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_OUTOFRANGE,"Unsupported dimension %d",dim);
   PetscFunctionReturn(0);
 }
 
@@ -521,7 +521,7 @@ PetscErrorCode FDPDECoupledCreateMatrix(PetscInt ndm,DM dm[],MatType mtype,Mat *
   for (d=0; d<ndm; d++) {
     PetscBool isstag;
     ierr = PetscObjectTypeCompare((PetscObject)dm[d],DMSTAG,&isstag);CHKERRQ(ierr);
-    if (!isstag) SETERRQ1(PetscObjectComm((PetscObject)dm[d]),PETSC_ERR_ARG_WRONG,"DM[%D] is not of type DMSTAG",d);
+    if (!isstag) SETERRQ(PetscObjectComm((PetscObject)dm[d]),PETSC_ERR_ARG_WRONG,"DM[%" PetscInt_FMT "] is not of type DMSTAG",d);
   }
   
   /* check sizes are consistent */
@@ -531,8 +531,8 @@ PetscErrorCode FDPDECoupledCreateMatrix(PetscInt ndm,DM dm[],MatType mtype,Mat *
     ierr = DMStagGetGlobalSizes(dm[0],&Ni,&Nj,NULL);CHKERRQ(ierr);
     for (d=1; d<ndm; d++) {
       ierr = DMStagGetGlobalSizes(dm[d],&jNi,&jNj,NULL);CHKERRQ(ierr);
-      if (Ni != jNi) SETERRQ2(PetscObjectComm((PetscObject)dm[0]),PETSC_ERR_ARG_WRONG,"DM (Ni=%D) does not match size of DM[0] (Ni=%D)",Ni,jNi);
-      if (Nj != jNj) SETERRQ2(PetscObjectComm((PetscObject)dm[0]),PETSC_ERR_ARG_WRONG,"DM (Nj=%D) does not match size of DM[0] (Nj=%D)",Nj,jNj);
+      if (Ni != jNi) SETERRQ(PetscObjectComm((PetscObject)dm[0]),PETSC_ERR_ARG_WRONG,"DM (Ni=%" PetscInt_FMT ") does not match size of DM[0] (Ni=%" PetscInt_FMT ")",Ni,jNi);
+      if (Nj != jNj) SETERRQ(PetscObjectComm((PetscObject)dm[0]),PETSC_ERR_ARG_WRONG,"DM (Nj=%" PetscInt_FMT ") does not match size of DM[0] (Nj=%" PetscInt_FMT ")",Nj,jNj);
     }
   }
   
@@ -628,7 +628,7 @@ PetscErrorCode FDPDECoupledCreateMatrix2(PetscInt ndm,DM dm[],PetscBool mask[],M
   for (d=0; d<ndm; d++) {
     PetscBool isstag;
     ierr = PetscObjectTypeCompare((PetscObject)dm[d],DMSTAG,&isstag);CHKERRQ(ierr);
-    if (!isstag) SETERRQ1(PetscObjectComm((PetscObject)dm[d]),PETSC_ERR_ARG_WRONG,"DM[%D] is not of type DMSTAG",d);
+    if (!isstag) SETERRQ(PetscObjectComm((PetscObject)dm[d]),PETSC_ERR_ARG_WRONG,"DM[%" PetscInt_FMT "] is not of type DMSTAG",d);
   }
   
   /* check sizes are consistent */
@@ -638,8 +638,8 @@ PetscErrorCode FDPDECoupledCreateMatrix2(PetscInt ndm,DM dm[],PetscBool mask[],M
     ierr = DMStagGetGlobalSizes(dm[0],&Ni,&Nj,NULL);CHKERRQ(ierr);
     for (d=1; d<ndm; d++) {
       ierr = DMStagGetGlobalSizes(dm[d],&jNi,&jNj,NULL);CHKERRQ(ierr);
-      if (Ni != jNi) SETERRQ2(PetscObjectComm((PetscObject)dm[0]),PETSC_ERR_ARG_WRONG,"DM (Ni=%D) does not match size of DM[0] (Ni=%D)",Ni,jNi);
-      if (Nj != jNj) SETERRQ2(PetscObjectComm((PetscObject)dm[0]),PETSC_ERR_ARG_WRONG,"DM (Nj=%D) does not match size of DM[0] (Nj=%D)",Nj,jNj);
+      if (Ni != jNi) SETERRQ(PetscObjectComm((PetscObject)dm[0]),PETSC_ERR_ARG_WRONG,"DM (Ni=%" PetscInt_FMT ") does not match size of DM[0] (Ni=%" PetscInt_FMT ")",Ni,jNi);
+      if (Nj != jNj) SETERRQ(PetscObjectComm((PetscObject)dm[0]),PETSC_ERR_ARG_WRONG,"DM (Nj=%" PetscInt_FMT ") does not match size of DM[0] (Nj=%" PetscInt_FMT ")",Nj,jNj);
     }
   }
   

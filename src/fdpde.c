@@ -61,8 +61,8 @@ PetscErrorCode FDPDECreate(MPI_Comm comm, PetscInt nx, PetscInt nz,
   // Error checking
   if (!_fd) SETERRQ(comm,PETSC_ERR_ARG_NULL,"Must provide a valid (non-NULL) pointer for fd (arg 9)");
   
-  if (nx <= 0) SETERRQ1(comm,PETSC_ERR_ARG_OUTOFRANGE,"Dimension 1 (arg 2) provided for FD-PDE dmstag must be > 0. Found %D",nx);
-  if (nz <= 0) SETERRQ1(comm,PETSC_ERR_ARG_OUTOFRANGE,"Dimension 2 (arg 3) provided for FD-PDE dmstag must be > 0. Found %D",nz);
+  if (nx <= 0) SETERRQ(comm,PETSC_ERR_ARG_OUTOFRANGE,"Dimension 1 (arg 2) provided for FD-PDE dmstag must be > 0. Found %D",nx);
+  if (nz <= 0) SETERRQ(comm,PETSC_ERR_ARG_OUTOFRANGE,"Dimension 2 (arg 3) provided for FD-PDE dmstag must be > 0. Found %D",nz);
   
   if (xs >= xe) SETERRQ(comm,PETSC_ERR_ARG_OUTOFRANGE,"Invalid x-maximum (arg 5) provided. xe > xs.");
   if (zs >= ze) SETERRQ(comm,PETSC_ERR_ARG_OUTOFRANGE,"Invalid y-maximum (arg 7) provided. ze > zs");
@@ -1113,8 +1113,8 @@ PetscErrorCode FDPDESetSizes(FDPDE fd,PetscInt nx,PetscInt nz,PetscScalar xs,Pet
 {
   PetscErrorCode ierr;
   PetscFunctionBegin;
-  if (nx <= 0) SETERRQ1(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Dimension 1 (arg 2) provided for FD-PDE dmstag must be > 0. Found %D",nx);
-  if (nz <= 0) SETERRQ1(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Dimension 2 (arg 3) provided for FD-PDE dmstag must be > 0. Found %D",nz);
+  if (nx <= 0) SETERRQ(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Dimension 1 (arg 2) provided for FD-PDE dmstag must be > 0. Found %D",nx);
+  if (nz <= 0) SETERRQ(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Dimension 2 (arg 3) provided for FD-PDE dmstag must be > 0. Found %D",nz);
   if (xs >= xe) SETERRQ(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Invalid x-maximum (arg 3) provided. xe > xs.");
   if (zs >= ze) SETERRQ(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Invalid y-maximum (arg 5) provided. ze > zs");
   fd->Nx = nx;

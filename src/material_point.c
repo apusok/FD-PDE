@@ -81,8 +81,8 @@ PetscErrorCode MPoint_ProjectP0_arith(DM dmswarm,const char propname[],
   
   ierr = DMSwarmGetLocalSize(dmswarm,&npoints);CHKERRQ(ierr);
   ierr = DMSwarmGetField(dmswarm,propname,&bs,&type,(void**)&pfield);CHKERRQ(ierr);
-  if (type != PETSC_REAL) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Type must be PETSC_REAL for field %s",propname);
-  if (bs != 1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"Block size must be 1. Found %d for field %s",bs,propname);
+  if (type != PETSC_REAL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Type must be PETSC_REAL for field %s",propname);
+  if (bs != 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Block size must be 1. Found %d for field %s",bs,propname);
   ierr = DMSwarmGetField(dmswarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&pcellid);CHKERRQ(ierr);
 
   ierr = DMStagGetLocationSlot(dmcell,DMSTAG_ELEMENT,element_dof,&slot);CHKERRQ(ierr);
@@ -117,7 +117,7 @@ PetscErrorCode MPoint_ProjectP0_arith(DM dmswarm,const char propname[],
     PetscBool in_global_space;
     ierr = DMStagLocalElementIndexInGlobalSpace_2d(dmcell,c,&in_global_space);CHKERRQ(ierr);
     if (in_global_space) {
-      if (cnt[c] < 1.0) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Cell %D is empty. Cannot perform P0 projection",c);
+      if (cnt[c] < 1.0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Cell %D is empty. Cannot perform P0 projection",c);
       coeff[ c * bs_cell + slot ] /= cnt[c];
     }
   }
@@ -203,8 +203,8 @@ PetscErrorCode v0_MPoint_ProjectQ1_arith_general(DM dmswarm,const char propname[
   
   ierr = DMSwarmGetLocalSize(dmswarm,&npoints);CHKERRQ(ierr);
   ierr = DMSwarmGetField(dmswarm,propname,&bs,&type,(void**)&pfield);CHKERRQ(ierr);
-  if (type != PETSC_REAL) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Type must be PETSC_REAL for field %s",propname);
-  if (bs != 1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"Block size must be 1. Found %d for field %s",bs,propname);
+  if (type != PETSC_REAL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Type must be PETSC_REAL for field %s",propname);
+  if (bs != 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Block size must be 1. Found %d for field %s",bs,propname);
   ierr = DMSwarmGetField(dmswarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&pcellid);CHKERRQ(ierr);
 
   ierr = DMCreateGlobalVector(dmcell,&cnt_global);CHKERRQ(ierr);
@@ -332,8 +332,8 @@ PetscErrorCode MPoint_ProjectQ1_arith_general(DM dmswarm,const char propname[],
   
   ierr = DMSwarmGetLocalSize(dmswarm,&npoints);CHKERRQ(ierr);
   ierr = DMSwarmGetField(dmswarm,propname,&bs,&type,(void**)&pfield);CHKERRQ(ierr);
-  if (type != PETSC_REAL) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Type must be PETSC_REAL for field %s",propname);
-  if (bs != 1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"Block size must be 1. Found %d for field %s",bs,propname);
+  if (type != PETSC_REAL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Type must be PETSC_REAL for field %s",propname);
+  if (bs != 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Block size must be 1. Found %d for field %s",bs,propname);
   ierr = DMSwarmGetField(dmswarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&pcellid);CHKERRQ(ierr);
   
   ierr = DMCreateGlobalVector(compat,&cnt_global);CHKERRQ(ierr);
@@ -512,8 +512,8 @@ PetscErrorCode MPoint_ProjectQ1_arith_general_AP(DM dmswarm,const char propname[
   // check dmswarm
   ierr = DMSwarmGetLocalSize(dmswarm,&npoints);CHKERRQ(ierr);
   ierr = DMSwarmGetField(dmswarm,propname,&bs,&type,(void**)&pfield);CHKERRQ(ierr);
-  if (type != PETSC_REAL) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Type must be PETSC_REAL for field %s",propname);
-  if (bs != 1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"Block size must be 1. Found %d for field %s",bs,propname);
+  if (type != PETSC_REAL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Type must be PETSC_REAL for field %s",propname);
+  if (bs != 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Block size must be 1. Found %d for field %s",bs,propname);
   ierr = DMSwarmGetField(dmswarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&pcellid);CHKERRQ(ierr);
   
   // create vectors
@@ -1168,7 +1168,7 @@ PetscErrorCode MPointCoordLayout_DomainFace(DM dmswarm,char face,PetscReal facto
       ierr = DMSwarmMigrate(dmswarm,PETSC_TRUE);CHKERRQ(ierr);
       break;
     default:
-      SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Provided face value of %c is not supported. Must use one of 'n' (north), 's' (south), 'e' (east), 'w' (west)",face);
+      SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Provided face value of %c is not supported. Must use one of 'n' (north), 's' (south), 'e' (east), 'w' (west)",face);
       break;
   }
   PetscFunctionReturn(0);
@@ -1242,10 +1242,10 @@ PetscErrorCode MPoint_AdvectRK1_Private_P0(DM dmswarm,
     /* Checks (xi_p is only used for this, here) */
     xi_p[0] = 2.0 * xloc_p[0] -1.0;
     xi_p[1] = 2.0 * xloc_p[1] -1.0;
-    if (xi_p[0] < -1.0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (xi) too small %1.4e [e=%D]",(double)xi_p[0],e);
-    if (xi_p[0] >  1.0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (xi) too large %1.4e [e=%D]",(double)xi_p[0],e);
-    if (xi_p[1] < -1.0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (eta) too small %1.4e [e=%D]",(double)xi_p[1],e);
-    if (xi_p[1] >  1.0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (eta) too large %1.4e [e=%D]",(double)xi_p[1],e);
+    if (xi_p[0] < -1.0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (xi) too small %1.4e [e=%" PetscInt_FMT "]",(double)xi_p[0],e);
+    if (xi_p[0] >  1.0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (xi) too large %1.4e [e=%" PetscInt_FMT "]",(double)xi_p[0],e);
+    if (xi_p[1] < -1.0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (eta) too small %1.4e [e=%" PetscInt_FMT "]",(double)xi_p[1],e);
+    if (xi_p[1] >  1.0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (eta) too large %1.4e [e=%" PetscInt_FMT "]",(double)xi_p[1],e);
     
     /* interpolate velocity */
     vLeft  = LA_vp[ind[1]][ind[0]][iVxLeft];
@@ -1506,10 +1506,10 @@ PetscErrorCode MPoint_AdvectRK2_SEQ_Private(DM dmswarm,
       /* Checks (xi_p is only used for this, here) */
       xi_p[0] = 2.0 * xloc_p[0] -1.0;
       xi_p[1] = 2.0 * xloc_p[1] -1.0;
-      if (xi_p[0] < -1.0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (xi) too small %1.4e [e=%D]",(double)xi_p[0],e);
-      if (xi_p[0] >  1.0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (xi) too large %1.4e [e=%D]",(double)xi_p[0],e);
-      if (xi_p[1] < -1.0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (eta) too small %1.4e [e=%D]",(double)xi_p[1],e);
-      if (xi_p[1] >  1.0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (eta) too large %1.4e [e=%D]",(double)xi_p[1],e);
+      if (xi_p[0] < -1.0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (xi) too small %1.4e [e=%D]",(double)xi_p[0],e);
+      if (xi_p[0] >  1.0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (xi) too large %1.4e [e=%D]",(double)xi_p[0],e);
+      if (xi_p[1] < -1.0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (eta) too small %1.4e [e=%D]",(double)xi_p[1],e);
+      if (xi_p[1] >  1.0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (eta) too large %1.4e [e=%D]",(double)xi_p[1],e);
       
       /* interpolate velocity */
       vLeft  = LA_vp[ind[1]][ind[0]][iVxLeft];
@@ -1533,10 +1533,10 @@ PetscErrorCode MPoint_AdvectRK2_SEQ_Private(DM dmswarm,
       /* Checks (xi_p is only used for this, here) */
       xi_p[0] = 2.0 * xloc_p[0] -1.0;
       xi_p[1] = 2.0 * xloc_p[1] -1.0;
-      if (xi_p[0] < -1.0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (xi) too small %1.4e [e=%D]",(double)xi_p[0],e);
-      if (xi_p[0] >  1.0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (xi) too large %1.4e [e=%D]",(double)xi_p[0],e);
-      if (xi_p[1] < -1.0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (eta) too small %1.4e [e=%D]",(double)xi_p[1],e);
-      if (xi_p[1] >  1.0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (eta) too large %1.4e [e=%D]",(double)xi_p[1],e);
+      if (xi_p[0] < -1.0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (xi) too small %1.4e [e=%D]",(double)xi_p[0],e);
+      if (xi_p[0] >  1.0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (xi) too large %1.4e [e=%D]",(double)xi_p[0],e);
+      if (xi_p[1] < -1.0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (eta) too small %1.4e [e=%D]",(double)xi_p[1],e);
+      if (xi_p[1] >  1.0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"value (eta) too large %1.4e [e=%D]",(double)xi_p[1],e);
       
       /* interpolate velocity */
       vLeft  = LA_vp[ind[1]][ind[0]][iVxLeft];
@@ -1703,9 +1703,9 @@ PetscErrorCode DMSwarmDataFieldCopyPoint(const PetscInt pid_x,const DMSwarmDataF
 #if defined(DMSWARM_DATAFIELD_POINT_ACCESS_GUARD)
   /* check point is valid */
   if (pid_x < 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"(IN) index must be >= 0");
-  if (pid_x >= field_x->L) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_USER,"(IN) index must be < %D",field_x->L);
+  if (pid_x >= field_x->L) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"(IN) index must be < %D",field_x->L);
   if (pid_y < 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"(OUT) index must be >= 0");
-  if (pid_y >= field_y->L) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_USER,"(OUT) index must be < %D",field_y->L);
+  if (pid_y >= field_y->L) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"(OUT) index must be < %D",field_y->L);
   if( field_y->atomic_size != field_x->atomic_size ) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"atomic size must match");
 #endif
   ierr = PetscMemcpy(DMSWARM_DATAFIELD_point_access(field_y->data,pid_y,field_y->atomic_size),DMSWARM_DATAFIELD_point_access(field_x->data,pid_x,field_x->atomic_size),field_y->atomic_size);CHKERRQ(ierr);
@@ -2027,7 +2027,7 @@ PetscErrorCode DMSwarmRemovePoints(DM dm,PetscInt np,PetscInt list[])
   ierr = DMSwarmGetLocalSize(dm,&npoints);CHKERRQ(ierr);
   ierr = DMSwarmGetField(dm,DMSwarmField_pid,NULL,NULL,(void**)&pid_ref);CHKERRQ(ierr);
   for (p=0; p<npoints; p++) {
-    if (pid_ref[p] == kill_point) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Point at index %D should have been deleted",p);
+    if (pid_ref[p] == kill_point) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Point at index %D should have been deleted",p);
   }
   ierr = DMSwarmRestoreField(dm,DMSwarmField_pid,NULL,NULL,(void**)&pid_ref);CHKERRQ(ierr);
 
@@ -2057,7 +2057,7 @@ PetscErrorCode DMSwarmFieldSet(DM dm,const char fieldname[],PetscReal alpha)
   PetscFunctionBeginUser;
   ierr = DMSwarmGetLocalSize(dm,&len);CHKERRQ(ierr);
   ierr = DMSwarmGetField(dm,fieldname,&bs,&type,(void**)&pfield);CHKERRQ(ierr);
-  if (type != PETSC_REAL) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Type must be PETSC_REAL for field %s",fieldname);
+  if (type != PETSC_REAL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Type must be PETSC_REAL for field %s",fieldname);
   len = len * bs;
   for (p=0; p<len; p++) {
     pfield[p] = alpha;
@@ -2090,10 +2090,10 @@ PetscErrorCode DMSwarmFieldSetWithRange(DM dm,const char fieldname[],PetscInt ps
   
   PetscFunctionBeginUser;
   ierr = DMSwarmGetLocalSize(dm,&len);CHKERRQ(ierr);
-  if (ps < 0) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Range too small start(%D) < 0",ps);
-  if (pe > len) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"Range too larage end(%D) > len(%D)",pe,len);
+  if (ps < 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Range too small start(%" PetscInt_FMT ") < 0",ps);
+  if (pe > len) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Range too larage end(%" PetscInt_FMT ") > len(%" PetscInt_FMT ")",pe,len);
   ierr = DMSwarmGetField(dm,fieldname,&bs,&type,(void**)&pfield);CHKERRQ(ierr);
-  if (type != PETSC_REAL) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Type must be PETSC_REAL for field %s",fieldname);
+  if (type != PETSC_REAL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Type must be PETSC_REAL for field %s",fieldname);
   for (p=bs*ps; p<bs*pe; p++) {
     pfield[p] = alpha;
   }
@@ -2126,11 +2126,11 @@ PetscErrorCode DMSwarmFieldSetWithList(DM dm,const char fieldname[],PetscInt np,
   PetscFunctionBeginUser;
   ierr = DMSwarmGetLocalSize(dm,&len);CHKERRQ(ierr);
   ierr = DMSwarmGetField(dm,fieldname,&bs,&type,(void**)&pfield);CHKERRQ(ierr);
-  if (type != PETSC_REAL) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Type must be PETSC_REAL for field %s",fieldname);
+  if (type != PETSC_REAL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Type must be PETSC_REAL for field %s",fieldname);
   for (p=0; p<np; p++) {
     PetscInt index = list[p];
-    if (index < 0) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Index too small start(%D) < 0",index);
-    if (index > len) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"Index too larage end(%D) > len(%D)",index,len);
+    if (index < 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Index too small start(%" PetscInt_FMT ") < 0",index);
+    if (index > len) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Index too larage end(%" PetscInt_FMT ") > len(%" PetscInt_FMT ")",index,len);
     for (b=0; b<bs; b++) {
       pfield[bs*index+b] = alpha;
     }

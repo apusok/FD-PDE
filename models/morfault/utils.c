@@ -1362,7 +1362,7 @@ PetscErrorCode OutputParameters(void *ctx)
   // create an additional file for loading in python
   ierr = PetscSNPrintf(string,sizeof(string),"%s.py",prefix);
   fp = fopen(string,"w");
-  if (!fp) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot open file %s",string);
+  if (!fp) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot open file %s",string);
   fprintf(fp,"import PetscBinaryIO as pio\n");
   fprintf(fp,"import numpy as np\n\n");
   fprintf(fp,"def _PETScBinaryFilePrefix():\n");
