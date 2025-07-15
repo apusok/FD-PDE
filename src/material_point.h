@@ -7,10 +7,35 @@
 #include <petscvec.h>
 #include <petscdm.h>
 
+#define DMSWARM_DATAFIELD_POINT_ACCESS_GUARD
+
 typedef enum { COOR_INITIALIZE = 0, COOR_APPEND } MPointCoordinateInsertMode;
 typedef enum { SWARM_FIELDS_SAME = 0, SWARM_FIELDS_SUBSET, SWARM_FIELDS_SUPERSET, SWARM_FIELDS_DISJOINT } DMSwarmFieldsCompareType;
 
 const char DMSwarmPICField_cellid[] = "DMSwarm_cellid";
+
+struct _p_DMSwarmDataField {
+	char          *registration_function;
+	PetscInt      L,bs;
+	PetscBool     active;
+	size_t        atomic_size;
+	char          *name; /* what are they called */
+	void          *data; /* the data - an array of structs */
+  PetscDataType petsc_type;
+};
+
+struct _p_DMSwarmDataBucket {
+	PetscInt  L;             /* number in use */
+	PetscInt  buffer;        /* memory buffer used for re-allocation */
+	PetscInt  allocated;     /* number allocated, this will equal datafield->L */
+	PetscBool finalised;     /* DEPRECATED */
+	PetscInt  nfields;       /* how many fields of this type */
+	DMSwarmDataField *field; /* the data */
+};
+
+#define DMSWARM_DATAFIELD_point_access(data,index,atomic_size) (void*)((char*)(data) + (index)*(atomic_size))
+#define DMSWARM_DATAFIELD_point_access_offset(data,index,atomic_size,offset) (void*)((char*)(data) + (index)*(atomic_size) + (offset))
+
 
 PetscErrorCode DMStagPICCreateDMSwarm(DM,DM*);
 
