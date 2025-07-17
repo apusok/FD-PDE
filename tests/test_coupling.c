@@ -9,33 +9,31 @@ PetscErrorCode test1(PetscInt mx,PetscInt my)
   DM              dms[20];
   PetscInt        dof0,dof1,dof2,stencilWidth,ndms,d;
   Mat             A;
-  PetscErrorCode  ierr;
   
   dof0 = 0; dof1 = 0; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
   ndms = 2;
   for (d=0; d<ndms; d++) {
-    ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, mx, my,
-                          PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
-                          DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dms[d]);CHKERRQ(ierr);
-    ierr = DMStagSetCoordinateDMType(dms[d],DMPRODUCT);CHKERRQ(ierr);
-    ierr = DMSetFromOptions(dms[d]);CHKERRQ(ierr);
-    ierr = DMSetUp(dms[d]);CHKERRQ(ierr);
+    PetscCall(DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, mx, my,PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
+                          DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dms[d]));
+    PetscCall(DMStagSetCoordinateDMType(dms[d],DMPRODUCT));
+    PetscCall(DMSetFromOptions(dms[d]));
+    PetscCall(DMSetUp(dms[d]));
     
-    ierr = DMStagSetUniformCoordinatesProduct(dms[d],0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
+    PetscCall(DMStagSetUniformCoordinatesProduct(dms[d],0.0,1.0,0.0,1.0,0.0,0.0));
   }
   
-  ierr = FDPDECoupledCreateMatrix(ndms,dms,MATAIJ,&A);CHKERRQ(ierr);
-  //ierr = FDPDECoupledCreateMatrix(1,&dms[0],MATAIJ,&A);CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO);CHKERRQ(ierr);
-  ierr = MatView(A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  PetscCall(FDPDECoupledCreateMatrix(ndms,dms,MATAIJ,&A));
+  //PetscCall(FDPDECoupledCreateMatrix(1,&dms[0],MATAIJ,&A));
+  PetscCall(PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO));
+  PetscCall(MatView(A,PETSC_VIEWER_STDOUT_WORLD));
   
   for (d=0; d<ndms; d++) {
-    ierr = DMDestroy(&dms[d]);CHKERRQ(ierr);
+    PetscCall(DMDestroy(&dms[d]));
   }
-  ierr = MatDestroy(&A);CHKERRQ(ierr);
+  PetscCall(MatDestroy(&A));
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode test2(PetscInt mx,PetscInt my)
@@ -43,33 +41,31 @@ PetscErrorCode test2(PetscInt mx,PetscInt my)
   DM              dms[20];
   PetscInt        dof0,dof1,dof2,stencilWidth,ndms,d;
   Mat             A;
-  PetscErrorCode  ierr;
   
   dof0 = 0; dof1 = 0; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
   ndms = 2;
   for (d=0; d<ndms; d++) {
-    ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, mx, my,
-                          PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
-                          DMSTAG_STENCIL_STAR, stencilWidth, NULL,NULL, &dms[d]);CHKERRQ(ierr);
-    ierr = DMStagSetCoordinateDMType(dms[d],DMPRODUCT);CHKERRQ(ierr);
-    ierr = DMSetFromOptions(dms[d]);CHKERRQ(ierr);
-    ierr = DMSetUp(dms[d]);CHKERRQ(ierr);
+    PetscCall(DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, mx, my,PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
+                          DMSTAG_STENCIL_STAR, stencilWidth, NULL,NULL, &dms[d]));
+    PetscCall(DMStagSetCoordinateDMType(dms[d],DMPRODUCT));
+    PetscCall(DMSetFromOptions(dms[d]));
+    PetscCall(DMSetUp(dms[d]));
     
-    ierr = DMStagSetUniformCoordinatesProduct(dms[d],0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
+    PetscCall(DMStagSetUniformCoordinatesProduct(dms[d],0.0,1.0,0.0,1.0,0.0,0.0));
   }
   
-  ierr = FDPDECoupledCreateMatrix(ndms,dms,MATAIJ,&A);CHKERRQ(ierr);
-  //ierr = FDPDECoupledCreateMatrix(1,&dms[0],MATAIJ,&A);CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO);CHKERRQ(ierr);
-  ierr = MatView(A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  PetscCall(FDPDECoupledCreateMatrix(ndms,dms,MATAIJ,&A));
+  //PetscCall(FDPDECoupledCreateMatrix(1,&dms[0],MATAIJ,&A));
+  PetscCall(PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO));
+  PetscCall(MatView(A,PETSC_VIEWER_STDOUT_WORLD));
   
   for (d=0; d<ndms; d++) {
-    ierr = DMDestroy(&dms[d]);CHKERRQ(ierr);
+    PetscCall(DMDestroy(&dms[d]));
   }
-  ierr = MatDestroy(&A);CHKERRQ(ierr);
+  PetscCall(MatDestroy(&A));
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode test3(PetscInt mx,PetscInt my)
@@ -77,7 +73,6 @@ PetscErrorCode test3(PetscInt mx,PetscInt my)
   DM              dms[20];
   PetscInt        dof0,dof1,dof2,stencilWidth,ndms,d;
   Mat             A;
-  PetscErrorCode  ierr;
   
   stencilWidth = 1;
   ndms = 4;
@@ -92,23 +87,22 @@ PetscErrorCode test3(PetscInt mx,PetscInt my)
       dof0 = 0; dof1 = 0; dof2 = 1; /* (vertex) (face) (element) */
     }
 
-    ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, mx, my,
-                          PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
-                          DMSTAG_STENCIL_STAR, stencilWidth, NULL,NULL, &dms[d]);CHKERRQ(ierr);
-    ierr = DMSetFromOptions(dms[d]);CHKERRQ(ierr);
-    ierr = DMSetUp(dms[d]);CHKERRQ(ierr);
+    PetscCall(DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, mx, my,PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
+                          DMSTAG_STENCIL_STAR, stencilWidth, NULL,NULL, &dms[d]));
+    PetscCall(DMSetFromOptions(dms[d]));
+    PetscCall(DMSetUp(dms[d]));
   }
   
-  ierr = FDPDECoupledCreateMatrix(ndms,dms,MATAIJ,&A);CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO);CHKERRQ(ierr);
-  ierr = MatView(A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  PetscCall(FDPDECoupledCreateMatrix(ndms,dms,MATAIJ,&A));
+  PetscCall(PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO));
+  PetscCall(MatView(A,PETSC_VIEWER_STDOUT_WORLD));
   
   for (d=0; d<ndms; d++) {
-    ierr = DMDestroy(&dms[d]);CHKERRQ(ierr);
+    PetscCall(DMDestroy(&dms[d]));
   }
-  ierr = MatDestroy(&A);CHKERRQ(ierr);
+  PetscCall(MatDestroy(&A));
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode test4(PetscInt mx,PetscInt my)
@@ -117,7 +111,6 @@ PetscErrorCode test4(PetscInt mx,PetscInt my)
   PetscInt        dof0,dof1,dof2,stencilWidth,ndms,d;
   Mat             A;
   PetscBool       mask[16];
-  PetscErrorCode  ierr;
   
   mask[0]  = PETSC_FALSE;   mask[1]  = PETSC_TRUE;   mask[2]  = PETSC_FALSE;   mask[3]  = PETSC_TRUE;
   mask[4]  = PETSC_FALSE;   mask[5]  = PETSC_FALSE;   mask[6]  = PETSC_FALSE;   mask[7]  = PETSC_FALSE;
@@ -137,26 +130,25 @@ PetscErrorCode test4(PetscInt mx,PetscInt my)
       dof0 = 0; dof1 = 0; dof2 = 1; /* (vertex) (face) (element) */
     }
     
-    ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, mx, my,
-                          PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
-                          DMSTAG_STENCIL_STAR, stencilWidth, NULL,NULL, &dms[d]);CHKERRQ(ierr);
-    ierr = DMSetFromOptions(dms[d]);CHKERRQ(ierr);
-    ierr = DMSetUp(dms[d]);CHKERRQ(ierr);
+    PetscCall(DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, mx, my,PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
+                          DMSTAG_STENCIL_STAR, stencilWidth, NULL,NULL, &dms[d]));
+    PetscCall(DMSetFromOptions(dms[d]));
+    PetscCall(DMSetUp(dms[d]));
   }
   
-  ierr = FDPDECoupledCreateMatrix2(ndms,dms,mask,MATAIJ,&A);CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO);CHKERRQ(ierr);
-  ierr = MatView(A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  PetscCall(FDPDECoupledCreateMatrix2(ndms,dms,mask,MATAIJ,&A));
+  PetscCall(PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO));
+  PetscCall(MatView(A,PETSC_VIEWER_STDOUT_WORLD));
   
   /* check an error is thrown */
   /*MatSetValue(A,65,0,1.0,INSERT_VALUES);*/
   
   for (d=0; d<ndms; d++) {
-    ierr = DMDestroy(&dms[d]);CHKERRQ(ierr);
+    PetscCall(DMDestroy(&dms[d]));
   }
-  ierr = MatDestroy(&A);CHKERRQ(ierr);
+  PetscCall(MatDestroy(&A));
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
@@ -165,15 +157,14 @@ PetscErrorCode test4(PetscInt mx,PetscInt my)
 #define __FUNCT__ "main"
 int main (int argc,char **argv)
 {
-  PetscErrorCode  ierr;
     
-  ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return(ierr);
+  PetscCall(PetscInitialize(&argc,&argv,(char*)0,help));
   
-  ierr = test1(6,6);CHKERRQ(ierr);
-  //ierr = test2(3,3);CHKERRQ(ierr);
-  //ierr = test3(3,3);CHKERRQ(ierr);
-  //ierr = test4(3,3);CHKERRQ(ierr);
+  PetscCall(test1(6,6));
+  //PetscCall(test2(3,3));
+  //PetscCall(test3(3,3));
+  //PetscCall(test4(3,3));
 
-  ierr = PetscFinalize();
-  return(ierr);
+  PetscCall(PetscFinalize());
+  return 0;
 }

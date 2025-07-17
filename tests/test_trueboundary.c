@@ -22,23 +22,21 @@ PetscErrorCode test1(PetscInt nx,PetscInt ny)
   DMStagBCList    bclist;
   PetscInt        i,j;
   PetscScalar     *dx,*dy;
-  PetscErrorCode  ierr;
   
   dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
   
-  ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,
-                        PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
-                        DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dm);CHKERRQ(ierr);
-  ierr = DMStagSetCoordinateDMType(dm,DMPRODUCT);CHKERRQ(ierr);
-  ierr = DMSetFromOptions(dm);CHKERRQ(ierr);
-  ierr = DMSetUp(dm);CHKERRQ(ierr);
+  PetscCall(DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
+                        DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dm));
+  PetscCall(DMStagSetCoordinateDMType(dm,DMPRODUCT));
+  PetscCall(DMSetFromOptions(dm));
+  PetscCall(DMSetUp(dm));
   
-  ierr = DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
+  PetscCall(DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0));
 
   PetscInt is,js,nx_local, ny_local;
-  ierr = DMStagCellSizeLocal_2d(dm, &nx_local, &ny_local, &dx,&dy);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dm,&is,&js,NULL,NULL,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+  PetscCall(DMStagCellSizeLocal_2d(dm, &nx_local, &ny_local, &dx,&dy));
+  PetscCall(DMStagGetCorners(dm,&is,&js,NULL,NULL,NULL,NULL,NULL,NULL,NULL));
   
   for (j=0; j<ny_local; j++) {
     for (i=0; i<nx_local; i++) {
@@ -46,12 +44,12 @@ PetscErrorCode test1(PetscInt nx,PetscInt ny)
     }
   }
 
-  ierr = DMStagBCListCreate(dm,&bclist);CHKERRQ(ierr);
-  ierr = DMStagBCListView(bclist);CHKERRQ(ierr);
-  ierr = DMStagBCListDestroy(&bclist);CHKERRQ(ierr);
-  ierr = DMDestroy(&dm);CHKERRQ(ierr);
+  PetscCall(DMStagBCListCreate(dm,&bclist));
+  PetscCall(DMStagBCListView(bclist));
+  PetscCall(DMStagBCListDestroy(&bclist));
+  PetscCall(DMDestroy(&dm));
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode test2(PetscInt nx,PetscInt ny)
@@ -59,21 +57,19 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
   DM              dm;
   PetscInt        dof0,dof1,dof2,stencilWidth;
   DMStagBCList    bclist;
-  PetscErrorCode  ierr;
   
   dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
   
-  ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,
-                        PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
-                        DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dm);CHKERRQ(ierr);
-  ierr = DMStagSetCoordinateDMType(dm,DMPRODUCT);CHKERRQ(ierr);
-  ierr = DMSetFromOptions(dm);CHKERRQ(ierr);
-  ierr = DMSetUp(dm);CHKERRQ(ierr);
+  PetscCall(DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
+                        DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dm));
+  PetscCall(DMStagSetCoordinateDMType(dm,DMPRODUCT));
+  PetscCall(DMSetFromOptions(dm));
+  PetscCall(DMSetUp(dm));
   
-  ierr = DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
+  PetscCall(DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0));
   
-  ierr = DMStagBCListCreate(dm,&bclist);CHKERRQ(ierr);
+  PetscCall(DMStagBCListCreate(dm,&bclist));
   
   {
     PetscInt    k,n_bc,*idx_bc;
@@ -82,7 +78,7 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
 
     /* -------------------------------------------- */
     /* request edge BC values (-) on a face (north) */
-    ierr = DMStagBCListGetValues(bclist,'n','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'n','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     for (k=0; k<n_bc; k++) {
       value_bc[k] = (PetscScalar)(k+1);
@@ -92,11 +88,11 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
     PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
     
     /* Set edge BC values (-). No need to define the face, it is encoded in idx_bc[] */
-    ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     /* -------------------------------------------- */
     /* request edge BC values (|) on a face (north) */
-    ierr = DMStagBCListGetValues(bclist,'n','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'n','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     for (k=0; k<n_bc; k++) {
       value_bc[k] = (PetscScalar)(k+10);
@@ -105,11 +101,11 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
 
     PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
     /* Set edge BC values (|). No need to define the face, it is encoded in idx_bc[] */
-    ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
 
     /* -------------------------------------------- */
     /* request element BC values (o) on a face (north) */
-    ierr = DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'n','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     for (k=0; k<n_bc; k++) {
       value_bc[k] = (PetscScalar)(k+1.99);
@@ -119,11 +115,11 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
     PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
     
     /* Set edge BC values (o). No need to define the face, it is encoded in idx_bc[] */
-    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     /* -------------------------------------------- */
     /* request edge BC values (-) on a face (south) */
-    ierr = DMStagBCListGetValues(bclist,'s','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'s','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     for (k=0; k<n_bc; k++) {
       value_bc[k] = (PetscScalar)(k+1.5);
@@ -132,11 +128,11 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
 
     PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
     /* Set edge BC values (-). No need to define the face, it is encoded in idx_bc[] */
-    ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     /* -------------------------------------------- */
     /* request edge BC values (|) on a face (south) */
-    ierr = DMStagBCListGetValues(bclist,'s','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'s','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     for (k=0; k<n_bc; k++) {
       value_bc[k] = (PetscScalar)(k+10.5);
@@ -145,11 +141,11 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
 
     PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
     /* Set edge BC values (|). No need to define the face, it is encoded in idx_bc[] */
-    ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
 
     /* -------------------------------------------- */
     /* request element BC values (o) on a face (south) */
-    ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     for (k=0; k<n_bc; k++) {
       value_bc[k] = (PetscScalar)(k+1.79);
@@ -159,11 +155,11 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
     PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
     
     /* Set edge BC values (o). No need to define the face, it is encoded in idx_bc[] */
-    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     /* -------------------------------------------- */
     /* request edge BC values (-) on a face (west) */
-    ierr = DMStagBCListGetValues(bclist,'w','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'w','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     for (k=0; k<n_bc; k++) {
       value_bc[k] = (PetscScalar)(k+1.25);
@@ -172,11 +168,11 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
 
     PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
     /* Set edge BC values (-). No need to define the face, it is encoded in idx_bc[] */
-    ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     /* -------------------------------------------- */
     /* request edge BC values (|) on a face (west) */
-    ierr = DMStagBCListGetValues(bclist,'w','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'w','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     for (k=0; k<n_bc; k++) {
       value_bc[k] = (PetscScalar)(k+10.25);
@@ -185,11 +181,11 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
 
     PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
     /* Set edge BC values (|). No need to define the face, it is encoded in idx_bc[] */
-    ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
 
     /* -------------------------------------------- */
     /* request element BC values (o) on a face (west) */
-    ierr = DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     for (k=0; k<n_bc; k++) {
       value_bc[k] = (PetscScalar)(k+1.59);
@@ -199,11 +195,11 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
     PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
     
     /* Set edge BC values (o). No need to define the face, it is encoded in idx_bc[] */
-    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     /* -------------------------------------------- */
     /* request edge BC values (-) on a face (east) */
-    ierr = DMStagBCListGetValues(bclist,'e','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'e','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     for (k=0; k<n_bc; k++) {
       value_bc[k] = (PetscScalar)(k+1.75);
@@ -212,11 +208,11 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
 
     PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
     /* Set edge BC values (-). No need to define the face, it is encoded in idx_bc[] */
-    ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     /* -------------------------------------------- */
     /* request edge BC values (|) on a face (east) */
-    ierr = DMStagBCListGetValues(bclist,'e','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'e','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     for (k=0; k<n_bc; k++) {
       value_bc[k] = (PetscScalar)(k+10.75);
@@ -225,11 +221,11 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
 
     PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
     /* Set edge BC values (-). No need to define the face, it is encoded in idx_bc[] */
-    ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
 
     /* ---------------------------------------------- */
     /* request element BC values (o) on a face (east) */
-    ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     for (k=0; k<n_bc; k++) {
       value_bc[k] = (PetscScalar)(k+1.39);
@@ -238,28 +234,24 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
 
     PetscScalarView(2*n_bc,x_bc,PETSC_VIEWER_STDOUT_WORLD);
     /* Set edge BC values (-). No need to define the face, it is encoded in idx_bc[] */
-    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
   }
   
   
-  ierr = DMStagBCListView(bclist);CHKERRQ(ierr);
-  ierr = DMStagBCListDestroy(&bclist);CHKERRQ(ierr);
-  ierr = DMDestroy(&dm);CHKERRQ(ierr);
+  PetscCall(DMStagBCListView(bclist));
+  PetscCall(DMStagBCListDestroy(&bclist));
+  PetscCall(DMDestroy(&dm));
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 #undef __FUNCT__
 #define __FUNCT__ "main"
 int main (int argc,char **argv)
 {
-  PetscErrorCode  ierr;
-    
-  ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return(ierr);
-  
-  //ierr = test1(3,4);CHKERRQ(ierr);
-  ierr = test2(3,4);CHKERRQ(ierr);
-
-  ierr = PetscFinalize();
-  return(ierr);
+  PetscCall(PetscInitialize(&argc,&argv,(char*)0,help));
+  //PetscCall(test1(3,4));
+  PetscCall(test2(3,4));
+  PetscCall(PetscFinalize());
+  return 0;
 }

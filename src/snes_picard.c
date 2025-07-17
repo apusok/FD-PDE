@@ -15,34 +15,32 @@ typedef struct {
 PetscErrorCode SNESPicardComputeFunctionDefault(SNES snes, Vec x, Vec f, void *ctx)
 {
   SNES_PICARDLS  *picard = (SNES_PICARDLS*)snes->data;
-  PetscErrorCode ierr;
-  
   PetscFunctionBegin;
+
 #if defined(PETSC_USE_DEBUG)
   if (!picard->split_f) SETERRQ(PetscObjectComm((PetscObject)snes),PETSC_ERR_ARG_NULL,"Must call SNESPicardLSSetSplitFunction() before a residual can be computed");
 #endif
   if (!picard->consistent) {
-    ierr = picard->split_f(snes, x, picard->X2, f, ctx);CHKERRQ(ierr);
+    PetscCall(picard->split_f(snes, x, picard->X2, f, ctx));
   } else {
-    ierr = picard->split_f(snes, x, x, f, ctx);CHKERRQ(ierr);
+    PetscCall(picard->split_f(snes, x, x, f, ctx));
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode SNESPicardComputeFunction_Consistent(SNES snes,Vec x,Vec f)
 {
   SNES_PICARDLS  *picard = (SNES_PICARDLS*)snes->data;
   void           *ctx;
-  PetscErrorCode ierr;
-  
   PetscFunctionBegin;
+
 #if defined(PETSC_USE_DEBUG)
   if (!picard->split_f) SETERRQ(PetscObjectComm((PetscObject)snes),PETSC_ERR_ARG_NULL,"Must call SNESPicardLSSetSplitFunction() before a residual can be computed");
 #endif
-  ierr = SNESGetFunction(snes,NULL,NULL,&ctx);CHKERRQ(ierr);
-  ierr = VecZeroEntries(f);CHKERRQ(ierr);
-  ierr = picard->split_f(snes, x, x, f, ctx);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(SNESGetFunction(snes,NULL,NULL,&ctx));
+  PetscCall(VecZeroEntries(f));
+  PetscCall(picard->split_f(snes, x, x, f, ctx));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 /*
@@ -53,8 +51,9 @@ PetscErrorCode SNESPicardLSGetAuxillarySolution(SNES snes,Vec *x)
 {
   SNES_PICARDLS *picard = (SNES_PICARDLS*)snes->data;
   PetscFunctionBegin;
+
   if (x) { *x = picard->X2; }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
@@ -62,10 +61,10 @@ PetscErrorCode SNESPicardLSSetSplitFunction(SNES snes,Vec F,
                                           PetscErrorCode (*f)(SNES,Vec,Vec,Vec,void*))
 {
   SNES_PICARDLS  *picard = (SNES_PICARDLS*)snes->data;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
+
   picard->split_f = f;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
@@ -73,16 +72,14 @@ PetscErrorCode SNESPicardLSSetSplitFunction(SNES snes,Vec F,
 static PetscErrorCode SNESSolve_PicardLS(SNES snes)
 {
   SNES_PICARDLS        *picard = (SNES_PICARDLS*)snes->data;
-  PetscErrorCode       ierr;
   PetscInt             maxits,i,lits;
   SNESLineSearchReason lssucceed;
   PetscReal            fnorm,gnorm,xnorm,ynorm;
   Vec                  Y,X,F;
   SNESLineSearch       linesearch;
   SNESConvergedReason  reason;
-
-  
   PetscFunctionBegin;
+
   if (snes->xl || snes->xu || snes->ops->computevariablebounds) SETERRQ(PetscObjectComm((PetscObject)snes),PETSC_ERR_ARG_WRONGSTATE, "SNES solver %s does not support bounds", ((PetscObject)snes)->type_name);
   
   snes->numFailures            = 0;
@@ -97,28 +94,28 @@ static PetscErrorCode SNESSolve_PicardLS(SNES snes)
   snes->iter = 0;
   snes->norm = 0.0;
 
-  ierr = SNESGetLineSearch(snes, &linesearch);CHKERRQ(ierr);
+  PetscCall(SNESGetLineSearch(snes, &linesearch));
 
   picard->consistent = PETSC_FALSE;
   
   if (!snes->vec_func_init_set) {
-    ierr = SNESPicardComputeFunction_Consistent(snes,X,F);CHKERRQ(ierr);
+    PetscCall(SNESPicardComputeFunction_Consistent(snes,X,F));
   } else snes->vec_func_init_set = PETSC_FALSE;
 
-  ierr = VecNorm(F,NORM_2,&fnorm);CHKERRQ(ierr);        /* fnorm <- ||F||  */
+  PetscCall(VecNorm(F,NORM_2,&fnorm));        /* fnorm <- ||F||  */
   if (fnorm < picard->fnorm_adapt) {
-    ierr = PetscInfo(snes,"Switching to Newton (consistent) residual based on initial ||F||_2\n");CHKERRQ(ierr);
+    PetscCall(PetscInfo(snes,"Switching to Newton (consistent) residual based on initial ||F||_2\n"));
     picard->consistent = PETSC_TRUE;
   }
 
   SNESCheckFunctionNorm(snes,fnorm);
   snes->norm = fnorm;
-  ierr       = SNESLogConvergenceHistory(snes,fnorm,0);CHKERRQ(ierr);
-  ierr       = SNESMonitor(snes,0,fnorm);CHKERRQ(ierr);
+  PetscCall(SNESLogConvergenceHistory(snes,fnorm,0));
+  PetscCall(SNESMonitor(snes,0,fnorm));
 
   /* test convergence */
-  ierr = (*snes->ops->converged)(snes,0,0.0,0.0,fnorm,&snes->reason,snes->cnvP);CHKERRQ(ierr);
-  if (snes->reason) PetscFunctionReturn(0);
+  PetscCall((*snes->ops->converged)(snes,0,0.0,0.0,fnorm,&snes->reason,snes->cnvP));
+  if (snes->reason) PetscFunctionReturn(PETSC_SUCCESS);
 
   for (i=0; i<maxits; i++) {
     
@@ -127,12 +124,12 @@ static PetscErrorCode SNESSolve_PicardLS(SNES snes)
     /* apply the nonlinear preconditioner */
     
     /* Solve J Y = F, where J is Jacobian matrix */
-    ierr = SNESComputeFunction(snes,X,F);CHKERRQ(ierr);
-    ierr = SNESComputeJacobian(snes,X,snes->jacobian,snes->jacobian_pre);CHKERRQ(ierr);
-    ierr = KSPSetOperators(snes->ksp,snes->jacobian,snes->jacobian_pre);CHKERRQ(ierr);
-    ierr = KSPSolve(snes->ksp,F,Y);CHKERRQ(ierr);
-    ierr = KSPGetIterationNumber(snes->ksp,&lits);CHKERRQ(ierr);
-    ierr = PetscInfo(snes,"iter=%" PetscInt_FMT ", linear solve iterations=%" PetscInt_FMT "\n",snes->iter,lits);CHKERRQ(ierr);
+    PetscCall(SNESComputeFunction(snes,X,F));
+    PetscCall(SNESComputeJacobian(snes,X,snes->jacobian,snes->jacobian_pre));
+    PetscCall(KSPSetOperators(snes->ksp,snes->jacobian,snes->jacobian_pre));
+    PetscCall(KSPSolve(snes->ksp,F,Y));
+    PetscCall(KSPGetIterationNumber(snes->ksp,&lits));
+    PetscCall(PetscInfo(snes,"iter=%" PetscInt_FMT ", linear solve iterations=%" PetscInt_FMT "\n",snes->iter,lits));
     
     if (PetscLogPrintInfo) {
     }
@@ -143,37 +140,37 @@ static PetscErrorCode SNESSolve_PicardLS(SNES snes)
      */
 #if 1 /* line search */
     gnorm = fnorm;
-    ierr  = SNESLineSearchApply(linesearch, X, F, &fnorm, Y);CHKERRQ(ierr);
-    ierr  = SNESLineSearchGetReason(linesearch, &lssucceed);CHKERRQ(ierr);
-    ierr  = SNESLineSearchGetNorms(linesearch, &xnorm, &fnorm, &ynorm);CHKERRQ(ierr);
-    ierr  = PetscInfo(snes,"fnorm=%18.16e, gnorm=%18.16e, ynorm=%18.16e, lssucceed=%d\n",(double)gnorm,(double)fnorm,(double)ynorm,(int)lssucceed);CHKERRQ(ierr);
+    PetscCall(SNESLineSearchApply(linesearch, X, F, &fnorm, Y));
+    PetscCall(SNESLineSearchGetReason(linesearch, &lssucceed));
+    PetscCall(SNESLineSearchGetNorms(linesearch, &xnorm, &fnorm, &ynorm));
+    PetscCall(PetscInfo(snes,"fnorm=%18.16e, gnorm=%18.16e, ynorm=%18.16e, lssucceed=%d\n",(double)gnorm,(double)fnorm,(double)ynorm,(int)lssucceed));
     if (snes->reason) break;
     SNESCheckFunctionNorm(snes,fnorm);
     if (lssucceed) {
       if (snes->stol*xnorm > ynorm) {
-        ierr = VecCopy(X,picard->X2);CHKERRQ(ierr); /* update cached state */
+        PetscCall(VecCopy(X,picard->X2)); /* update cached state */
 
         snes->reason = SNES_CONVERGED_SNORM_RELATIVE;
-        PetscFunctionReturn(0);
+        PetscFunctionReturn(PETSC_SUCCESS);
       }
       if (++snes->numFailures >= snes->maxFailures) {
         //PetscBool ismin;
         snes->reason = SNES_DIVERGED_LINE_SEARCH;
-        //ierr         = SNESNEWTONLSCheckLocalMin_Private(snes,snes->jacobian,F,fnorm,&ismin);CHKERRQ(ierr);
+        //PetscCall(SNESNEWTONLSCheckLocalMin_Private(snes,snes->jacobian,F,fnorm,&ismin));
         //if (ismin) snes->reason = SNES_DIVERGED_LOCAL_MIN;
         break;
       }
     }
 #endif
 #if 0 /* By-pass linesearch and take full step */
-    ierr = VecScale(Y,-1.0);CHKERRQ(ierr);
-    ierr = VecAXPY(X,1.0,Y);CHKERRQ(ierr);
+    PetscCall(VecScale(Y,-1.0));
+    PetscCall(VecAXPY(X,1.0,Y));
 #endif
     
-    ierr = VecCopy(X,picard->X2);CHKERRQ(ierr); /* update cached state */
+    PetscCall(VecCopy(X,picard->X2)); /* update cached state */
     
-    ierr = SNESPicardComputeFunction_Consistent(snes,X,F);CHKERRQ(ierr); /* compute true residual - used for stopping condition */
-    ierr = VecNorm(F,NORM_2,&fnorm);CHKERRQ(ierr);        /* fnorm <- ||F||  */
+    PetscCall(SNESPicardComputeFunction_Consistent(snes,X,F)); /* compute true residual - used for stopping condition */
+    PetscCall(VecNorm(F,NORM_2,&fnorm));        /* fnorm <- ||F||  */
     SNESCheckFunctionNorm(snes,fnorm);
 
     /* Monitor convergence */
@@ -181,51 +178,50 @@ static PetscErrorCode SNESSolve_PicardLS(SNES snes)
     snes->norm = fnorm;
     snes->ynorm = ynorm;
     snes->xnorm = xnorm;
-    ierr       = SNESLogConvergenceHistory(snes,snes->norm,lits);CHKERRQ(ierr);
-    ierr       = SNESMonitor(snes,snes->iter,snes->norm);CHKERRQ(ierr);
+    PetscCall(SNESLogConvergenceHistory(snes,snes->norm,lits));
+    PetscCall(SNESMonitor(snes,snes->iter,snes->norm));
     /* Test for convergence */
-    ierr = (*snes->ops->converged)(snes,snes->iter,xnorm,ynorm,fnorm,&snes->reason,snes->cnvP);CHKERRQ(ierr);
+    PetscCall((*snes->ops->converged)(snes,snes->iter,xnorm,ynorm,fnorm,&snes->reason,snes->cnvP));
     if (snes->reason) break;
 
     if (!picard->consistent) {
       if (fnorm < picard->fnorm_adapt) {
-        ierr = PetscInfo(snes,"Switching to Newton (consistent) residual at iteration %" PetscInt_FMT "\n",snes->iter);CHKERRQ(ierr);
+        PetscCall(PetscInfo(snes,"Switching to Newton (consistent) residual at iteration %" PetscInt_FMT "\n",snes->iter));
         picard->consistent = PETSC_TRUE;
       }
     }
     
   }
   if (i == maxits) {
-    ierr = PetscInfo(snes,"Maximum number of iterations has been reached: %" PetscInt_FMT "\n",maxits);CHKERRQ(ierr);
+    PetscCall(PetscInfo(snes,"Maximum number of iterations has been reached: %" PetscInt_FMT "\n",maxits));
     if (!snes->reason) snes->reason = SNES_DIVERGED_MAX_IT;
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode SNESSetUp_PicardLS(SNES snes)
 {
   SNES_PICARDLS  *picard = (SNES_PICARDLS*)snes->data;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
   
   if (snes->vec_sol) {
-    ierr = VecDuplicate(snes->vec_sol,&picard->X2);CHKERRQ(ierr);
+    PetscCall(VecDuplicate(snes->vec_sol,&picard->X2));
   } else if (snes->vec_func) {
-    ierr = VecDuplicate(snes->vec_func,&picard->X2);CHKERRQ(ierr);
+    PetscCall(VecDuplicate(snes->vec_func,&picard->X2));
   } else SETERRQ(PetscObjectComm((PetscObject)snes),PETSC_ERR_SUP,"Cannot allocate X2");
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode SNESDestroy_PicardLS(SNES snes)
 {
   SNES_PICARDLS  *picard = (SNES_PICARDLS*)snes->data;
-  PetscErrorCode ierr;
   PetscFunctionBegin;
-  ierr = VecDestroy(&picard->X2);CHKERRQ(ierr);
+
+  PetscCall(VecDestroy(&picard->X2));
   picard->split_f = NULL;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscErrorCode SNESSetFromOptions_PicardLS(SNES snes, PetscOptionItems PetscOptionsObject)
@@ -236,12 +232,11 @@ static PetscErrorCode SNESSetFromOptions_PicardLS(SNES snes, PetscOptionItems Pe
   PetscOptionsHeadBegin(PetscOptionsObject,"SNES Picard (linesearch) options");
   PetscCall(PetscOptionsReal("-snes_picardls_fnorm_adapt","f-norm value to switch to NewtonLS","None",picard->fnorm_adapt,&picard->fnorm_adapt,NULL));
   PetscOptionsHeadEnd();
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode SNESCreate_PicardLS(SNES snes)
 {
-  PetscErrorCode ierr;
   SNES_PICARDLS  *neP;
   SNESLineSearch linesearch;
   
@@ -257,16 +252,16 @@ PetscErrorCode SNESCreate_PicardLS(SNES snes)
   snes->usesksp = PETSC_TRUE;
   snes->usesnpc = PETSC_TRUE;
   
-  ierr = SNESGetLineSearch(snes, &linesearch);CHKERRQ(ierr);
+  PetscCall(SNESGetLineSearch(snes, &linesearch));
   if (!((PetscObject)linesearch)->type_name) {
-    ierr = SNESLineSearchSetType(linesearch, SNESLINESEARCHBASIC);CHKERRQ(ierr);
+    PetscCall(SNESLineSearchSetType(linesearch, SNESLINESEARCHBASIC));
   }
   
   snes->alwayscomputesfinalresidual = PETSC_TRUE;
   
-  ierr = PetscNew(&neP);CHKERRQ(ierr);
+  PetscCall(PetscNew(&neP));
   neP->consistent = PETSC_FALSE;
   neP->fnorm_adapt = 1.0e-3;
   snes->data = (void*)neP;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

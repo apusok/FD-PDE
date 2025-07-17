@@ -15,63 +15,66 @@
  */
 
 
+// ---------------------------------------
 static PetscErrorCode MatCreatePreallocator_private(Mat A,Mat *p)
 {
   Mat                    preallocator;
   PetscInt               M,N,m,n,bs;
   DM                     dm;
   ISLocalToGlobalMapping l2g[] = { NULL, NULL };
-  PetscErrorCode         ierr;
+  PetscFunctionBegin;
   
-  ierr = MatGetSize(A,&M,&N);CHKERRQ(ierr);
-  ierr = MatGetLocalSize(A,&m,&n);CHKERRQ(ierr);
-  ierr = MatGetBlockSize(A,&bs);CHKERRQ(ierr);
-  ierr = MatGetDM(A,&dm);CHKERRQ(ierr);
-  ierr = MatGetLocalToGlobalMapping(A,&l2g[0],&l2g[1]);CHKERRQ(ierr);
+  PetscCall(MatGetSize(A,&M,&N));
+  PetscCall(MatGetLocalSize(A,&m,&n));
+  PetscCall(MatGetBlockSize(A,&bs));
+  PetscCall(MatGetDM(A,&dm));
+  PetscCall(MatGetLocalToGlobalMapping(A,&l2g[0],&l2g[1]));
   
-  ierr = MatCreate(PetscObjectComm((PetscObject)A),&preallocator);CHKERRQ(ierr);
-  ierr = MatSetType(preallocator,MATPREALLOCATOR);CHKERRQ(ierr);
-  ierr = MatSetSizes(preallocator,m,n,M,N);CHKERRQ(ierr);
-  ierr = MatSetBlockSize(preallocator,bs);CHKERRQ(ierr);
-  ierr = MatSetDM(preallocator,dm);CHKERRQ(ierr);
-  if (l2g[0] && l2g[1]) { ierr = MatSetLocalToGlobalMapping(preallocator,l2g[0],l2g[1]);CHKERRQ(ierr); }
-  ierr = MatSetUp(preallocator);CHKERRQ(ierr);
+  PetscCall(MatCreate(PetscObjectComm((PetscObject)A),&preallocator));
+  PetscCall(MatSetType(preallocator,MATPREALLOCATOR));
+  PetscCall(MatSetSizes(preallocator,m,n,M,N));
+  PetscCall(MatSetBlockSize(preallocator,bs));
+  PetscCall(MatSetDM(preallocator,dm));
+  if (l2g[0] && l2g[1]) { PetscCall(MatSetLocalToGlobalMapping(preallocator,l2g[0],l2g[1])); }
+  PetscCall(MatSetUp(preallocator));
   
-  ierr = PetscObjectCompose((PetscObject)A,"__mat_preallocator__",(PetscObject)preallocator);CHKERRQ(ierr);
+  PetscCall(PetscObjectCompose((PetscObject)A,"__mat_preallocator__",(PetscObject)preallocator));
   if (p) {
     *p = preallocator;
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
 /* may return a NULL pointer */
 PetscErrorCode MatGetPreallocator(Mat A,Mat *preallocator)
 {
-  PetscErrorCode ierr;
   Mat            p = NULL;
+  PetscFunctionBegin;
   
-  ierr = PetscObjectQuery((PetscObject)A,"__mat_preallocator__",(PetscObject*)&p);CHKERRQ(ierr);
+  PetscCall(PetscObjectQuery((PetscObject)A,"__mat_preallocator__",(PetscObject*)&p));
   *preallocator = p;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
 /*
  Returns preallocator, a matrix of type "preallocator".
  The user should not call MatDestroy() on preallocator;
 */
 PetscErrorCode MatPreallocatePhaseBegin(Mat A,Mat *preallocator)
 {
-  PetscErrorCode ierr;
   Mat            p = NULL;
   PetscInt       bs;
+  PetscFunctionBegin;
   
-  ierr = MatGetPreallocator(A,&p);CHKERRQ(ierr);
+  PetscCall(MatGetPreallocator(A,&p));
   if (p) {
-    ierr= MatDestroy(&p);CHKERRQ(ierr);
+    PetscCall(MatDestroy(&p));
     p = NULL;
-    ierr = PetscObjectCompose((PetscObject)A,"__mat_preallocator__",(PetscObject)p);CHKERRQ(ierr);
+    PetscCall(PetscObjectCompose((PetscObject)A,"__mat_preallocator__",(PetscObject)p));
   }
-  ierr = MatCreatePreallocator_private(A,&p);CHKERRQ(ierr);
+  PetscCall(MatCreatePreallocator_private(A,&p));
   
   /* zap existing non-zero structure in A */
   /*
@@ -80,30 +83,31 @@ PetscErrorCode MatPreallocatePhaseBegin(Mat A,Mat *preallocator)
    (ii) to facilitate raising an error if someone trys to insert values into A after
    MatPreallocatorBegin() has been called - which signals they are doing something wrong/inconsistent
    */
-  ierr = MatGetBlockSize(A,&bs);CHKERRQ(ierr);
-  ierr = MatXAIJSetPreallocation(A,bs,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
-  ierr = MatSetOption(A,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_TRUE);CHKERRQ(ierr);
+  PetscCall(MatGetBlockSize(A,&bs));
+  PetscCall(MatXAIJSetPreallocation(A,bs,NULL,NULL,NULL,NULL));
+  PetscCall(MatSetOption(A,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_TRUE));
   
   *preallocator = p;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
 PetscErrorCode MatPreallocatePhaseEnd(Mat A)
 {
-  PetscErrorCode ierr;
   Mat            p = NULL;
+  PetscFunctionBegin;
   
-  ierr = MatGetPreallocator(A,&p);CHKERRQ(ierr);
+  PetscCall(MatGetPreallocator(A,&p));
   if (!p) SETERRQ(PetscObjectComm((PetscObject)A),PETSC_ERR_USER,"Must call MatPreallocatorBegin() first");
-  ierr = MatAssemblyBegin(p,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(p,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  PetscCall(MatAssemblyBegin(p,MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(p,MAT_FINAL_ASSEMBLY));
   
   /* create new non-zero structure */
-  ierr = MatPreallocatorPreallocate(p,PETSC_TRUE,A);CHKERRQ(ierr);
+  PetscCall(MatPreallocatorPreallocate(p,PETSC_TRUE,A));
   
   /* clean up and remove the preallocator object from A */
-  ierr= MatDestroy(&p);CHKERRQ(ierr);
+  PetscCall(MatDestroy(&p));
   p = NULL;
-  ierr = PetscObjectCompose((PetscObject)A,"__mat_preallocator__",(PetscObject)p);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscCall(PetscObjectCompose((PetscObject)A,"__mat_preallocator__",(PetscObject)p));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

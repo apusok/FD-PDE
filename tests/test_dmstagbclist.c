@@ -19,26 +19,24 @@ PetscErrorCode test1(PetscInt nx,PetscInt ny)
   DM              dm;
   PetscInt        dof0,dof1,dof2,stencilWidth;
   DMStagBCList    bclist;
-  PetscErrorCode  ierr;
   
   dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
   
-  ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,
-                        PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
-                        DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dm);CHKERRQ(ierr);
-  ierr = DMStagSetCoordinateDMType(dm,DMPRODUCT);CHKERRQ(ierr);
-  ierr = DMSetFromOptions(dm);CHKERRQ(ierr);
-  ierr = DMSetUp(dm);CHKERRQ(ierr);
+  PetscCall(DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
+                        DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dm));
+  PetscCall(DMStagSetCoordinateDMType(dm,DMPRODUCT));
+  PetscCall(DMSetFromOptions(dm));
+  PetscCall(DMSetUp(dm));
   
-  ierr = DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
+  PetscCall(DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0));
 
-  ierr = DMStagBCListCreate(dm,&bclist);CHKERRQ(ierr);
-  ierr = DMStagBCListView(bclist);CHKERRQ(ierr);
-  ierr = DMStagBCListDestroy(&bclist);CHKERRQ(ierr);
-  ierr = DMDestroy(&dm);CHKERRQ(ierr);
+  PetscCall(DMStagBCListCreate(dm,&bclist));
+  PetscCall(DMStagBCListView(bclist));
+  PetscCall(DMStagBCListDestroy(&bclist));
+  PetscCall(DMDestroy(&dm));
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode test2(PetscInt nx,PetscInt ny)
@@ -46,21 +44,19 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
   DM              dm;
   PetscInt        dof0,dof1,dof2,stencilWidth;
   DMStagBCList    bclist;
-  PetscErrorCode  ierr;
   
   dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
   
-  ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,
-                        PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
-                        DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dm);CHKERRQ(ierr);
-  ierr = DMStagSetCoordinateDMType(dm,DMPRODUCT);CHKERRQ(ierr);
-  ierr = DMSetFromOptions(dm);CHKERRQ(ierr);
-  ierr = DMSetUp(dm);CHKERRQ(ierr);
+  PetscCall(DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
+                        DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dm));
+  PetscCall(DMStagSetCoordinateDMType(dm,DMPRODUCT));
+  PetscCall(DMSetFromOptions(dm));
+  PetscCall(DMSetUp(dm));
   
-  ierr = DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
+  PetscCall(DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0));
   
-  ierr = DMStagBCListCreate(dm,&bclist);CHKERRQ(ierr);
+  PetscCall(DMStagBCListCreate(dm,&bclist));
   
   {
     PetscInt    k,n_bc,*idx_bc;
@@ -69,7 +65,7 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
 
     /* -------------------------------------------- */
     /* request edge BC values (-) on a face (north) */
-    ierr = DMStagBCListGetValues(bclist,'n','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'n','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     for (k=0; k<n_bc; k++) {
       value_bc[k] = (PetscScalar)(k+1);
@@ -77,11 +73,11 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
     }
     
     /* Set edge BC values (-). No need to define the face, it is encoded in idx_bc[] */
-    ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     /* -------------------------------------------- */
     /* request edge BC values (|) on a face (north) */
-    ierr = DMStagBCListGetValues(bclist,'n','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'n','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     for (k=0; k<n_bc; k++) {
       value_bc[k] = (PetscScalar)(k+10);
@@ -89,11 +85,11 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
     }
     
     /* Set edge BC values (-). No need to define the face, it is encoded in idx_bc[] */
-    ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
 
     /* ---------------------------------------------- */
     /* request element BC values (o) on a face (east) */
-    ierr = DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'e','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     for (k=0; k<n_bc; k++) {
       value_bc[k] = (PetscScalar)(k+1);
@@ -101,15 +97,15 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
     }
     
     /* Set edge BC values (-). No need to define the face, it is encoded in idx_bc[] */
-    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
   }
   
   
-  ierr = DMStagBCListView(bclist);CHKERRQ(ierr);
-  ierr = DMStagBCListDestroy(&bclist);CHKERRQ(ierr);
-  ierr = DMDestroy(&dm);CHKERRQ(ierr);
+  PetscCall(DMStagBCListView(bclist));
+  PetscCall(DMStagBCListDestroy(&bclist));
+  PetscCall(DMDestroy(&dm));
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode test3(PetscInt nx,PetscInt ny)
@@ -117,37 +113,35 @@ PetscErrorCode test3(PetscInt nx,PetscInt ny)
   DM              dm;
   PetscInt        dof0,dof1,dof2,stencilWidth;
   DMStagBCList    bclist;
-  PetscErrorCode  ierr;
   
   dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
   
-  ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,
-                        PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
-                        DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dm);CHKERRQ(ierr);
-  ierr = DMStagSetCoordinateDMType(dm,DMPRODUCT);CHKERRQ(ierr);
-  ierr = DMSetFromOptions(dm);CHKERRQ(ierr);
-  ierr = DMSetUp(dm);CHKERRQ(ierr);
+  PetscCall(DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
+                        DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dm));
+  PetscCall(DMStagSetCoordinateDMType(dm,DMPRODUCT));
+  PetscCall(DMSetFromOptions(dm));
+  PetscCall(DMSetUp(dm));
   
-  ierr = DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
+  PetscCall(DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0));
   
-  ierr = DMStagBCListCreate(dm,&bclist);CHKERRQ(ierr);
+  PetscCall(DMStagBCListCreate(dm,&bclist));
   
-  ierr = DMStagBCListPinValue(bclist,'|',0,33.0);CHKERRQ(ierr);
+  PetscCall(DMStagBCListPinValue(bclist,'|',0,33.0));
   fflush(stdout);
-  ierr = MPI_Barrier(PETSC_COMM_WORLD);CHKERRQ(ierr);
-  ierr = DMStagBCListPinValue(bclist,'-',0,66.0);CHKERRQ(ierr);
+  PetscCall(MPI_Barrier(PETSC_COMM_WORLD));
+  PetscCall(DMStagBCListPinValue(bclist,'-',0,66.0));
   fflush(stdout);
-  ierr = MPI_Barrier(PETSC_COMM_WORLD);CHKERRQ(ierr);
-  ierr = DMStagBCListPinValue(bclist,'o',0,99.0);CHKERRQ(ierr);
+  PetscCall(MPI_Barrier(PETSC_COMM_WORLD));
+  PetscCall(DMStagBCListPinValue(bclist,'o',0,99.0));
   fflush(stdout);
-  ierr = MPI_Barrier(PETSC_COMM_WORLD);CHKERRQ(ierr);
+  PetscCall(MPI_Barrier(PETSC_COMM_WORLD));
  
-  ierr = DMStagBCListView(bclist);CHKERRQ(ierr);
-  ierr = DMStagBCListDestroy(&bclist);CHKERRQ(ierr);
-  ierr = DMDestroy(&dm);CHKERRQ(ierr);
+  PetscCall(DMStagBCListView(bclist));
+  PetscCall(DMStagBCListDestroy(&bclist));
+  PetscCall(DMDestroy(&dm));
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode test4(PetscInt nx,PetscInt ny)
@@ -155,41 +149,39 @@ PetscErrorCode test4(PetscInt nx,PetscInt ny)
   DM              dm;
   PetscInt        dof0,dof1,dof2,stencilWidth;
   DMStagBCList    bclist;
-  PetscErrorCode  ierr;
-  
+
   dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
   
-  ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,
-                        PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
-                        DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dm);CHKERRQ(ierr);
-  ierr = DMStagSetCoordinateDMType(dm,DMPRODUCT);CHKERRQ(ierr);
-  ierr = DMSetFromOptions(dm);CHKERRQ(ierr);
-  ierr = DMSetUp(dm);CHKERRQ(ierr);
+  PetscCall(DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
+                        DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dm));
+  PetscCall(DMStagSetCoordinateDMType(dm,DMPRODUCT));
+  PetscCall(DMSetFromOptions(dm));
+  PetscCall(DMSetUp(dm));
   
-  ierr = DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
+  PetscCall(DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0));
   
-  ierr = DMStagBCListCreate(dm,&bclist);CHKERRQ(ierr);
+  PetscCall(DMStagBCListCreate(dm,&bclist));
   
-  ierr = DMStagBCListPinCornerValue(bclist,DMSTAG_DOWN_LEFT,'o',0,33.0);CHKERRQ(ierr);
+  PetscCall(DMStagBCListPinCornerValue(bclist,DMSTAG_DOWN_LEFT,'o',0,33.0));
   fflush(stdout);
-  ierr = MPI_Barrier(PETSC_COMM_WORLD);CHKERRQ(ierr);
-  ierr = DMStagBCListPinCornerValue(bclist,DMSTAG_DOWN_RIGHT,'o',0,66.0);CHKERRQ(ierr);
+  PetscCall(MPI_Barrier(PETSC_COMM_WORLD));
+  PetscCall(DMStagBCListPinCornerValue(bclist,DMSTAG_DOWN_RIGHT,'o',0,66.0));
   fflush(stdout);
-  ierr = MPI_Barrier(PETSC_COMM_WORLD);CHKERRQ(ierr);
-  ierr = DMStagBCListPinCornerValue(bclist,DMSTAG_UP_LEFT,'o',0,99.0);CHKERRQ(ierr);
+  PetscCall(MPI_Barrier(PETSC_COMM_WORLD));
+  PetscCall(DMStagBCListPinCornerValue(bclist,DMSTAG_UP_LEFT,'o',0,99.0));
   fflush(stdout);
-  ierr = MPI_Barrier(PETSC_COMM_WORLD);CHKERRQ(ierr);
-  ierr = DMStagBCListPinCornerValue(bclist,DMSTAG_UP_RIGHT,'o',0,333.0);CHKERRQ(ierr);
+  PetscCall(MPI_Barrier(PETSC_COMM_WORLD));
+  PetscCall(DMStagBCListPinCornerValue(bclist,DMSTAG_UP_RIGHT,'o',0,333.0));
   fflush(stdout);
-  ierr = MPI_Barrier(PETSC_COMM_WORLD);CHKERRQ(ierr);
+  PetscCall(MPI_Barrier(PETSC_COMM_WORLD));
   
   
-  ierr = DMStagBCListView(bclist);CHKERRQ(ierr);
-  ierr = DMStagBCListDestroy(&bclist);CHKERRQ(ierr);
-  ierr = DMDestroy(&dm);CHKERRQ(ierr);
+  PetscCall(DMStagBCListView(bclist));
+  PetscCall(DMStagBCListDestroy(&bclist));
+  PetscCall(DMDestroy(&dm));
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode test5(PetscInt nx,PetscInt ny)
@@ -197,21 +189,19 @@ PetscErrorCode test5(PetscInt nx,PetscInt ny)
   DM              dm;
   PetscInt        dof0,dof1,dof2,stencilWidth;
   DMStagBCList    bclist;
-  PetscErrorCode  ierr;
   
   dof0 = 0; dof1 = 2; dof2 = 2; /* (vertex) (face) (element) */
   stencilWidth = 1;
   
-  ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,
-                        PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
-                        DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dm);CHKERRQ(ierr);
-  ierr = DMStagSetCoordinateDMType(dm,DMPRODUCT);CHKERRQ(ierr);
-  ierr = DMSetFromOptions(dm);CHKERRQ(ierr);
-  ierr = DMSetUp(dm);CHKERRQ(ierr);
+  PetscCall(DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, nx, ny,PETSC_DECIDE, PETSC_DECIDE, dof0, dof1, dof2,
+                        DMSTAG_STENCIL_BOX, stencilWidth, NULL,NULL, &dm));
+  PetscCall(DMStagSetCoordinateDMType(dm,DMPRODUCT));
+  PetscCall(DMSetFromOptions(dm));
+  PetscCall(DMSetUp(dm));
   
-  ierr = DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
+  PetscCall(DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0));
   
-  ierr = DMStagBCListCreate(dm,&bclist);CHKERRQ(ierr);
+  PetscCall(DMStagBCListCreate(dm,&bclist));
   
   {
     PetscInt    k,n_bc,*idx_bc;
@@ -221,97 +211,96 @@ PetscErrorCode test5(PetscInt nx,PetscInt ny)
     ct = 0.0;
     
     /* request edge BC values (-) on a face (west) - for 2 DOFs */
-    ierr = DMStagBCListGetValues(bclist,'w','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'w','-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     for (k=0; k<n_bc; k++) {
       ct += 1.0;
       value_bc[k] = ct;
       type_bc[k] = BC_DIRICHLET;
     }
-    ierr = DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'-',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
 
-    ierr = DMStagBCListGetValues(bclist,'w','-',1,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'w','-',1,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     for (k=0; k<n_bc; k++) {
       ct += 1.0;
       value_bc[k] = ct;
       type_bc[k] = BC_NEUMANN;
     }
-    ierr = DMStagBCListInsertValues(bclist,'-',1,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'-',1,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     
     /* request edge BC values (|) on a face (n) - for 2 DOFs */
-    ierr = DMStagBCListGetValues(bclist,'n','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'n','|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     for (k=0; k<n_bc; k++) {
       ct += 1.0;
       value_bc[k] = ct;
       type_bc[k] = BC_DIRICHLET_STAG;
     }
-    ierr = DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
 
-    ierr = DMStagBCListGetValues(bclist,'n','|',1,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'n','|',1,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     for (k=0; k<n_bc; k++) {
       ct += 1.0;
       value_bc[k] = ct;
       type_bc[k] = BC_NEUMANN;
     }
-    ierr = DMStagBCListInsertValues(bclist,'|',1,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'|',1,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
 
     /* request element BC values (o) on a face (south) - for 2 DOFs */
-    ierr = DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'s','o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     for (k=0; k<n_bc; k++) {
       ct += 1.0;
       value_bc[k] = ct;
       type_bc[k] = BC_DIRICHLET;
     }
-    ierr = DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
 
-    ierr = DMStagBCListGetValues(bclist,'s','o',1,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListGetValues(bclist,'s','o',1,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
     for (k=0; k<n_bc; k++) {
       ct += 1.0;
       value_bc[k] = ct;
       type_bc[k] = BC_NEUMANN;
     }
-    ierr = DMStagBCListInsertValues(bclist,'o',1,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc);CHKERRQ(ierr);
+    PetscCall(DMStagBCListInsertValues(bclist,'o',1,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
   }
 
-  ierr = DMStagBCListView(bclist);CHKERRQ(ierr);
-  ierr = DMStagBCListDestroy(&bclist);CHKERRQ(ierr);
-  ierr = DMDestroy(&dm);CHKERRQ(ierr);
+  PetscCall(DMStagBCListView(bclist));
+  PetscCall(DMStagBCListDestroy(&bclist));
+  PetscCall(DMDestroy(&dm));
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 #undef __FUNCT__
 #define __FUNCT__ "main"
 int main (int argc,char **argv)
 {
-  PetscErrorCode  ierr;
   PetscInt tid = 2;
   PetscInt m = 3,n = 3;
   
-  ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return(ierr);
-  ierr = PetscOptionsGetInt(NULL,NULL,"-tid",&tid,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(NULL,NULL,"-m",&m,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(NULL,NULL,"-n",&n,NULL);CHKERRQ(ierr);
+  PetscCall(PetscInitialize(&argc,&argv,(char*)0,help));
+  PetscCall(PetscOptionsGetInt(NULL,NULL,"-tid",&tid,NULL));
+  PetscCall(PetscOptionsGetInt(NULL,NULL,"-m",&m,NULL));
+  PetscCall(PetscOptionsGetInt(NULL,NULL,"-n",&n,NULL));
   switch (tid) {
     case 1:
-      ierr = test1(m,n);CHKERRQ(ierr);
+      PetscCall(test1(m,n));
       break;
     case 2:
-      ierr = test2(m,n);CHKERRQ(ierr);
+      PetscCall(test2(m,n));
       break;
     case 3:
-      ierr = test3(m,n);CHKERRQ(ierr); /* pin-point */
+      PetscCall(test3(m,n)); /* pin-point */
       break;
     case 4:
-      ierr = test4(m,n);CHKERRQ(ierr); /* pin-point corner specification */
+      PetscCall(test4(m,n)); /* pin-point corner specification */
       break;
     case 5:
-      ierr = test5(m,n);CHKERRQ(ierr); /* multiple dofs */
+      PetscCall(test5(m,n)); /* multiple dofs */
       break;
     default:
       SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Unknown test requested. Valid tests are -tid = {1,2,3,4,5}");
       break;
   }
 
-  ierr = PetscFinalize();
-  return(ierr);
+  PetscCall(PetscFinalize());
+  return 0;
 }

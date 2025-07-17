@@ -11,39 +11,38 @@ PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscIn
   Vec             x, xlocal;
   PetscInt        i,j,ii, sx, sz, nx, nz, idx;
   PetscScalar    **cx,**cz,***xx;
-  PetscErrorCode  ierr;
   
-  ierr = DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, Nx, Nz, PETSC_DECIDE, PETSC_DECIDE, 
-                        dof0, dof1, dof2, DMSTAG_STENCIL_BOX,1, NULL,NULL, &dm);CHKERRQ(ierr);
-  ierr = DMSetFromOptions(dm);CHKERRQ(ierr);
-  ierr = DMSetUp(dm);CHKERRQ(ierr);
-  ierr = DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0);CHKERRQ(ierr);
+  PetscCall(DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, Nx, Nz, PETSC_DECIDE, PETSC_DECIDE, 
+                        dof0, dof1, dof2, DMSTAG_STENCIL_BOX,1, NULL,NULL, &dm));
+  PetscCall(DMSetFromOptions(dm));
+  PetscCall(DMSetUp(dm));
+  PetscCall(DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0));
 
   // Create data
-  ierr = DMCreateGlobalVector(dm,&x);CHKERRQ(ierr);
-  ierr = DMCreateLocalVector(dm, &xlocal); CHKERRQ(ierr);
+  PetscCall(DMCreateGlobalVector(dm,&x));
+  PetscCall(DMCreateLocalVector(dm, &xlocal)); 
 
   // Get local domain
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
+  PetscCall(DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
 
   // Map global vectors to local domain
-  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+  PetscCall(DMStagVecGetArray(dm, xlocal, &xx)); 
 
   // Get dm coordinates array
-  ierr = DMStagGetProductCoordinateArraysRead(dm,&cx,&cz,NULL);CHKERRQ(ierr);
+  PetscCall(DMStagGetProductCoordinateArraysRead(dm,&cx,&cz,NULL));
   
   // vertex data - create dummy data (ct values)
   if (dof0) {
     for (ii = 0; ii<dof0; ii++) {
       for (j = sz; j<sz+nz; j++) {
         for (i = sx; i<sx+nx; i++) {
-          ierr = DMStagGetLocationSlot(dm, DMSTAG_DOWN_LEFT,ii, &idx); CHKERRQ(ierr);
+          PetscCall(DMStagGetLocationSlot(dm, DMSTAG_DOWN_LEFT,ii, &idx)); 
           xx[j][i][idx] = ii+1;
-          ierr = DMStagGetLocationSlot(dm, DMSTAG_DOWN_RIGHT,ii, &idx); CHKERRQ(ierr);
+          PetscCall(DMStagGetLocationSlot(dm, DMSTAG_DOWN_RIGHT,ii, &idx)); 
           xx[j][i][idx] = ii+1;
-          ierr = DMStagGetLocationSlot(dm, DMSTAG_UP_LEFT,ii, &idx); CHKERRQ(ierr);
+          PetscCall(DMStagGetLocationSlot(dm, DMSTAG_UP_LEFT,ii, &idx)); 
           xx[j][i][idx] = ii+1;
-          ierr = DMStagGetLocationSlot(dm, DMSTAG_UP_RIGHT,ii, &idx); CHKERRQ(ierr);
+          PetscCall(DMStagGetLocationSlot(dm, DMSTAG_UP_RIGHT,ii, &idx)); 
           xx[j][i][idx] = ii+1;
         }
       }
@@ -53,19 +52,19 @@ PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscIn
   // face data - create dummy data (coordinates)
   if (dof1) {
     PetscInt iprev=-1, inext=-1;
-    ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev);CHKERRQ(ierr);
-    ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext);CHKERRQ(ierr);
+    PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev));
+    PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext));
 
     for (ii = 0; ii<dof1; ii++) {
       for (j = sz; j<sz+nz; j++) {
         for (i = sx; i<sx+nx; i++) {
-          ierr = DMStagGetLocationSlot(dm, DMSTAG_LEFT,ii, &idx); CHKERRQ(ierr);
+          PetscCall(DMStagGetLocationSlot(dm, DMSTAG_LEFT,ii, &idx)); 
           xx[j][i][idx] = (ii+1)*cx[i][iprev];
-          ierr = DMStagGetLocationSlot(dm, DMSTAG_RIGHT,ii, &idx); CHKERRQ(ierr);
+          PetscCall(DMStagGetLocationSlot(dm, DMSTAG_RIGHT,ii, &idx)); 
           xx[j][i][idx] = (ii+1)*cx[i][inext];
-          ierr = DMStagGetLocationSlot(dm, DMSTAG_DOWN,ii, &idx); CHKERRQ(ierr);
+          PetscCall(DMStagGetLocationSlot(dm, DMSTAG_DOWN,ii, &idx)); 
           xx[j][i][idx] = (ii+1)*cz[j][iprev];
-          ierr = DMStagGetLocationSlot(dm, DMSTAG_UP,ii, &idx); CHKERRQ(ierr);
+          PetscCall(DMStagGetLocationSlot(dm, DMSTAG_UP,ii, &idx)); 
           xx[j][i][idx] = (ii+1)*cz[j][inext];
         }
       }
@@ -75,12 +74,12 @@ PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscIn
   // element data - create dummy data (coordinates)
   if (dof2) {
     PetscInt icenter=-1;
-    ierr = DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter);CHKERRQ(ierr);
+    PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter));
 
     for (ii = 0; ii<dof2; ii++) {
       for (j = sz; j<sz+nz; j++) {
         for (i = sx; i<sx+nx; i++) {
-          ierr = DMStagGetLocationSlot(dm, DMSTAG_ELEMENT,ii, &idx); CHKERRQ(ierr);
+          PetscCall(DMStagGetLocationSlot(dm, DMSTAG_ELEMENT,ii, &idx)); 
           xx[j][i][idx] = (ii+1)*cx[i][icenter]*cz[j][icenter];
         }
       }
@@ -88,25 +87,25 @@ PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscIn
   }
 
   // Restore arrays, local vectors
-  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&cx,&cz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dm,&cx,&cz,NULL));
+  PetscCall(DMStagVecRestoreArray(dm,xlocal,&xx)); 
 
   // Local to global
-  ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
+  PetscCall(DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x)); 
+  PetscCall(DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x)); 
   
-  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
+  PetscCall(VecDestroy(&xlocal)); 
 
   // Output data
-  ierr = DMStagViewBinaryPython(dm,x,fname);CHKERRQ(ierr);
+  PetscCall(DMStagViewBinaryPython(dm,x,fname));
 
-  // ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  // PetscCall(VecView(x,PETSC_VIEWER_STDOUT_WORLD));
 
  // Destroy
-  ierr = DMDestroy(&dm); CHKERRQ(ierr);
-  ierr = VecDestroy(&x); CHKERRQ(ierr);
+  PetscCall(DMDestroy(&dm)); 
+  PetscCall(VecDestroy(&x)); 
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 #undef __FUNCT__
@@ -114,17 +113,16 @@ PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscIn
 int main (int argc,char **argv)
 {
   PetscInt        n;
-  PetscErrorCode  ierr;
   
   n = 10;
-  ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return(ierr);
+  PetscCall(PetscInitialize(&argc,&argv,(char*)0,help));
 
-  ierr = test0(n-1,n,2,2,2,"out_test_dmstagoutput0");CHKERRQ(ierr);
-  ierr = test0(n,n,2,1,0,"out_test_dmstagoutput1");CHKERRQ(ierr); // can use imshow()
-  ierr = test0(n+1,n,1,0,0,"out_test_dmstagoutput2");CHKERRQ(ierr);
-  ierr = test0(n,n+1,0,1,0,"out_test_dmstagoutput3");CHKERRQ(ierr);
-  ierr = test0(n+2,n,0,0,1,"out_test_dmstagoutput4");CHKERRQ(ierr);
+  PetscCall(test0(n-1,n,2,2,2,"out_test_dmstagoutput0"));
+  PetscCall(test0(n,n,2,1,0,"out_test_dmstagoutput1")); // can use imshow()
+  PetscCall(test0(n+1,n,1,0,0,"out_test_dmstagoutput2"));
+  PetscCall(test0(n,n+1,0,1,0,"out_test_dmstagoutput3"));
+  PetscCall(test0(n+2,n,0,0,1,"out_test_dmstagoutput4"));
 
-  ierr = PetscFinalize();
-  return(ierr);
+  PetscCall(PetscFinalize());
+  return 0;
 }
