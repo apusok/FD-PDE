@@ -8,6 +8,7 @@ PYTHON_DIR = ../new_tests/python
 
 SRC := 	fdpde_snes.c \
 	fdpde_dmstag.c \
+	fdpde_utils.c \
 	fdpde.c \
 	fdpde_stokes.c \
 	fdpde_stokes_residual.c \
@@ -23,6 +24,7 @@ HDR := 	benchmark_solcx.h \
 	benchmark_cornerflow.h \
 	fdpde_snes.h \
 	fdpde_dmstag.h \
+	fdpde_utils.h \
 	fdpde.h \
 	fdpde_stokes.h \
 	fdpde_stokesdarcy2field.h \
@@ -34,7 +36,7 @@ FDPDE_HDR = $(patsubst %,${FDPDE_DIR}/%,${HDR})
 
 FDPDE_OBJ := $(patsubst %.c,%.o,${FDPDE_SRC})
 
-TEST_SRC = 	${TEST_DIR}/test_stokesdarcy2field_mms_porosity.c \
+TEST_SRC = 	${TEST_DIR}/test_stokesdarcy2field_plume.c \
 
 # TEST_SRC = 	${TEST_DIR}/test_fdpde.c \
 	${TEST_DIR}/test_dmstagbclist.c \
@@ -55,6 +57,9 @@ TEST_SRC = 	${TEST_DIR}/test_stokesdarcy2field_mms_porosity.c \
 	${TEST_DIR}/test_advdiff_mms_2d_diffusion.c \
 	${TEST_DIR}/test_advdiff_mms_convergence.c \
 	${TEST_DIR}/test_advdiff_periodic.c \
+	${TEST_DIR}/test_stokesdarcy2field_mms_porosity.c \
+	${TEST_DIR}/test_stokesdarcy2field_beam.c \
+	${TEST_DIR}/test_stokesdarcy2field_plume.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,${TEST_SRC})
 TEST_APP := $(patsubst %.c,%,${TEST_SRC})

@@ -6,6 +6,7 @@
 #include <petsc.h>
 #include "fdpde_dmstag.h"
 #include "fdpde_snes.h"
+#include "fdpde_utils.h"
 
 // ---------------------------------------
 // Enum definitions
