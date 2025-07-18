@@ -74,14 +74,14 @@ PetscErrorCode FDPDESetFunctionBCList(FDPDE, PetscErrorCode (*evaluate)(DM,Vec,D
 PetscErrorCode FDPDESetFunctionCoefficient(FDPDE, PetscErrorCode (*form_coefficient)(FDPDE, DM,Vec,DM,Vec,void*), const char description[], void*);
 // PetscErrorCode FDPDESetFunctionCoefficientSplit(FDPDE, PetscErrorCode (*form_coefficient)(FDPDE, DM,Vec,Vec,DM,Vec,void*), const char description[], void*);
 PetscErrorCode FDPDESetLinearPreallocatorStencil(FDPDE, PetscBool);
-// PetscErrorCode FDPDESetDMBoundaryType(FDPDE,DMBoundaryType,DMBoundaryType);
+PetscErrorCode FDPDESetDMBoundaryType(FDPDE,DMBoundaryType,DMBoundaryType);
 
 PetscErrorCode FDPDEGetDM(FDPDE,DM*);
 PetscErrorCode FDPDEGetSolution(FDPDE,Vec*);
 PetscErrorCode FDPDEGetSNES(FDPDE,SNES*);
 // PetscErrorCode FDPDEGetDMStagBCList(FDPDE,DMStagBCList*);
 PetscErrorCode FDPDEGetCoefficient(FDPDE,DM*,Vec*);
-// PetscErrorCode FDPDEGetSolutionGuess(FDPDE,Vec*);
+PetscErrorCode FDPDEGetSolutionGuess(FDPDE,Vec*);
 
 PetscErrorCode FDPDEGetCoordinatesArrayDMStag(FDPDE,PetscScalar***,PetscScalar***);
 PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE,PetscScalar**,PetscScalar**);

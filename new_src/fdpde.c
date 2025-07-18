@@ -21,7 +21,7 @@ const char *FDPDETypeNames[] = {
 PetscErrorCode FDPDECreate_Stokes(FDPDE fd);
 PetscErrorCode FDPDECreate_StokesDarcy2Field(FDPDE fd);
 PetscErrorCode FDPDECreate_StokesDarcy3Field(FDPDE fd);
-// PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd);
+PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd);
 // PetscErrorCode FDPDECreate_Composite(FDPDE fd);
 // PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd);
 // PetscErrorCode FDPDESetUp_Composite(FDPDE fd);
@@ -152,7 +152,7 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
       fd->ops->create = FDPDECreate_StokesDarcy3Field;
       break;
     case FDPDE_ADVDIFF:
-      // fd->ops->create = FDPDECreate_AdvDiff;
+      fd->ops->create = FDPDECreate_AdvDiff;
       break;
     case FDPDE_ENTHALPY:
       // fd->ops->create = FDPDECreate_Enthalpy;
@@ -532,33 +532,33 @@ PetscErrorCode FDPDEGetSNES(FDPDE fd, SNES *snes)
 //   PetscFunctionReturn(PETSC_SUCCESS);
 // }
 
-// // ---------------------------------------
-// /*@
-// FDPDEGetSolutionGuess() - retrieves the xguess vector from the FD-PDE object. 
+// ---------------------------------------
+/*@
+FDPDEGetSolutionGuess() - retrieves the xguess vector from the FD-PDE object. 
 
-// Input Parameter:
-// fd - the FD-PDE object
+Input Parameter:
+fd - the FD-PDE object
 
-// Output Parameter:
-// xguess - the solution guess vector
+Output Parameter:
+xguess - the solution guess vector
 
-// Notes:
-// Reference count on xguess is incremented. User must call VecDestroy() on xguess.
+Notes:
+Reference count on xguess is incremented. User must call VecDestroy() on xguess.
 
-// Use: user
-// @*/
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDPDEGetSolutionGuess"
-// PetscErrorCode FDPDEGetSolutionGuess(FDPDE fd, Vec *xguess)
-// {
-//   PetscFunctionBegin;
-//   if (xguess) {
-//     *xguess = fd->xguess;
-//     PetscCall(PetscObjectReference((PetscObject)fd->xguess));
-//   }
-//   PetscFunctionReturn(PETSC_SUCCESS);
-// }
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEGetSolutionGuess"
+PetscErrorCode FDPDEGetSolutionGuess(FDPDE fd, Vec *xguess)
+{
+  PetscFunctionBegin;
+  if (xguess) {
+    *xguess = fd->xguess;
+    PetscCall(PetscObjectReference((PetscObject)fd->xguess));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 // ---------------------------------------
 static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
@@ -1171,24 +1171,24 @@ PetscErrorCode FDPDESetLinearPreallocatorStencil(FDPDE fd, PetscBool flg)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// // ---------------------------------------
-// /*@
-// FDPDESetDMBoundaryType() - Set DMBoundaryType other than DM_BOUNDARY_NONE
-// Options: 
-//   DM_BOUNDARY_NONE, DM_BOUNDARY_GHOSTED, DM_BOUNDARY_MIRROR, DM_BOUNDARY_PERIODIC, DM_BOUNDARY_TWIST
-// Warning: not all are implemented! 
+// ---------------------------------------
+/*@
+FDPDESetDMBoundaryType() - Set DMBoundaryType other than DM_BOUNDARY_NONE
+Options: 
+  DM_BOUNDARY_NONE, DM_BOUNDARY_GHOSTED, DM_BOUNDARY_MIRROR, DM_BOUNDARY_PERIODIC, DM_BOUNDARY_TWIST
+Warning: not all are implemented! 
 
-// Use: user
-// @*/
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDPDESetDMBoundaryType"
-// PetscErrorCode FDPDESetDMBoundaryType(FDPDE fd, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1)
-// {
-//   PetscFunctionBegin;
-//   if (fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDESetDMBoundaryType() before FDPDESetUp()");
-//   if (dm_btype0) fd->dm_btype0 = dm_btype0;
-//   if (dm_btype1) fd->dm_btype1 = dm_btype1;
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDESetDMBoundaryType"
+PetscErrorCode FDPDESetDMBoundaryType(FDPDE fd, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1)
+{
+  PetscFunctionBegin;
+  if (fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDESetDMBoundaryType() before FDPDESetUp()");
+  if (dm_btype0) fd->dm_btype0 = dm_btype0;
+  if (dm_btype1) fd->dm_btype1 = dm_btype1;
 
-//   PetscFunctionReturn(PETSC_SUCCESS);
-// }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
