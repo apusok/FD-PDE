@@ -11,6 +11,10 @@ SRC := 	fdpde_snes.c \
 	fdpde.c \
 	fdpde_stokes.c \
 	fdpde_stokes_residual.c \
+	fdpde_stokesdarcy2field.c \
+	fdpde_stokesdarcy2field_residual.c \
+	fdpde_stokesdarcy3field.c \
+	fdpde_stokesdarcy3field_residual.c \
 
 HDR := 	benchmark_solcx.h \
 	benchmark_cornerflow.h \
@@ -18,13 +22,15 @@ HDR := 	benchmark_solcx.h \
 	fdpde_dmstag.h \
 	fdpde.h \
 	fdpde_stokes.h \
+	fdpde_stokesdarcy2field.h \
+	fdpde_stokesdarcy3field.h \
 
 FDPDE_SRC = $(patsubst %,${FDPDE_DIR}/%,${SRC})
 FDPDE_HDR = $(patsubst %,${FDPDE_DIR}/%,${HDR})
 
 FDPDE_OBJ := $(patsubst %.c,%.o,${FDPDE_SRC})
 
-TEST_SRC = 	${TEST_DIR}/test_stokesdarcy2field_mms_katz_ch13.c \
+TEST_SRC = 	${TEST_DIR}/test_stokesdarcy3field_mms_bulkviscosity.c \
 
 # TEST_SRC = 	${TEST_DIR}/test_fdpde.c \
 	${TEST_DIR}/test_dmstagbclist.c \
@@ -35,6 +41,10 @@ TEST_SRC = 	${TEST_DIR}/test_stokesdarcy2field_mms_katz_ch13.c \
 	${TEST_DIR}/test_stokes_solcx_vargrid.c \
 	${TEST_DIR}/test_stokes_lid_driven.c \
 	${TEST_DIR}/test_trueboundary.c \
+	${TEST_DIR}/test_stokesdarcy2field_mms_katz_ch13.c \
+	${TEST_DIR}/test_stokesdarcy2field_rhebergen-siam-2014.c \
+	${TEST_DIR}/test_stokesdarcy2field_mms_compare_nd.c \
+	${TEST_DIR}/test_stokesdarcy3field_mms_bulkviscosity.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,${TEST_SRC})
 TEST_APP := $(patsubst %.c,%,${TEST_SRC})
