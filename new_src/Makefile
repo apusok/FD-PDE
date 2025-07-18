@@ -13,6 +13,7 @@ SRC := 	fdpde_snes.c \
 	fdpde_stokes_residual.c \
 
 HDR := 	benchmark_solcx.h \
+	benchmark_cornerflow.h \
 	fdpde_snes.h \
 	fdpde_dmstag.h \
 	fdpde.h \
@@ -23,7 +24,17 @@ FDPDE_HDR = $(patsubst %,${FDPDE_DIR}/%,${HDR})
 
 FDPDE_OBJ := $(patsubst %.c,%.o,${FDPDE_SRC})
 
-TEST_SRC = 	${TEST_DIR}/test_fdpde.c \
+TEST_SRC = 	${TEST_DIR}/test_stokesdarcy2field_mms_katz_ch13.c \
+
+# TEST_SRC = 	${TEST_DIR}/test_fdpde.c \
+	${TEST_DIR}/test_dmstagbclist.c \
+	${TEST_DIR}/test_dmstagoutput.c \
+	${TEST_DIR}/test_dmstagoutput_read.c \
+	${TEST_DIR}/test_stokes_solcx.c \
+	${TEST_DIR}/test_stokes_mor.c \
+	${TEST_DIR}/test_stokes_solcx_vargrid.c \
+	${TEST_DIR}/test_stokes_lid_driven.c \
+	${TEST_DIR}/test_trueboundary.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,${TEST_SRC})
 TEST_APP := $(patsubst %.c,%,${TEST_SRC})

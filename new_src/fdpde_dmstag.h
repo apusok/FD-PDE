@@ -37,23 +37,22 @@ struct _p_DMStagBCList {
 PetscErrorCode DMStagBCListCreate(DM,DMStagBCList*);
 PetscErrorCode DMStagBCListDestroy(DMStagBCList*);
 
-// PetscErrorCode DMStagBCListView(DMStagBCList);
-// PetscErrorCode DMStagBCListSetupCoordinates(DMStagBCList);
+PetscErrorCode DMStagBCListView(DMStagBCList);
+PetscErrorCode DMStagBCListSetupCoordinates(DMStagBCList);
 // PetscErrorCode DMStagBCListGetVertexBCs(DMStagBCList,PetscInt*,DMStagBC**);
 // PetscErrorCode DMStagBCListGetFaceBCs(DMStagBCList,PetscInt*,DMStagBC**);
 // PetscErrorCode DMStagBCListGetElementBCs(DMStagBCList,PetscInt*,DMStagBC**);
 
-// PetscErrorCode DMStagBCListGetValues(DMStagBCList,const char,const char,PetscInt,PetscInt*,PetscInt**,PetscScalar**,PetscScalar**,PetscScalar**,BCType**);
-// PetscErrorCode DMStagBCListInsertValues(DMStagBCList,const char,PetscInt,PetscInt*,PetscInt**,PetscScalar**,PetscScalar**,PetscScalar**,BCType**);
-// PetscErrorCode DMStagBCListPinValue(DMStagBCList,const char,PetscInt,PetscScalar);
-// PetscErrorCode DMStagBCListPinCornerValue(DMStagBCList,DMStagStencilLocation,const char,PetscInt,PetscScalar);
+PetscErrorCode DMStagBCListGetValues(DMStagBCList,const char,const char,PetscInt,PetscInt*,PetscInt**,PetscScalar**,PetscScalar**,PetscScalar**,BCType**);
+PetscErrorCode DMStagBCListInsertValues(DMStagBCList,const char,PetscInt,PetscInt*,PetscInt**,PetscScalar**,PetscScalar**,PetscScalar**,BCType**);
+PetscErrorCode DMStagBCListPinValue(DMStagBCList,const char,PetscInt,PetscScalar);
+PetscErrorCode DMStagBCListPinCornerValue(DMStagBCList,DMStagStencilLocation,const char,PetscInt,PetscScalar);
+PetscErrorCode DMStagCellSizeLocal_2d(DM dm, PetscInt *_nx, PetscInt *_ny, PetscScalar *_dx[],PetscScalar *_dy[]);
 
-// PetscErrorCode DMStagCellSizeLocal_2d(DM dm, PetscInt *_nx, PetscInt *_ny, PetscScalar *_dx[],PetscScalar *_dy[]);
-
-// // ---------------------------------------
-// // DMStagView
-// // ---------------------------------------
-// PetscErrorCode DMStagViewBinaryPython(DM,Vec,const char*);
-// PetscErrorCode DMStagReadBinaryPython(DM*,Vec*,const char*);
+// ---------------------------------------
+// DMStagView
+// ---------------------------------------
+PetscErrorCode DMStagViewBinaryPython(DM,Vec,const char*);
+PetscErrorCode DMStagReadBinaryPython(DM*,Vec*,const char*);
 
 #endif

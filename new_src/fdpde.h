@@ -66,25 +66,25 @@ PetscErrorCode FDPDECreate(MPI_Comm, PetscInt, PetscInt,
 PetscErrorCode FDPDESetUp(FDPDE);
 PetscErrorCode FDPDEDestroy(FDPDE*);
 PetscErrorCode FDPDEView(FDPDE);
-// PetscErrorCode FDPDESolve(FDPDE,PetscBool*);
+PetscErrorCode FDPDESolve(FDPDE,PetscBool*);
 // PetscErrorCode FDPDESolveReport(FDPDE,PetscViewer);
 // PetscErrorCode FDPDESolvePicard(FDPDE,PetscBool*);
 
-// PetscErrorCode FDPDESetFunctionBCList(FDPDE, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void*);
-// PetscErrorCode FDPDESetFunctionCoefficient(FDPDE, PetscErrorCode (*form_coefficient)(FDPDE, DM,Vec,DM,Vec,void*), const char description[], void*);
+PetscErrorCode FDPDESetFunctionBCList(FDPDE, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void*);
+PetscErrorCode FDPDESetFunctionCoefficient(FDPDE, PetscErrorCode (*form_coefficient)(FDPDE, DM,Vec,DM,Vec,void*), const char description[], void*);
 // PetscErrorCode FDPDESetFunctionCoefficientSplit(FDPDE, PetscErrorCode (*form_coefficient)(FDPDE, DM,Vec,Vec,DM,Vec,void*), const char description[], void*);
-// PetscErrorCode FDPDESetLinearPreallocatorStencil(FDPDE, PetscBool);
+PetscErrorCode FDPDESetLinearPreallocatorStencil(FDPDE, PetscBool);
 // PetscErrorCode FDPDESetDMBoundaryType(FDPDE,DMBoundaryType,DMBoundaryType);
 
-// PetscErrorCode FDPDEGetDM(FDPDE,DM*);
-// PetscErrorCode FDPDEGetSolution(FDPDE,Vec*);
-// PetscErrorCode FDPDEGetSNES(FDPDE,SNES*);
+PetscErrorCode FDPDEGetDM(FDPDE,DM*);
+PetscErrorCode FDPDEGetSolution(FDPDE,Vec*);
+PetscErrorCode FDPDEGetSNES(FDPDE,SNES*);
 // PetscErrorCode FDPDEGetDMStagBCList(FDPDE,DMStagBCList*);
-// PetscErrorCode FDPDEGetCoefficient(FDPDE,DM*,Vec*);
+PetscErrorCode FDPDEGetCoefficient(FDPDE,DM*,Vec*);
 // PetscErrorCode FDPDEGetSolutionGuess(FDPDE,Vec*);
 
-// PetscErrorCode FDPDEGetCoordinatesArrayDMStag(FDPDE,PetscScalar***,PetscScalar***);
-// PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE,PetscScalar**,PetscScalar**);
+PetscErrorCode FDPDEGetCoordinatesArrayDMStag(FDPDE,PetscScalar***,PetscScalar***);
+PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE,PetscScalar**,PetscScalar**);
 
 // PetscErrorCode FDPDECreate2(MPI_Comm,FDPDE*);
 // PetscErrorCode FDPDESetType(FDPDE,FDPDEType);

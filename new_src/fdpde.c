@@ -334,117 +334,118 @@ PetscErrorCode FDPDEView(FDPDE fd)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
+/*@
+FDPDEGetDM - retrieves the main DMStag (associated with the solution) from the FD-PDE object. 
+
+Input Parameter:
+fd - the FD-PDE object
+
+Output Parameter:
+dm - the DM object
+
+Notes:
+Reference count on dm is incremented. User must call DMDestroy() on dm to free the space.
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEGetDM"
+PetscErrorCode FDPDEGetDM(FDPDE fd, DM *dm)
+{
+  PetscFunctionBegin;
+
+  if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_ORDER,"DMStag for FD-PDE not provided - Call FDPDESetUp()");
+  *dm = fd->dmstag;
+  PetscCall(PetscObjectReference((PetscObject)fd->dmstag));
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+// ---------------------------------------
+/*@
+FDPDEGetCoefficient - retrieves the coefficient DMStag and Vector from the FD-PDE object. 
+
+Input Parameter:
+fd - the FD-PDE object
+
+Output Parameters (optional):
+dmcoeff - the DM object
+coeff - the vector
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEGetCoefficient"
+PetscErrorCode FDPDEGetCoefficient(FDPDE fd, DM *dmcoeff, Vec *coeff)
+{
+  PetscFunctionBegin;
+  if (dmcoeff) *dmcoeff = fd->dmcoeff;
+  if (coeff) *coeff = fd->coeff;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+// ---------------------------------------
+/*@
+FDPDESetFunctionBCList - set an evaluation function for boundary conditions 
+
+Input Parameter:
+fd - the FD-PDE object
+evaluate - name of the evaluation function for boundary conditions
+description - user can provide a description for BC
+data - user context to be passed for evaluation (can be NULL)
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDESetFunctionBCList"
+PetscErrorCode FDPDESetFunctionBCList(FDPDE fd, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void *data)
+{
+  PetscFunctionBegin;
+
+  fd->bclist->evaluate = evaluate;
+  fd->bclist->data = data;
+
+  /* free any existing name set by previous call */
+  if (fd->description_bc) { PetscCall(PetscFree(fd->description_bc));  }
+  if (description) { PetscCall(PetscStrallocpy(description,&fd->description_bc));  }
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+// ---------------------------------------
+/*@
+FDPDESetFunctionCoefficient - set an evaluation function for FD-PDE coefficients
+
+Input Parameter:
+fd - the FD-PDE object
+form_coefficient - name of the evaluation function for coefficients
+description - user can provide a description for coefficients
+data - user context to be passed for evaluation (can be NULL)
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDESetFunctionCoefficient"
+PetscErrorCode FDPDESetFunctionCoefficient(FDPDE fd, PetscErrorCode (*form_coefficient)(FDPDE fd,DM,Vec,DM,Vec,void*), const char description[], void *data)
+{
+  PetscFunctionBegin;
+
+  fd->ops->form_coefficient = form_coefficient;
+  fd->user_context = data;
+
+  /* free any existing name set by previous call */
+  if (fd->description_coeff) { PetscCall(PetscFree(fd->description_coeff));  }
+  if (description) { PetscCall(PetscStrallocpy(description,&fd->description_coeff));  }
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 // // ---------------------------------------
-// /*@
-// FDPDEGetDM - retrieves the main DMStag (associated with the solution) from the FD-PDE object. 
-
-// Input Parameter:
-// fd - the FD-PDE object
-
-// Output Parameter:
-// dm - the DM object
-
-// Notes:
-// Reference count on dm is incremented. User must call DMDestroy() on dm to free the space.
-
-// Use: user
-// @*/
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDPDEGetDM"
-// PetscErrorCode FDPDEGetDM(FDPDE fd, DM *dm)
-// {
-//   PetscFunctionBegin;
-
-//   if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_ORDER,"DMStag for FD-PDE not provided - Call FDPDESetUp()");
-//   *dm = fd->dmstag;
-//   PetscCall(PetscObjectReference((PetscObject)fd->dmstag));
-
-//   PetscFunctionReturn(PETSC_SUCCESS);
-// }
-
-// // ---------------------------------------
-// /*@
-// FDPDEGetCoefficient - retrieves the coefficient DMStag and Vector from the FD-PDE object. 
-
-// Input Parameter:
-// fd - the FD-PDE object
-
-// Output Parameters (optional):
-// dmcoeff - the DM object
-// coeff - the vector
-
-// Use: user
-// @*/
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDPDEGetCoefficient"
-// PetscErrorCode FDPDEGetCoefficient(FDPDE fd, DM *dmcoeff, Vec *coeff)
-// {
-//   PetscFunctionBegin;
-//   if (dmcoeff) *dmcoeff = fd->dmcoeff;
-//   if (coeff) *coeff = fd->coeff;
-//   PetscFunctionReturn(PETSC_SUCCESS);
-// }
-
-// // ---------------------------------------
-// /*@
-// FDPDESetFunctionBCList - set an evaluation function for boundary conditions 
-
-// Input Parameter:
-// fd - the FD-PDE object
-// evaluate - name of the evaluation function for boundary conditions
-// description - user can provide a description for BC
-// data - user context to be passed for evaluation (can be NULL)
-
-// Use: user
-// @*/
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDPDESetFunctionBCList"
-// PetscErrorCode FDPDESetFunctionBCList(FDPDE fd, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void *data)
-// {
-//   PetscFunctionBegin;
-
-//   fd->bclist->evaluate = evaluate;
-//   fd->bclist->data = data;
-
-//   /* free any existing name set by previous call */
-//   if (fd->description_bc) { PetscCall(PetscFree(fd->description_bc));  }
-//   if (description) { PetscCall(PetscStrallocpy(description,&fd->description_bc));  }
-
-//   PetscFunctionReturn(PETSC_SUCCESS);
-// }
-
-// // ---------------------------------------
-// /*@
-// FDPDESetFunctionCoefficient - set an evaluation function for FD-PDE coefficients
-
-// Input Parameter:
-// fd - the FD-PDE object
-// form_coefficient - name of the evaluation function for coefficients
-// description - user can provide a description for coefficients
-// data - user context to be passed for evaluation (can be NULL)
-
-// Use: user
-// @*/
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDPDESetFunctionCoefficient"
-// PetscErrorCode FDPDESetFunctionCoefficient(FDPDE fd, PetscErrorCode (*form_coefficient)(FDPDE fd,DM,Vec,DM,Vec,void*), const char description[], void *data)
-// {
-//   PetscFunctionBegin;
-
-//   fd->ops->form_coefficient = form_coefficient;
-//   fd->user_context = data;
-
-//   /* free any existing name set by previous call */
-//   if (fd->description_coeff) { PetscCall(PetscFree(fd->description_coeff));  }
-//   if (description) { PetscCall(PetscStrallocpy(description,&fd->description_coeff));  }
-
-//   PetscFunctionReturn(PETSC_SUCCESS);
-// }
-
 // PetscErrorCode FDPDESetFunctionCoefficientSplit(FDPDE fd, PetscErrorCode (*form_coefficient)(FDPDE fd,DM,Vec,Vec,DM,Vec,void*), const char description[], void *data)
 // {
 //   PetscFunctionBegin;
@@ -459,55 +460,55 @@ PetscErrorCode FDPDEView(FDPDE fd)
 //   PetscFunctionReturn(PETSC_SUCCESS);
 // }
 
-// // ---------------------------------------
-// /*@
-// FDPDEGetSolution - retrieves the solution vector from the FD-PDE object. 
+// ---------------------------------------
+/*@
+FDPDEGetSolution - retrieves the solution vector from the FD-PDE object. 
 
-// Input Parameter:
-// fd - the FD-PDE object
+Input Parameter:
+fd - the FD-PDE object
 
-// Output Parameter:
-// x - the solution vector
+Output Parameter:
+x - the solution vector
 
-// Notes:
-// Reference count on x is incremented. User must call VecDestroy() on x.
+Notes:
+Reference count on x is incremented. User must call VecDestroy() on x.
 
-// Use: user
-// @*/
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDPDEGetSolution"
-// PetscErrorCode FDPDEGetSolution(FDPDE fd, Vec *x)
-// {
-//   PetscFunctionBegin;
-//   if (x) {
-//     *x = fd->x;
-//     PetscCall(PetscObjectReference((PetscObject)fd->x));
-//   }
-//   PetscFunctionReturn(PETSC_SUCCESS);
-// }
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEGetSolution"
+PetscErrorCode FDPDEGetSolution(FDPDE fd, Vec *x)
+{
+  PetscFunctionBegin;
+  if (x) {
+    *x = fd->x;
+    PetscCall(PetscObjectReference((PetscObject)fd->x));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
-// // ---------------------------------------
-// /*@
-// FDPDEGetSNES - retrieves the SNES object from the FD-PDE object. 
+// ---------------------------------------
+/*@
+FDPDEGetSNES - retrieves the SNES object from the FD-PDE object. 
 
-// Input Parameter:
-// fd - the FD-PDE object
+Input Parameter:
+fd - the FD-PDE object
 
-// Output Parameter:
-// snes - the snes object
+Output Parameter:
+snes - the snes object
 
-// Use: user
-// @*/
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDPDEGetSNES"
-// PetscErrorCode FDPDEGetSNES(FDPDE fd, SNES *snes)
-// {
-//   PetscFunctionBegin;
-//   if (snes) *snes = fd->snes;
-//   PetscFunctionReturn(PETSC_SUCCESS);
-// }
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEGetSNES"
+PetscErrorCode FDPDEGetSNES(FDPDE fd, SNES *snes)
+{
+  PetscFunctionBegin;
+  if (snes) *snes = fd->snes;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 // // ---------------------------------------
 // /*@
@@ -559,252 +560,253 @@ PetscErrorCode FDPDEView(FDPDE fd)
 //   PetscFunctionReturn(PETSC_SUCCESS);
 // }
 
-// static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
-// {
-//   char                filename[PETSC_MAX_PATH_LEN],filename_bin[PETSC_MAX_PATH_LEN];
-//   const char          *prefix;
-//   Vec                 F,X,dX;
-//   SNESConvergedReason reason;
-//   PetscViewer         fview;
-//   PetscBool           out_python = PETSC_FALSE;
+// ---------------------------------------
+static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
+{
+  char                filename[PETSC_MAX_PATH_LEN],filename_bin[PETSC_MAX_PATH_LEN];
+  const char          *prefix;
+  Vec                 F,X,dX;
+  SNESConvergedReason reason;
+  PetscViewer         fview;
+  PetscBool           out_python = PETSC_FALSE;
   
-//   PetscFunctionBegin;
-//   PetscCall(SNESGetOptionsPrefix(fd->snes,&prefix));
-//   PetscCall(SNESGetConvergedReason(fd->snes,&reason)); 
-//   PetscPrintf(fd->comm,"=====================================================================\n");
-//   if (prefix) PetscPrintf(fd->comm,"====  SNES (prefix = %s) has failed to converge\n",prefix);
-//   else PetscPrintf(fd->comm,"====  SNES has failed to converge\n");
+  PetscFunctionBegin;
+  PetscCall(SNESGetOptionsPrefix(fd->snes,&prefix));
+  PetscCall(SNESGetConvergedReason(fd->snes,&reason)); 
+  PetscPrintf(fd->comm,"=====================================================================\n");
+  if (prefix) PetscPrintf(fd->comm,"====  SNES (prefix = %s) has failed to converge\n",prefix);
+  else PetscPrintf(fd->comm,"====  SNES has failed to converge\n");
   
-//   if (viewer != PETSC_VIEWER_STDOUT_WORLD) {
-//     const char *vname;
-//     PetscCall(PetscViewerFileGetName(viewer,&vname));
-//     PetscPrintf(fd->comm,"====  Please inspect the following file to diagnose the problem\n");
-//     PetscPrintf(fd->comm,"====  %s\n",vname);
-//   }
-//   PetscPrintf(fd->comm,"=====================================================================\n");
+  if (viewer != PETSC_VIEWER_STDOUT_WORLD) {
+    const char *vname;
+    PetscCall(PetscViewerFileGetName(viewer,&vname));
+    PetscPrintf(fd->comm,"====  Please inspect the following file to diagnose the problem\n");
+    PetscPrintf(fd->comm,"====  %s\n",vname);
+  }
+  PetscPrintf(fd->comm,"=====================================================================\n");
 
-//   PetscCall(PetscOptionsGetBool(NULL,NULL,"-python_snes_failed_report",&out_python,NULL));
+  PetscCall(PetscOptionsGetBool(NULL,NULL,"-python_snes_failed_report",&out_python,NULL));
   
-//   PetscCall(SNESGetSolution(fd->snes,&X));
-//   PetscCall(SNESGetSolutionUpdate(fd->snes,&dX));
-//   PetscCall(SNESGetFunction(fd->snes,&F,NULL,NULL));
-//   PetscCall(SNESComputeFunction(fd->snes,X,F));
+  PetscCall(SNESGetSolution(fd->snes,&X));
+  PetscCall(SNESGetSolutionUpdate(fd->snes,&dX));
+  PetscCall(SNESGetFunction(fd->snes,&F,NULL,NULL));
+  PetscCall(SNESComputeFunction(fd->snes,X,F));
   
-//   PetscViewerASCIIPrintf(viewer,"[SNES failure summary]\n");
-//   PetscViewerASCIIPushTab(viewer);
-//   PetscViewerASCIIPrintf(viewer,"reason: %D (error code) ->\n",(PetscInt)reason);
-//   // PetscCall(SNESReasonView(fd->snes,viewer));
-//   PetscCall(SNESConvergedReasonView(fd->snes,viewer));
+  PetscViewerASCIIPrintf(viewer,"[SNES failure summary]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"reason: %D (error code) ->\n",(PetscInt)reason);
+  // PetscCall(SNESReasonView(fd->snes,viewer));
+  PetscCall(SNESConvergedReasonView(fd->snes,viewer));
 
-//   {
-//     PetscInt its;
-//     PetscCall(SNESGetIterationNumber(fd->snes,&its));
-//     PetscViewerASCIIPrintf(viewer,"iterations performed: %D\n",its);
-//   }
-//   PetscViewerASCIIPopTab(viewer);
+  {
+    PetscInt its;
+    PetscCall(SNESGetIterationNumber(fd->snes,&its));
+    PetscViewerASCIIPrintf(viewer,"iterations performed: %D\n",its);
+  }
+  PetscViewerASCIIPopTab(viewer);
   
-//   PetscViewerASCIIPrintf(viewer,"[residual summary]\n");
-//   {
-//     PetscReal val;
-//     PetscInt loc;
-//     PetscViewerASCIIPushTab(viewer);
-//     PetscCall(VecMax(F,&loc,&val));
-//     PetscViewerASCIIPrintf(viewer,"max(F) %+1.12e [location %D]\n",val,loc);
-//     PetscCall(VecMin(F,&loc,&val));
-//     PetscViewerASCIIPrintf(viewer,"min(F) %+1.12e [location %D]\n",val,loc);
-//     PetscViewerASCIIPopTab(viewer);
-//   }
+  PetscViewerASCIIPrintf(viewer,"[residual summary]\n");
+  {
+    PetscReal val;
+    PetscInt loc;
+    PetscViewerASCIIPushTab(viewer);
+    PetscCall(VecMax(F,&loc,&val));
+    PetscViewerASCIIPrintf(viewer,"max(F) %+1.12e [location %D]\n",val,loc);
+    PetscCall(VecMin(F,&loc,&val));
+    PetscViewerASCIIPrintf(viewer,"min(F) %+1.12e [location %D]\n",val,loc);
+    PetscViewerASCIIPopTab(viewer);
+  }
   
-//   {
-//     PetscInt  i,n,*its = NULL;
-//     PetscReal *nrm = NULL;
-//     PetscCall(SNESGetConvergenceHistory(fd->snes,&nrm,&its,&n));
-//     PetscViewerASCIIPrintf(viewer,"[convergence history]\n");
-//     PetscViewerASCIIPushTab(viewer);
-//     if (nrm && its) {
-//       PetscViewerASCIIPrintf(viewer,"#SNES its. ||F||_2            #KSP its.\n");
-//       for (i=0; i<n; i++) {
-//         PetscViewerASCIIPrintf(viewer,"%.4D       %1.12e %.4D\n",i,nrm[i],its[i]);
-//       }
-//     } else {
-//       PetscViewerASCIIPrintf(viewer,"nonlinear residual history is unavailable - must call SNESSetConvergenceHistory() to activate logging\n");
-//     }
-//     PetscViewerASCIIPopTab(viewer);
-//   }
+  {
+    PetscInt  i,n,*its = NULL;
+    PetscReal *nrm = NULL;
+    PetscCall(SNESGetConvergenceHistory(fd->snes,&nrm,&its,&n));
+    PetscViewerASCIIPrintf(viewer,"[convergence history]\n");
+    PetscViewerASCIIPushTab(viewer);
+    if (nrm && its) {
+      PetscViewerASCIIPrintf(viewer,"#SNES its. ||F||_2            #KSP its.\n");
+      for (i=0; i<n; i++) {
+        PetscViewerASCIIPrintf(viewer,"%.4D       %1.12e %.4D\n",i,nrm[i],its[i]);
+      }
+    } else {
+      PetscViewerASCIIPrintf(viewer,"nonlinear residual history is unavailable - must call SNESSetConvergenceHistory() to activate logging\n");
+    }
+    PetscViewerASCIIPopTab(viewer);
+  }
   
-//   PetscViewerASCIIPrintf(viewer,"[SNES view]\n");
-//   PetscViewerASCIIPushTab(viewer);
-//   PetscCall(SNESView(fd->snes,viewer));
-//   PetscViewerASCIIPopTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"[SNES view]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscCall(SNESView(fd->snes,viewer));
+  PetscViewerASCIIPopTab(viewer);
   
-//   // output residual
-//   if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_F-%D",prefix,fd->solves_performed);
-//   else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_F-%D",fd->solves_performed);
-//   PetscViewerASCIIPrintf(viewer,"[residual file]\n");
-//   PetscViewerASCIIPushTab(viewer);
-//   PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
-//   PetscViewerASCIIPopTab(viewer);
-//   if (out_python) { PetscCall(DMStagViewBinaryPython(fd->dmstag,F,filename)); }
-//   else {
-//     PetscSNPrintf(filename_bin,PETSC_MAX_PATH_LEN-1,"%s.vec",filename);
-//     /*PetscCall(PetscViewerASCIIOpen(fd->comm,filename,&fview));*/
-//     PetscCall(PetscViewerBinaryOpen(fd->comm,filename_bin,FILE_MODE_WRITE,&fview));
-//     PetscCall(VecView(F,fview));
-//     PetscCall(PetscViewerDestroy(&fview));
-//   }
+  // output residual
+  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_F-%D",prefix,fd->solves_performed);
+  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_F-%D",fd->solves_performed);
+  PetscViewerASCIIPrintf(viewer,"[residual file]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
+  PetscViewerASCIIPopTab(viewer);
+  if (out_python) { PetscCall(DMStagViewBinaryPython(fd->dmstag,F,filename)); }
+  else {
+    PetscSNPrintf(filename_bin,PETSC_MAX_PATH_LEN-1,"%s.vec",filename);
+    /*PetscCall(PetscViewerASCIIOpen(fd->comm,filename,&fview));*/
+    PetscCall(PetscViewerBinaryOpen(fd->comm,filename_bin,FILE_MODE_WRITE,&fview));
+    PetscCall(VecView(F,fview));
+    PetscCall(PetscViewerDestroy(&fview));
+  }
   
+  // output solution
+  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_X-%D",prefix,fd->solves_performed);
+  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_X-%D",fd->solves_performed);
+  PetscViewerASCIIPrintf(viewer,"[solution file]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
+  PetscViewerASCIIPopTab(viewer);
+  if (out_python) { PetscCall(DMStagViewBinaryPython(fd->dmstag,X,filename)); }
+  else {
+    PetscSNPrintf(filename_bin,PETSC_MAX_PATH_LEN-1,"%s.vec",filename);
+    /*PetscCall(PetscViewerASCIIOpen(fd->comm,filename,&fview));*/
+    PetscCall(PetscViewerBinaryOpen(fd->comm,filename_bin,FILE_MODE_WRITE,&fview));
+    PetscCall(VecView(X,fview));
+    PetscCall(PetscViewerDestroy(&fview));
+  }
+
+  // output solution increment
+  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_dX-%D",prefix,fd->solves_performed);
+  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_dX-%D",fd->solves_performed);
+  PetscViewerASCIIPrintf(viewer,"[solution correction file]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
+  PetscViewerASCIIPopTab(viewer);
+  if (out_python) { PetscCall(DMStagViewBinaryPython(fd->dmstag,dX,filename)); }
+  else {
+    PetscSNPrintf(filename_bin,PETSC_MAX_PATH_LEN-1,"%s.vec",filename);
+    /*PetscCall(PetscViewerASCIIOpen(fd->comm,filename,&fview));*/
+    PetscCall(PetscViewerBinaryOpen(fd->comm,filename_bin,FILE_MODE_WRITE,&fview));
+    PetscCall(VecView(dX,fview));
+    PetscCall(PetscViewerDestroy(&fview));
+  }
+
+  // output coefficient
+  if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_fdpde_coeff-%D",prefix,fd->solves_performed);
+  else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_fdpde_coeff-%D",fd->solves_performed);
+  PetscViewerASCIIPrintf(viewer,"[FDPDE coefficient file]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
+  PetscViewerASCIIPopTab(viewer);
+  if (out_python) { PetscCall(DMStagViewBinaryPython(fd->dmcoeff,fd->coeff,filename)); }
+  else {
+    PetscSNPrintf(filename_bin,PETSC_MAX_PATH_LEN-1,"%s.vec",filename);
+    PetscCall(PetscViewerBinaryOpen(fd->comm,filename_bin,FILE_MODE_WRITE,&fview));
+    PetscCall(VecView(fd->coeff,fview));
+    PetscCall(PetscViewerDestroy(&fview));
+  }
+
+  PetscViewerASCIIPrintf(viewer,"[DMStag summary]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscCall(DMView(fd->dmstag,viewer));
+  PetscViewerASCIIPopTab(viewer);
+
+  PetscViewerASCIIPrintf(viewer,"[DMCoeff summary]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscCall(DMView(fd->dmcoeff,viewer));
+  PetscViewerASCIIPopTab(viewer);
   
-//   // output solution
-//   if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_X-%D",prefix,fd->solves_performed);
-//   else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_X-%D",fd->solves_performed);
-//   PetscViewerASCIIPrintf(viewer,"[solution file]\n");
-//   PetscViewerASCIIPushTab(viewer);
-//   PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
-//   PetscViewerASCIIPopTab(viewer);
-//   if (out_python) { PetscCall(DMStagViewBinaryPython(fd->dmstag,X,filename)); }
-//   else {
-//     PetscSNPrintf(filename_bin,PETSC_MAX_PATH_LEN-1,"%s.vec",filename);
-//     /*PetscCall(PetscViewerASCIIOpen(fd->comm,filename,&fview));*/
-//     PetscCall(PetscViewerBinaryOpen(fd->comm,filename_bin,FILE_MODE_WRITE,&fview));
-//     PetscCall(VecView(X,fview));
-//     PetscCall(PetscViewerDestroy(&fview));
-//   }
-
-//   // output solution increment
-//   if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_dX-%D",prefix,fd->solves_performed);
-//   else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_dX-%D",fd->solves_performed);
-//   PetscViewerASCIIPrintf(viewer,"[solution correction file]\n");
-//   PetscViewerASCIIPushTab(viewer);
-//   PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
-//   PetscViewerASCIIPopTab(viewer);
-//   if (out_python) { PetscCall(DMStagViewBinaryPython(fd->dmstag,dX,filename)); }
-//   else {
-//     PetscSNPrintf(filename_bin,PETSC_MAX_PATH_LEN-1,"%s.vec",filename);
-//     /*PetscCall(PetscViewerASCIIOpen(fd->comm,filename,&fview));*/
-//     PetscCall(PetscViewerBinaryOpen(fd->comm,filename_bin,FILE_MODE_WRITE,&fview));
-//     PetscCall(VecView(dX,fview));
-//     PetscCall(PetscViewerDestroy(&fview));
-//   }
-
-//   // output coefficient
-//   if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_fdpde_coeff-%D",prefix,fd->solves_performed);
-//   else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure_fdpde_coeff-%D",fd->solves_performed);
-//   PetscViewerASCIIPrintf(viewer,"[FDPDE coefficient file]\n");
-//   PetscViewerASCIIPushTab(viewer);
-//   PetscViewerASCIIPrintf(viewer,"filename: %s\n",filename);
-//   PetscViewerASCIIPopTab(viewer);
-//   if (out_python) { PetscCall(DMStagViewBinaryPython(fd->dmcoeff,fd->coeff,filename)); }
-//   else {
-//     PetscSNPrintf(filename_bin,PETSC_MAX_PATH_LEN-1,"%s.vec",filename);
-//     PetscCall(PetscViewerBinaryOpen(fd->comm,filename_bin,FILE_MODE_WRITE,&fview));
-//     PetscCall(VecView(fd->coeff,fview));
-//     PetscCall(PetscViewerDestroy(&fview));
-//   }
-
-//   PetscViewerASCIIPrintf(viewer,"[DMStag summary]\n");
-//   PetscViewerASCIIPushTab(viewer);
-//   PetscCall(DMView(fd->dmstag,viewer));
-//   PetscViewerASCIIPopTab(viewer);
-
-//   PetscViewerASCIIPrintf(viewer,"[DMCoeff summary]\n");
-//   PetscViewerASCIIPushTab(viewer);
-//   PetscCall(DMView(fd->dmcoeff,viewer));
-//   PetscViewerASCIIPopTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"[PDE summary]\n");
+  PetscViewerASCIIPushTab(viewer);
+  PetscViewerASCIIPrintf(viewer,"pde: %s\n",FDPDETypeNames[(int)fd->type]);
+  PetscViewerASCIIPrintf(viewer,"description: %s\n",fd->description);
+  PetscViewerASCIIPopTab(viewer);
   
-//   PetscViewerASCIIPrintf(viewer,"[PDE summary]\n");
-//   PetscViewerASCIIPushTab(viewer);
-//   PetscViewerASCIIPrintf(viewer,"pde: %s\n",FDPDETypeNames[(int)fd->type]);
-//   PetscViewerASCIIPrintf(viewer,"description: %s\n",fd->description);
-//   PetscViewerASCIIPopTab(viewer);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+// ---------------------------------------
+/*@
+FDPDESolve - solve the associated system of equations contained in an FD-PDE object.
+
+Input Parameter:
+fd - the FD-PDE object
+
+Output Parameter:
+converged - value is PETSC_TRUE if SNESSolve converged (optional)
+
+Functionality:
+- calls SNESSetFromOptions() so any PETSc SNES options should be set before
+- forms initial guess (copy xguess->x). xguess can be solution from previous time step or it can be specifically set 
+by user by calling FDPDEGetSolutionGuess(fd,&xguess)
+- solves and returns a boolean if converged/not converged
+- if converged, copy new solution to xguess
+
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDESolve"
+PetscErrorCode FDPDESolve(FDPDE fd, PetscBool *converged)
+{
+  SNESConvergedReason reason;
+  PetscFunctionBegin;
+
+  if (!fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"User must call FDPDESetUp() first!");
+
+  // Overwrite default options from command line
+  PetscCall(SNESSetFromOptions(fd->snes)); 
+
+  /* force abort of application if convergence fails - too brutal and does not let us catch and report when an error occurs */
+  /*PetscCall(SNESSetErrorIfNotConverged(fd->snes,PETSC_TRUE));*/
   
-//   PetscFunctionReturn(PETSC_SUCCESS);
-// }
-
-// // ---------------------------------------
-// /*@
-// FDPDESolve - solve the associated system of equations contained in an FD-PDE object.
-
-// Input Parameter:
-// fd - the FD-PDE object
-
-// Output Parameter:
-// converged - value is PETSC_TRUE if SNESSolve converged (optional)
-
-// Functionality:
-// - calls SNESSetFromOptions() so any PETSc SNES options should be set before
-// - forms initial guess (copy xguess->x). xguess can be solution from previous time step or it can be specifically set 
-// by user by calling FDPDEGetSolutionGuess(fd,&xguess)
-// - solves and returns a boolean if converged/not converged
-// - if converged, copy new solution to xguess
-
-// Use: user
-// @*/
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDPDESolve"
-// PetscErrorCode FDPDESolve(FDPDE fd, PetscBool *converged)
-// {
-//   SNESConvergedReason reason;
-//   PetscFunctionBegin;
-
-//   if (!fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"User must call FDPDESetUp() first!");
-
-//   // Overwrite default options from command line
-//   PetscCall(SNESSetFromOptions(fd->snes)); 
-
-//   /* force abort of application if convergence fails - too brutal and does not let us catch and report when an error occurs */
-//   /*PetscCall(SNESSetErrorIfNotConverged(fd->snes,PETSC_TRUE));*/
-  
-//   /* Activate a logger which records norm of F and number of KSP iterations at each SNES iteration */
-//   {
-//     PetscInt maxit, *its = NULL;
-//     PetscReal *a = NULL;
+  /* Activate a logger which records norm of F and number of KSP iterations at each SNES iteration */
+  {
+    PetscInt maxit, *its = NULL;
+    PetscReal *a = NULL;
     
-//     PetscCall(SNESGetTolerances(fd->snes,NULL,NULL,NULL,&maxit,NULL));
-//     PetscCall(SNESGetConvergenceHistory(fd->snes,&a,&its,NULL));
-//     PetscCall(SNESSetConvergenceHistory(fd->snes,a,its,maxit+1,PETSC_TRUE));
-//   }
+    PetscCall(SNESGetTolerances(fd->snes,NULL,NULL,NULL,&maxit,NULL));
+    PetscCall(SNESGetConvergenceHistory(fd->snes,&a,&its,NULL));
+    PetscCall(SNESSetConvergenceHistory(fd->snes,a,its,maxit+1,PETSC_TRUE));
+  }
   
-//   // Copy initial guess to solution
-//   PetscCall(VecCopy(fd->xguess,fd->x));
+  // Copy initial guess to solution
+  PetscCall(VecCopy(fd->xguess,fd->x));
 
-//   // Solve the non-linear system
-//   PetscCall(SNESSolve(fd->snes,0,fd->x));             
-//   PetscCall(SNESGetConvergedReason(fd->snes,&reason)); 
+  // Solve the non-linear system
+  PetscCall(SNESSolve(fd->snes,0,fd->x));             
+  PetscCall(SNESGetConvergedReason(fd->snes,&reason)); 
 
-//   if ((reason < 0) && (fd->output_solver_failure_report)) {
-//     const char  *prefix;
-//     char        filename[PETSC_MAX_PATH_LEN];
-//     PetscViewer viewer;
+  if ((reason < 0) && (fd->output_solver_failure_report)) {
+    const char  *prefix;
+    char        filename[PETSC_MAX_PATH_LEN];
+    PetscViewer viewer;
     
-//     /*// Example demonstrating usage of dumping report to stdout
-//     viewer = PETSC_VIEWER_STDOUT_WORLD
-//     PetscCall(FDPDESolveReport_Failure(fd,viewer));
-//     */
+    /*// Example demonstrating usage of dumping report to stdout
+    viewer = PETSC_VIEWER_STDOUT_WORLD
+    PetscCall(FDPDESolveReport_Failure(fd,viewer));
+    */
      
-//     PetscCall(SNESGetOptionsPrefix(fd->snes,&prefix));
-//     if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure-%D.report",prefix,fd->solves_performed);
-//     else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure-%D.report",fd->solves_performed);
-//     PetscCall(PetscViewerASCIIOpen(fd->comm,filename,&viewer));
-//     PetscCall(FDPDESolveReport_Failure(fd,viewer));
-//     PetscCall(PetscViewerDestroy(&viewer));
-//   }
+    PetscCall(SNESGetOptionsPrefix(fd->snes,&prefix));
+    if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure-%D.report",prefix,fd->solves_performed);
+    else PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"snes_failure-%D.report",fd->solves_performed);
+    PetscCall(PetscViewerASCIIOpen(fd->comm,filename,&viewer));
+    PetscCall(FDPDESolveReport_Failure(fd,viewer));
+    PetscCall(PetscViewerDestroy(&viewer));
+  }
   
-//   // Analyze convergence
-//   if (reason > 0) { // reason = 0 implies SNES_CONVERGED_ITERATING (which can never be true after SNESSolve executes)
-//     // converged - copy initial guess for next timestep
-//     PetscCall(VecCopy(fd->x, fd->xguess)); 
-//   }
+  // Analyze convergence
+  if (reason > 0) { // reason = 0 implies SNES_CONVERGED_ITERATING (which can never be true after SNESSolve executes)
+    // converged - copy initial guess for next timestep
+    PetscCall(VecCopy(fd->x, fd->xguess)); 
+  }
 
-//   if (converged) {
-//     *converged = PETSC_TRUE;
-//     if (reason < 0) *converged = PETSC_FALSE;
-//   }
-//   fd->solves_performed++;
+  if (converged) {
+    *converged = PETSC_TRUE;
+    if (reason < 0) *converged = PETSC_FALSE;
+  }
+  fd->solves_performed++;
   
-//   PetscFunctionReturn(PETSC_SUCCESS);
-// }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
+// // ---------------------------------------
 // PetscErrorCode FDPDESolvePicard(FDPDE fd, PetscBool *converged)
 // {
 //   SNESConvergedReason reason;
@@ -863,168 +865,169 @@ PetscErrorCode FDPDEView(FDPDE fd)
 //   PetscFunctionReturn(PETSC_SUCCESS);
 // }
 
-// // ---------------------------------------
-// /*@
-// FDPDEGetCoordinatesArrayDMStag - retrieve the 1D coordinate arrays of the DMStag (system of equations) inside an FD-PDE object
+// ---------------------------------------
+/*@
+FDPDEGetCoordinatesArrayDMStag - retrieve the 1D coordinate arrays of the DMStag (system of equations) inside an FD-PDE object
 
-// Input parameter:
-// fd - the FD-PDE object
+Input parameter:
+fd - the FD-PDE object
 
-// Output parameters:
-// cx - 1D array containing x-coordinates
-// cz - 1D array containing z-coordinates
+Output parameters:
+cx - 1D array containing x-coordinates
+cz - 1D array containing z-coordinates
 
-// Use: user
-// @*/
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDPDEGetCoordinatesArrayDMStag"
-// PetscErrorCode FDPDEGetCoordinatesArrayDMStag(FDPDE fd,PetscScalar ***cx, PetscScalar ***cz)
-// {
-//   DM             dmCoord;
-//   PetscScalar    **coordx,**coordz;
-//   PetscFunctionBegin;
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEGetCoordinatesArrayDMStag"
+PetscErrorCode FDPDEGetCoordinatesArrayDMStag(FDPDE fd,PetscScalar ***cx, PetscScalar ***cz)
+{
+  DM             dmCoord;
+  PetscScalar    **coordx,**coordz;
+  PetscFunctionBegin;
 
-//   if (!fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"User must call FDPDESetUp() first!");
-//   if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"System of FD-PDE not provided. Call FDPDESetUp() first!");
-//   if (!cx) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Arg 2 (cx) cannot be NULL");
-//   if (!cz) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Arg 3 (cz) cannot be NULL");
-//   PetscCall(DMGetCoordinateDM(fd->dmstag,&dmCoord));
-//   if (!dmCoord) SETERRQ(PetscObjectComm((PetscObject)fd->dmstag),PETSC_ERR_ARG_WRONGSTATE,"DMStag does not have a coordinate DM");
-//   {
-//     PetscBool isProduct;
-//     DMType    dmType;
-//     PetscCall(DMGetType(dmCoord,&dmType));
-//     PetscCall(PetscStrcmp(DMPRODUCT,dmType,&isProduct));
-//     if (!isProduct) SETERRQ(PetscObjectComm((PetscObject)fd->dmstag),PETSC_ERR_SUP,"Implementation requires coordinate DM is of type DMPRODUCT");
-//   }
-//   PetscCall(DMStagGetProductCoordinateArraysRead(fd->dmstag,&coordx,&coordz,NULL));
-//   *cx = coordx;
-//   *cz = coordz;
-//   PetscFunctionReturn(PETSC_SUCCESS);
-// }
+  if (!fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"User must call FDPDESetUp() first!");
+  if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"System of FD-PDE not provided. Call FDPDESetUp() first!");
+  if (!cx) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Arg 2 (cx) cannot be NULL");
+  if (!cz) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Arg 3 (cz) cannot be NULL");
+  PetscCall(DMGetCoordinateDM(fd->dmstag,&dmCoord));
+  if (!dmCoord) SETERRQ(PetscObjectComm((PetscObject)fd->dmstag),PETSC_ERR_ARG_WRONGSTATE,"DMStag does not have a coordinate DM");
+  {
+    PetscBool isProduct;
+    DMType    dmType;
+    PetscCall(DMGetType(dmCoord,&dmType));
+    PetscCall(PetscStrcmp(DMPRODUCT,dmType,&isProduct));
+    if (!isProduct) SETERRQ(PetscObjectComm((PetscObject)fd->dmstag),PETSC_ERR_SUP,"Implementation requires coordinate DM is of type DMPRODUCT");
+  }
+  PetscCall(DMStagGetProductCoordinateArraysRead(fd->dmstag,&coordx,&coordz,NULL));
+  *cx = coordx;
+  *cz = coordz;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
-// // ---------------------------------------
-// /*@
-// FDPDERestoreCoordinatesArrayDMStag - restore the 1D coordinate arrays of the DMStag (system of equations) inside an FD-PDE object
+// ---------------------------------------
+/*@
+FDPDERestoreCoordinatesArrayDMStag - restore the 1D coordinate arrays of the DMStag (system of equations) inside an FD-PDE object
 
-// Input parameter:
-// fd - the FD-PDE object
-// cx - 1D array containing x-coordinates
-// cz - 1D array containing z-coordinates
+Input parameter:
+fd - the FD-PDE object
+cx - 1D array containing x-coordinates
+cz - 1D array containing z-coordinates
 
-// Notes:
-// Must be called after FDPDEGetCoordinatesArrayDMStag() and will update the coordinates of the dmcoeff and BCs.
+Notes:
+Must be called after FDPDEGetCoordinatesArrayDMStag() and will update the coordinates of the dmcoeff and BCs.
 
-// Use: user
-// @*/
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDPDERestoreCoordinatesArrayDMStag"
-// PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE fd,PetscScalar **cx, PetscScalar **cz)
-// {
-//   DM             dm, dmcoeff;
-//   PetscScalar    **coordx,**coordz;
-//   PetscScalar    xprev, xnext, xcenter, zprev, znext, zcenter;
-//   PetscInt       dof0, dof1, dof2, dofc0, dofc1, dofc2;
-//   PetscInt       iprev=-1,inext=-1,icenter=-1,iprevc=-1,inextc=-1,icenterc=-1;
-//   PetscInt       i, j, sx, sz, nx, nz;
-//   PetscFunctionBegin;
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDERestoreCoordinatesArrayDMStag"
+PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE fd,PetscScalar **cx, PetscScalar **cz)
+{
+  DM             dm, dmcoeff;
+  PetscScalar    **coordx,**coordz;
+  PetscScalar    xprev, xnext, xcenter, zprev, znext, zcenter;
+  PetscInt       dof0, dof1, dof2, dofc0, dofc1, dofc2;
+  PetscInt       iprev=-1,inext=-1,icenter=-1,iprevc=-1,inextc=-1,icenterc=-1;
+  PetscInt       i, j, sx, sz, nx, nz;
+  PetscFunctionBegin;
 
-//   if (!fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"User must call FDPDESetUp() first!");
-//   if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"System of FD-PDE not provided. Call FDPDESetUp() first!");
-//   if (!cx) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Arg 2 (cx) cannot be NULL");
-//   if (!cz) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Arg 3 (cz) cannot be NULL");
+  if (!fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"User must call FDPDESetUp() first!");
+  if (!fd->dmstag) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"System of FD-PDE not provided. Call FDPDESetUp() first!");
+  if (!cx) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Arg 2 (cx) cannot be NULL");
+  if (!cz) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Arg 3 (cz) cannot be NULL");
 
-//   dm      = fd->dmstag;
-//   dmcoeff = fd->dmcoeff;
+  dm      = fd->dmstag;
+  dmcoeff = fd->dmcoeff;
 
-//   // Update dmcoord coordinates
-//   PetscCall(DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL));
-//   PetscCall(DMStagGetDOF(dmcoeff,&dofc0,&dofc1,&dofc2,NULL));
+  // Update dmcoord coordinates
+  PetscCall(DMStagGetDOF(dm,&dof0,&dof1,&dof2,NULL));
+  PetscCall(DMStagGetDOF(dmcoeff,&dofc0,&dofc1,&dofc2,NULL));
 
-//   PetscCall(DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL));
+  PetscCall(DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL));
 
-//   if (dof2) {PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter));} 
-//   if (dof0 || dof1) { 
-//     PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev));
-//     PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext));
-//   } 
+  if (dof2) {PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_ELEMENT,&icenter));} 
+  if (dof0 || dof1) { 
+    PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&iprev));
+    PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&inext));
+  } 
 
-//   if (dofc2) {PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_ELEMENT,&icenterc));} 
-//   if (dofc0 || dofc1) { 
-//     PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_LEFT,&iprevc));
-//     PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_RIGHT,&inextc));
-//   } 
+  if (dofc2) {PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_ELEMENT,&icenterc));} 
+  if (dofc0 || dofc1) { 
+    PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_LEFT,&iprevc));
+    PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,DMSTAG_RIGHT,&inextc));
+  } 
 
-//   PetscCall(DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
+  PetscCall(DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
 
-//   for (i = sx; i<sx+nx; i++) {
-//     // dmstag
-//     if ((dof0) && (!dof1) && (!dof2)) { // dmstag only vertex
-//       xprev   = cx[i][iprev]; 
-//       xnext   = cx[i][inext];
-//       xcenter = (xprev+xnext)*0.5;
-//     } else if ((!dof0) && (!dof1) && (dof2)) { // dmstag only element
-//       xprev   = (cx[i][icenter]+cx[i-1][icenter])*0.5; 
-//       xnext   = (cx[i][icenter]+cx[i+1][icenter])*0.5;
-//       xcenter = cx[i][icenter];
-//     } else { // dmstag all 
-//       xprev   = cx[i][iprev]; 
-//       xnext   = cx[i][inext];
-//       xcenter = cx[i][icenter];
-//     }
-//     // dmcoeff
-//     if ((dofc0) && (!dofc1) && (!dofc2)) { // only vertex
-//       coordx[i][iprevc] = xprev;
-//       coordx[i][inextc] = xnext; 
-//     } else if ((!dofc0) && (!dofc1) && (dofc2)) { // only element
-//       coordx[i][icenterc] = xcenter; 
-//     } else { // all 
-//       coordx[i][iprevc] = xprev;
-//       coordx[i][inextc] = xnext; 
-//       coordx[i][icenterc] = xcenter; 
-//     }
-//   }
+  for (i = sx; i<sx+nx; i++) {
+    // dmstag
+    if ((dof0) && (!dof1) && (!dof2)) { // dmstag only vertex
+      xprev   = cx[i][iprev]; 
+      xnext   = cx[i][inext];
+      xcenter = (xprev+xnext)*0.5;
+    } else if ((!dof0) && (!dof1) && (dof2)) { // dmstag only element
+      xprev   = (cx[i][icenter]+cx[i-1][icenter])*0.5; 
+      xnext   = (cx[i][icenter]+cx[i+1][icenter])*0.5;
+      xcenter = cx[i][icenter];
+    } else { // dmstag all 
+      xprev   = cx[i][iprev]; 
+      xnext   = cx[i][inext];
+      xcenter = cx[i][icenter];
+    }
+    // dmcoeff
+    if ((dofc0) && (!dofc1) && (!dofc2)) { // only vertex
+      coordx[i][iprevc] = xprev;
+      coordx[i][inextc] = xnext; 
+    } else if ((!dofc0) && (!dofc1) && (dofc2)) { // only element
+      coordx[i][icenterc] = xcenter; 
+    } else { // all 
+      coordx[i][iprevc] = xprev;
+      coordx[i][inextc] = xnext; 
+      coordx[i][icenterc] = xcenter; 
+    }
+  }
 
-//   for (j = sz; j<sz+nz; j++) {
-//     // dmstag
-//     if ((dof0) && (!dof1) && (!dof2)) { // dmstag only vertex
-//       zprev   = cz[j][iprev]; 
-//       znext   = cz[j][inext];
-//       zcenter = (zprev+znext)*0.5;
-//     } else if ((!dof0) && (!dof1) && (dof2)) { // dmstag only element
-//       zprev   = (cz[j][icenter]+cz[j-1][icenter])*0.5; 
-//       znext   = (cz[j][icenter]+cz[j+1][icenter])*0.5;
-//       zcenter = cz[j][icenter];
-//     } else { // dmstag all 
-//       zprev   = cz[j][iprev]; 
-//       znext   = cz[j][inext];
-//       zcenter = cz[j][icenter];
-//     }
-//     // dmcoeff
-//     if ((dofc0) && (!dofc1) && (!dofc2)) { // only vertex
-//       coordz[j][iprevc] = zprev;
-//       coordz[j][inextc] = znext; 
-//     } else if ((!dofc0) && (!dofc1) && (dofc2)) { // only element
-//       coordz[j][icenterc] = zcenter; 
-//     } else { // all 
-//       coordz[j][iprevc] = zprev;
-//       coordz[j][inextc] = znext; 
-//       coordz[j][icenterc] = zcenter; 
-//     }
-//   }
+  for (j = sz; j<sz+nz; j++) {
+    // dmstag
+    if ((dof0) && (!dof1) && (!dof2)) { // dmstag only vertex
+      zprev   = cz[j][iprev]; 
+      znext   = cz[j][inext];
+      zcenter = (zprev+znext)*0.5;
+    } else if ((!dof0) && (!dof1) && (dof2)) { // dmstag only element
+      zprev   = (cz[j][icenter]+cz[j-1][icenter])*0.5; 
+      znext   = (cz[j][icenter]+cz[j+1][icenter])*0.5;
+      zcenter = cz[j][icenter];
+    } else { // dmstag all 
+      zprev   = cz[j][iprev]; 
+      znext   = cz[j][inext];
+      zcenter = cz[j][icenter];
+    }
+    // dmcoeff
+    if ((dofc0) && (!dofc1) && (!dofc2)) { // only vertex
+      coordz[j][iprevc] = zprev;
+      coordz[j][inextc] = znext; 
+    } else if ((!dofc0) && (!dofc1) && (dofc2)) { // only element
+      coordz[j][icenterc] = zcenter; 
+    } else { // all 
+      coordz[j][iprevc] = zprev;
+      coordz[j][inextc] = znext; 
+      coordz[j][icenterc] = zcenter; 
+    }
+  }
 
-//   // Restore coordinates
-//   PetscCall(DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL));
-//   PetscCall(DMStagRestoreProductCoordinateArraysRead(dm,&cx,&cz,NULL));
+  // Restore coordinates
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL));
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dm,&cx,&cz,NULL));
 
-//   // update coords of BCs
-//   PetscCall(DMStagBCListSetupCoordinates(fd->bclist));
+  // update coords of BCs
+  PetscCall(DMStagBCListSetupCoordinates(fd->bclist));
 
-//   PetscFunctionReturn(PETSC_SUCCESS);
-// }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
+// ---------------------------------------
 // #undef __FUNCT__
 // #define __FUNCT__ "FDPDECreate2"
 // PetscErrorCode FDPDECreate2(MPI_Comm comm,FDPDE *_fd)
@@ -1150,23 +1153,23 @@ PetscErrorCode FDPDEView(FDPDE fd)
 // //   PetscFunctionReturn(PETSC_SUCCESS);
 // // }
 
-// // ---------------------------------------
-// /*@
-// FDPDESetLinearPreallocatorStencil() - Allocate non-zero preallocation for a linear system
+// ---------------------------------------
+/*@
+FDPDESetLinearPreallocatorStencil() - Allocate non-zero preallocation for a linear system
 
-// Use: user
-// @*/
-// // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDPDESetLinearPreallocatorStencil"
-// PetscErrorCode FDPDESetLinearPreallocatorStencil(FDPDE fd, PetscBool flg)
-// {
-//   PetscFunctionBegin;
-//   if (fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDESetLinearPreallocatorStencil() before FDPDESetUp()");
-//   if (fd->type == FDPDE_ADVDIFF) PetscPrintf(PETSC_COMM_WORLD,"WARNING: This routine has no effect for FD-PDE Type = ADVDIFF! Only linear preallocator implemented.\n");
-//   fd->linearsolve = flg;
-//   PetscFunctionReturn(PETSC_SUCCESS);
-// }
+Use: user
+@*/
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDESetLinearPreallocatorStencil"
+PetscErrorCode FDPDESetLinearPreallocatorStencil(FDPDE fd, PetscBool flg)
+{
+  PetscFunctionBegin;
+  if (fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDESetLinearPreallocatorStencil() before FDPDESetUp()");
+  if (fd->type == FDPDE_ADVDIFF) PetscPrintf(PETSC_COMM_WORLD,"WARNING: This routine has no effect for FD-PDE Type = ADVDIFF! Only linear preallocator implemented.\n");
+  fd->linearsolve = flg;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 // // ---------------------------------------
 // /*@
