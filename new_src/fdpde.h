@@ -69,11 +69,11 @@ PetscErrorCode FDPDEDestroy(FDPDE*);
 PetscErrorCode FDPDEView(FDPDE);
 PetscErrorCode FDPDESolve(FDPDE,PetscBool*);
 // PetscErrorCode FDPDESolveReport(FDPDE,PetscViewer);
-// PetscErrorCode FDPDESolvePicard(FDPDE,PetscBool*);
+PetscErrorCode FDPDESolvePicard(FDPDE,PetscBool*);
 
 PetscErrorCode FDPDESetFunctionBCList(FDPDE, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void*);
 PetscErrorCode FDPDESetFunctionCoefficient(FDPDE, PetscErrorCode (*form_coefficient)(FDPDE, DM,Vec,DM,Vec,void*), const char description[], void*);
-// PetscErrorCode FDPDESetFunctionCoefficientSplit(FDPDE, PetscErrorCode (*form_coefficient)(FDPDE, DM,Vec,Vec,DM,Vec,void*), const char description[], void*);
+PetscErrorCode FDPDESetFunctionCoefficientSplit(FDPDE, PetscErrorCode (*form_coefficient)(FDPDE, DM,Vec,Vec,DM,Vec,void*), const char description[], void*);
 PetscErrorCode FDPDESetLinearPreallocatorStencil(FDPDE, PetscBool);
 PetscErrorCode FDPDESetDMBoundaryType(FDPDE,DMBoundaryType,DMBoundaryType);
 
@@ -90,7 +90,7 @@ PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE,PetscScalar**,PetscScala
 // PetscErrorCode FDPDECreate2(MPI_Comm,FDPDE*);
 // PetscErrorCode FDPDESetType(FDPDE,FDPDEType);
 // PetscErrorCode FDPDESetSizes(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
-// // PetscErrorCode FDPDEGetAuxGlobalVectors(FDPDE,PetscInt*,Vec**);
+// PetscErrorCode FDPDEGetAuxGlobalVectors(FDPDE,PetscInt*,Vec**);
 // PetscErrorCode FDPDEFormCoefficient(FDPDE fd);
 
 #endif

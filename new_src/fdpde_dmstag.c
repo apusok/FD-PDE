@@ -1189,12 +1189,12 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char prefix[])
   PetscCall(MPI_Comm_size(comm,&size)); 
   if (size != 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sequential only");
 
-  /* check for instances of "." in the file name so that the file can be imported */
-  {
-    size_t k,len;
-    PetscCall(PetscStrlen(prefix,&len));
-    for (k=0; k<len; k++) if (prefix[k] == '.') PetscPrintf(comm,"[DMStagViewBinaryPython_SEQ] Warning: prefix %s contains the symbol '.'. Hence you will not be able to import the emiited python script. Consider change the prefix\n",prefix);
-  }
+  // /* check for instances of "." in the file name so that the file can be imported */
+  // {
+  //   size_t k,len;
+  //   PetscCall(PetscStrlen(prefix,&len));
+  //   for (k=0; k<len; k++) if (prefix[k] == '.') PetscPrintf(comm,"[DMStagViewBinaryPython_SEQ] Warning: prefix %s contains the symbol '.'. Hence you will not be able to import the emitted python script. Consider change the prefix\n",prefix);
+  // }
   
   PetscCall(PetscSNPrintf(fname,PETSC_MAX_PATH_LEN-1,"%s.pbin",prefix));
   PetscCall(PetscViewerBinaryOpen(comm,fname,FILE_MODE_WRITE,&v));

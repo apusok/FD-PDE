@@ -36,7 +36,7 @@ FDPDE_HDR = $(patsubst %,${FDPDE_DIR}/%,${HDR})
 
 FDPDE_OBJ := $(patsubst %.c,%.o,${FDPDE_SRC})
 
-TEST_SRC = 	${TEST_DIR}/test_stokesdarcy2field_plume.c \
+TEST_SRC = 	${TEST_DIR}/test_plastic_indenter.c \
 
 # TEST_SRC = 	${TEST_DIR}/test_fdpde.c \
 	${TEST_DIR}/test_dmstagbclist.c \
@@ -60,6 +60,16 @@ TEST_SRC = 	${TEST_DIR}/test_stokesdarcy2field_plume.c \
 	${TEST_DIR}/test_stokesdarcy2field_mms_porosity.c \
 	${TEST_DIR}/test_stokesdarcy2field_beam.c \
 	${TEST_DIR}/test_stokesdarcy2field_plume.c \
+	${TEST_DIR}/test_dmstag_phasemethod.c \
+	${TEST_DIR}/test_effvisc_mms.c \
+	${TEST_DIR}/test_stokesdarcy2field_rt.c \
+	${TEST_DIR}/test_stokesdarcy2field_rt2.c \
+	${TEST_DIR}/test_stokesdarcy2field_vep_0d_expansion.c \
+	${TEST_DIR}/test_stokesdarcy2field_vep_0d_shear.c \
+	${TEST_DIR}/test_stokesdarcy2field_vep_inclusion.c \
+	${TEST_DIR}/test_stokesdarcy2field_vp_inclusion.c \
+	${TEST_DIR}/test_vp_inclusion_gerya.c \
+	${TEST_DIR}/test_plastic_indenter.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,${TEST_SRC})
 TEST_APP := $(patsubst %.c,%,${TEST_SRC})

@@ -3,7 +3,7 @@
 #ifndef FDPDE_DMSTAG_H
 #define FDPDE_DMSTAG_H
 
-#include "petsc.h"
+#include <petsc.h>
 
 // BC type
 typedef enum { BC_NULL = 0, BC_DIRICHLET, BC_DIRICHLET_STAG, BC_NEUMANN, BC_NEUMANN_T, BC_PERIODIC } BCType;

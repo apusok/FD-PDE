@@ -1,9 +1,6 @@
 /* Finite Differences PDE (FD-PDE) object */
 
 #include "fdpde.h"
-// #include "fdpde_composite.h"
-// #include "dmstagoutput.h"
-// #include "snes_picard.h"
 
 const char *FDPDETypeNames[] = {
   "uninit",
@@ -445,20 +442,20 @@ PetscErrorCode FDPDESetFunctionCoefficient(FDPDE fd, PetscErrorCode (*form_coeff
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// // ---------------------------------------
-// PetscErrorCode FDPDESetFunctionCoefficientSplit(FDPDE fd, PetscErrorCode (*form_coefficient)(FDPDE fd,DM,Vec,Vec,DM,Vec,void*), const char description[], void *data)
-// {
-//   PetscFunctionBegin;
+// ---------------------------------------
+PetscErrorCode FDPDESetFunctionCoefficientSplit(FDPDE fd, PetscErrorCode (*form_coefficient)(FDPDE fd,DM,Vec,Vec,DM,Vec,void*), const char description[], void *data)
+{
+  PetscFunctionBegin;
   
-//   fd->ops->form_coefficient_split = form_coefficient;
-//   fd->user_context = data;
+  fd->ops->form_coefficient_split = form_coefficient;
+  fd->user_context = data;
   
-//   /* free any existing name set by previous call */
-//   if (fd->description_coeff) { PetscCall(PetscFree(fd->description_coeff));  }
-//   if (description) { PetscCall(PetscStrallocpy(description,&fd->description_coeff));  }
+  /* free any existing name set by previous call */
+  if (fd->description_coeff) { PetscCall(PetscFree(fd->description_coeff));  }
+  if (description) { PetscCall(PetscStrallocpy(description,&fd->description_coeff));  }
   
-//   PetscFunctionReturn(PETSC_SUCCESS);
-// }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 // ---------------------------------------
 /*@
@@ -806,64 +803,64 @@ PetscErrorCode FDPDESolve(FDPDE fd, PetscBool *converged)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// // ---------------------------------------
-// PetscErrorCode FDPDESolvePicard(FDPDE fd, PetscBool *converged)
-// {
-//   SNESConvergedReason reason;
-//   SNES                snes_picard;
-//   Mat                 J;
-//   DM                  dmref,dm;
+// ---------------------------------------
+PetscErrorCode FDPDESolvePicard(FDPDE fd, PetscBool *converged)
+{
+  SNESConvergedReason reason;
+  SNES                snes_picard;
+  Mat                 J;
+  DM                  dmref,dm;
   
-//   PetscFunctionBegin;
-//   if (!fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDESetUp() first!");
-//   if (!fd->ops->form_function_split) SETERRQ(fd->comm,PETSC_ERR_SUP,"FDPDE does not support split residual evaluation. Require that fd->ops->form_function_split() be defined");
-//   if (!fd->ops->form_coefficient_split) SETERRQ(fd->comm,PETSC_ERR_SUP,"FDPDE does not support split residual evaluation. Require that fd->ops->form_coefficient_split() be defined");
+  PetscFunctionBegin;
+  if (!fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDESetUp() first!");
+  if (!fd->ops->form_function_split) SETERRQ(fd->comm,PETSC_ERR_SUP,"FDPDE does not support split residual evaluation. Require that fd->ops->form_function_split() be defined");
+  if (!fd->ops->form_coefficient_split) SETERRQ(fd->comm,PETSC_ERR_SUP,"FDPDE does not support split residual evaluation. Require that fd->ops->form_coefficient_split() be defined");
   
-//   PetscCall(VecCopy(fd->xguess,fd->x));
+  PetscCall(VecCopy(fd->xguess,fd->x));
 
-//   PetscCall(FDPDEGetDM(fd,&dmref));
-//   PetscCall(DMClone(dmref,&dm));
+  PetscCall(FDPDEGetDM(fd,&dmref));
+  PetscCall(DMClone(dmref,&dm));
   
-//   PetscCall(fd->ops->create_jacobian(fd,&J));
+  PetscCall(fd->ops->create_jacobian(fd,&J));
   
-//   PetscCall(SNESCreate(fd->comm,&snes_picard));
-//   PetscCall(SNESSetOptionsPrefix(snes_picard,"p_"));
-//   PetscCall(SNESSetDM(snes_picard,dm)); /* attach a clone of the DM stag - see note on manpage for SNESSetDM() */
-//   PetscCall(SNESSetSolution(snes_picard,fd->x)); // for FD colouring to function correctly
+  PetscCall(SNESCreate(fd->comm,&snes_picard));
+  PetscCall(SNESSetOptionsPrefix(snes_picard,"p_"));
+  PetscCall(SNESSetDM(snes_picard,dm)); /* attach a clone of the DM stag - see note on manpage for SNESSetDM() */
+  PetscCall(SNESSetSolution(snes_picard,fd->x)); // for FD colouring to function correctly
   
-//   PetscCall(SNESSetFunction(snes_picard,fd->r,SNESPicardComputeFunctionDefault,(void*)fd));
+  PetscCall(SNESSetFunction(snes_picard,fd->r,SNESPicardComputeFunctionDefault,(void*)fd));
   
-//   PetscCall(SNESSetJacobian(snes_picard,J,J,SNESComputeJacobianDefaultColor,NULL));
+  PetscCall(SNESSetJacobian(snes_picard,J,J,SNESComputeJacobianDefaultColor,NULL));
   
-//   PetscCall(SNESSetType(snes_picard,SNESPICARDLS));
-//   PetscCall(SNESSetFromOptions(snes_picard));
-//   PetscCall(SNESSetUp(snes_picard));
+  PetscCall(SNESSetType(snes_picard,SNESPICARDLS));
+  PetscCall(SNESSetFromOptions(snes_picard));
+  PetscCall(SNESSetUp(snes_picard));
 
-//   PetscCall(SNESPicardLSSetSplitFunction(snes_picard,fd->r,fd->ops->form_function_split));
+  PetscCall(SNESPicardLSSetSplitFunction(snes_picard,fd->r,fd->ops->form_function_split));
 
-//   {
-//     Vec x2;
+  {
+    Vec x2;
     
-//     PetscCall(SNESPicardLSGetAuxillarySolution(snes_picard,&x2));
-//     PetscCall(VecCopy(fd->x,x2));
-//   }
+    PetscCall(SNESPicardLSGetAuxillarySolution(snes_picard,&x2));
+    PetscCall(VecCopy(fd->x,x2));
+  }
 
-//   PetscCall(SNESSolve(snes_picard,0,fd->x));
+  PetscCall(SNESSolve(snes_picard,0,fd->x));
   
-//   PetscCall(VecCopy(fd->x, fd->xguess)); 
+  PetscCall(VecCopy(fd->x, fd->xguess)); 
   
-//   PetscCall(SNESGetConvergedReason(snes_picard,&reason)); 
-//   if (converged) {
-//     *converged = PETSC_TRUE;
-//     if (reason < 0) *converged = PETSC_FALSE;
-//   }
+  PetscCall(SNESGetConvergedReason(snes_picard,&reason)); 
+  if (converged) {
+    *converged = PETSC_TRUE;
+    if (reason < 0) *converged = PETSC_FALSE;
+  }
 
-//   PetscCall(SNESDestroy(&snes_picard));
-//   PetscCall(DMDestroy(&dm));
-//   PetscCall(MatDestroy(&J));
+  PetscCall(SNESDestroy(&snes_picard));
+  PetscCall(DMDestroy(&dm));
+  PetscCall(MatDestroy(&J));
 
-//   PetscFunctionReturn(PETSC_SUCCESS);
-// }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 // ---------------------------------------
 /*@
