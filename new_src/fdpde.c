@@ -19,9 +19,10 @@ PetscErrorCode FDPDECreate_Stokes(FDPDE fd);
 PetscErrorCode FDPDECreate_StokesDarcy2Field(FDPDE fd);
 PetscErrorCode FDPDECreate_StokesDarcy3Field(FDPDE fd);
 PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd);
-// PetscErrorCode FDPDECreate_Composite(FDPDE fd);
 PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd);
-// PetscErrorCode FDPDESetUp_Composite(FDPDE fd);
+
+PetscErrorCode FDPDECreate_Composite(FDPDE fd);
+PetscErrorCode FDPDESetUp_Composite(FDPDE fd);
 
 // ---------------------------------------
 /*@ FDPDECreate - creates an object that will manage the discretization of a PDE using 
@@ -155,7 +156,10 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
       fd->ops->create = FDPDECreate_Enthalpy;
       break;
     case FDPDE_COMPOSITE:
-    // SETERRQ(fd->comm,PETSC_ERR_ARG_WRONGSTATE,"FDPDE_COMPOSITE should never enter here");
+      fd->ops->create = FDPDECreate_Composite;
+      // PetscCall(fd->ops->create(fd)); 
+      PetscCall(fd->ops->setup(fd));
+      PetscFunctionReturn(PETSC_SUCCESS);
     break;
     default:
       SETERRQ(fd->comm,PETSC_ERR_ARG_UNKNOWN_TYPE,"Unknown type of FD-PDE specified");
@@ -1025,70 +1029,72 @@ PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE fd,PetscScalar **cx, Pet
 }
 
 // ---------------------------------------
-// #undef __FUNCT__
-// #define __FUNCT__ "FDPDECreate2"
-// PetscErrorCode FDPDECreate2(MPI_Comm comm,FDPDE *_fd)
-// {
-//   FDPDE          fd;
-//   FDPDEOps       ops;
+#undef __FUNCT__
+#define __FUNCT__ "FDPDECreate2"
+PetscErrorCode FDPDECreate2(MPI_Comm comm,FDPDE *_fd)
+{
+  FDPDE          fd;
+  FDPDEOps       ops;
 
-//   PetscFunctionBegin;
-//   if (!_fd) SETERRQ(comm,PETSC_ERR_ARG_NULL,"Must provide a valid (non-NULL) pointer for fd (arg 2)");
-//   PetscCall(PetscCalloc1(1,&fd));
-//   fd->comm = comm;
-//   fd->type = FDPDE_UNINIT;
-//   PetscCall(PetscCalloc1(1,&fd->ops));
-//   fd->dmstag  = NULL;
-//   fd->dmcoeff = NULL;
-//   fd->bclist  = NULL;
-//   fd->x       = NULL;
-//   fd->xguess  = NULL;
-//   fd->r       = NULL;
-//   fd->coeff   = NULL;
-//   fd->J       = NULL;
-//   fd->snes    = NULL;
-//   fd->data    = NULL;
-//   fd->user_context      = NULL;
-//   fd->setupcalled       = PETSC_FALSE;
-//   fd->description_bc    = NULL;
-//   fd->description_coeff = NULL;
-//   fd->refcount++;
-//   *_fd = fd;
-//   PetscFunctionReturn(PETSC_SUCCESS);
-// }
+  PetscFunctionBegin;
+  if (!_fd) SETERRQ(comm,PETSC_ERR_ARG_NULL,"Must provide a valid (non-NULL) pointer for fd (arg 2)");
+  PetscCall(PetscCalloc1(1,&fd));
+  fd->comm = comm;
+  fd->type = FDPDE_UNINIT;
+  PetscCall(PetscCalloc1(1,&fd->ops));
+  fd->dmstag  = NULL;
+  fd->dmcoeff = NULL;
+  fd->bclist  = NULL;
+  fd->x       = NULL;
+  fd->xguess  = NULL;
+  fd->r       = NULL;
+  fd->coeff   = NULL;
+  fd->J       = NULL;
+  fd->snes    = NULL;
+  fd->data    = NULL;
+  fd->user_context      = NULL;
+  fd->setupcalled       = PETSC_FALSE;
+  fd->description_bc    = NULL;
+  fd->description_coeff = NULL;
+  fd->refcount++;
+  *_fd = fd;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
-// #undef __FUNCT__
-// #define __FUNCT__ "FDPDESetType"
-// PetscErrorCode FDPDESetType(FDPDE fd,FDPDEType type)
-// {
-//   PetscFunctionBegin;
-//   if (fd->type != FDPDE_UNINIT) {
-//     if (fd->ops->destroy) { PetscCall(fd->ops->destroy(fd));  }
-//   }
-//   fd->type = type;
-//   switch (fd->type) {
-//     case FDPDE_UNINIT:
-//     SETERRQ(fd->comm,PETSC_ERR_ARG_TYPENOTSET,"Un-initialized type for FD-PDE");
-//     break;
-//     case FDPDE_STOKES:
-//     fd->ops->create = FDPDECreate_Stokes;
-//     fd->ops->setup = NULL;
-//     break;
-//     case FDPDE_ADVDIFF:
-//     // fd->ops->create = FDPDECreate_AdvDiff;
-//     fd->ops->setup = NULL;
-//     break;
-//     case FDPDE_COMPOSITE:
-//     // fd->ops->create = FDPDECreate_Composite;
-//     // fd->ops->setup  = FDPDESetUp_Composite;
-//     break;
-//     default:
-//     SETERRQ(fd->comm,PETSC_ERR_ARG_UNKNOWN_TYPE,"Unknown type of FD-PDE specified");
-//   }
-//   PetscCall(fd->ops->create(fd));
-//   PetscFunctionReturn(PETSC_SUCCESS);
-// }
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDESetType"
+PetscErrorCode FDPDESetType(FDPDE fd,FDPDEType type)
+{
+  PetscFunctionBegin;
+  if (fd->type != FDPDE_UNINIT) {
+    if (fd->ops->destroy) { PetscCall(fd->ops->destroy(fd));  }
+  }
+  fd->type = type;
+  switch (fd->type) {
+    case FDPDE_UNINIT:
+    SETERRQ(fd->comm,PETSC_ERR_ARG_TYPENOTSET,"Un-initialized type for FD-PDE");
+    break;
+    case FDPDE_STOKES:
+    fd->ops->create = FDPDECreate_Stokes;
+    fd->ops->setup = NULL;
+    break;
+    case FDPDE_ADVDIFF:
+    fd->ops->create = FDPDECreate_AdvDiff;
+    fd->ops->setup = NULL;
+    break;
+    case FDPDE_COMPOSITE:
+    fd->ops->create = FDPDECreate_Composite;
+    fd->ops->setup  = FDPDESetUp_Composite;
+    break;
+    default:
+    SETERRQ(fd->comm,PETSC_ERR_ARG_UNKNOWN_TYPE,"Unknown type of FD-PDE specified");
+  }
+  PetscCall(fd->ops->create(fd));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
+// ---------------------------------------
 // #undef __FUNCT__
 // #define __FUNCT__ "FDPDESetSizes"
 // PetscErrorCode FDPDESetSizes(FDPDE fd,PetscInt nx,PetscInt nz,PetscScalar xs,PetscScalar xe,PetscScalar zs,PetscScalar ze)
@@ -1107,48 +1113,50 @@ PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE fd,PetscScalar **cx, Pet
 //   PetscFunctionReturn(PETSC_SUCCESS);
 // }
 
-// // #undef __FUNCT__
-// // #define __FUNCT__ "FDPDEGetAuxGlobalVectors"
-// // PetscErrorCode FDPDEGetAuxGlobalVectors(FDPDE fd,PetscInt *n,Vec **vecs)
-// // {
-// //   PetscFunctionBegin;
-// //   if (n)    *n = fd->naux_global_vectors;
-// //   if (vecs) *vecs = fd->aux_global_vectors;
-// //   PetscFunctionReturn(PETSC_SUCCESS);
-// // }
+// ---------------------------------------
+#undef __FUNCT__
+#define __FUNCT__ "FDPDEGetAuxGlobalVectors"
+PetscErrorCode FDPDEGetAuxGlobalVectors(FDPDE fd,PetscInt *n,Vec **vecs)
+{
+  PetscFunctionBegin;
+  if (n)    *n = fd->naux_global_vectors;
+  if (vecs) *vecs = fd->aux_global_vectors;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
-// // #undef __FUNCT__
-// // #define __FUNCT__ "FDPDEFormCoefficient"
-// // PetscErrorCode FDPDEFormCoefficient(FDPDE fd)
-// // {
-// //   PetscInt i,n;
-// //   FDPDE *pdelist = NULL;
-// //   Vec *subX = NULL;
+// // ---------------------------------------
+// #undef __FUNCT__
+// #define __FUNCT__ "FDPDEFormCoefficient"
+// PetscErrorCode FDPDEFormCoefficient(FDPDE fd)
+// {
+//   PetscInt i,n;
+//   FDPDE *pdelist = NULL;
+//   Vec *subX = NULL;
   
-// //   PetscFunctionBegin;
-// //   switch (fd->type) {
-// //     case FDPDE_COMPOSITE:
+//   PetscFunctionBegin;
+//   switch (fd->type) {
+//     case FDPDE_COMPOSITE:
     
-// //     PetscCall(FDPDECompositeGetFDPDE(fd,&n,&pdelist));
-// //     PetscCall(DMCompositeGetAccessArray(fd->dmstag,fd->x,n,NULL,subX));
-// //     /* set auxillary vectors */
-// //     for (i=0; i<n; i++) {
-// //       pdelist[i]->naux_global_vectors = n;
-// //       pdelist[i]->aux_global_vectors = subX;
-// //     }
-// //     for (i=0; i<n; i++) {
-// //       PetscCall(FDPDEFormCoefficient(pdelist[i]));
-// //     }
-// //     PetscCall(DMCompositeRestoreAccessArray(fd->dmstag,fd->x,n,NULL,subX));
-// //     break;
+//     PetscCall(FDPDECompositeGetFDPDE(fd,&n,&pdelist));
+//     PetscCall(DMCompositeGetAccessArray(fd->dmstag,fd->x,n,NULL,subX));
+//     /* set auxillary vectors */
+//     for (i=0; i<n; i++) {
+//       pdelist[i]->naux_global_vectors = n;
+//       pdelist[i]->aux_global_vectors = subX;
+//     }
+//     for (i=0; i<n; i++) {
+//       PetscCall(FDPDEFormCoefficient(pdelist[i]));
+//     }
+//     PetscCall(DMCompositeRestoreAccessArray(fd->dmstag,fd->x,n,NULL,subX));
+//     break;
     
-// //     default:
-// //       if (!fd->ops->form_coefficient) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Form coefficient function pointer is NULL. Must call FDPDESetFunctionCoefficient() and provide a non-NULL function pointer.");
-// //       PetscCall(fd->ops->form_coefficient(fd,fd->dmstag,fd->x,fd->dmcoeff,fd->coeff,fd->user_context));
-// //     break;
-// //   }
-// //   PetscFunctionReturn(PETSC_SUCCESS);
-// // }
+//     default:
+//       if (!fd->ops->form_coefficient) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Form coefficient function pointer is NULL. Must call FDPDESetFunctionCoefficient() and provide a non-NULL function pointer.");
+//       PetscCall(fd->ops->form_coefficient(fd,fd->dmstag,fd->x,fd->dmcoeff,fd->coeff,fd->user_context));
+//     break;
+//   }
+//   PetscFunctionReturn(PETSC_SUCCESS);
+// }
 
 // ---------------------------------------
 /*@

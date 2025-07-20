@@ -21,6 +21,7 @@ SRC := 	fdpde_snes.c \
 	fdpde_advdiff.c \
 	fdpde_enthalpy.c \
 	fdpde_enthalpy_residual.c \
+	fdpde_composite.c \
 
 HDR := 	benchmark_solcx.h \
 	benchmark_cornerflow.h \
@@ -33,13 +34,14 @@ HDR := 	benchmark_solcx.h \
 	fdpde_stokesdarcy3field.h \
 	fdpde_advdiff.h \
 	fdpde_enthalpy.h \
+	fdpde_composite.h \
 
 FDPDE_SRC = $(patsubst %,${FDPDE_DIR}/%,${SRC})
 FDPDE_HDR = $(patsubst %,${FDPDE_DIR}/%,${HDR})
 
 FDPDE_OBJ := $(patsubst %.c,%.o,${FDPDE_SRC})
 
-TEST_SRC = 	${TEST_DIR}/test_enthalpy_periodic.c \
+TEST_SRC = 	${TEST_DIR}/test_convection_stokes_periodic.c \
 
 # TEST_SRC = 	${TEST_DIR}/test_fdpde.c \
 	${TEST_DIR}/test_dmstagbclist.c \
@@ -77,6 +79,10 @@ TEST_SRC = 	${TEST_DIR}/test_enthalpy_periodic.c \
 	${TEST_DIR}/test_enthalpy_1d_eutectic_solidification.c \
 	${TEST_DIR}/test_enthalpy_2d_diffusion.c \
 	${TEST_DIR}/test_enthalpy_periodic.c \
+	${TEST_DIR}/test_composite_laplace.c \
+	${TEST_DIR}/test_coupling.c \
+	${TEST_DIR}/test_decoupled_convection.c \
+	${TEST_DIR}/test_convection_stokes_periodic.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,${TEST_SRC})
 TEST_APP := $(patsubst %.c,%,${TEST_SRC})

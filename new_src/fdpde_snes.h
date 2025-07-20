@@ -18,4 +18,7 @@ PetscErrorCode MatGetPreallocator(Mat A,Mat *preallocator);
 PetscErrorCode MatPreallocatePhaseBegin(Mat A,Mat *preallocator);
 PetscErrorCode MatPreallocatePhaseEnd(Mat A);
 
+PetscErrorCode FDPDECoupledCreateMatrix(PetscInt ndm,DM dm[],MatType mtype,Mat *A);
+PetscErrorCode FDPDECoupledCreateMatrix2(PetscInt ndm,DM dm[],PetscBool mask[],MatType mtype,Mat *A);
+
 #endif

@@ -5,6 +5,7 @@
 
 #include <petsc.h>
 #include "fdpde_dmstag.h"
+#include "fdpde_dmswarm.h"
 #include "fdpde_snes.h"
 #include "fdpde_utils.h"
 
@@ -87,10 +88,10 @@ PetscErrorCode FDPDEGetSolutionGuess(FDPDE,Vec*);
 PetscErrorCode FDPDEGetCoordinatesArrayDMStag(FDPDE,PetscScalar***,PetscScalar***);
 PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE,PetscScalar**,PetscScalar**);
 
-// PetscErrorCode FDPDECreate2(MPI_Comm,FDPDE*);
-// PetscErrorCode FDPDESetType(FDPDE,FDPDEType);
+PetscErrorCode FDPDECreate2(MPI_Comm,FDPDE*);
+PetscErrorCode FDPDESetType(FDPDE,FDPDEType);
 // PetscErrorCode FDPDESetSizes(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
-// PetscErrorCode FDPDEGetAuxGlobalVectors(FDPDE,PetscInt*,Vec**);
+PetscErrorCode FDPDEGetAuxGlobalVectors(FDPDE,PetscInt*,Vec**);
 // PetscErrorCode FDPDEFormCoefficient(FDPDE fd);
 
 #endif
