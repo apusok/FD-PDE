@@ -382,7 +382,7 @@ sdpar = ' -R ' + str(R)+ \
   ' -dt ' + str(dt)
 
 # Run simulation
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_vep_0d_shear' + newton + solver + sdpar + \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_vep_0d_shear.sh' + newton + solver + sdpar + \
   ' -output_file '+fname+ \
   ' -C '+str(C)+ \
   ' -etamin '+str(etamin)+ \

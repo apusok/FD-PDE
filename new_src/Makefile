@@ -3,8 +3,8 @@ include ${PETSC_DIR}/lib/petsc/conf/rules
 
 FDPDE_DIR = .
 
-TEST_DIR = ../new_tests
-PYTHON_DIR = ../new_tests/python
+TEST_DIR = ../tests
+PYTHON_DIR = ../tests/python
 
 SRC := 	fdpde_snes.c \
 	fdpde_dmstag.c \
@@ -44,8 +44,6 @@ FDPDE_HDR = $(patsubst %,${FDPDE_DIR}/%,${HDR})
 FDPDE_OBJ := $(patsubst %.c,%.o,${FDPDE_SRC})
 
 TEST_SRC = 	${TEST_DIR}/test_fdpde.c \
-
-# TEST_SRC = 	${TEST_DIR}/test_fdpde.c \
 	${TEST_DIR}/test_dmstagbclist.c \
 	${TEST_DIR}/test_dmstagoutput.c \
 	${TEST_DIR}/test_dmstagoutput_read.c \

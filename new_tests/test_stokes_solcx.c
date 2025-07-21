@@ -1,6 +1,6 @@
 // ---------------------------------------
 // SOLCX benchmark - constant grid spacing
-// run: ./test_stokes_solcx -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
+// run: ./test_stokes_solcx.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
 // python test: ./python/test_stokes_solcx.py
 // ---------------------------------------
 static char help[] = "Application to solve the SolCx benchmark with FD-PDE \n\n";
@@ -16,8 +16,8 @@ static char help[] = "Application to solve the SolCx benchmark with FD-PDE \n\n"
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "../new_src/benchmark_solcx.h"
-#include "../new_src/fdpde_stokes.h"
+#include "../src/benchmark_solcx.h"
+#include "../src/fdpde_stokes.h"
 
 // ---------------------------------------
 // Application Context

@@ -1,6 +1,6 @@
 // ---------------------------------------
 // (ADVDIFF) Pure advection and time-stepping test - PERIODIC BCs
-// run: ./test_advdiff_periodic -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
+// run: ./test_advdiff_periodic.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
 // python test: ./python/test_advdiff_periodic.py
 // ---------------------------------------
 static char help[] = "Application to solve advection of a Gaussian pulse in time (ADVDIFF) with FD-PDE and PERIODIC BCs\n\n";
@@ -16,7 +16,7 @@ static char help[] = "Application to solve advection of a Gaussian pulse in time
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "../new_src/fdpde_advdiff.h"
+#include "../src/fdpde_advdiff.h"
 
 // ---------------------------------------
 // Application Context

@@ -1,5 +1,5 @@
 // ---------------------------------------
-// run: ./test_stokes_rt_compare_pic_phasefield -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 21 -nz 21 -snes_type ksponly -snes_fd_color -nt 101 -log_view
+// run: ./test_stokes_rt_compare_pic_phasefield.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 21 -nz 21 -snes_type ksponly -snes_fd_color -nt 101 -log_view
 // python test: ./python/test_stokes_rt_compare_pic_phasefield.py
 // ---------------------------------------
 static char help[] = "Application to solve an Rayleigh-Taylor instability and compare Particle-in-Cell and Phase Field method for material interfaces\n\n";
@@ -15,8 +15,8 @@ static char help[] = "Application to solve an Rayleigh-Taylor instability and co
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "../new_src/fdpde_stokes.h"
-#include "../new_src/fdpde_dmswarm.h"
+#include "../src/fdpde_stokes.h"
+#include "../src/fdpde_dmswarm.h"
 
 // ---------------------------------------
 // Application Context

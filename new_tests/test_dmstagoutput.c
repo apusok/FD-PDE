@@ -1,7 +1,7 @@
 static char help[] = "DMStag output test - outputs dummy data for all combinations of dofs \n\n";
-// run: ./test_dmstagoutput
+// run: ./test_dmstagoutput.sh
 
-#include "../new_src/fdpde_dmstag.h"
+#include "../src/fdpde_dmstag.h"
 
 // test0
 PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscInt dof2,const char fname[])

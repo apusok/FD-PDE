@@ -3,7 +3,7 @@
 // Two-phase StokesDarcy model with an interface which is captured using the Phasefield method
 // R = 0, infinitely small compaction length, so that it is Stokes flow.
 // Rheology: visco-elasto-plastic model, inifinitely large C, Z.
-// run: ./test_stokesdarcy2field_beam -nx 100 -nz 100 -pc_type lu -pc_factor_mat_solver_type umfpack -log_view
+// run: ./test_stokesdarcy2field_beam.sh -nx 100 -nz 100 -pc_type lu -pc_factor_mat_solver_type umfpack -log_view
 // python test: ./python/test_stokesdarcy2field_beam.py
 // ---------------------------------------
 static char help[] = "Application for the visco-elastic beam benchmark \n\n";
@@ -19,7 +19,7 @@ static char help[] = "Application for the visco-elastic beam benchmark \n\n";
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "../new_src/fdpde_stokesdarcy2field.h"
+#include "../src/fdpde_stokesdarcy2field.h"
 
 // ---------------------------------------
 // Application Context

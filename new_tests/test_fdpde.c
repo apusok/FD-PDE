@@ -1,7 +1,7 @@
 static char help[] = "FD-PDE test \n\n";
-// run: ./test_fdpde -log_view
+// run: ./test_fdpde.sh -log_view
 
-#include "../new_src/fdpde_stokes.h"
+#include "../src/fdpde_stokes.h"
 
 // test0 - create/destroy
 PetscErrorCode test0(PetscInt nx,PetscInt nz)

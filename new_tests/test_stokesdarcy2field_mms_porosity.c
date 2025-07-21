@@ -1,7 +1,7 @@
 // ---------------------------------------
 // MMS test for porosity evolution - verify coupled system for two-phase flow 
 // Solves for coupled (P, v) and Q=(1-phi) evolution, where P-dynamic pressure, v-solid velocity, phi-porosity.
-// run: ./test_stokesdarcy2field_mms_porosity -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 20 -nz 20 -snes_monitor 
+// run: ./test_stokesdarcy2field_mms_porosity.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 20 -nz 20 -snes_monitor 
 // python test: ./python/test_stokesdarcy2field_mms_porosity.py
 // sympy: ./mms/mms_porosity_evolution.py
 // ---------------------------------------
@@ -18,8 +18,8 @@ static char help[] = "Application to verify the Stokes-Darcy and porosity evolut
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "../new_src/fdpde_stokesdarcy2field.h"
-#include "../new_src/fdpde_advdiff.h"
+#include "../src/fdpde_stokesdarcy2field.h"
+#include "../src/fdpde_advdiff.h"
 
 // ---------------------------------------
 // Application Context

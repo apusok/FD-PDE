@@ -1,7 +1,7 @@
 static char help[] = "DMStag output and read test \n\n";
-// run: ./test_dmstagoutput_read
+// run: ./test_dmstagoutput_read.sh
 
-#include "../new_src/fdpde_dmstag.h"
+#include "../src/fdpde_dmstag.h"
 
 PetscErrorCode test_write(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscInt dof2,const char fname[])
 {

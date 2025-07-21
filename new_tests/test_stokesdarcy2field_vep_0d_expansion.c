@@ -1,7 +1,7 @@
 // ---------------------------------------
 // Uniform expansion of a visco-elastic block subject to the StokesDarcy model.
 // Rheology: visco-elasto-plastic model
-// run: ./test_stokesdarcy2field_vep_0d_expansion -pc_factor_mat_solver_type umfpack -pc_type lu -nx 5 -nz 5 -phi0 0.1 -G 1.0 -Z0 1.0 -C 1e40 -tstep 200 -dt 0.02 -vi 1.0 -log_view
+// run: ./test_stokesdarcy2field_vep_0d_expansion.sh -pc_factor_mat_solver_type umfpack -pc_type lu -nx 5 -nz 5 -phi0 0.1 -G 1.0 -Z0 1.0 -C 1e40 -tstep 200 -dt 0.02 -vi 1.0 -log_view
 // python test: ./python/test_stokesdarcy2field_vep_0d_expansion.py
 // ---------------------------------------
 static char help[] = "Application for validating the visco-elasto-plastic model with zero-dimensional problems about uniform deformation (pure expansion) in the absence of gravity \n\n";
@@ -17,7 +17,7 @@ static char help[] = "Application for validating the visco-elasto-plastic model 
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "../new_src/fdpde_stokesdarcy2field.h"
+#include "../src/fdpde_stokesdarcy2field.h"
 
 // ---------------------------------------
 // Application Context

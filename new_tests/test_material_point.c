@@ -1,8 +1,8 @@
-// run: ./test_material_point -log_view
+// run: ./test_material_point.sh -log_view
 
 static char help[] = "Material point layout test \n\n";
 
-#include "../new_src/fdpde_dmswarm.h"
+#include "../src/fdpde_dmswarm.h"
 
 // ---------------------------------------
 PetscErrorCode test_layout(PetscInt nx,PetscInt ny)

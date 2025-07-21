@@ -1,6 +1,6 @@
 // ---------------------------------------
 // SOLCX benchmark - Irregular grid spacing
-// run: ./test_stokes_solcx_vargrid -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
+// run: ./test_stokes_solcx_vargrid.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
 // viz: with Paraview (example VTK output)
 // ---------------------------------------
 static char help[] = "Application to solve the SolCx benchmark with FD-PDE - Irregular grid spacing \n\n";
@@ -16,7 +16,7 @@ static char help[] = "Application to solve the SolCx benchmark with FD-PDE - Irr
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "../new_src/fdpde_stokes.h"
+#include "../src/fdpde_stokes.h"
 
 // ---------------------------------------
 // Application Context

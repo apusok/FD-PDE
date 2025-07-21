@@ -1,6 +1,6 @@
 // ---------------------------------------
 // MMS test for Katz, 2019, Ch 13.
-// run: ./test_stokesdarcy2field_mms_katz_ch13 -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
+// run: ./test_stokesdarcy2field_mms_katz_ch13.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
 // python test: ./python/test_stokesdarcy2field_mms_katz_ch13.py
 // python sympy: ./mms/mms_katz_ch13_stokes_darcy.py
 // ---------------------------------------
@@ -17,7 +17,7 @@ static char help[] = "Application to verify two-phase flow implementation with a
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "../new_src/fdpde_stokesdarcy2field.h"
+#include "../src/fdpde_stokesdarcy2field.h"
 
 // ---------------------------------------
 // Application Context

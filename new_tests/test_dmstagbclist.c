@@ -1,5 +1,5 @@
 static char help[] = "DMStagBCList test \n\n";
-// run: ./test_dmstagbclist
+// run: ./test_dmstagbclist.sh
 
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
 #define DOWN       DMSTAG_DOWN
@@ -11,7 +11,7 @@ static char help[] = "DMStagBCList test \n\n";
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "../new_src/fdpde_dmstag.h"
+#include "../src/fdpde_dmstag.h"
 
 PetscErrorCode test1(PetscInt nx,PetscInt ny)
 {

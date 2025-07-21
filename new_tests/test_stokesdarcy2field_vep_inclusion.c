@@ -1,7 +1,7 @@
 // ---------------------------------------
 // Shortening a two-phase block which is governed by the StokesDarcy model
 // Rheology: visco-elasto-plastic model
-// run: ./test_stokesdarcy2field_vep_inclusion -nx 100 -nz 100 -pc_type lu -pc_factor_mat_solver_type umfpack -log_view
+// run: ./test_stokesdarcy2field_vep_inclusion.sh -nx 100 -nz 100 -pc_type lu -pc_factor_mat_solver_type umfpack -log_view
 // python test: ./python/test_stokesdarcy2field_vep_inclusion.py
 // ---------------------------------------
 static char help[] = "Application for shortening of a visco-elasto-plastic two-phase block in the absence of gravity \n\n";
@@ -17,7 +17,7 @@ static char help[] = "Application for shortening of a visco-elasto-plastic two-p
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "../new_src/fdpde_stokesdarcy2field.h"
+#include "../src/fdpde_stokesdarcy2field.h"
 
 // ---------------------------------------
 // Application Context

@@ -1,6 +1,6 @@
 // ---------------------------------------
 // Convection test with side periodic boundary conditions
-// run: ./test_convection_stokes_periodic -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
+// run: ./test_convection_stokes_periodic.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
 // python test: ./python/test_convection_stokes_periodic.py
 // ---------------------------------------
 static char help[] = "Convection in a box test with periodic boundary conditions \n\n";
@@ -16,8 +16,8 @@ static char help[] = "Convection in a box test with periodic boundary conditions
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "../new_src/fdpde_stokes.h"
-#include "../new_src/fdpde_advdiff.h"
+#include "../src/fdpde_stokes.h"
+#include "../src/fdpde_advdiff.h"
 
 // ---------------------------------------
 // Application Context

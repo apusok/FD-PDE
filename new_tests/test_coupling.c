@@ -1,8 +1,7 @@
 static char help[] = "DMStagCoupling test \n\n";
-// run: ./test_coupling -log_view
+// run: ./test_coupling.sh -log_view
 
-#include <petsc.h>
-#include "../new_src/fdpde_snes.h"
+#include "../src/fdpde_snes.h"
 
 PetscErrorCode test1(PetscInt mx,PetscInt my)
 {

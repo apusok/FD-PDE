@@ -1,6 +1,7 @@
 #ifndef __fdpde_snes_h__
 #define __fdpde_snes_h__
 
+#include <petsc.h>
 #include <petscvec.h>
 #include <petscsnes.h>
 

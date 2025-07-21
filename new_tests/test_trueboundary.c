@@ -1,5 +1,5 @@
 static char help[] = "Test: DMStagCellSize_2d, Coordinates of true boundary returned from DMStagBCListGetValues. \n\n";
-// run: ./test_trueboundary
+// run: ./test_trueboundary.sh
 
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
 #define DOWN       DMSTAG_DOWN
@@ -11,7 +11,7 @@ static char help[] = "Test: DMStagCellSize_2d, Coordinates of true boundary retu
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "../new_src/fdpde_dmstag.h"
+#include "../src/fdpde_dmstag.h"
 
 PetscErrorCode test1(PetscInt nx,PetscInt ny)
 {

@@ -1,6 +1,6 @@
 // ---------------------------------------
 // STANDALONE Benchmark for the phase-equation method
-// run: ./test_dmstag_phasemethod -nx 40 -nz 40 -icase (0/1/2/3/4/5) -dt 0.001 -tstep 10 -gamma 1 -eps 0.025 -log_view
+// run: ./test_dmstag_phasemethod.sh -nx 40 -nz 40 -icase (0/1/2/3/4/5) -dt 0.001 -tstep 10 -gamma 1 -eps 0.025 -log_view
 // python test 1: ./python/test_dmstag_phasemethod_stationary.py (for icase = 0, 1)
 // python test 2: ./python/test_dmstag_phasemethod_flow.py (for icase = 2, 3, 4, 5)
 // ---------------------------------------
@@ -9,7 +9,7 @@ static char help[] = "Application to benchmark the phase-equation method to capt
 // define convenient names for DMStagStencilLocation
 #define ELEMENT    DMSTAG_ELEMENT
 
-#include "../new_src/fdpde_dmstag.h"
+#include "../src/fdpde_dmstag.h"
 
 // ---------------------------------------
 // Application Context

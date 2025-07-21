@@ -34,7 +34,7 @@ for opt, arg in options:
     ncpu = int(arg)
 
 # Run test
-os.system('mpiexec -n '+str(ncpu)+' ../test_dmstagoutput')
+os.system('mpiexec -n '+str(ncpu)+' ../test_dmstagoutput.sh')
 
 # Visualize data
 dmout.general_output_pcolormesh('out_test_dmstagoutput0','RdBu')

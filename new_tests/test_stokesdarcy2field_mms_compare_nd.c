@@ -1,6 +1,6 @@
 // ---------------------------------------
 // MMS test to verify 2 non-dimensionalization schemes (Rhebergen et al. 2014, Katz-Magma dynamics)
-// run: ./test_stokesdarcy2field_mms_compare_nd -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -ksp_monitor -nx 10 -nz 10
+// run: ./test_stokesdarcy2field_mms_compare_nd.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -ksp_monitor -nx 10 -nz 10
 // python test: ./python/test_stokesdarcy2field_mms_compare_nd.py
 // python sympy: ./mms/mms_stokes_darcy_compare_nd.py
 // ---------------------------------------
@@ -17,7 +17,7 @@ static char help[] = "Application to verify two-phase flow implementation with a
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "../new_src/fdpde_stokesdarcy2field.h"
+#include "../src/fdpde_stokesdarcy2field.h"
 
 // ---------------------------------------
 // Application Context
