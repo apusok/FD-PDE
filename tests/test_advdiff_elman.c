@@ -4,8 +4,8 @@
 // Example 3.1.2 - Zero source term, variable vertical wind, characteristic boundary layers (Neumann BC).
 // Example 3.1.3 - Zero source term, constant wind at a 30◦ angle to the left of vertical, downstream boundary layer and interior layer.
 // Example 3.1.4 - Zero source term, recirculating wind, characteristic boundary layers.
-// run: ./tests/test_advdiff_elman.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
-// python test: ./tests/python/test_advdiff_elman.py
+// run: ./test_advdiff_elman.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
+// python test: ./python/test_advdiff_elman.py
 // ---------------------------------------
 static char help[] = "Application (examples from Elman 2005) to solve the convection diffusion equation (ADVDIFF) with FD-PDE \n\n";
 
@@ -20,9 +20,7 @@ static char help[] = "Application (examples from Elman 2005) to solve the convec
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_advdiff.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -1169,7 +1167,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 
@@ -1211,8 +1209,8 @@ int main (int argc,char **argv)
   PetscCall(DMDestroy(&dm)); 
   PetscCall(VecDestroy(&x)); 
 
-  PetscCall(PetscBagDestroy(&usr->bag);) 
-  PetscCall(PetscFree(usr));             
+  PetscCall(PetscBagDestroy(&usr->bag));
+  PetscCall(PetscFree(usr));
 
   // End time
   PetscCall(PetscTime(&end_time)); 

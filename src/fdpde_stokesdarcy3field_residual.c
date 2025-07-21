@@ -1,4 +1,3 @@
-#include "fdpde_stokes.h"
 #include "fdpde_stokesdarcy3field.h"
 
 // ---------------------------------------

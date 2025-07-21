@@ -1,8 +1,8 @@
 // ---------------------------------------
 // MMS test for porosity evolution - verify coupled system for two-phase flow 
 // Solves for coupled (P, v) and Q=(1-phi) evolution, where P-dynamic pressure, v-solid velocity, phi-porosity.
-// run: ./tests/test_stokesdarcy2field_mms_porosity.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 20 -nz 20 -snes_monitor 
-// python test: ./tests/python/test_stokesdarcy2field_mms_porosity.py
+// run: ./test_stokesdarcy2field_mms_porosity.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 20 -nz 20 -snes_monitor 
+// python test: ./python/test_stokesdarcy2field_mms_porosity.py
 // sympy: ./mms/mms_porosity_evolution.py
 // ---------------------------------------
 static char help[] = "Application to verify the Stokes-Darcy and porosity evolution using MMS\n\n";
@@ -18,10 +18,8 @@ static char help[] = "Application to verify the Stokes-Darcy and porosity evolut
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokesdarcy2field.h"
 #include "../src/fdpde_advdiff.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -278,6 +276,8 @@ PetscErrorCode Numerical_solution(void *ctx)
     // Clean up
     PetscCall(VecDestroy(&xPV));
     PetscCall(VecDestroy(&xphi));
+    PetscCall(VecDestroy(&xmms_PV));
+    PetscCall(VecDestroy(&xmms_phi));
 
     // increment timestep
     istep++;
@@ -287,8 +287,6 @@ PetscErrorCode Numerical_solution(void *ctx)
   }
 
   // Destroy objects
-  PetscCall(VecDestroy(&xmms_PV));
-  PetscCall(VecDestroy(&xmms_phi));
   PetscCall(DMDestroy(&dmPV));
   PetscCall(DMDestroy(&dmphi));
   PetscCall(FDPDEDestroy(&fdPV));
@@ -1356,7 +1354,7 @@ int main (int argc,char **argv)
   PetscCall(PetscInitialize(&argc,&argv,(char*)0,help));
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

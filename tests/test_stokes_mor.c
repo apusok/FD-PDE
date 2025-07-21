@@ -1,7 +1,7 @@
 // ---------------------------------------
 // Corner flow (mid-ocean ridges) benchmark
-// run: ./tests/test_stokes_mor.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
-// python test: ./tests/python/test_stokes_mor.py
+// run: ./test_stokes_mor.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
+// python test: ./python/test_stokes_mor.py
 // ---------------------------------------
 static char help[] = "Application to solve the 2D corner flow (mid-ocean ridges) benchmark with FD-PDE \n\n";
 
@@ -16,10 +16,8 @@ static char help[] = "Application to solve the 2D corner flow (mid-ocean ridges)
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
-#include "../src/fdpde_stokes.h"
 #include "../src/benchmark_cornerflow.h"
-#include "../src/dmstagoutput.h"
+#include "../src/fdpde_stokes.h"
 
 // ---------------------------------------
 // Application Context
@@ -181,7 +179,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
 
   // Input/output 
   PetscCall(PetscBagRegisterString(bag,&par->fname_out,FNAME_LENGTH,"out_num_solution_mor","output_file","Name for output file, set with: -output_file <filename>")); 
-  PetscCall(PetscBagRegisterString(bag,&par->fdir_out,FNAME_LENGTH,"./","output_dir","Name for output directory, set with: -output_dir <dirname>"); 
+  PetscCall(PetscBagRegisterString(bag,&par->fdir_out,FNAME_LENGTH,"./","output_dir","Name for output directory, set with: -output_dir <dirname>")); 
 
   // Other variables
   par->fname_in[0] = '\0';
@@ -571,7 +569,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

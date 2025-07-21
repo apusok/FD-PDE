@@ -1,8 +1,8 @@
 // ---------------------------------------
 // Shortening a two-phase block which is governed by the StokesDarcy model
 // Rheology: visco-plastic model
-// run: ./tests/test_stokesdarcy2field_vp_inclusion.app -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10 ......
-// python test: ./tests/python/.....
+// run: ./test_stokesdarcy2field_vp_inclusion.sh -pc_type lu -pc_factor_mat_solver_type umfpack -nx 10 -nz 10 -log_view
+// python test: ./python/test_stokesdarcy2field_vp_inclusion.py
 // ---------------------------------------
 static char help[] = "Application for shortening of a visco-plastic two-phase block in the absence of gravity \n\n";
 
@@ -17,10 +17,7 @@ static char help[] = "Application for shortening of a visco-plastic two-phase bl
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokesdarcy2field.h"
-#include "../src/consteq.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -1106,6 +1103,7 @@ PetscErrorCode UpdateStrainRates(DM dm, Vec x, void *ctx)
   
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
 // ---------------------------------------
 // Dimensionalize
 // ---------------------------------------
@@ -1444,7 +1442,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

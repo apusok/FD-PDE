@@ -3,8 +3,8 @@
 // Two-phase StokesDarcy model with an interface which is captured using the Phasefield method
 // R = 0, infinitely small compaction length, so that it is Stokes flow.
 // Rheology: visco-elasto-plastic model, inifinitely large C, Z.
-// run: ./tests/test_stokesdarcy2field_beam.app -nx 100 -nz 100 -pc_type lu -pc_factor_mat_solver_type umfpack
-// python test: ./tests/python/test_stokesdarcy2field_beam.py
+// run: ./test_stokesdarcy2field_beam.sh -nx 100 -nz 100 -pc_type lu -pc_factor_mat_solver_type umfpack -log_view
+// python test: ./python/test_stokesdarcy2field_beam.py
 // ---------------------------------------
 static char help[] = "Application for the visco-elastic beam benchmark \n\n";
 
@@ -19,10 +19,7 @@ static char help[] = "Application for the visco-elastic beam benchmark \n\n";
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokesdarcy2field.h"
-#include "../src/consteq.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -452,8 +449,8 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
       usr->par->t += 0.5*usr->par->dt;
 
       // 4th stage - (t = t+dt, fprev = fprev + hk3)
-      PetscCall(VecCopy(usr->fprev, fprev); 
-      PetscCall(VecAXPY(fprev, 1.0, hk3); 
+      PetscCall(VecCopy(usr->fprev, fprev)); 
+      PetscCall(VecAXPY(fprev, 1.0, hk3)); 
 
       // correct time by half step
       usr->par->t -= usr->par->dt;
@@ -528,7 +525,7 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
       PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/%s_residual_ts%1.3d",usr->par->fdir_out,usr->par->fname_out,ickpt));
       PetscCall(DMStagViewBinaryPython(dm,fd->r,fout));
       */
-      PetscCall(FDPDEGetCoefficient(fd,&dmcoeff,&xcoeff);
+      PetscCall(FDPDEGetCoefficient(fd,&dmcoeff,&xcoeff));
       PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/%s_coefficient_ts%1.3d",usr->par->fdir_out,usr->par->fname_out,ickpt));
       PetscCall(DMStagViewBinaryPython(dmcoeff,xcoeff,fout));
       
@@ -2027,7 +2024,7 @@ PetscErrorCode UpdateVolFrac(DM dm, Vec x, void *ctx)
 
   // Local vectors
   PetscCall(DMGetLocalVector(dm,&xlocal)); 
-  PetscCall(DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal);) 
+  PetscCall(DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal)); 
 
   PetscCall(DMCreateLocalVector(dm, &vflocal)); 
   PetscCall(DMStagVecGetArray(dm, vflocal, &vvf)); 
@@ -2196,7 +2193,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

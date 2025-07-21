@@ -1,6 +1,6 @@
 // ---------------------------------------
 // SOLCX benchmark - Irregular grid spacing
-// run: ./tests/test_stokes_solcx_vargrid.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
+// run: ./test_stokes_solcx_vargrid.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
 // viz: with Paraview (example VTK output)
 // ---------------------------------------
 static char help[] = "Application to solve the SolCx benchmark with FD-PDE - Irregular grid spacing \n\n";
@@ -16,7 +16,6 @@ static char help[] = "Application to solve the SolCx benchmark with FD-PDE - Irr
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokes.h"
 
 // ---------------------------------------
@@ -404,7 +403,7 @@ PetscErrorCode FormBCList(DM dm, Vec x, DMStagBCList bclist, void *ctx)
   PetscCall(DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc));
   
   // dVz/dx=0 on right boundary (e)
-  PetscCall(DMStagBCListGetValues(bclist,'e','|',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc))
+  PetscCall(DMStagBCListGetValues(bclist,'e','|',0,&n_bc,&idx_bc,NULL,NULL,&value_bc,&type_bc));
   for (k=0; k<n_bc; k++) {
     value_bc[k] = 0.0;
     type_bc[k] = BC_NEUMANN;
@@ -604,7 +603,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

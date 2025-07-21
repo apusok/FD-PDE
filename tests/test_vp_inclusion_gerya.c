@@ -1,8 +1,8 @@
 // ---------------------------------------
 // Shortening of a visco-plastic (von Mises criterion) block in the absence of gravity
 // Setup from T. Gerya, 2018, Ch. 13, ex. 13.2
-// run: ./tests/test_vp_inclusion_gerya.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -ksp_monitor -nx 20 -nz 20
-// python test: ./tests/python/test_vp_inclusion_gerya.py
+// run: ./test_vp_inclusion_gerya.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -ksp_monitor -nx 20 -nz 20 -log_view
+// python test: ./python/test_vp_inclusion_gerya.py
 // ---------------------------------------
 static char help[] = "Application for shortening of a visco-plastic block in the absence of gravity \n\n";
 
@@ -17,11 +17,7 @@ static char help[] = "Application for shortening of a visco-plastic block in the
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokes.h"
-#include "../src/consteq.h"
-#include "../src/dmstagoutput.h"
-
 
 // ---------------------------------------
 // Application Context
@@ -382,7 +378,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         PetscCall(DMStagGetLocationSlot(usr->dmeps,DOWN_LEFT,0,&idx));  xxs[j][i][idx] = txx[0]; xxy[j][i][idx] = Y[0];
         PetscCall(DMStagGetLocationSlot(usr->dmeps,DOWN_LEFT,1,&idx));  xxs[j][i][idx] = tzz[0];
         PetscCall(DMStagGetLocationSlot(usr->dmeps,DOWN_LEFT,2,&idx));  xxs[j][i][idx] = txz[0];
-        PetscCall(DMStagGetLocationSlot(usr->dmeps,DOWN_LEFT,3,&idx);)  xxs[j][i][idx] = tauII[0];
+        PetscCall(DMStagGetLocationSlot(usr->dmeps,DOWN_LEFT,3,&idx));  xxs[j][i][idx] = tauII[0];
 
         PetscCall(DMStagGetLocationSlot(usr->dmeps,DOWN_RIGHT,0,&idx));  xxs[j][i][idx] = txx[1]; xxy[j][i][idx] = Y[1];
         PetscCall(DMStagGetLocationSlot(usr->dmeps,DOWN_RIGHT,1,&idx));  xxs[j][i][idx] = tzz[1];
@@ -1212,7 +1208,7 @@ int main (int argc,char **argv)
   // Load command line or input file if required
   PetscCall(PetscOptionsSetValue(NULL,"-snes_monitor",NULL));
   PetscCall(PetscOptionsSetValue(NULL,"-p_snes_monitor",NULL));
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

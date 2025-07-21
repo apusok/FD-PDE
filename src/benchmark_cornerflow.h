@@ -1,3 +1,4 @@
+#include <petsc.h>
 
 static void evaluate_CornerFlow_MOR(PetscScalar C1, PetscScalar C4, PetscScalar u0, PetscScalar eta0, PetscScalar x, PetscScalar z, PetscScalar v[], PetscScalar *_p)
 /* Input parameters: constants C1, C4 (model specific), coordinates x, z

@@ -2,7 +2,6 @@
 /* THREE-FIELD FORMULATION */
 
 #include "fdpde_stokesdarcy3field.h"
-#include "fdpde_stokes.h"
 
 const char stokesdarcy3_description[] =
 "  << FD-PDE Stokes-Darcy 2 Field Formulation >> solves the PDEs: \n"

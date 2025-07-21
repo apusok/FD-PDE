@@ -1,7 +1,7 @@
 // ---------------------------------------
 // (ADVDIFF) Advection-diffusion convergence test using MMS
-// run: ./tests/test_advdiff_mms_convergence.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
-// python test: ./tests/python/test_advdiff_mms_convergence.py
+// run: ./test_advdiff_mms_convergence.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
+// python test: ./python/test_advdiff_mms_convergence.py
 // sympy: ./mms/mms_advdiff_convergence.py
 // ---------------------------------------
 static char help[] = "Application to verify the convergence accuracy of ADVDIFF FD-PDE using MMS \n\n";
@@ -17,9 +17,7 @@ static char help[] = "Application to verify the convergence accuracy of ADVDIFF 
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_advdiff.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -377,7 +375,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     // Set initial Q profile and coefficient
     PetscCall(FDPDEGetDM(fd, &dm)); 
     PetscCall(FDPDEAdvDiffGetPrevSolution(fd,&xprev));
-    PetscCall(SetInitialQProfile(dm,xprev,usr);)
+    PetscCall(SetInitialQProfile(dm,xprev,usr));
     PetscCall(VecDestroy(&xprev));
 
     PetscCall(FDPDEGetCoefficient(fd,&dmcoeff,NULL));
@@ -470,7 +468,7 @@ int main (int argc,char **argv)
   PetscCall(PetscInitialize(&argc,&argv,(char*)0,help));
 
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 
@@ -970,7 +968,7 @@ PetscErrorCode ComputeManufacturedSolution(DM dm, Vec *_xmms, void *ctx)
   }
 
   // Restore arrays
-  PetscCall(DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);)
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL));
 
   // Restore and map local to global
   PetscCall(DMStagVecRestoreArray(dm,xmmslocal,&xx)); 

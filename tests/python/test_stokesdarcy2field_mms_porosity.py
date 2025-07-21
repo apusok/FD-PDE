@@ -344,7 +344,7 @@ def test1_space(fname_dir,fname,n,ncpu):
     fout = fname_data+'/'+fname+'_'+str(nx)+'.out'
 
     # Run with different resolutions - 1 timestep
-    str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_mms_porosity '+solver+solver_default+ \
+    str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_mms_porosity.sh '+solver+solver_default+ \
         ' -dtmax '+str(dtmax)+ \
         ' -tmax '+str(tmax)+ \
         ' -tstep '+str(tstep_max)+ \
@@ -360,10 +360,10 @@ def test1_space(fname_dir,fname,n,ncpu):
 
     # Parse variables
     tstep, nrm_v_num, nrm_p_num, err_sum, err_mms, dt_num, hx_num = parse_log_file(fout)
-    nrm_p[i]   = nrm_p_num
-    nrm_v[i]   = nrm_v_num
-    nrm_phi[i] = err_sum**0.5
-    hx[i]    = hx_num
+    nrm_p[i]   = nrm_p_num[-1]
+    nrm_v[i]   = nrm_v_num[-1]
+    nrm_phi[i] = err_sum[-1]**0.5
+    hx[i]    = hx_num[-1]
 
     # Plot solution and error
     plot_solution_mms_error(fname_dir,fname,0,nx)
@@ -414,7 +414,7 @@ def test2_time(fname_dir,fname,dt,tend,n,ncpu):
       fname1 = fname+'_ts'+str(ts_scheme)+'_dt'+dt_string
 
       # Run test
-      str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_mms_porosity.app '+solver+solver_default+ \
+      str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_mms_porosity.sh '+solver+solver_default+ \
         ' -dtmax '+str(dtmax)+ \
         ' -tmax '+str(tend)+ \
         ' -e3 '+str(-1.0)+ \

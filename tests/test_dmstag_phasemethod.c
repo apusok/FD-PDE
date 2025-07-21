@@ -1,16 +1,15 @@
 // ---------------------------------------
 // STANDALONE Benchmark for the phase-equation method
-// run: ./tests/test_dmstag_phasemethod.app -nx 40 -nz 40 -icase (0/1/2/3/4/5) -dt 0.001 -tstep 10 -gamma 1 -eps 0.025
-// python test 1: ./tests/python/test_dmstag_phasemethod_stationary.py (for icase = 0, 1)
-// python test 2: ./tests/python/test_dmstag_phasemethod_flow.py (for icase = 2, 3, 4, 5)
+// run: ./test_dmstag_phasemethod.sh -nx 40 -nz 40 -icase (0/1/2/3/4/5) -dt 0.001 -tstep 10 -gamma 1 -eps 0.025 -log_view
+// python test 1: ./python/test_dmstag_phasemethod_stationary.py (for icase = 0, 1)
+// python test 2: ./python/test_dmstag_phasemethod_flow.py (for icase = 2, 3, 4, 5)
 // ---------------------------------------
 static char help[] = "Application to benchmark the phase-equation method to capture the interface between two fluids (Using DMStag) \n\n";
 
 // define convenient names for DMStagStencilLocation
 #define ELEMENT    DMSTAG_ELEMENT
 
-#include "petsc.h"
-#include "../src/dmstagoutput.h"
+#include "../src/fdpde_dmstag.h"
 
 // ---------------------------------------
 // Application Context
@@ -51,7 +50,6 @@ PetscErrorCode SetInitialField(DM,Vec,void*);
 PetscErrorCode UpdateGrad(DM,Vec,void*);
 PetscErrorCode ExplicitStep(DM,Vec,Vec,PetscScalar,void*);
 
-
 // ---------------------------------------
 // Application functions
 // ---------------------------------------
@@ -61,7 +59,7 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
 {
   UsrData       *usr = (UsrData*) ctx;
   DM             dmf;
-  Vec            f, fprev;
+  Vec            f, fprev, dfx, dfz;
   PetscInt       nx, nz, istep, tstep;
   PetscInt       dof, cs;
   PetscScalar    xmin, zmin, xmax, zmax, dt, ux, uz;
@@ -90,7 +88,7 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
   // Create the dmf object and coordinates
   /* set up solution and residual vectors */
   PetscCall(DMStagCreate2d(usr->comm,DM_BOUNDARY_NONE,DM_BOUNDARY_NONE,nx,nz,PETSC_DECIDE,PETSC_DECIDE,0,0,1,
-		        DMSTAG_STENCIL_BOX,1,PETSC_NULL,PETSC_NULL,&usr->dmf));  
+		        DMSTAG_STENCIL_BOX,1,NULL,NULL,&usr->dmf));  
   PetscCall(DMSetFromOptions(usr->dmf)); 
   PetscCall(DMSetUp(usr->dmf)); 
   PetscCall(DMStagSetUniformCoordinatesProduct(usr->dmf,xmin,xmax,zmin,zmax,0.0,0.0));
@@ -105,6 +103,8 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
   dmf   = usr->dmf;
   f     = usr->f;
   fprev = usr->fprev;
+  dfx   = usr->dfx;
+  dfz   = usr->dfz;
   
   // Create local vectors
   //PetscCall(DMGetLocalVector(usr->dmf,&flocal));
@@ -224,6 +224,8 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
 
   // Destroy vec and dm
   PetscCall(VecDestroy(&fprev));
+  PetscCall(VecDestroy(&dfx));
+  PetscCall(VecDestroy(&dfz));
   PetscCall(VecDestroy(&f));
   PetscCall(DMDestroy(&dmf)); 
 
@@ -247,7 +249,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 
@@ -267,7 +269,7 @@ int main (int argc,char **argv)
   PetscCall(Numerical_solution(usr,usr->par->ts_scheme));  // 0-1st, 1-rk2, 2-rk4
 
   PetscCall(PetscBagDestroy(&usr->bag)); 
-  PetscCall(PetscFree(usr));             
+  PetscCall(PetscFree(usr));
 
   // End time
   PetscCall(PetscTime(&end_time)); 
@@ -627,13 +629,16 @@ PetscErrorCode ExplicitStep(DM dm, Vec xprev, Vec x, PetscScalar dt, void *ctx)
   // Create local vector
   PetscCall(DMGetLocalVector(dm,&xplocal)); 
   PetscCall(DMGlobalToLocalBegin (dm,xprev,INSERT_VALUES,xplocal)); 
-  PetscCall(DMGlobalToLocalEnd (dm,xprev,INSERT_VALUES,xplocal)); 
+  PetscCall(DMGlobalToLocalEnd (dm,xprev,INSERT_VALUES,xplocal));
+
   PetscCall(DMGetLocalVector(dm,&xlocal)); 
   PetscCall(DMGlobalToLocalBegin (dm,x,INSERT_VALUES,xlocal)); 
   PetscCall(DMGlobalToLocalEnd (dm,x,INSERT_VALUES,xlocal)); 
+
   PetscCall(DMGetLocalVector(dm,&dfxlocal)); 
   PetscCall(DMGlobalToLocalBegin (dm,dfx,INSERT_VALUES,dfxlocal)); 
   PetscCall(DMGlobalToLocalEnd (dm,dfx,INSERT_VALUES,dfxlocal)); 
+
   PetscCall(DMGetLocalVector(dm,&dfzlocal)); 
   PetscCall(DMGlobalToLocalBegin (dm,dfz,INSERT_VALUES,dfzlocal)); 
   PetscCall(DMGlobalToLocalEnd (dm,dfz,INSERT_VALUES,dfzlocal)); 
@@ -787,18 +792,17 @@ PetscErrorCode ExplicitStep(DM dm, Vec xprev, Vec x, PetscScalar dt, void *ctx)
     }
   }
 
-  
   // Restore arrays, local vectors
   PetscCall(DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL));
   PetscCall(DMStagVecRestoreArray(dm,xlocal,&xx));
   PetscCall(DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x)); 
   PetscCall(DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x)); 
-  PetscCall(VecDestroy(&xlocal)); 
+  PetscCall(DMRestoreLocalVector(dm, &xlocal)); 
 
   PetscCall(DMStagVecRestoreArray(dm,xplocal,&xxp));
   PetscCall(DMLocalToGlobalBegin(dm,xplocal,INSERT_VALUES,xprev)); 
   PetscCall(DMLocalToGlobalEnd  (dm,xplocal,INSERT_VALUES,xprev)); 
-  PetscCall(VecDestroy(&xplocal)); 
+  PetscCall(DMRestoreLocalVector(dm, &xplocal)); 
 
   PetscCall(DMRestoreLocalVector(dm, &dfxlocal)); 
   PetscCall(DMRestoreLocalVector(dm, &dfzlocal)); 

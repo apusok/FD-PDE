@@ -1,14 +1,6 @@
-
-#include "fdpde.h"
-#include "composite_prealloc_utils.h"
+#include "fdpde_composite.h"
 
 const char pde_description[] = "Composite PDE object for coupled non-linear problems";
-
-static PetscErrorCode JacobianCreate_Composite(FDPDE fd,Mat *J);
-       PetscErrorCode FDPDESetUp_Composite(FDPDE fd);
-static PetscErrorCode FDPDEView_Composite(FDPDE fd);
-static PetscErrorCode FDPDEDestroy_Composite(FDPDE fd);
-static PetscErrorCode FormFunction_Composite(SNES snes,Vec X,Vec F,void *ctx);
 
 typedef struct {
   FDPDE     *pdelist;
@@ -18,6 +10,7 @@ typedef struct {
   PetscBool setup;
 } PDEComposite;
 
+// ---------------------------------------
 PetscErrorCode FDPDECreate_Composite(FDPDE fd)
 {
   PDEComposite *composite;
@@ -41,7 +34,8 @@ PetscErrorCode FDPDECreate_Composite(FDPDE fd)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode JacobianCreate_Composite(FDPDE fd,Mat *J)
+// ---------------------------------------
+PetscErrorCode JacobianCreate_Composite(FDPDE fd,Mat *J)
 {
   PDEComposite   *composite;
 
@@ -51,7 +45,8 @@ static PetscErrorCode JacobianCreate_Composite(FDPDE fd,Mat *J)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode FormFunction_Composite(SNES snes,Vec X,Vec F,void *ctx)
+// ---------------------------------------
+PetscErrorCode FormFunction_Composite(SNES snes,Vec X,Vec F,void *ctx)
 {
   FDPDE          fd = (FDPDE)ctx;
   PDEComposite   *composite;
@@ -97,6 +92,7 @@ static PetscErrorCode FormFunction_Composite(SNES snes,Vec X,Vec F,void *ctx)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
 PetscErrorCode FDPDESetUp_Composite(FDPDE fd)
 {
   PDEComposite *composite;
@@ -145,7 +141,8 @@ PetscErrorCode FDPDESetUp_Composite(FDPDE fd)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode FDPDEView_Composite(FDPDE fd)
+// ---------------------------------------
+PetscErrorCode FDPDEView_Composite(FDPDE fd)
 {
   PDEComposite *composite;
   PetscInt i;
@@ -159,7 +156,8 @@ static PetscErrorCode FDPDEView_Composite(FDPDE fd)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-static PetscErrorCode FDPDEDestroy_Composite(FDPDE fd)
+// ---------------------------------------
+PetscErrorCode FDPDEDestroy_Composite(FDPDE fd)
 {
   PDEComposite *composite;
   PetscInt i;
@@ -178,6 +176,7 @@ static PetscErrorCode FDPDEDestroy_Composite(FDPDE fd)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
 PetscErrorCode FDPDECompositeSetFDPDE(FDPDE fd,PetscInt n,FDPDE pdelist[])
 {
   PDEComposite *composite;
@@ -201,6 +200,7 @@ PetscErrorCode FDPDECompositeSetFDPDE(FDPDE fd,PetscInt n,FDPDE pdelist[])
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
 PetscErrorCode FDPDECompositeGetFDPDE(FDPDE fd,PetscInt *n,FDPDE *pdelist[])
 {
   PDEComposite *composite;
@@ -213,6 +213,7 @@ PetscErrorCode FDPDECompositeGetFDPDE(FDPDE fd,PetscInt *n,FDPDE *pdelist[])
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
 PetscErrorCode FDPDECompositeSynchronizeGlobalVectors(FDPDE fd,Vec X)
 {
   PDEComposite   *composite;
@@ -238,170 +239,171 @@ PetscErrorCode FDPDECompositeSynchronizeGlobalVectors(FDPDE fd,Vec X)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode FDPDECreateComposite(MPI_Comm comm,PetscInt n,FDPDE pdelist[],FDPDE *fd)
-{
-  PetscFunctionBegin;
-  PetscCall(FDPDECreate2(comm,fd));
-  PetscCall(FDPDESetType(*fd,FDPDE_COMPOSITE));
-  PetscCall(FDPDECompositeSetFDPDE(*fd,n,pdelist));
-  PetscCall(FDPDESetUp(*fd));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
+// ---------------------------------------
+// PetscErrorCode FDPDECreateComposite(MPI_Comm comm,PetscInt n,FDPDE pdelist[],FDPDE *fd)
+// {
+//   PetscFunctionBegin;
+//   PetscCall(FDPDECreate2(comm,fd));
+//   PetscCall(FDPDESetType(*fd,FDPDE_COMPOSITE));
+//   PetscCall(FDPDECompositeSetFDPDE(*fd,n,pdelist));
+//   PetscCall(FDPDESetUp(*fd));
+//   PetscFunctionReturn(PETSC_SUCCESS);
+// }
 
-PetscErrorCode FDPDESNESComposite_GaussSeidel(FDPDE fd,Vec X)
-{
-  PDEComposite   *composite;
-  DM             dm;
-  PetscInt       i,its,maxit;
-  Vec            *subX,*subF;
-  PetscReal      normF,normF0,rtol,atol;
+// ---------------------------------------
+// PetscErrorCode FDPDESNESComposite_GaussSeidel(FDPDE fd,Vec X)
+// {
+//   PDEComposite   *composite;
+//   DM             dm;
+//   PetscInt       i,its,maxit;
+//   Vec            *subX,*subF;
+//   PetscReal      normF,normF0,rtol,atol;
 
-  PetscFunctionBegin;
-  composite = (PDEComposite*)fd->data;
-  dm = fd->dmstag; /* dmcomposite */
-  subX = composite->subX;
-  subF = composite->subF;
+//   PetscFunctionBegin;
+//   composite = (PDEComposite*)fd->data;
+//   dm = fd->dmstag; /* dmcomposite */
+//   subX = composite->subX;
+//   subF = composite->subF;
   
+//   PetscCall(SNESGetTolerances(fd->snes,&atol,&rtol,NULL,&maxit,NULL));
   
-  PetscCall(SNESGetTolerances(fd->snes,&atol,&rtol,NULL,&maxit,NULL));
+//   PetscCall(SNESComputeFunction(fd->snes,X,fd->r));
+//   PetscCall(VecNorm(fd->r,NORM_2,&normF0));
   
-  PetscCall(SNESComputeFunction(fd->snes,X,fd->r));
-  PetscCall(VecNorm(fd->r,NORM_2,&normF0));
-  
-  for (its=0; its<maxit; its++) {
+//   for (its=0; its<maxit; its++) {
 
-    PetscCall(DMCompositeGetAccessArray(dm,X,composite->n,NULL,subX));
-    /* set auxillary vectors */
-    for (i=0; i<composite->n; i++) {
-      composite->pdelist[i]->naux_global_vectors = composite->n;
-      composite->pdelist[i]->aux_global_vectors = subX;
-    }
+//     PetscCall(DMCompositeGetAccessArray(dm,X,composite->n,NULL,subX));
+//     /* set auxillary vectors */
+//     for (i=0; i<composite->n; i++) {
+//       composite->pdelist[i]->naux_global_vectors = composite->n;
+//       composite->pdelist[i]->aux_global_vectors = subX;
+//     }
     
-    //PetscCall(SNESComputeFunction(fd->snes,X,fd->r);
-    PetscCall(DMCompositeGetAccessArray(dm,fd->r,composite->n,NULL,subF));
+//     //PetscCall(SNESComputeFunction(fd->snes,X,fd->r);
+//     PetscCall(DMCompositeGetAccessArray(dm,fd->r,composite->n,NULL,subF));
 
-    for (i=0; i<composite->n; i++) {
-      /* Copy state (X) and residual (F) into sub-FDPDE objects */
-      /* The state vector is most likely required as this is passed to form_coefficient() */
-      /* The residual vector is likely NOT required to be copied */
-      PetscCall(VecCopy(subX[i],composite->pdelist[i]->x));
-      PetscCall(VecCopy(subF[i],composite->pdelist[i]->r));
+//     for (i=0; i<composite->n; i++) {
+//       /* Copy state (X) and residual (F) into sub-FDPDE objects */
+//       /* The state vector is most likely required as this is passed to form_coefficient() */
+//       /* The residual vector is likely NOT required to be copied */
+//       PetscCall(VecCopy(subX[i],composite->pdelist[i]->x));
+//       PetscCall(VecCopy(subF[i],composite->pdelist[i]->r));
 
-      PetscCall(SNESSolve(composite->pdelist[i]->snes,NULL,subX[i]));
-      PetscCall(SNESComputeFunction(composite->pdelist[i]->snes,subX[i],subF[i]));
-      VecNorm(subF[i],NORM_2,&normF);
-      printf("[iteraton %d][pde %d] |F| %+1.6e\n",its,i,normF);
-    }
+//       PetscCall(SNESSolve(composite->pdelist[i]->snes,NULL,subX[i]));
+//       PetscCall(SNESComputeFunction(composite->pdelist[i]->snes,subX[i],subF[i]));
+//       VecNorm(subF[i],NORM_2,&normF);
+//       printf("[iteraton %d][pde %d] |F| %+1.6e\n",its,i,normF);
+//     }
 
-    PetscCall(DMCompositeRestoreAccessArray(dm,fd->r,composite->n,NULL,subF));
-    PetscCall(DMCompositeRestoreAccessArray(dm,X,composite->n,NULL,subX));
+//     PetscCall(DMCompositeRestoreAccessArray(dm,fd->r,composite->n,NULL,subF));
+//     PetscCall(DMCompositeRestoreAccessArray(dm,X,composite->n,NULL,subX));
 
-    PetscCall(SNESComputeFunction(fd->snes,X,fd->r));
-    PetscCall(VecNorm(fd->r,NORM_2,&normF));
-    printf("[iteraton %d] |F| %+1.6e |F|/|F0| %+1.6e\n",its,normF,normF/normF0);
-    if (normF < atol) break;
-    if (normF/normF0 < rtol) break;
-  }
+//     PetscCall(SNESComputeFunction(fd->snes,X,fd->r));
+//     PetscCall(VecNorm(fd->r,NORM_2,&normF));
+//     printf("[iteraton %d] |F| %+1.6e |F|/|F0| %+1.6e\n",its,normF,normF/normF0);
+//     if (normF < atol) break;
+//     if (normF/normF0 < rtol) break;
+//   }
 
-  /* copy solution */
-  PetscCall(DMCompositeGetAccessArray(dm,X,composite->n,NULL,subX));
-  for (i=0; i<composite->n; i++) {
-    PetscCall(VecCopy(subX[i],composite->pdelist[i]->x));
-  }
-  PetscCall(DMCompositeRestoreAccessArray(dm,X,composite->n,NULL,subX));
+//   /* copy solution */
+//   PetscCall(DMCompositeGetAccessArray(dm,X,composite->n,NULL,subX));
+//   for (i=0; i<composite->n; i++) {
+//     PetscCall(VecCopy(subX[i],composite->pdelist[i]->x));
+//   }
+//   PetscCall(DMCompositeRestoreAccessArray(dm,X,composite->n,NULL,subX));
   
-  /* probably unecesary, but NULL-ify vectors just for safety */
-  for (i=0; i<composite->n; i++) {
-    composite->subX[i] = NULL;
-    composite->subF[i] = NULL;
-  }
-  /* reset auxillary vectors */
-  for (i=0; i<composite->n; i++) {
-    composite->pdelist[i]->naux_global_vectors = 0;
-    composite->pdelist[i]->aux_global_vectors = NULL;
-  }
+//   /* probably unecesary, but NULL-ify vectors just for safety */
+//   for (i=0; i<composite->n; i++) {
+//     composite->subX[i] = NULL;
+//     composite->subF[i] = NULL;
+//   }
+//   /* reset auxillary vectors */
+//   for (i=0; i<composite->n; i++) {
+//     composite->pdelist[i]->naux_global_vectors = 0;
+//     composite->pdelist[i]->aux_global_vectors = NULL;
+//   }
   
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
+//   PetscFunctionReturn(PETSC_SUCCESS);
+// }
 
+// ---------------------------------------
+// PetscErrorCode FDPDESNESComposite_Jacobi(FDPDE fd,Vec X)
+// {
+//   PDEComposite   *composite;
+//   DM             dm;
+//   PetscInt       i,its,maxit;
+//   Vec            *subX,*subF,*jstate;
+//   PetscReal      normF,normF0,rtol,atol;
+  
+//   PetscFunctionBegin;
+//   composite = (PDEComposite*)fd->data;
+//   dm = fd->dmstag; /* dmcomposite */
+//   subX = composite->subX;
+//   subF = composite->subF;
+  
+//   PetscCall(PetscCalloc1(composite->n,&jstate));
+//   for (i=0; i<composite->n; i++) {
+//     jstate[i] = composite->pdelist[i]->x;
+//   }
 
-PetscErrorCode FDPDESNESComposite_Jacobi(FDPDE fd,Vec X)
-{
-  PDEComposite   *composite;
-  DM             dm;
-  PetscInt       i,its,maxit;
-  Vec            *subX,*subF,*jstate;
-  PetscReal      normF,normF0,rtol,atol;
+//   PetscCall(SNESGetTolerances(fd->snes,&atol,&rtol,NULL,&maxit,NULL));
   
-  PetscFunctionBegin;
-  composite = (PDEComposite*)fd->data;
-  dm = fd->dmstag; /* dmcomposite */
-  subX = composite->subX;
-  subF = composite->subF;
+//   PetscCall(SNESComputeFunction(fd->snes,X,fd->r));
+//   PetscCall(VecNorm(fd->r,NORM_2,&normF0));
   
-  PetscCall(PetscCalloc1(composite->n,&jstate));
-  for (i=0; i<composite->n; i++) {
-    jstate[i] = composite->pdelist[i]->x;
-  }
-
-  PetscCall(SNESGetTolerances(fd->snes,&atol,&rtol,NULL,&maxit,NULL));
-  
-  PetscCall(SNESComputeFunction(fd->snes,X,fd->r));
-  PetscCall(VecNorm(fd->r,NORM_2,&normF0));
-  
-  for (its=0; its<maxit; its++) {
+//   for (its=0; its<maxit; its++) {
     
-    PetscCall(DMCompositeGetAccessArray(dm,X,composite->n,NULL,subX));
-    PetscCall(DMCompositeGetAccessArray(dm,fd->r,composite->n,NULL,subF));
+//     PetscCall(DMCompositeGetAccessArray(dm,X,composite->n,NULL,subX));
+//     PetscCall(DMCompositeGetAccessArray(dm,fd->r,composite->n,NULL,subF));
     
-    for (i=0; i<composite->n; i++) {
+//     for (i=0; i<composite->n; i++) {
 
-      PetscCall(SNESSetSolution(composite->pdelist[i]->snes,subX[i]));
+//       PetscCall(SNESSetSolution(composite->pdelist[i]->snes,subX[i]));
       
-      /* reset aux to point to state from previous iterate */
-      composite->pdelist[i]->naux_global_vectors = composite->n;
-      composite->pdelist[i]->aux_global_vectors = jstate;
+//       /* reset aux to point to state from previous iterate */
+//       composite->pdelist[i]->naux_global_vectors = composite->n;
+//       composite->pdelist[i]->aux_global_vectors = jstate;
       
-      PetscCall(SNESSolve(composite->pdelist[i]->snes,NULL,subX[i]));
-      PetscCall(SNESComputeFunction(composite->pdelist[i]->snes,subX[i],subF[i]));
-      PetscCall(VecNorm(subF[i],NORM_2,&normF));
-      printf("[iteraton %d][pde %d] |F| %+1.6e\n",its,i,normF);
-    }
+//       PetscCall(SNESSolve(composite->pdelist[i]->snes,NULL,subX[i]));
+//       PetscCall(SNESComputeFunction(composite->pdelist[i]->snes,subX[i],subF[i]));
+//       PetscCall(VecNorm(subF[i],NORM_2,&normF));
+//       printf("[iteraton %d][pde %d] |F| %+1.6e\n",its,i,normF);
+//     }
     
-    /* update state */
-    for (i=0; i<composite->n; i++) {
-      PetscCall(VecCopy(subX[i],composite->pdelist[i]->x));
-    }
+//     /* update state */
+//     for (i=0; i<composite->n; i++) {
+//       PetscCall(VecCopy(subX[i],composite->pdelist[i]->x));
+//     }
     
-    PetscCall(DMCompositeRestoreAccessArray(dm,fd->r,composite->n,NULL,subF));
-    PetscCall(DMCompositeRestoreAccessArray(dm,X,composite->n,NULL,subX));
+//     PetscCall(DMCompositeRestoreAccessArray(dm,fd->r,composite->n,NULL,subF));
+//     PetscCall(DMCompositeRestoreAccessArray(dm,X,composite->n,NULL,subX));
     
-    PetscCall(SNESComputeFunction(fd->snes,X,fd->r));
+//     PetscCall(SNESComputeFunction(fd->snes,X,fd->r));
     
-    PetscCall(VecNorm(fd->r,NORM_2,&normF));
-    printf("[iteraton %d] |F| %+1.6e |F|/|F0| %+1.6e\n",its,normF,normF/normF0);
-    if (normF < atol) break;
-    if (normF/normF0 < rtol) break;
-  }
+//     PetscCall(VecNorm(fd->r,NORM_2,&normF));
+//     printf("[iteraton %d] |F| %+1.6e |F|/|F0| %+1.6e\n",its,normF,normF/normF0);
+//     if (normF < atol) break;
+//     if (normF/normF0 < rtol) break;
+//   }
 
-  PetscCall(DMCompositeGetAccessArray(dm,X,composite->n,NULL,subX));
-  for (i=0; i<composite->n; i++) {
-    PetscCall(VecCopy(subX[i],composite->pdelist[i]->x));
-  }
-  PetscCall(DMCompositeRestoreAccessArray(dm,X,composite->n,NULL,subX));
+//   PetscCall(DMCompositeGetAccessArray(dm,X,composite->n,NULL,subX));
+//   for (i=0; i<composite->n; i++) {
+//     PetscCall(VecCopy(subX[i],composite->pdelist[i]->x));
+//   }
+//   PetscCall(DMCompositeRestoreAccessArray(dm,X,composite->n,NULL,subX));
   
-  /* probably unecesary, but NULL-ify vectors just for safety */
-  for (i=0; i<composite->n; i++) {
-    composite->subX[i] = NULL;
-    composite->subF[i] = NULL;
-  }
-  /* reset auxillary vectors */
-  for (i=0; i<composite->n; i++) {
-    composite->pdelist[i]->naux_global_vectors = 0;
-    composite->pdelist[i]->aux_global_vectors = NULL;
-  }
-  PetscCall(PetscFree(jstate));
+//   /* probably unecesary, but NULL-ify vectors just for safety */
+//   for (i=0; i<composite->n; i++) {
+//     composite->subX[i] = NULL;
+//     composite->subF[i] = NULL;
+//   }
+//   /* reset auxillary vectors */
+//   for (i=0; i<composite->n; i++) {
+//     composite->pdelist[i]->naux_global_vectors = 0;
+//     composite->pdelist[i]->aux_global_vectors = NULL;
+//   }
+//   PetscCall(PetscFree(jstate));
   
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
+//   PetscFunctionReturn(PETSC_SUCCESS);
+// }
 

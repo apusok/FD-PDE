@@ -1,5 +1,5 @@
 static char help[] = "Test: DMStagCellSize_2d, Coordinates of true boundary returned from DMStagBCListGetValues. \n\n";
-// run: ./tests/test_trueboundary.app
+// run: ./test_trueboundary.sh
 
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
 #define DOWN       DMSTAG_DOWN
@@ -11,9 +11,7 @@ static char help[] = "Test: DMStagCellSize_2d, Coordinates of true boundary retu
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
-#include "../src/dmstagbclist.h"
-#include "../src/dmstag_utils.h"
+#include "../src/fdpde_dmstag.h"
 
 PetscErrorCode test1(PetscInt nx,PetscInt ny)
 {
@@ -22,6 +20,7 @@ PetscErrorCode test1(PetscInt nx,PetscInt ny)
   DMStagBCList    bclist;
   PetscInt        i,j;
   PetscScalar     *dx,*dy;
+  PetscFunctionBeginUser;
   
   dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
@@ -57,6 +56,7 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
   DM              dm;
   PetscInt        dof0,dof1,dof2,stencilWidth;
   DMStagBCList    bclist;
+  PetscFunctionBeginUser;
   
   dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
@@ -236,7 +236,6 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
     /* Set edge BC values (-). No need to define the face, it is encoded in idx_bc[] */
     PetscCall(DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
   }
-  
   
   PetscCall(DMStagBCListView(bclist));
   PetscCall(DMStagBCListDestroy(&bclist));

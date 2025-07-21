@@ -3,10 +3,11 @@
 #ifndef FDPDE_H
 #define FDPDE_H
 
-#include "petsc.h"
-#include "prealloc_helper.h"
-#include "dmstagbclist.h"
-#include "snes_picard.h"
+#include <petsc.h>
+#include "fdpde_dmstag.h"
+#include "fdpde_dmswarm.h"
+#include "fdpde_snes.h"
+#include "fdpde_utils.h"
 
 // ---------------------------------------
 // Enum definitions
@@ -68,7 +69,7 @@ PetscErrorCode FDPDESetUp(FDPDE);
 PetscErrorCode FDPDEDestroy(FDPDE*);
 PetscErrorCode FDPDEView(FDPDE);
 PetscErrorCode FDPDESolve(FDPDE,PetscBool*);
-PetscErrorCode FDPDESolveReport(FDPDE,PetscViewer);
+// PetscErrorCode FDPDESolveReport(FDPDE,PetscViewer);
 PetscErrorCode FDPDESolvePicard(FDPDE,PetscBool*);
 
 PetscErrorCode FDPDESetFunctionBCList(FDPDE, PetscErrorCode (*evaluate)(DM,Vec,DMStagBCList,void*), const char description[], void*);
@@ -80,7 +81,7 @@ PetscErrorCode FDPDESetDMBoundaryType(FDPDE,DMBoundaryType,DMBoundaryType);
 PetscErrorCode FDPDEGetDM(FDPDE,DM*);
 PetscErrorCode FDPDEGetSolution(FDPDE,Vec*);
 PetscErrorCode FDPDEGetSNES(FDPDE,SNES*);
-PetscErrorCode FDPDEGetDMStagBCList(FDPDE,DMStagBCList*);
+// PetscErrorCode FDPDEGetDMStagBCList(FDPDE,DMStagBCList*);
 PetscErrorCode FDPDEGetCoefficient(FDPDE,DM*,Vec*);
 PetscErrorCode FDPDEGetSolutionGuess(FDPDE,Vec*);
 
@@ -89,8 +90,8 @@ PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE,PetscScalar**,PetscScala
 
 PetscErrorCode FDPDECreate2(MPI_Comm,FDPDE*);
 PetscErrorCode FDPDESetType(FDPDE,FDPDEType);
-PetscErrorCode FDPDESetSizes(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
+// PetscErrorCode FDPDESetSizes(FDPDE,PetscInt,PetscInt,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 PetscErrorCode FDPDEGetAuxGlobalVectors(FDPDE,PetscInt*,Vec**);
-PetscErrorCode FDPDEFormCoefficient(FDPDE fd);
+// PetscErrorCode FDPDEFormCoefficient(FDPDE fd);
 
 #endif

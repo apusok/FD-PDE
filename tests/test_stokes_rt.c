@@ -1,5 +1,7 @@
 // ---------------------------------------
-// run: ./tests/test_stokes_rt.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -snes_type ksponly -snes_fd_color -nt 800
+// run: ./test_stokes_rt.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -snes_type ksponly -snes_fd_color -nt 800 -log_view
+// python test (need viz): ./python/test_stokes_rt.py
+// Visualize: with ParaView to open xmf files
 // ---------------------------------------
 static char help[] = "Application to solve an Rayleigh-Taylor instability\n\n";
 
@@ -14,10 +16,8 @@ static char help[] = "Application to solve an Rayleigh-Taylor instability\n\n";
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokes.h"
-#include "../src/dmstagoutput.h"
-#include "../src/material_point.h"
+#include "../src/fdpde_dmswarm.h"
 
 // ---------------------------------------
 // Application Context
@@ -144,7 +144,7 @@ static PetscErrorCode DumpSolution(DM dmStokes,Vec x, void *ctx)
   PetscCall(VecDestroy(&vecVelAvg));
   PetscCall(DMDestroy(&daVelAvg));
   PetscCall(DMDestroy(&dmVelAvg));
-  PetscFunctionReturn(PETSC_SUCCESS));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
@@ -626,7 +626,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

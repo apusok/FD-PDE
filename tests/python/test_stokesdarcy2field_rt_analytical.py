@@ -498,7 +498,7 @@ for ivf in range(numvf):
                 
                 # Run test
                 # Forward euler
-                str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_rt' + \
+                str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy2field_rt.sh' + \
                        ' -nx '+str(nx)+' -nz '+str(nz)+' -tstep '+str(tstep) + \
                        newton + model + phase + solver + sdpar + \
                        ' -output_dir '+fname+' -output_file '+fname+' -tout '+str(tout)+' -ts_scheme 0'
@@ -627,7 +627,7 @@ for ivf in range(numvf):
                     #cbar = fig1.colorbar(im,ax=ax0, shrink=0.75)
                     ax0.grid(True,color='gray', linestyle=':', linewidth=0.5)        
                     
-                    p1 = cs.collections[0].get_paths()[0]  # grab the 1st path
+                    p1 = cs.get_paths()[0]  # grab the 1st path
                     coor_p1 = p1.vertices
                     print(np.max(coor_p1[:,1]), np.min(coor_p1[:,1]))
                     dd = (np.max(coor_p1[:,1])- np.min(coor_p1[:,1]))/2

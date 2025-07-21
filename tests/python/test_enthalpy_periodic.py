@@ -58,7 +58,7 @@ else:
 # Run test 1 - horizontal
 uz = 0.0
 fname_out = fname+'_hor'
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_enthalpy_periodic '+solver+' -output_file '+fname_out+' -output_dir '+fname_data+ \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_enthalpy_periodic.sh '+solver+' -output_file '+fname_out+' -output_dir '+fname_data+ \
   ' -nx '+str(n)+' -nz '+str(n)+' -x0 '+str(x0)+' -z0 '+str(z0)+' -uz '+str(uz)+' -tstep '+str(tstep)+' -tout '+str(tout)+gs+solver_default+ \
   ' > '+fname_data+'/'+fname_out+'.out'
 print(str1)

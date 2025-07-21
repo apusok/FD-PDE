@@ -1,14 +1,12 @@
 static char help[] = "Test for projection of material properties from dmswarm to dmstag\n\n";
-// Run: mpiexec -n 2 ./test_dmswarm_project.app
+// Run: mpiexec -n 2 ./test_dmswarm_project.sh -log_view
 // Visualize: 1) dmswarm - use ParaView to open xmf files
 // 2) xproj - using python
 // >>> import dmstagoutput as dmout
 // >>> dmout.general_output_imshow('out_xproj',None,None)
 
-#include "petsc.h"
 #include "../src/fdpde_stokes.h"
-#include "../src/dmstagoutput.h"
-#include "../src/material_point.h"
+#include "../src/fdpde_dmswarm.h"
 
 // ---------------------------------------
 PetscErrorCode test_dmswarm_project(PetscInt nx, PetscInt nz, PetscInt ppcell)
@@ -16,6 +14,7 @@ PetscErrorCode test_dmswarm_project(PetscInt nx, PetscInt nz, PetscInt ppcell)
   FDPDE          fd;
   DM             dm, dmproj, dmswarm;
   Vec            xproj;
+  PetscFunctionBeginUser;
 
   // set up fdpde object
   PetscCall(FDPDECreate(PETSC_COMM_WORLD,nx,nz,0.0,1.0,0.0,1.0,FDPDE_STOKES,&fd));

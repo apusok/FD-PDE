@@ -1,8 +1,7 @@
 static char help[] = "DMStag output and read test \n\n";
-// run: ./tests/test_dmstagoutput_read.app
+// run: ./test_dmstagoutput_read.sh
 
-#include "petsc.h"
-#include "../src/dmstagoutput.h"
+#include "../src/fdpde_dmstag.h"
 
 PetscErrorCode test_write(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscInt dof2,const char fname[])
 {
@@ -10,6 +9,7 @@ PetscErrorCode test_write(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,Pe
   Vec             x, xlocal;
   PetscInt        i,j,ii, sx, sz, nx, nz, idx;
   PetscScalar    **cx,**cz,***xx;
+  PetscFunctionBeginUser;
   
   PetscCall(DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, Nx, Nz, PETSC_DECIDE, PETSC_DECIDE, 
                         dof0, dof1, dof2, DMSTAG_STENCIL_BOX,1, NULL,NULL, &dm));
@@ -110,6 +110,7 @@ PetscErrorCode test_read(const char fname[])
   DM             dm;
   Vec            x;
   char           fout[200];
+  PetscFunctionBeginUser;
 
   // Read data from file
   PetscCall(DMStagReadBinaryPython(&dm,&x,fname));

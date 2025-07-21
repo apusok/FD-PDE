@@ -1,5 +1,5 @@
 static char help[] = "DMStagBCList test \n\n";
-// run: ./tests/test_dmstagbclist.app
+// run: ./test_dmstagbclist.sh
 
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
 #define DOWN       DMSTAG_DOWN
@@ -11,14 +11,14 @@ static char help[] = "DMStagBCList test \n\n";
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
-#include "../src/dmstagbclist.h"
+#include "../src/fdpde_dmstag.h"
 
 PetscErrorCode test1(PetscInt nx,PetscInt ny)
 {
   DM              dm;
   PetscInt        dof0,dof1,dof2,stencilWidth;
   DMStagBCList    bclist;
+  PetscFunctionBeginUser;
   
   dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
@@ -28,14 +28,14 @@ PetscErrorCode test1(PetscInt nx,PetscInt ny)
   PetscCall(DMStagSetCoordinateDMType(dm,DMPRODUCT));
   PetscCall(DMSetFromOptions(dm));
   PetscCall(DMSetUp(dm));
-  
   PetscCall(DMStagSetUniformCoordinatesProduct(dm,0.0,1.0,0.0,1.0,0.0,0.0));
 
   PetscCall(DMStagBCListCreate(dm,&bclist));
   PetscCall(DMStagBCListView(bclist));
   PetscCall(DMStagBCListDestroy(&bclist));
+
   PetscCall(DMDestroy(&dm));
-  
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -44,7 +44,8 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
   DM              dm;
   PetscInt        dof0,dof1,dof2,stencilWidth;
   DMStagBCList    bclist;
-  
+  PetscFunctionBeginUser;
+
   dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
   
@@ -100,7 +101,6 @@ PetscErrorCode test2(PetscInt nx,PetscInt ny)
     PetscCall(DMStagBCListInsertValues(bclist,'o',0,&n_bc,&idx_bc,&x_bc,NULL,&value_bc,&type_bc));
   }
   
-  
   PetscCall(DMStagBCListView(bclist));
   PetscCall(DMStagBCListDestroy(&bclist));
   PetscCall(DMDestroy(&dm));
@@ -113,7 +113,8 @@ PetscErrorCode test3(PetscInt nx,PetscInt ny)
   DM              dm;
   PetscInt        dof0,dof1,dof2,stencilWidth;
   DMStagBCList    bclist;
-  
+  PetscFunctionBeginUser;
+
   dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
   
@@ -149,6 +150,7 @@ PetscErrorCode test4(PetscInt nx,PetscInt ny)
   DM              dm;
   PetscInt        dof0,dof1,dof2,stencilWidth;
   DMStagBCList    bclist;
+  PetscFunctionBeginUser;
 
   dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
@@ -189,7 +191,8 @@ PetscErrorCode test5(PetscInt nx,PetscInt ny)
   DM              dm;
   PetscInt        dof0,dof1,dof2,stencilWidth;
   DMStagBCList    bclist;
-  
+  PetscFunctionBeginUser;
+
   dof0 = 0; dof1 = 2; dof2 = 2; /* (vertex) (face) (element) */
   stencilWidth = 1;
   

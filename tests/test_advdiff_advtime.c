@@ -1,7 +1,7 @@
 // ---------------------------------------
 // (ADVDIFF) Pure advection and time-stepping test
-// run: ./tests/test_advdiff_advtime.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
-// python test: ./tests/python/test_advdiff_advtime.py
+// run: ./test_advdiff_advtime.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
+// python test: ./python/test_advdiff_advtime.py
 // ---------------------------------------
 static char help[] = "Application to solve advection of a Gaussian pulse in time (ADVDIFF) with FD-PDE \n\n";
 
@@ -16,9 +16,7 @@ static char help[] = "Application to solve advection of a Gaussian pulse in time
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_advdiff.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -217,7 +215,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 
@@ -437,7 +435,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   Vec            coefflocal;
   PetscScalar    rho, k, cp, v[2];
   PetscScalar    ***c;
-  PetscFunctionBeginUserUser;
+  PetscFunctionBeginUser;
 
   // Element: A = rho*cp (dof 0), C = heat production/sink (dof 1)
   // Edges: k (dof 0), velocity (dof 1)

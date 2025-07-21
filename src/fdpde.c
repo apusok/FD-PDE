@@ -1,9 +1,6 @@
 /* Finite Differences PDE (FD-PDE) object */
 
 #include "fdpde.h"
-#include "fdpde_composite.h"
-#include "dmstagoutput.h"
-#include "snes_picard.h"
 
 const char *FDPDETypeNames[] = {
   "uninit",
@@ -22,8 +19,9 @@ PetscErrorCode FDPDECreate_Stokes(FDPDE fd);
 PetscErrorCode FDPDECreate_StokesDarcy2Field(FDPDE fd);
 PetscErrorCode FDPDECreate_StokesDarcy3Field(FDPDE fd);
 PetscErrorCode FDPDECreate_AdvDiff(FDPDE fd);
-PetscErrorCode FDPDECreate_Composite(FDPDE fd);
 PetscErrorCode FDPDECreate_Enthalpy(FDPDE fd);
+
+PetscErrorCode FDPDECreate_Composite(FDPDE fd);
 PetscErrorCode FDPDESetUp_Composite(FDPDE fd);
 
 // ---------------------------------------
@@ -158,7 +156,10 @@ PetscErrorCode FDPDESetUp(FDPDE fd)
       fd->ops->create = FDPDECreate_Enthalpy;
       break;
     case FDPDE_COMPOSITE:
-    SETERRQ(fd->comm,PETSC_ERR_ARG_WRONGSTATE,"FDPDE_COMPOSITE should never enter here");
+      fd->ops->create = FDPDECreate_Composite;
+      // PetscCall(fd->ops->create(fd)); 
+      PetscCall(fd->ops->setup(fd));
+      PetscFunctionReturn(PETSC_SUCCESS);
     break;
     default:
       SETERRQ(fd->comm,PETSC_ERR_ARG_UNKNOWN_TYPE,"Unknown type of FD-PDE specified");
@@ -445,6 +446,7 @@ PetscErrorCode FDPDESetFunctionCoefficient(FDPDE fd, PetscErrorCode (*form_coeff
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
 PetscErrorCode FDPDESetFunctionCoefficientSplit(FDPDE fd, PetscErrorCode (*form_coefficient)(FDPDE fd,DM,Vec,Vec,DM,Vec,void*), const char description[], void *data)
 {
   PetscFunctionBegin;
@@ -509,27 +511,27 @@ PetscErrorCode FDPDEGetSNES(FDPDE fd, SNES *snes)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// ---------------------------------------
-/*@
-FDPDEGetDMStagBCList() - retrieves the DMStagBCList object from the FD-PDE object. 
+// // ---------------------------------------
+// /*@
+// FDPDEGetDMStagBCList() - retrieves the DMStagBCList object from the FD-PDE object. 
 
-Input Parameter:
-fd - the FD-PDE object
+// Input Parameter:
+// fd - the FD-PDE object
 
-Output Parameter:
-list - the DMStagBCList object
+// Output Parameter:
+// list - the DMStagBCList object
 
-Use: user
-@*/
-// ---------------------------------------
-#undef __FUNCT__
-#define __FUNCT__ "FDPDEGetDMStagBCList"
-PetscErrorCode FDPDEGetDMStagBCList(FDPDE fd, DMStagBCList *list)
-{
-  PetscFunctionBegin;
-  if (list) *list = fd->bclist;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
+// Use: user
+// @*/
+// // ---------------------------------------
+// #undef __FUNCT__
+// #define __FUNCT__ "FDPDEGetDMStagBCList"
+// PetscErrorCode FDPDEGetDMStagBCList(FDPDE fd, DMStagBCList *list)
+// {
+//   PetscFunctionBegin;
+//   if (list) *list = fd->bclist;
+//   PetscFunctionReturn(PETSC_SUCCESS);
+// }
 
 // ---------------------------------------
 /*@
@@ -559,6 +561,7 @@ PetscErrorCode FDPDEGetSolutionGuess(FDPDE fd, Vec *xguess)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
 static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
 {
   char                filename[PETSC_MAX_PATH_LEN],filename_bin[PETSC_MAX_PATH_LEN];
@@ -652,7 +655,6 @@ static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
     PetscCall(VecView(F,fview));
     PetscCall(PetscViewerDestroy(&fview));
   }
-  
   
   // output solution
   if (prefix) PetscSNPrintf(filename,PETSC_MAX_PATH_LEN-1,"%ssnes_failure_X-%D",prefix,fd->solves_performed);
@@ -805,6 +807,7 @@ PetscErrorCode FDPDESolve(FDPDE fd, PetscBool *converged)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
 PetscErrorCode FDPDESolvePicard(FDPDE fd, PetscBool *converged)
 {
   SNESConvergedReason reason;
@@ -1025,6 +1028,7 @@ PetscErrorCode FDPDERestoreCoordinatesArrayDMStag(FDPDE fd,PetscScalar **cx, Pet
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDPDECreate2"
 PetscErrorCode FDPDECreate2(MPI_Comm comm,FDPDE *_fd)
@@ -1033,7 +1037,7 @@ PetscErrorCode FDPDECreate2(MPI_Comm comm,FDPDE *_fd)
   FDPDEOps       ops;
 
   PetscFunctionBegin;
-  if (!_fd) SETERRQ(comm,PETSC_ERR_ARG_NULL,"Must provide a valid (non-NULL) pointer for fd (arg 2)");
+  if (!_fd) SETERRQ(comm,PETSC_ERR_ARG_NULL,"Must provide a valid (non-NULL) pointer for fd (arg 2)");
   PetscCall(PetscCalloc1(1,&fd));
   fd->comm = comm;
   fd->type = FDPDE_UNINIT;
@@ -1057,6 +1061,7 @@ PetscErrorCode FDPDECreate2(MPI_Comm comm,FDPDE *_fd)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDPDESetType"
 PetscErrorCode FDPDESetType(FDPDE fd,FDPDEType type)
@@ -1089,24 +1094,26 @@ PetscErrorCode FDPDESetType(FDPDE fd,FDPDEType type)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-#undef __FUNCT__
-#define __FUNCT__ "FDPDESetSizes"
-PetscErrorCode FDPDESetSizes(FDPDE fd,PetscInt nx,PetscInt nz,PetscScalar xs,PetscScalar xe,PetscScalar zs,PetscScalar ze)
-{
-  PetscFunctionBegin;
-  if (nx <= 0) SETERRQ(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Dimension 1 (arg 2) provided for FD-PDE dmstag must be > 0. Found %D",nx);
-  if (nz <= 0) SETERRQ(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Dimension 2 (arg 3) provided for FD-PDE dmstag must be > 0. Found %D",nz);
-  if (xs >= xe) SETERRQ(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Invalid x-maximum (arg 3) provided. xe > xs.");
-  if (zs >= ze) SETERRQ(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Invalid y-maximum (arg 5) provided. ze > zs");
-  fd->Nx = nx;
-  fd->Nz = nz;
-  fd->x0 = xs;
-  fd->x1 = xe;
-  fd->z0 = zs;
-  fd->z1 = ze;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
+// ---------------------------------------
+// #undef __FUNCT__
+// #define __FUNCT__ "FDPDESetSizes"
+// PetscErrorCode FDPDESetSizes(FDPDE fd,PetscInt nx,PetscInt nz,PetscScalar xs,PetscScalar xe,PetscScalar zs,PetscScalar ze)
+// {
+//   PetscFunctionBegin;
+//   if (nx <= 0) SETERRQ(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Dimension 1 (arg 2) provided for FD-PDE dmstag must be > 0. Found %D",nx);
+//   if (nz <= 0) SETERRQ(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Dimension 2 (arg 3) provided for FD-PDE dmstag must be > 0. Found %D",nz);
+//   if (xs >= xe) SETERRQ(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Invalid x-maximum (arg 3) provided. xe > xs.");
+//   if (zs >= ze) SETERRQ(fd->comm,PETSC_ERR_ARG_OUTOFRANGE,"Invalid y-maximum (arg 5) provided. ze > zs");
+//   fd->Nx = nx;
+//   fd->Nz = nz;
+//   fd->x0 = xs;
+//   fd->x1 = xe;
+//   fd->z0 = zs;
+//   fd->z1 = ze;
+//   PetscFunctionReturn(PETSC_SUCCESS);
+// }
 
+// ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FDPDEGetAuxGlobalVectors"
 PetscErrorCode FDPDEGetAuxGlobalVectors(FDPDE fd,PetscInt *n,Vec **vecs)
@@ -1117,38 +1124,39 @@ PetscErrorCode FDPDEGetAuxGlobalVectors(FDPDE fd,PetscInt *n,Vec **vecs)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-#undef __FUNCT__
-#define __FUNCT__ "FDPDEFormCoefficient"
-PetscErrorCode FDPDEFormCoefficient(FDPDE fd)
-{
-  PetscInt i,n;
-  FDPDE *pdelist = NULL;
-  Vec *subX = NULL;
+// // ---------------------------------------
+// #undef __FUNCT__
+// #define __FUNCT__ "FDPDEFormCoefficient"
+// PetscErrorCode FDPDEFormCoefficient(FDPDE fd)
+// {
+//   PetscInt i,n;
+//   FDPDE *pdelist = NULL;
+//   Vec *subX = NULL;
   
-  PetscFunctionBegin;
-  switch (fd->type) {
-    case FDPDE_COMPOSITE:
+//   PetscFunctionBegin;
+//   switch (fd->type) {
+//     case FDPDE_COMPOSITE:
     
-    PetscCall(FDPDECompositeGetFDPDE(fd,&n,&pdelist));
-    PetscCall(DMCompositeGetAccessArray(fd->dmstag,fd->x,n,NULL,subX));
-    /* set auxillary vectors */
-    for (i=0; i<n; i++) {
-      pdelist[i]->naux_global_vectors = n;
-      pdelist[i]->aux_global_vectors = subX;
-    }
-    for (i=0; i<n; i++) {
-      PetscCall(FDPDEFormCoefficient(pdelist[i]));
-    }
-    PetscCall(DMCompositeRestoreAccessArray(fd->dmstag,fd->x,n,NULL,subX));
-    break;
+//     PetscCall(FDPDECompositeGetFDPDE(fd,&n,&pdelist));
+//     PetscCall(DMCompositeGetAccessArray(fd->dmstag,fd->x,n,NULL,subX));
+//     /* set auxillary vectors */
+//     for (i=0; i<n; i++) {
+//       pdelist[i]->naux_global_vectors = n;
+//       pdelist[i]->aux_global_vectors = subX;
+//     }
+//     for (i=0; i<n; i++) {
+//       PetscCall(FDPDEFormCoefficient(pdelist[i]));
+//     }
+//     PetscCall(DMCompositeRestoreAccessArray(fd->dmstag,fd->x,n,NULL,subX));
+//     break;
     
-    default:
-      if (!fd->ops->form_coefficient) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Form coefficient function pointer is NULL. Must call FDPDESetFunctionCoefficient() and provide a non-NULL function pointer.");
-      PetscCall(fd->ops->form_coefficient(fd,fd->dmstag,fd->x,fd->dmcoeff,fd->coeff,fd->user_context));
-    break;
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
+//     default:
+//       if (!fd->ops->form_coefficient) SETERRQ(fd->comm,PETSC_ERR_ARG_NULL,"Form coefficient function pointer is NULL. Must call FDPDESetFunctionCoefficient() and provide a non-NULL function pointer.");
+//       PetscCall(fd->ops->form_coefficient(fd,fd->dmstag,fd->x,fd->dmcoeff,fd->coeff,fd->user_context));
+//     break;
+//   }
+//   PetscFunctionReturn(PETSC_SUCCESS);
+// }
 
 // ---------------------------------------
 /*@

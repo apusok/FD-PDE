@@ -688,7 +688,7 @@ print('# Shortening of a visco-plastic block in the absence of gravity ')
 print('# --------------------------------------- #')
 
 # Set main parameters and run test
-nx    = 401 # resolution
+nx    = 101 # resolution
 
 ew = [1e19, 1e17, 1e19, 1e17]
 cb = [1e8,  1e8,  1e7,  1e7 ]
@@ -752,7 +752,7 @@ for i in range(0, 4):
   # solver = ''
 
   # Run simulation
-  str1 = '../test_vp_inclusion_gerya'+ picard + newton + solver + \
+  str1 = '../test_vp_inclusion_gerya.sh'+ picard + newton + solver + \
          ' -output_file '+fname+ \
          ' -C_b '+str(C_b)+ \
          ' -eta_w '+str(eta_w)+ \

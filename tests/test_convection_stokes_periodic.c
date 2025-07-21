@@ -1,7 +1,7 @@
 // ---------------------------------------
 // Convection test with side periodic boundary conditions
-// run: ./tests/test_convection_stokes_periodic.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
-// python test: ./tests/python/test_convection_stokes_periodic.py
+// run: ./test_convection_stokes_periodic.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
+// python test: ./python/test_convection_stokes_periodic.py
 // ---------------------------------------
 static char help[] = "Convection in a box test with periodic boundary conditions \n\n";
 
@@ -16,10 +16,8 @@ static char help[] = "Convection in a box test with periodic boundary conditions
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokes.h"
 #include "../src/fdpde_advdiff.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -817,7 +815,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

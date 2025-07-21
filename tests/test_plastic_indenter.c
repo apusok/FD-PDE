@@ -1,7 +1,7 @@
 // ---------------------------------------
 // Exact solution for a rigid punch indenting a rigid plastic half space using the slip line field theory
-// run: ./tests/test_plastic_indenter.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -ksp_monitor -nx 20 -nz 20
-// python test: ./tests/python/test_plastic_indenter.py
+// run: ./test_plastic_indenter.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -ksp_monitor -nx 20 -nz 20 -log_view
+// python test: ./python/test_plastic_indenter.py
 // ---------------------------------------
 static char help[] = "Application for a rigid punch indenting a rigid plastic half space (indenter test) \n\n";
 
@@ -16,10 +16,7 @@ static char help[] = "Application for a rigid punch indenting a rigid plastic ha
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokes.h"
-#include "../src/consteq.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -721,7 +718,7 @@ int main (int argc,char **argv)
   PetscCall(PetscInitialize(&argc,&argv,(char*)0,help));
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

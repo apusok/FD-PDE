@@ -3,7 +3,6 @@
 #ifndef FDPDE_STOKES_H
 #define FDPDE_STOKES_H
 
-#include "petsc.h"
 #include "fdpde.h"
 
 #define STENCIL_STOKES_MOMENTUM_LIN    11

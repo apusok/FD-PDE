@@ -3,8 +3,7 @@
 #ifndef FDPDE_STOKESDARCY2FIELD_H
 #define FDPDE_STOKESDARCY2FIELD_H
 
-#include "petsc.h"
-#include "fdpde.h"
+#include "fdpde_stokes.h"
 
 // dof ids
 #define SD2_DOF_P   0

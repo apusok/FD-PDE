@@ -1,8 +1,7 @@
 static char help[] = "DMStag output test - outputs dummy data for all combinations of dofs \n\n";
-// run: ./tests/test_dmstagoutput.app
+// run: ./test_dmstagoutput.sh
 
-#include "petsc.h"
-#include "../src/dmstagoutput.h"
+#include "../src/fdpde_dmstag.h"
 
 // test0
 PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscInt dof2,const char fname[])
@@ -11,6 +10,7 @@ PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscIn
   Vec             x, xlocal;
   PetscInt        i,j,ii, sx, sz, nx, nz, idx;
   PetscScalar    **cx,**cz,***xx;
+  PetscFunctionBeginUser;
   
   PetscCall(DMStagCreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, Nx, Nz, PETSC_DECIDE, PETSC_DECIDE, 
                         dof0, dof1, dof2, DMSTAG_STENCIL_BOX,1, NULL,NULL, &dm));
@@ -104,7 +104,7 @@ PetscErrorCode test0(PetscInt Nx,PetscInt Nz,PetscInt dof0,PetscInt dof1,PetscIn
  // Destroy
   PetscCall(DMDestroy(&dm)); 
   PetscCall(VecDestroy(&x)); 
-  
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

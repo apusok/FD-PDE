@@ -108,27 +108,27 @@ def plot_solution_mms_error(fnum,fmms,fname_out,fname_data,*args):
   Qmin = min(Q_mms)
 
   # Plot figure
-  fig, axs = plt.subplots(1, 2,figsize=(18,6))
+  fig = plt.figure(1,figsize=(18,6))
   cmaps='RdBu_r' 
 
-  ax = plt.subplot(131)
-  im = ax.imshow(Q_mms.reshape(mz,mx),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=Qmin,vmax=Qmax,cmap=cmaps)
-  ax.set_title('a) MMS solution '+' timestep = '+str(istep))
-  ax.set_xlabel('x')
-  ax.set_ylabel('z')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.75)
+  ax1 = plt.subplot(1,3,1)
+  im = ax1.imshow(Q_mms.reshape(mz,mx),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=Qmin,vmax=Qmax,cmap=cmaps)
+  ax1.set_title('a) MMS solution '+' timestep = '+str(istep))
+  ax1.set_xlabel('x')
+  ax1.set_ylabel('z')
+  cbar = fig.colorbar(im,ax=ax1, shrink=0.75)
 
-  ax = plt.subplot(132)
-  im = ax.imshow(Q.reshape(mz,mx),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=Qmin,vmax=Qmax,cmap=cmaps)
-  ax.set_title('b) Numerical solution')
-  ax.set_xlabel('x')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.75)
+  ax2 = plt.subplot(1,3,2)
+  im = ax2.imshow(Q.reshape(mz,mx),extent=[min(xc), max(xc), min(zc), max(zc)],vmin=Qmin,vmax=Qmax,cmap=cmaps)
+  ax2.set_title('b) Numerical solution')
+  ax2.set_xlabel('x')
+  cbar = fig.colorbar(im,ax=ax2, shrink=0.75)
 
-  ax = plt.subplot(133)
-  im = ax.imshow(Q_mms.reshape(mz,mx)-Q.reshape(mz,mx),extent=[min(xc), max(xc), min(zc), max(zc)],cmap=cmaps)
-  ax.set_title('c) Error')
-  ax.set_xlabel('x')
-  cbar = fig.colorbar(im,ax=ax, shrink=0.75)
+  ax3 = plt.subplot(1,3,3)
+  im = ax3.imshow(Q_mms.reshape(mz,mx)-Q.reshape(mz,mx),extent=[min(xc), max(xc), min(zc), max(zc)],cmap=cmaps)
+  ax3.set_title('c) Error')
+  ax3.set_xlabel('x')
+  cbar = fig.colorbar(im,ax=ax3, shrink=0.75)
 
   fout = fnum+'_solution'+'_adv_'+str(adv_scheme)+'_nx_'+str(nx)+'_BC_'+str(int(bc[0]))+str(int(bc[1]))+str(int(bc[2]))+str(int(bc[3]))
   plt.savefig(fname_out+'/'+fout+'.pdf')
@@ -243,15 +243,15 @@ def test1_diffusion_space(fname,fname_out,n,ncpu):
     fout = fname+'_'+str(nx)+'.out'
 
     # Run with different resolutions
-    str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence '+solver+' -test 1 -output_file '+fname+ \
+    str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence.sh '+solver+' -test 1 -output_file '+fname+ \
       ' -output_dir '+fname_data+' -nx '+str(nx)+' -nz '+str(nx)+solver_default+' > '+fname_data+'/'+fout
     print(str1)
     os.system(str1)
 
     # Parse variables
     tstep, err_sum, err_mms, dt_num, hx_num = parse_log_file(fout,fname_data)
-    nrm_Q[i] = err_sum**0.5
-    hx[i]    = hx_num
+    nrm_Q[i] = err_sum[-1]**0.5
+    hx[i]    = hx_num[-1]
 
     # Plot solution and error
     plot_solution_mms_error(fname,fname+'_mms',fname_out,fname_data,0,nx)
@@ -293,15 +293,15 @@ def test2_advection_diffusion_space(fname,fname_out,n,ncpu):
       fout = fname+'_adv'+str(adv_scheme)+'_'+str(nx)+'.out'
 
       # Run with different resolutions and advection schemes
-      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence '+solver+' -test 2 -output_file '+fname+\
+      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence.sh '+solver+' -test 2 -output_file '+fname+\
         ' -output_dir '+fname_data+' -adv_scheme '+str(adv_scheme)+' -nx '+str(nx)+' -nz '+str(nx)+solver_default+' > '+fname_data+'/'+fout
       print(str1)
       os.system(str1)
 
       # Parse variables
       tstep, err_sum, err_mms, dt_num, hx_num = parse_log_file(fout,fname_data)
-      nrm_Q[i] = err_sum**0.5
-      hx[i]    = hx_num
+      nrm_Q[i] = err_sum[-1]**0.5
+      hx[i]    = hx_num[-1]
 
       # Plot solution and error
       plot_solution_mms_error(fname,fname+'_mms',fname_out,fname_data,0,nx,adv_scheme)
@@ -354,7 +354,7 @@ def test3_timediff(fname,fname_out,dt,tend,n,ncpu):
       fname1 = fname+'_ts'+str(ts_scheme)+'_dt'+dt_string
 
       # Run test
-      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence '+solver+' -test 3'+ \
+      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence.sh '+solver+' -test 3'+ \
             ' -dtmax '+str(dtmax)+ \
             ' -tmax '+str(tend)+ \
             ' -tstep '+str(tstep_max)+ \
@@ -433,7 +433,7 @@ def test4_timeadv(fname,fname_out,dt,tend,n,ncpu):
       fname1 = fname+'_ts'+str(ts_scheme)+'_dt'+dt_string
 
       # Run test
-      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence '+solver+' -test 4'+ \
+      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence.sh '+solver+' -test 4'+ \
             ' -dtmax '+str(dtmax)+ \
             ' -tmax '+str(tend)+ \
             ' -tstep '+str(tstep_max)+ \
@@ -507,7 +507,7 @@ def test5_advection_diffusion_BC(fname,fname_out,n,bc,ncpu):
       fout = fname+'_adv'+str(adv_scheme)+'_'+str(nx)+'_'+str(int(bc[0]))+str(int(bc[1]))+str(int(bc[2]))+str(int(bc[3]))+'.out'
 
       # Run with different resolutions and advection schemes - test 2 but for BC 
-      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence '+solver+' -test 5 -output_file '+fname+ \
+      str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_mms_convergence.sh '+solver+' -test 5 -output_file '+fname+ \
         ' -output_dir '+fname_data+ \
         ' -adv_scheme '+str(adv_scheme)+ \
         ' -bcleft '+str(int(bc[0]))+ \
@@ -520,8 +520,8 @@ def test5_advection_diffusion_BC(fname,fname_out,n,bc,ncpu):
 
       # Parse variables
       tstep, err_sum, err_mms, dt_num, hx_num = parse_log_file(fout,fname_data)
-      nrm_Q[i] = err_sum**0.5
-      hx[i]    = hx_num
+      nrm_Q[i] = err_sum[-1]**0.5
+      hx[i]    = hx_num[-1]
 
       # Plot solution and error for the highest resolution
       if nx==n[-1]:

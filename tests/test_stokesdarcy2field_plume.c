@@ -3,8 +3,8 @@
 // Two-phase StokesDarcy model with an interface which is captured using the Phasefield method
 // R = 0, infinitely small compaction length, so that it is Stokes flow.
 // Rheology: visco-elasto-plastic model, inifinitely large C, Z.
-// run: ./tests/test_stokesdarcy2field_beam.app -nx 100 -nz 100 -pc_type lu -pc_factor_mat_solver_type umfpack
-// python test: ./tests/python/test_stokesdarcy2field_beam.py
+// run: ./test_stokesdarcy2field_plume.sh -nx 100 -nz 100 -pc_type lu -pc_factor_mat_solver_type umfpack -log_view
+// python test: ./python/test_stokesdarcy2field_plume.py
 // ---------------------------------------
 static char help[] = "Application for the visco-elastic rising plume benchmark \n\n";
 
@@ -19,10 +19,7 @@ static char help[] = "Application for the visco-elastic rising plume benchmark \
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokesdarcy2field.h"
-#include "../src/consteq.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -970,10 +967,10 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         Y      = C_u    * volf + C_d    * (1.0 - volf);
         G      = G_u    * volf + G_d    * (1.0 - volf);
 
-        if (Y < 1e-8) { PetscPrintf(usr->comm, "i,j=%d, %d, %d, Y = %g, volf = %g, C_u = %g, C_d = %g\n", i, j, Y, volf, C_u, C_d);}
-        if (G < 1e-8) { PetscPrintf(usr->comm, "i,j=%d, %d, G = %g, volf = %g, G_u = %g, G_d = %g\n", i, j, G, volf, G_u, G_d);}
-        if (eta_v < 1e-8) { PetscPrintf(usr->comm, "i,j=%d, %d, eta_v = %g, volf = %g, eta_u = %g, eta_d = %g\n", i, j, eta_v, volf, eta_u, eta_d);}
-        if (zeta_v < 1e-8) { PetscPrintf(usr->comm, "i,j=%d, %d, zeta_v = %g, volf = %g, zeta_u = %g, zeta_d = %g\n", i, j, zeta_v, volf, zeta_u, zeta_d);}
+        if (Y < 1e-8) { PetscCall(PetscPrintf(usr->comm, "i,j=%d, %d, Y = %g, volf = %g, C_u = %g, C_d = %g\n", i, j, Y, volf, C_u, C_d));}
+        if (G < 1e-8) { PetscCall(PetscPrintf(usr->comm, "i,j=%d, %d, G = %g, volf = %g, G_u = %g, G_d = %g\n", i, j, G, volf, G_u, G_d));}
+        if (eta_v < 1e-8) { PetscCall(PetscPrintf(usr->comm, "i,j=%d, %d, eta_v = %g, volf = %g, eta_u = %g, eta_d = %g\n", i, j, eta_v, volf, eta_u, eta_d));}
+        if (zeta_v < 1e-8) { PetscCall(PetscPrintf(usr->comm, "i,j=%d, %d, zeta_v = %g, volf = %g, zeta_u = %g, zeta_d = %g\n", i, j, zeta_v, volf, zeta_u, zeta_d));}
 
         //        PetscPrintf(usr->comm, "i,j = %d, %d, eta =%g,, zeta=%g, Y = %g, g = %g \n",i,j, eta_v, zeta_v, Y, G);
 
@@ -1934,7 +1931,7 @@ PetscErrorCode UpdateUMag(DM dm, Vec x, void *ctx)
   PetscCall(DMStagVecRestoreArray(dm,umlocal,&xx)); 
   PetscCall(DMLocalToGlobalBegin(dm,umlocal,INSERT_VALUES,usr->VMag)); 
   PetscCall(DMLocalToGlobalEnd  (dm,umlocal,INSERT_VALUES,usr->VMag)); 
-  PetscCall(VecDestroy(&umlocal)) 
+  PetscCall(VecDestroy(&umlocal));
 
   PetscCall(DMRestoreLocalVector(usr->dmPV, &xlocal )); 
   PetscCall(DMRestoreLocalVector(usr->dmf, &fplocal )); 
@@ -2772,7 +2769,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

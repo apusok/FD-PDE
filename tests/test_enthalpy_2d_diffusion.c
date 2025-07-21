@@ -1,7 +1,7 @@
 // ---------------------------------------
 // 2D diffusion to test the enthalpy implementation
-// run: ./test_enthalpy_2d_diffusion.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -log_view
-// python output: test_enthalpy_2d_diffusion.py
+// run: ./test_enthalpy_2d_diffusion.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -log_view
+// python output: python/test_enthalpy_2d_diffusion.py
 // ---------------------------------------
 static char help[] = "2D Diffusion problem using the Enthalpy Method\n\n";
 
@@ -16,9 +16,7 @@ static char help[] = "2D Diffusion problem using the Enthalpy Method\n\n";
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_enthalpy.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -551,7 +549,7 @@ int main (int argc,char **argv)
   PetscCall(PetscInitialize(&argc,&argv,(char*)0,help));
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

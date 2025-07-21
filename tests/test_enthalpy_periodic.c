@@ -1,7 +1,7 @@
 // ---------------------------------------
 // (ENTHALPY) Pure advection and time-stepping test - PERIODIC BCs
-// run: ./tests/test_enthlpy_periodic.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
-// python test: ./tests/python/test_enthalpy_periodic.py
+// run: ./test_enthalpy_periodic.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
+// python test: ./python/test_enthalpy_periodic.py
 // ---------------------------------------
 static char help[] = "Application to solve advection of a Gaussian pulse in time (ENTHALPY) with FD-PDE and PERIODIC BCs\n\n";
 
@@ -16,9 +16,7 @@ static char help[] = "Application to solve advection of a Gaussian pulse in time
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_enthalpy.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -469,7 +467,7 @@ int main (int argc,char **argv)
   PetscCall(PetscInitialize(&argc,&argv,(char*)0,help));
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

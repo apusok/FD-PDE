@@ -3,7 +3,6 @@
 #ifndef FDPDE_ADVDIFF_H
 #define FDPDE_ADVDIFF_H
 
-#include "petsc.h"
 #include "fdpde.h"
 
 // ---------------------------------------

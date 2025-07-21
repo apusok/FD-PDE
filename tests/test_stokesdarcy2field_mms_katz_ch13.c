@@ -1,7 +1,7 @@
 // ---------------------------------------
 // MMS test for Katz, 2019, Ch 13.
-// run: ./tests/test_stokesdarcy2field_mms_katz_ch13.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
-// python test: ./tests/python/test_stokesdarcy2field_mms_katz_ch13.py
+// run: ./test_stokesdarcy2field_mms_katz_ch13.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
+// python test: ./python/test_stokesdarcy2field_mms_katz_ch13.py
 // python sympy: ./mms/mms_katz_ch13_stokes_darcy.py
 // ---------------------------------------
 static char help[] = "Application to verify two-phase flow implementation with an MMS (Katz, Ch 13) \n\n";
@@ -17,9 +17,7 @@ static char help[] = "Application to verify two-phase flow implementation with a
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokesdarcy2field.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -977,7 +975,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

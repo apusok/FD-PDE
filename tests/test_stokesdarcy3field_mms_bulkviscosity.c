@@ -1,7 +1,7 @@
 // ---------------------------------------
 // MMS test for 3-Field and 2-Field
-// run: ./tests/test_stokesdarcy3field_mms_bulkviscosity.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
-// python test: ./tests/python/test_stokesdarcy3field_mms_bulkviscosity.py
+// run: ./test_stokesdarcy3field_mms_bulkviscosity.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
+// python test: ./python/test_stokesdarcy3field_mms_bulkviscosity.py
 // python sympy: ./mms/mms_stokesdarcy3field_bulkviscosity.py
 // ---------------------------------------
 static char help[] = "Two-phase flow application to verify 2-Field and 3-Field formulations using MMS \n\n";
@@ -17,10 +17,8 @@ static char help[] = "Two-phase flow application to verify 2-Field and 3-Field f
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokesdarcy2field.h"
 #include "../src/fdpde_stokesdarcy3field.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -1048,7 +1046,7 @@ PetscErrorCode FormBCList3Field(DM dm, Vec x, DMStagBCList bclist, void *ctx)
     value_bc[k] = get_uz(x_bc[2*k],x_bc[2*k+1],delta,phi0,phia,phi_min,vzeta,p_s,psi_s,U_s,m,n,k_hat);
     type_bc[k] = BC_DIRICHLET_STAG;
   }
-  PetscCall(DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc);
+  PetscCall(DMStagBCListInsertValues(bclist,'|',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc));
 
   // LEFT Boundary - P
   PetscCall(DMStagBCListGetValues(bclist,'w','o',0,&n_bc,&idx_bc,NULL,&x_bc,&value_bc,&type_bc));
@@ -1550,7 +1548,7 @@ PetscErrorCode InputPrintData(UsrData *usr)
   PetscPrintf(usr->comm,"# --------------------------------------- #\n");
 
   // Free memory
-  PetscCall(PetscFree(opts);) 
+  PetscCall(PetscFree(opts)); 
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1568,12 +1566,12 @@ int main (int argc,char **argv)
   // Initialize application
   PetscCall(PetscInitialize(&argc,&argv,(char*)0,help));
   PetscCall(PetscTime(&start_time)); 
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
   PetscCall(InputParameters(&usr)); 
   PetscCall(InputPrintData(usr)); 
 
   // Numerical solution using the FD pde object
-  PetscCall(StokesDarcy2Field_Numerical(usr)) 
+  PetscCall(StokesDarcy2Field_Numerical(usr));
   PetscCall(StokesDarcy3Field_Numerical(usr)); 
 
   // Destroy objects

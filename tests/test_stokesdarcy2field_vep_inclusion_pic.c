@@ -1,8 +1,8 @@
 // ---------------------------------------
 // Shortening a two-phase block (Stokes-Darcy flow with PIC method)
 // Rheology: visco-elasto-(visco)plastic model
-// run: ./tests/test_stokesdarcy2field_vep_inclusion_pic.app -nx 100 -nz 100 -pc_type lu -pc_factor_mat_solver_type umfpack
-// python test: ./tests/python/test_stokesdarcy2field_vep_inclusion_pic.py
+// run: ./test_stokesdarcy2field_vep_inclusion_pic.sh -nx 100 -nz 100 -pc_type lu -pc_factor_mat_solver_type umfpack -log_view
+// python test: ./python/test_stokesdarcy2field_vep_inclusion_pic.py
 // ---------------------------------------
 static char help[] = "Application for shortening of a visco-elasto-(visco)plastic two-phase block in the absence of gravity with particles\n\n";
 
@@ -17,11 +17,8 @@ static char help[] = "Application for shortening of a visco-elasto-(visco)plasti
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokesdarcy2field.h"
-#include "../src/consteq.h"
-#include "../src/dmstagoutput.h"
-#include "../src/material_point.h"
+#include "../src/fdpde_dmswarm.h"
 
 // ---------------------------------------
 // Application Context
@@ -276,7 +273,7 @@ PetscErrorCode StokesDarcy_Numerical_PIC(void *ctx)
     }
 
     //clean up
-    PetscCall(VecDestroy(&x))s;
+    PetscCall(VecDestroy(&x));
     istep++;
   }
 
@@ -406,42 +403,33 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,   PVCOEFF_FACE_D3,   &d3_slot[iD]));
   PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,     PVCOEFF_FACE_D3,   &d3_slot[iU]));
 
-  PetscInt iwtc[3],iwtl[3],iwtr[3],iwtd[3],iwtu[3], iwtld[3],iwtrd[3],iwtlu[3],iwtru[3];
+  PetscInt iwtc[2],iwtl[2],iwtr[2],iwtd[2],iwtu[2], iwtld[2],iwtrd[2],iwtlu[2],iwtru[2];
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 0, &iwtc[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 1, &iwtc[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 2, &iwtc[2])); 
 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 0, &iwtl[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 1, &iwtl[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 2, &iwtl[2])); 
 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 0, &iwtr[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 1, &iwtr[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 2, &iwtr[2])); 
 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 0, &iwtd[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 1, &iwtd[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 2, &iwtd[2])); 
   
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 0, &iwtu[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 1, &iwtu[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 2, &iwtu[2])); 
 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 0, &iwtld[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 1, &iwtld[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 2, &iwtld[2])); 
 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 0, &iwtrd[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 1, &iwtrd[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 2, &iwtrd[2])); 
 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 0, &iwtlu[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 1, &iwtlu[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 2, &iwtlu[2])); 
 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 0, &iwtru[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 1, &iwtru[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 2, &iwtru[2])); 
 
   PetscInt ixx, izz, ixz, iII, ixxn[4], izzn[4], ixzn[4], iIIn[4];
   PetscCall(DMStagGetLocationSlot(usr->dmeps, ELEMENT, 0, &ixx)); 
@@ -779,42 +767,33 @@ PetscErrorCode FormCoefficient_Stokes(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec co
   // PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,   PVCOEFF_FACE_D3,   &d3_slot[iD]));
   // PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,     PVCOEFF_FACE_D3,   &d3_slot[iU]));
 
-  PetscInt iwtc[3],iwtl[3],iwtr[3],iwtd[3],iwtu[3], iwtld[3],iwtrd[3],iwtlu[3],iwtru[3];
+  PetscInt iwtc[2],iwtl[2],iwtr[2],iwtd[2],iwtu[2], iwtld[2],iwtrd[2],iwtlu[2],iwtru[2];
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 0, &iwtc[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 1, &iwtc[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, ELEMENT, 2, &iwtc[2])); 
 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 0, &iwtl[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 1, &iwtl[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_LEFT, 2, &iwtl[2])); 
 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 0, &iwtr[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 1, &iwtr[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_RIGHT, 2, &iwtr[2])); 
 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 0, &iwtd[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 1, &iwtd[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_DOWN, 2, &iwtd[2])); 
   
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 0, &iwtu[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 1, &iwtu[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DMSTAG_UP, 2, &iwtu[2])); 
 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 0, &iwtld[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 1, &iwtld[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DOWN_LEFT, 2, &iwtld[2])); 
 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 0, &iwtrd[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 1, &iwtrd[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, DOWN_RIGHT, 2, &iwtrd[2])); 
 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 0, &iwtlu[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 1, &iwtlu[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, UP_LEFT, 2, &iwtlu[2])); 
 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 0, &iwtru[0])); 
   PetscCall(DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 1, &iwtru[1])); 
-  PetscCall(DMStagGetLocationSlot(usr->dmMPhase, UP_RIGHT, 2, &iwtru[2])); 
 
   PetscInt ixx, izz, ixz, iII, ixxn[4], izzn[4], ixzn[4], iIIn[4];
   PetscCall(DMStagGetLocationSlot(usr->dmeps, ELEMENT, 0, &ixx)); 
@@ -1810,7 +1789,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

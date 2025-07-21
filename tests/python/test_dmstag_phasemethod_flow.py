@@ -57,7 +57,7 @@ newton = ''
 
 # Run test
 # Forward euler
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_dmstag_phasemethod' + \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_dmstag_phasemethod.sh' + \
        ' -nx '+str(n)+' -nz '+str(n)+' -tstep '+str(tstep) + \
        newton + model + phase + \
        ' -output_dir '+fname+' -output_file '+fname+' -tout '+str(tout)+' -ts_scheme 0'

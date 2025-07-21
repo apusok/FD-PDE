@@ -1,7 +1,7 @@
 // ---------------------------------------
 // (ADVDIFF) Pure advection and time-stepping test - PERIODIC BCs
-// run: ./tests/test_advdiff_periodic.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
-// python test: ./tests/python/test_advdiff_periodic.py
+// run: ./test_advdiff_periodic.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
+// python test: ./python/test_advdiff_periodic.py
 // ---------------------------------------
 static char help[] = "Application to solve advection of a Gaussian pulse in time (ADVDIFF) with FD-PDE and PERIODIC BCs\n\n";
 
@@ -16,9 +16,7 @@ static char help[] = "Application to solve advection of a Gaussian pulse in time
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_advdiff.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -193,7 +191,7 @@ int main (int argc,char **argv)
   // Initialize application
   PetscCall(PetscInitialize(&argc,&argv,(char*)0,help));
   PetscCall(PetscTime(&start_time)); 
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
   PetscCall(InputParameters(&usr)); 
 
   // Save input options filename

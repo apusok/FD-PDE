@@ -1,9 +1,8 @@
 // ---------------------------------------
-// Modified from ./tests/test_stokes_solcx.c
 // Four-Lid-driven rotational flow benchmark - constant grid spacing
 // Direction of four lid movement: Up->rightward, Right->downward, Bottom->leftward, Left->upward 
-// run: ./tests/test_stokes_lid_driven.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
-// python test: ./tests/python/test_stokes_lid_driven.py
+// run: ./test_stokes_lid_driven.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
+// python test: ./python/test_stokes_lid_driven.py
 // ---------------------------------------
 static char help[] = "Application to solve the four-lid-driven rotational flow benchmark with FD-PDE \n\n";
 
@@ -18,9 +17,7 @@ static char help[] = "Application to solve the four-lid-driven rotational flow b
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokes.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -50,12 +47,10 @@ typedef struct {
 // Function definitions
 // ---------------------------------------
 PetscErrorCode SNESStokes_lid(DM*,Vec*,void*);
-//PetscErrorCode Analytic_Solcx(DM,Vec*,void*);
 PetscErrorCode InputParameters(UsrData**);
 PetscErrorCode InputPrintData(UsrData*);
 PetscErrorCode FormCoefficient(FDPDE, DM, Vec, DM, Vec, void*);
 PetscErrorCode FormBCList(DM, Vec, DMStagBCList, void*);
-//PetscErrorCode ComputeErrorNorms(DM,Vec,Vec,void*);
 
 // ---------------------------------------
 // Some descriptions
@@ -511,7 +506,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 
@@ -530,13 +525,6 @@ int main (int argc,char **argv)
   // Numerical solution using the FD pde object
   PetscCall(SNESStokes_lid(&dmStokes, &xStokes, usr)); 
 
-  /*
-  // Analytical solution
-  PetscCall(Analytic_Solcx(dmStokes, &xAnalytic, usr)); 
-
-  // Compute norms
-  PetscCall(ComputeErrorNorms(dmStokes, xStokes, xAnalytic, usr)); 
-  */
   // Destroy objects
   PetscCall(DMDestroy(&dmStokes)); 
   PetscCall(VecDestroy(&xStokes)); 

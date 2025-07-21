@@ -67,6 +67,7 @@ typedef struct {
 
 PetscErrorCode EnthalpyPackCtx_InitDM(DM dm, DMBoundaryType dm_btype0, DMBoundaryType dm_btype1, PetscScalar **cx,PetscScalar **cz,EnthalpyPackCtx *ctx)
 {
+  PetscFunctionBegin;
   ctx->dm = dm;
   ctx->dm_btype0 = dm_btype0;
   ctx->dm_btype1 = dm_btype1;
@@ -83,6 +84,7 @@ PetscErrorCode EnthalpyPackCtx_InitState(ThermoState *thm,ThermoState *thm_k,
                                             EnthalpyData *en,
                                             EnthalpyPackCtx *ctx)
 {
+  PetscFunctionBegin;
   ctx->thm      = (const ThermoState*)thm;
   ctx->thm_prev = (const ThermoState*)thm_k;
   ctx->cff      = (const CoeffState*)cff;
@@ -93,6 +95,7 @@ PetscErrorCode EnthalpyPackCtx_InitState(ThermoState *thm,ThermoState *thm_k,
 
 PetscErrorCode EnthalpyPackCtx_Init_IJ(PetscInt i,PetscInt j,PetscInt icomp,EnthalpyPackCtx *ctx)
 {
+  PetscFunctionBegin;
   ctx->i = i;
   ctx->j = j;
   ctx->icomp = icomp;
@@ -155,6 +158,13 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   Nx = fd->Nx;
   Nz = fd->Nz;
 
+  // Update BC list
+  bclist = fd->bclist;
+  if (fd->bclist->evaluate) {
+    PetscCall(fd->bclist->evaluate(dm,x,bclist,bclist->data));
+  }
+  PetscTime(&tlog[6]);
+
   // Get local domain
   PetscCall(DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
   PetscCall(DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL));
@@ -207,13 +217,6 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   PetscCall(DMGlobalToLocal (dmcoeff, fd->coeff, INSERT_VALUES, coefflocal)); 
   PetscCall(UpdateCoeffStructure(fd,dmcoeff,coefflocal,cff));
   PetscTime(&tlog[5]);
-
-  // Update BC list
-  bclist = fd->bclist;
-  if (fd->bclist->evaluate) {
-    PetscCall(fd->bclist->evaluate(dm,x,bclist,bclist->data));
-  }
-  PetscTime(&tlog[6]);
 
   // Residual evaluation
   PetscCall(DMStagGetLocationSlot(dm,DMSTAG_ELEMENT,0,&slot_h)); 
@@ -881,11 +884,13 @@ Use: internal
 PetscErrorCode DMStagBCListApply_Enthalpy(DM dm, Vec xlocal,DMStagBC *bclist, PetscInt nbc, PetscScalar ***ff,EnthalpyPackCtx pack)
 {
   PetscScalar    xx, fval;
-  PetscInt       i, j, ii, ibc, idx;
+  PetscInt       i, j, ii, ibc, idx, Nx, Nz;
   PetscScalar    ***_xlocal;
-  PetscFunctionBegin;
+  PetscErrorCode ierr;
+  PetscFunctionBeginUser;
 
-  PetscCall(DMStagVecGetArrayRead(dm,xlocal,&_xlocal));
+  ierr = DMStagVecGetArrayRead(dm,xlocal,&_xlocal);CHKERRQ(ierr);
+  ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
 
   // Loop over all boundaries
   for (ibc = 0; ibc<nbc; ibc++) {
@@ -895,13 +900,13 @@ PetscErrorCode DMStagBCListApply_Enthalpy(DM dm, Vec xlocal,DMStagBC *bclist, Pe
       idx = bclist[ibc].idx;
 
       if (bclist[ibc].point.c==0) {
-        PetscCall(EnthalpyPackCtx_Init_IJ(i,j,-1,&pack));
-        PetscCall(EnthalpyResidual_pack(&pack,&fval)); 
+        ierr = EnthalpyPackCtx_Init_IJ(i,j,-1,&pack);CHKERRQ(ierr);
+        ierr = EnthalpyResidual_pack(&pack,&fval); CHKERRQ(ierr);
         ff[j][i][idx] = fval;
       } else {
         ii = bclist[ibc].point.c - 1;
-        PetscCall(EnthalpyPackCtx_Init_IJ(i,j,ii,&pack));
-        PetscCall(BulkCompositionResidual_pack(&pack,&fval)); 
+        ierr = EnthalpyPackCtx_Init_IJ(i,j,ii,&pack);CHKERRQ(ierr);
+        ierr = BulkCompositionResidual_pack(&pack,&fval); CHKERRQ(ierr);
         ff[j][i][idx] = fval;
       }
     }
@@ -921,13 +926,24 @@ PetscErrorCode DMStagBCListApply_Enthalpy(DM dm, Vec xlocal,DMStagBC *bclist, Pe
       j   = bclist[ibc].point.j;
       idx = bclist[ibc].idx;
 
-      if (bclist[ibc].val) {
-        SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Non-zero BC type NEUMANN for FDPDE_ENTHALPY [ELEMENT] is not yet implemented.");
+      if (j == 0) { // down
+        ff[j][i][idx] = _xlocal[j+1][i][idx] - _xlocal[j][i][idx] - bclist[ibc].val;
+      }
+
+      if (j == Nz-1) { // up
+        ff[j][i][idx] = _xlocal[j][i][idx] - _xlocal[j-1][i][idx] - bclist[ibc].val;
+      }
+
+      if (i == 0) { // left
+        ff[j][i][idx] = _xlocal[j][i+1][idx] - _xlocal[j][i][idx] - bclist[ibc].val;
+      }
+
+      if (i == Nx-1) { // right
+        ff[j][i][idx] = _xlocal[j][i][idx] - _xlocal[j][i-1][idx] - bclist[ibc].val;
       }
     }
-
   }
 
-  PetscCall(DMStagVecRestoreArrayRead(dm,xlocal,&_xlocal));
-  PetscFunctionReturn(PETSC_SUCCESS);
+  ierr = DMStagVecRestoreArrayRead(dm,xlocal,&_xlocal);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
 }

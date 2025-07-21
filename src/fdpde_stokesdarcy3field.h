@@ -3,8 +3,8 @@
 #ifndef FDPDE_STOKESDARCY3FIELD_H
 #define FDPDE_STOKESDARCY3FIELD_H
 
-#include "petsc.h"
-#include "fdpde.h"
+#include "fdpde_stokes.h"
+// #include "fdpde_stokesdarcy2field.h"
 
 // dof ids
 #define SD3_DOF_P   0
@@ -26,7 +26,7 @@
 // ---------------------------------------
 // Function definitions
 // ---------------------------------------
-PetscErrorCode FDPDECreate_StokesDarcy2Field(FDPDE);
+PetscErrorCode FDPDECreate_StokesDarcy3Field(FDPDE);
 
 // Jacobian preallocator
 PetscErrorCode JacobianPreallocator_StokesDarcy3Field(FDPDE,Mat);

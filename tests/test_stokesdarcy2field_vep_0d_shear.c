@@ -1,8 +1,8 @@
 // ---------------------------------------
 // Uniform shear stress of a visco-elasto-plastic block subject to the Stokes model
 // Rheology: visco-elasto-plastic model
-// run: ./tests/test_stokesdarcy2field_vep_0d_shear.app -pc_factor_mat_solver_type umfpack -pc_type lu -nx 5 -nz 5 -tstep 10 -tmax 1
-// python test: ./tests/python/test_stokesdarcy2field_vep_0d_shear.py
+// run: ./test_stokesdarcy2field_vep_0d_shear.sh -pc_factor_mat_solver_type umfpack -pc_type lu -nx 5 -nz 5 -tstep 10 -tmax 1 -log_view
+// python test: ./python/test_stokesdarcy2field_vep_0d_shear.py
 // ---------------------------------------
 static char help[] = "Application for validating the visco-elasto-plastic model with zero-dimensional problems about uniform deformation (simple shear) in the absence of gravity \n\n";
 
@@ -17,10 +17,7 @@ static char help[] = "Application for validating the visco-elasto-plastic model 
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokesdarcy2field.h"
-#include "../src/consteq.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -1042,7 +1039,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 
@@ -1063,6 +1060,6 @@ int main (int argc,char **argv)
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
   
   // Finalize main
-  PetscCall(PetscFinalize())s;
+  PetscCall(PetscFinalize());
   return 0;
 }

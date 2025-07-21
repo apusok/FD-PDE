@@ -2,8 +2,8 @@
 // Two-phase StokesDarcy model with an interface which is captured using the Phasefield method
 // R = 0, infinitely small compaction length, so that it is Stokes flow.
 // Rheology: visco-elasto-plastic model, inifinitely large C, G and Z.
-// run: ./tests/test_stokesdarcy2field_rt.app -nx 100 -nz 100 -pc_type lu -pc_factor_mat_solver_type umfpack
-// python test: ./tests/python/test_stokesdarcy2field_rt.py
+// run: ./test_stokesdarcy2field_rt.sh -nx 100 -nz 100 -pc_type lu -pc_factor_mat_solver_type umfpack -log_view
+// python test: ./python/test_stokesdarcy2field_rt.py
 // ---------------------------------------
 static char help[] = "Application for two phase StokesDarcy model with a planar interface \n\n";
 
@@ -18,10 +18,7 @@ static char help[] = "Application for two phase StokesDarcy model with a planar 
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokesdarcy2field.h"
-#include "../src/consteq.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -194,7 +191,7 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
   FDPDE          fd;
   DM             dm; // dmcoeff;
   DM             dmf;
-  Vec            f, fprev;
+  Vec            f, fprev, dfx, dfz, volf;
   Vec            x, xguess; // xcoeff;
   PetscInt       nx, nz, istep = 0, tstep, ickpt = 0, maxckpt;
   PetscScalar    xmin, zmin, xmax, zmax, dtck, tckpt;
@@ -251,10 +248,14 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
   dmf   = usr->dmf;
   f     = usr->f;
   fprev = usr->fprev;
+  dfx   = usr->dfx;
+  dfz   = usr->dfz;
+  volf  = usr->volf;
 
   // Create a vector to store u, p in userdata
   PetscCall(FDPDEGetSolution(fd,&x));
   PetscCall(VecDuplicate(x, &usr->xVel));
+  PetscCall(VecDestroy(&x));
 
   // Create DM/vec for tau_old and DP_old, Initialise the two Vecs as zeros.
   PetscCall(VecZeroEntries(usr->xtau_old)); 
@@ -265,13 +266,13 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
   PetscCall(FDPDESetFunctionCoefficient(fd,FormCoefficient,coeff_description,usr)); 
   PetscCall(FDPDEView(fd)); 
 
-
   // Initialise the phase field
   PetscCall(SetInitialField(dmf,f,usr));
   PetscCall(VecCopy(f, fprev));
+
   //interpolate phase values on the face and edges before FDPDE solver
-    PetscCall(UpdateCornerF(dmf, f, usr)); 
-    PetscCall(UpdateVolFrac(dmf, f, usr)); 
+  PetscCall(UpdateCornerF(dmf, f, usr)); 
+  PetscCall(UpdateVolFrac(dmf, f, usr)); 
     
 
 #if 0
@@ -314,13 +315,11 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
 
   PetscCall(FDPDEGetSolutionGuess(fd,&xguess));  
   PetscCall(VecCopy(x,xguess));
-  PetscCall(VecDestroy(&x))
+  PetscCall(VecDestroy(&x));
   PetscCall(VecDestroy(&xguess));
   }
 #endif
   usr->par->plasticity = PETSC_FALSE; //PETSC_TRUE; //switch off/on plasticity
-
-
 
   //-- initialise the phase field by computing 50 steps
   //PetscCall(UpdateDF(dmf, fprev, usr)); 
@@ -357,8 +356,6 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
 
     //update x into the usrdata
     PetscCall(VecCopy(x, usr->xVel));
-
-    
 
     // Update time
     usr->par->t += usr->par->dt;  // computation start from t = dt
@@ -512,24 +509,25 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
   // Destroy objects
   PetscCall(VecDestroy(&fprev));
   PetscCall(VecDestroy(&f));
-  PetscCall(DMDestroy(&dmf)); 
-
+  PetscCall(VecDestroy(&dfx));
+  PetscCall(VecDestroy(&dfz));
+  PetscCall(VecDestroy(&volf)); 
   PetscCall(VecDestroy(&usr->xVel));
-  PetscCall(DMDestroy(&usr->dmPV));
-  
-  PetscCall(VecDestroy(&x));
   PetscCall(VecDestroy(&usr->xeps));
   PetscCall(VecDestroy(&usr->xtau));
   PetscCall(VecDestroy(&usr->xDP));
   PetscCall(VecDestroy(&usr->xyield));
   PetscCall(VecDestroy(&usr->xtau_old));
   PetscCall(VecDestroy(&usr->xDP_old));
-  PetscCall(DMDestroy(&dm));
+
+  PetscCall(DMDestroy(&usr->dmPV));
+  PetscCall(DMDestroy(&dmf));
   PetscCall(DMDestroy(&usr->dmeps));
   PetscCall(FDPDEDestroy(&fd));
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
 // ---------------------------------------
 // InputParameters
 // ---------------------------------------
@@ -720,7 +718,6 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   // Effective shear and Compaction viscosity due to elasticity
   eta_e = G*dt;
   zeta_e = Z*dt;
-
 
   // phase field
   PetscCall(DMGetLocalVector(usr->dmf, &flocal)); 
@@ -1195,6 +1192,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
   PetscCall(DMLocalToGlobalEnd  (usr->dmeps,xyieldlocal,INSERT_VALUES,usr->xyield)); 
   PetscCall(VecDestroy(&xyieldlocal)); 
 
+  PetscCall(DMRestoreLocalVector(usr->dmf,&volflocal)); 
   PetscCall(DMRestoreLocalVector(usr->dmeps,&xepslocal)); 
   PetscCall(DMRestoreLocalVector(usr->dmeps,&toldlocal)); 
   PetscCall(DMRestoreLocalVector(usr->dmeps,&poldlocal)); 
@@ -1336,7 +1334,6 @@ PetscErrorCode UpdateStrainRates(DM dm, Vec x, void *ctx)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
 // ---------------------------------------
 // FormBCList
 // ---------------------------------------
@@ -1473,7 +1470,7 @@ PetscErrorCode UpdateStressOld(DM dmeps, void *ctx)
 
   // Get local vectors from dmeps
   PetscCall(DMGetLocalVector(usr->dmeps, &xtaulocal)); 
-  PetscCall(DMGlobalToLocal (usr->dmeps, usr->xtau, INSERT_VALUES, xtaulocal);) 
+  PetscCall(DMGlobalToLocal (usr->dmeps, usr->xtau, INSERT_VALUES, xtaulocal)); 
 
   PetscCall(DMGetLocalVector(usr->dmeps, &xDPlocal)); 
   PetscCall(DMGlobalToLocal (usr->dmeps, usr->xDP, INSERT_VALUES, xDPlocal)); 
@@ -1845,12 +1842,12 @@ PetscErrorCode ExplicitStep(DM dm, Vec xprev, Vec x, PetscScalar dt, void *ctx)
   PetscCall(DMStagVecRestoreArray(dm,xlocal,&xx));
   PetscCall(DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x)); 
   PetscCall(DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x)); 
-  PetscCall(VecDestroy(&xlocal)); 
+  PetscCall(DMRestoreLocalVector(dm, &xlocal)); 
 
   PetscCall(DMStagVecRestoreArray(dm,xplocal,&xxp));
   PetscCall(DMLocalToGlobalBegin(dm,xplocal,INSERT_VALUES,xprev)); 
   PetscCall(DMLocalToGlobalEnd  (dm,xplocal,INSERT_VALUES,xprev)); 
-  PetscCall(VecDestroy(&xplocal)); 
+  PetscCall(DMRestoreLocalVector(dm, &xplocal)); 
 
   PetscCall(DMRestoreLocalVector(dm, &dfxlocal)); 
   PetscCall(DMRestoreLocalVector(dm, &dfzlocal)); 
@@ -1931,7 +1928,7 @@ PetscErrorCode UpdateCornerF(DM dm, Vec x, void *ctx)
   PetscCall(DMStagVecRestoreArray(dm,xlocal,&xx)); 
   PetscCall(DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x)); 
   PetscCall(DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x)); 
-  PetscCall(VecDestroy(&xlocal)); 
+  PetscCall(DMRestoreLocalVector(dm,&xlocal)); 
   
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -2123,7 +2120,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

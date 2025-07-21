@@ -1,16 +1,14 @@
 static char help[] = "FD-PDE test \n\n";
-// run: ./tests/test_fdpde
+// run: ./test_fdpde.sh -log_view
 
-// #include "../src/fdpde.h"
 #include "../src/fdpde_stokes.h"
-
-// PetscErrorCode test0(PetscInt,PetscInt);
 
 // test0 - create/destroy
 PetscErrorCode test0(PetscInt nx,PetscInt nz)
 {
   FDPDE           fd;
-  
+  PetscFunctionBeginUser;
+
   PetscCall(FDPDECreate(PETSC_COMM_WORLD,nx,nz,0.0,1.0,0.0,1.0,FDPDE_STOKES,&fd));
   PetscCall(FDPDESetUp(fd));
   PetscCall(FDPDEView(fd)); 

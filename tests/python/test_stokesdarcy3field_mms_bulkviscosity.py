@@ -55,9 +55,8 @@ cmaps='RdBu_r'
 
 # Use umfpack for sequential and mumps for sequential/parallel
 solver_default = ' -snes_monitor -snes_converged_reason -ksp_monitor -ksp_converged_reason '
-if (ncpu == -1):
+if (ncpu == 1):
   solver = ' -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external'
-  ncpu = 1
 else:
   solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
 
@@ -67,7 +66,7 @@ for nx in n:
   fout1 = fname_data+'/'+fname+'_'+str(nx)+'.out'
 
   # Run with different resolutions
-  str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy3field_mms_bulkviscosity -delta '+str(delta)+ \
+  str1 = 'mpiexec -n '+str(ncpu)+' ../test_stokesdarcy3field_mms_bulkviscosity.sh -delta '+str(delta)+ \
     ' -phi0 '+str(phi0)+' -phia '+str(phia)+' -phi_min '+str(phi_min)+' -p_s '+str(p_s)+' -psi_s '+str(psi_s)+ solver+solver_default +\
     ' -vzeta '+str(vzeta)+' -U_s '+str(U_s)+' -m '+str(m)+' -n '+str(nexp)+' -k_hat '+str(k_hat)+ \
     ' -output_dir '+fname_data+' -output_file '+fname+'_'+str(nx)+' -nx '+str(nx)+' -nz '+str(nx)+' > '+fout1

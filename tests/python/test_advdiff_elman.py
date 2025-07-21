@@ -60,12 +60,12 @@ else:
   solver = ' -pc_type lu -pc_factor_mat_solver_type mumps'
 
 # Run test
-str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_elman'+solver+' -output_file '+fname11+' -output_dir '+fname_data+ \
+str1 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_elman.sh'+solver+' -output_file '+fname11+' -output_dir '+fname_data+ \
   ' -nx '+str(n)+' -nz '+str(n)+solver_default+' -advtype 0 > '+fname_data+'/'+'out_num_elman1.out'
 print(str1)
 os.system(str1)
 
-str2 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_elman'+solver+' -output_file '+fname12+' -output_dir '+fname_data+ \
+str2 = 'mpiexec -n '+str(ncpu)+' ../test_advdiff_elman.sh'+solver+' -output_file '+fname12+' -output_dir '+fname_data+ \
   ' -nx '+str(n)+' -nz '+str(n)+solver_default+' -advtype 1  > '+fname_data+'/'+'out_num_elman2.out'
 print(str2)
 os.system(str2)
@@ -212,6 +212,7 @@ cbar = fig.colorbar(im2,ax=axs, shrink=0.75)
 cbar.ax.set_ylabel('T')
 
 plt.savefig(fname_out+'/'+fname+'.pdf')
+plt.close()
 
 # ---------------------------------------
 # Plot data - ex 311, 312, 313, 314
@@ -270,6 +271,7 @@ ax4.set_title('Elman (2005) Ex 3.1.4')
 cbar = fig.colorbar(im4,ax=ax4, shrink=0.75)
 
 plt.savefig(fname_out+'/'+fname[:-3]+'.pdf')
+plt.close()
 
 # ---------------------------------------
 # Plot data - ex 311, 312, 313, 314 - SURFACE PLOTS
@@ -279,8 +281,7 @@ plt.savefig(fname_out+'/'+fname[:-3]+'.pdf')
 fig, axs = plt.subplots(2, 2,figsize=(12,12))
 cmaps='viridis'
 
-# Subplot 0
-ax1 = plt.subplot(221, projection='3d')
+ax1 = fig.add_subplot(2, 2, 1, projection='3d')
 X, Y = np.meshgrid(xc0, yc0)
 surf1 = ax1.plot_surface(X, Y, T12.reshape(n12,m12), linewidth=0, cmap=cmaps, antialiased=False)
 ax1.view_init(30, -75)
@@ -289,8 +290,7 @@ ax1.set_ylabel('z-dir')
 ax1.set_title('Elman (2005) Ex 3.1.1')
 # cbar = fig.colorbar(im1,ax=ax1, shrink=0.75)
 
-# Subplot 1
-ax2 = plt.subplot(222, projection='3d')
+ax2 = fig.add_subplot(2, 2, 2, projection='3d')
 surf2 = ax2.plot_surface(X, Y, T2.reshape(n2,m2), linewidth=0, cmap=cmaps,antialiased=False)
 ax2.view_init(30, -75)
 ax2.set_xlabel('x-dir')
@@ -298,8 +298,7 @@ ax2.set_ylabel('z-dir')
 ax2.set_title('Elman (2005) Ex 3.1.2')
 # cbar = fig.colorbar(im2,ax=ax2, shrink=0.75)
 
-# Subplot 2
-ax3 = plt.subplot(223, projection='3d')
+ax3 = fig.add_subplot(2, 2, 3, projection='3d')
 surf3 = ax3.plot_surface(X, Y, T3.reshape(n3,m3), linewidth=0, cmap=cmaps,antialiased=False)
 ax3.view_init(30, -75)
 ax3.set_xlabel('x-dir')
@@ -307,8 +306,7 @@ ax3.set_ylabel('z-dir')
 ax3.set_title('Elman (2005) Ex 3.1.3')
 # cbar = fig.colorbar(im3,ax=ax3, shrink=0.75)
 
-# Subplot 3
-ax4 = plt.subplot(224, projection='3d')
+ax4 = fig.add_subplot(2, 2, 4, projection='3d')
 surf4 = ax4.plot_surface(X, Y, T4.reshape(n4,m4), linewidth=0, cmap=cmaps,antialiased=False)
 ax4.view_init(30, -135)
 ax4.set_xlabel('x-dir')
@@ -317,5 +315,6 @@ ax4.set_title('Elman (2005) Ex 3.1.4')
 # cbar = fig.colorbar(im4,ax=ax4, shrink=0.75)
 
 plt.savefig(fname_out+'/'+fname[:-3]+'_3D.pdf')
+plt.close()
 
 os.system('rm -r '+fname_data+'/__pycache__')

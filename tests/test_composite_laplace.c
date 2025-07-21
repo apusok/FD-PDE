@@ -1,6 +1,6 @@
 // ---------------------------------------
 // Composite solver test (monolithic)
-// run: ./tests/test_composite_laplace.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
+// run: ./test_composite_laplace.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
 // ---------------------------------------
 static char help[] = "Application to solve two de-coupled Laplace problems with a monolithoc FD-PDE \n\n";
 
@@ -15,10 +15,8 @@ static char help[] = "Application to solve two de-coupled Laplace problems with 
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_advdiff.h"
 #include "../src/fdpde_composite.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -201,7 +199,6 @@ PetscErrorCode Numerical_Laplace_Decoupled(DM _dm[], Vec _x[], void *ctx)
     PetscCall(FDPDEDestroy(&fdlaplace[i]));
   }
 
-  
   // FD SNES Solver
   PetscCall(FDPDESolve(fdmono,NULL));
   // testing
@@ -875,7 +872,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

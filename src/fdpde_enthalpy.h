@@ -3,8 +3,6 @@
 #ifndef FDPDE_ENTHALPY_H
 #define FDPDE_ENTHALPY_H
 
-#include "petsc.h"
-#include "fdpde.h"
 #include "fdpde_advdiff.h"
 
 // DOF color for coefficients

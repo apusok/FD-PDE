@@ -1,7 +1,7 @@
 // ---------------------------------------
 // MMS test to verify a power-law effective viscosity approach, where eta=eta0*(epsII/eps0)^(1/np-1), zeta = eta/phi
-// run: ./tests/test_effvisc_mms.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -ksp_monitor -nx 20 -nz 20
-// python test: ./tests/python/test_effvisc_mms.py
+// run: ./test_effvisc_mms.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -ksp_monitor -nx 20 -nz 20 -log_view
+// python test: ./python/test_effvisc_mms.py
 // python sympy: ./mms/mms_effvisc_powerlaw.py
 // ---------------------------------------
 static char help[] = "Application to verify a power-law effective viscosity for Stokes and StokesDarcy using MMS \n\n";
@@ -25,11 +25,7 @@ static char help[] = "Application to verify a power-law effective viscosity for 
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokesdarcy2field.h"
-#include "../src/fdpde_stokes.h"
-#include "../src/consteq.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -869,7 +865,7 @@ PetscErrorCode ComputeManufacturedSolution(DM dm,Vec *_xMMS, Vec *_xepsMMS, void
   PetscCall(DMStagVecGetArray(dm,xMMSlocal,&xxMMS)); 
 
   PetscCall(DMCreateGlobalVector(dmeps,&xeps     )); 
-  PetscCall(DMCreateLocalVector (dmeps,&xepslocal)) 
+  PetscCall(DMCreateLocalVector (dmeps,&xepslocal)); 
   PetscCall(DMStagVecGetArray(dmeps,xepslocal,&xxeps)); 
 
   PetscCall(DMCreateGlobalVector(dm,&xrhs     )); 
@@ -1474,7 +1470,7 @@ int main (int argc,char **argv)
   PetscCall(PetscInitialize(&argc,&argv,(char*)0,help));
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

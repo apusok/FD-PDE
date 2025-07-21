@@ -1,5 +1,6 @@
 // ---------------------------------------
-// run: ./tests/test_stokes_rt_compare_pic_phasefield.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 21 -nz 21 -snes_type ksponly -snes_fd_color -nt 101
+// run: ./test_stokes_rt_compare_pic_phasefield.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 21 -nz 21 -snes_type ksponly -snes_fd_color -nt 101 -log_view
+// python test: ./python/test_stokes_rt_compare_pic_phasefield.py
 // ---------------------------------------
 static char help[] = "Application to solve an Rayleigh-Taylor instability and compare Particle-in-Cell and Phase Field method for material interfaces\n\n";
 
@@ -14,10 +15,8 @@ static char help[] = "Application to solve an Rayleigh-Taylor instability and co
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokes.h"
-#include "../src/dmstagoutput.h"
-#include "../src/material_point.h"
+#include "../src/fdpde_dmswarm.h"
 
 // ---------------------------------------
 // Application Context
@@ -1305,7 +1304,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   // Create bag
   PetscCall(PetscBagCreate (usr->comm,sizeof(Params),&usr->bag)); 
   PetscCall(PetscBagGetData(usr->bag,(void **)&usr->par)); 
-  PetscCall(PetscBagSetName(usr->bag,"UserParamBag","- User defined parameters -");) 
+  PetscCall(PetscBagSetName(usr->bag,"UserParamBag","- User defined parameters -")); 
 
   // Define some pointers for easy access
   bag = usr->bag;
@@ -1412,7 +1411,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

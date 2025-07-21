@@ -1,8 +1,8 @@
 // ---------------------------------------
 // Uniform expansion of a visco-elastic block subject to the StokesDarcy model.
 // Rheology: visco-elasto-plastic model
-// run: ./tests/test_stokesdarcy2field_vep_0d_expansion.app -pc_factor_mat_solver_type umfpack -pc_type lu -nx 5 -nz 5 -phi0 0.1 -G 1.0 -Z0 1.0 -C 1e40 -tstep 200 -dt 0.02 -vi 1.0
-// python test: ./tests/python/test_stokesdarcy2field_vep_0d_expansion.py
+// run: ./test_stokesdarcy2field_vep_0d_expansion.sh -pc_factor_mat_solver_type umfpack -pc_type lu -nx 5 -nz 5 -phi0 0.1 -G 1.0 -Z0 1.0 -C 1e40 -tstep 200 -dt 0.02 -vi 1.0 -log_view
+// python test: ./python/test_stokesdarcy2field_vep_0d_expansion.py
 // ---------------------------------------
 static char help[] = "Application for validating the visco-elasto-plastic model with zero-dimensional problems about uniform deformation (pure expansion) in the absence of gravity \n\n";
 
@@ -17,10 +17,7 @@ static char help[] = "Application for validating the visco-elasto-plastic model 
 #define UP         DMSTAG_UP
 #define UP_RIGHT   DMSTAG_UP_RIGHT
 
-#include "petsc.h"
 #include "../src/fdpde_stokesdarcy2field.h"
-#include "../src/consteq.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Application Context
@@ -952,7 +949,7 @@ PetscErrorCode UpdateStressOld(DM dmeps, void *ctx)
 
   // Get local vectors from dmeps
   PetscCall(DMGetLocalVector(usr->dmeps, &xtaulocal)); 
-  PetscCall(DMGlobalToLocal (usr->dmeps, usr->xtau, INSERT_VALUES, xtaulocal)) 
+  PetscCall(DMGlobalToLocal (usr->dmeps, usr->xtau, INSERT_VALUES, xtaulocal));
 
   PetscCall(DMGetLocalVector(usr->dmeps, &xDPlocal)); 
   PetscCall(DMGlobalToLocal (usr->dmeps, usr->xDP, INSERT_VALUES, xDPlocal)); 
@@ -999,7 +996,7 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
  
   // Load command line or input file if required
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Input user parameters and print
   PetscCall(InputParameters(&usr)); 

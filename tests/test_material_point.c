@@ -1,14 +1,15 @@
+// run: ./test_material_point.sh -log_view
+
 static char help[] = "Material point layout test \n\n";
 
+#include "../src/fdpde_dmswarm.h"
 
-#include "petsc.h"
-#include "../src/material_point.h"
-
-
+// ---------------------------------------
 PetscErrorCode test_layout(PetscInt nx,PetscInt ny)
 {
   DM              dm,dmswarm;
   PetscInt        dof0,dof1,dof2,stencilWidth;
+  PetscFunctionBeginUser;
   
   dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
@@ -59,13 +60,14 @@ PetscErrorCode test_layout(PetscInt nx,PetscInt ny)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
+// ---------------------------------------
 PetscErrorCode test_advection_rk1(PetscInt nx,PetscInt ny)
 {
   DM              dm,dmswarm;
   PetscInt        dof0,dof1,dof2,stencilWidth,k;
   Vec             X,Xl;
   PetscReal       ***vel;
+  PetscFunctionBeginUser;
   
   dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
@@ -157,10 +159,12 @@ PetscErrorCode test_advection_rk1(PetscInt nx,PetscInt ny)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
 PetscErrorCode test_custom_tools_set(PetscInt nx,PetscInt ny)
 {
   DM              dm,dmswarmA;
   PetscInt        dof0,dof1,dof2,stencilWidth;
+  PetscFunctionBeginUser;
   
   dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
@@ -223,8 +227,6 @@ PetscErrorCode test_custom_tools_set(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmRestoreField(dmswarmA,"xi",NULL,NULL,(void**)&field));
   }
 
-
-  
   {
     PetscInt list[] = {4,10,12,8};
     PetscCall(DMSwarmFieldSetWithList(dmswarmA,"eta",4,list,1001.11));
@@ -253,10 +255,14 @@ PetscErrorCode test_custom_tools_set(PetscInt nx,PetscInt ny)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
 PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
 {
   DM              dm,dmswarmA,dmswarmB;
   PetscInt        dof0,dof1,dof2,stencilWidth;
+  const char     *cellid;
+  DMSwarmCellDM   celldm;
+  PetscFunctionBeginUser;
   
   dof0 = 0; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
@@ -272,6 +278,9 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
   PetscCall(DMStagPICCreateDMSwarm(dm,&dmswarmA));
   PetscCall(DMSwarmRegisterPetscDatatypeField(dmswarmA,"eta",1,PETSC_REAL));
   PetscCall(DMStagPICFinalize(dmswarmA));
+
+  PetscCall(DMSwarmGetCellDMActive(dmswarmA, &celldm));
+  PetscCall(DMSwarmCellDMGetCellID(celldm, &cellid));
   
   {
     PetscInt ppcell[] = {1,1};
@@ -295,11 +304,11 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     PetscInt *field;
     PetscInt npoints,p;
     PetscCall(DMSwarmGetLocalSize(dmswarmA,&npoints));
-    PetscCall(DMSwarmGetField(dmswarmA,DMSwarmPICField_cellid,NULL,NULL,(void**)&field));
+    PetscCall(DMSwarmGetField(dmswarmA,cellid,NULL,NULL,(void**)&field));
     for (p=0; p<npoints; p++) {
       field[p] = p;
     }
-    PetscCall(DMSwarmRestoreField(dmswarmA,DMSwarmPICField_cellid,NULL,NULL,(void**)&field));
+    PetscCall(DMSwarmRestoreField(dmswarmA,cellid,NULL,NULL,(void**)&field));
   }
 
   printf("<< A init >>\n");
@@ -311,7 +320,7 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     long *pid;
     
     PetscCall(DMSwarmGetLocalSize(swarm,&npoints));
-    PetscCall(DMSwarmGetField(swarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&fieldpid));
+    PetscCall(DMSwarmGetField(swarm,cellid,NULL,NULL,(void**)&fieldpid));
     PetscCall(DMSwarmGetField(swarm,"eta",NULL,NULL,(void**)&field));
     PetscCall(DMSwarmGetField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     for (p=0; p<npoints; p++) {
@@ -319,10 +328,9 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     }
     PetscCall(DMSwarmRestoreField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     PetscCall(DMSwarmRestoreField(swarm,"eta",NULL,NULL,(void**)&field));
-    PetscCall(DMSwarmRestoreField(swarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&fieldpid));
+    PetscCall(DMSwarmRestoreField(swarm,cellid,NULL,NULL,(void**)&fieldpid));
   }
 
-  
   /*
   {
     const DM swarm = dmswarmA;
@@ -381,7 +389,7 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     long *pid;
     
     PetscCall(DMSwarmGetLocalSize(swarm,&npoints));
-    PetscCall(DMSwarmGetField(swarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&fieldpid));
+    PetscCall(DMSwarmGetField(swarm,cellid,NULL,NULL,(void**)&fieldpid));
     PetscCall(DMSwarmGetField(swarm,"eta",NULL,NULL,(void**)&field));
     PetscCall(DMSwarmGetField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     for (p=0; p<npoints; p++) {
@@ -394,9 +402,8 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     }
     PetscCall(DMSwarmRestoreField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     PetscCall(DMSwarmRestoreField(swarm,"xi",NULL,NULL,(void**)&field));
-    PetscCall(DMSwarmRestoreField(swarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&fieldpid));
+    PetscCall(DMSwarmRestoreField(swarm,cellid,NULL,NULL,(void**)&fieldpid));
   }
-  
 
   /* change eta in B, delete list from A, insert B into A */
   {
@@ -411,7 +418,6 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmRestoreField(swarm,"eta",NULL,NULL,(void**)&field));
   }
 
-  
   printf("<< A prior to deleting >>\n");
   {
     const DM swarm = dmswarmA;
@@ -421,7 +427,7 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     long *pid;
     
     PetscCall(DMSwarmGetLocalSize(swarm,&npoints));
-    PetscCall(DMSwarmGetField(swarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&fieldpid));
+    PetscCall(DMSwarmGetField(swarm,cellid,NULL,NULL,(void**)&fieldpid));
     PetscCall(DMSwarmGetField(swarm,"eta",NULL,NULL,(void**)&field));
     PetscCall(DMSwarmGetField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     for (p=0; p<npoints; p++) {
@@ -429,7 +435,7 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     }
     PetscCall(DMSwarmRestoreField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     PetscCall(DMSwarmRestoreField(swarm,"eta",NULL,NULL,(void**)&field));
-    PetscCall(DMSwarmRestoreField(swarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&fieldpid));
+    PetscCall(DMSwarmRestoreField(swarm,cellid,NULL,NULL,(void**)&fieldpid));
   }
 
   {
@@ -446,7 +452,7 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     long *pid;
     
     PetscCall(DMSwarmGetLocalSize(swarm,&npoints));
-    PetscCall(DMSwarmGetField(swarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&fieldpid));
+    PetscCall(DMSwarmGetField(swarm,cellid,NULL,NULL,(void**)&fieldpid));
     PetscCall(DMSwarmGetField(swarm,"eta",NULL,NULL,(void**)&field));
     PetscCall(DMSwarmGetField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     for (p=0; p<npoints; p++) {
@@ -454,9 +460,8 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     }
     PetscCall(DMSwarmRestoreField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     PetscCall(DMSwarmRestoreField(swarm,"eta",NULL,NULL,(void**)&field));
-    PetscCall(DMSwarmRestoreField(swarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&fieldpid));
+    PetscCall(DMSwarmRestoreField(swarm,cellid,NULL,NULL,(void**)&fieldpid));
   }
-  
   
   {
     PetscBool copy_occurred;
@@ -472,7 +477,7 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     long *pid;
     
     PetscCall(DMSwarmGetLocalSize(swarm,&npoints));
-    PetscCall(DMSwarmGetField(swarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&fieldpid));
+    PetscCall(DMSwarmGetField(swarm,cellid,NULL,NULL,(void**)&fieldpid));
     PetscCall(DMSwarmGetField(swarm,"eta",NULL,NULL,(void**)&field));
     PetscCall(DMSwarmGetField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     for (p=0; p<npoints; p++) {
@@ -480,10 +485,9 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     }
     PetscCall(DMSwarmRestoreField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     PetscCall(DMSwarmRestoreField(swarm,"eta",NULL,NULL,(void**)&field));
-    PetscCall(DMSwarmRestoreField(swarm,DMSwarmPICField_cellid,NULL,NULL,(void**)&fieldpid));
+    PetscCall(DMSwarmRestoreField(swarm,cellid,NULL,NULL,(void**)&fieldpid));
   }
 
-  
   PetscCall(DMDestroy(&dmswarmB));
   PetscCall(DMDestroy(&dmswarmA));
   PetscCall(DMDestroy(&dm));
@@ -491,12 +495,14 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
 PetscErrorCode test_custom_tools_project(PetscInt nx,PetscInt ny)
 {
   DM              dmcell,dm,dmswarmA;
   PetscInt        dof0,dof1,dof2,stencilWidth;
   Vec             cellcoeff;
   //MPPropertyMap   property_labels[] = { {"eta",0} , {"rho",1} };
+  PetscFunctionBeginUser;
   
   dof0 = 0; dof1 = 0; dof2 = 2; /* (vertex) (face) (element) */
   stencilWidth = 1;
@@ -544,7 +550,6 @@ PetscErrorCode test_custom_tools_project(PetscInt nx,PetscInt ny)
     }
     PetscCall(DMSwarmRestoreField(dmswarmA,"eta",NULL,NULL,(void**)&pfield));
     
-    
     PetscCall(DMSwarmGetField(dmswarmA,"rho",NULL,NULL,(void**)&pfield));
     for (p=0; p<npoints; p++) {
       pfield[p] = 120.0;
@@ -555,7 +560,6 @@ PetscErrorCode test_custom_tools_project(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmRestoreField(dmswarmA,"rho",NULL,NULL,(void**)&pfield));
     PetscCall(DMSwarmRestoreField(dmswarmA,DMSwarmPICField_coor,NULL,NULL,(void**)&pcoor));
   }
-  
   
   PetscCall(MPoint_ProjectP0_arith(dmswarmA,"eta",dm,dmcell,0,cellcoeff));
   VecView(cellcoeff,PETSC_VIEWER_STDOUT_WORLD);
@@ -570,11 +574,13 @@ PetscErrorCode test_custom_tools_project(PetscInt nx,PetscInt ny)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
 PetscErrorCode test_custom_tools_project_2(PetscInt nx,PetscInt ny)
 {
   DM              dmcell,dm,dmswarmA;
   PetscInt        dof0,dof1,dof2,stencilWidth;
   Vec             cellcoeff;
+  PetscFunctionBeginUser;
   
   dof0 = 1; dof1 = 1; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
@@ -634,7 +640,6 @@ PetscErrorCode test_custom_tools_project_2(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmRestoreField(dmswarmA,DMSwarmPICField_coor,NULL,NULL,(void**)&pcoor));
   }
   
-  
   PetscCall(MPoint_ProjectQ1_arith_general(dmswarmA,"eta",dm,dmcell,0,0,cellcoeff));
   VecView(cellcoeff,PETSC_VIEWER_STDOUT_WORLD);
   
@@ -652,16 +657,17 @@ PetscErrorCode test_custom_tools_project_2(PetscInt nx,PetscInt ny)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// ---------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "main"
 int main (int argc,char **argv)
 {
   PetscCall(PetscInitialize(&argc,&argv,(char*)0,help));
-  //PetscCall(test_layout(6,4));
-  //PetscCall(test_advection_rk1(10,10));
-  //PetscCall(test_custom_tools_set(4,4));
-  //PetscCall(test_custom_tools_dup_copy(4,4));
-  //PetscCall(test_custom_tools_project(4,4));
+  // PetscCall(test_layout(6,4));
+  // PetscCall(test_advection_rk1(10,10));
+  // PetscCall(test_custom_tools_set(4,4));
+  // PetscCall(test_custom_tools_dup_copy(4,4));
+  // PetscCall(test_custom_tools_project(4,4));
   PetscCall(test_custom_tools_project_2(4,4));
   PetscCall(PetscFinalize());
   return 0;

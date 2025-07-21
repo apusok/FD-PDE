@@ -1,12 +1,12 @@
 // ---------------------------------------
 // MMS 2D diffusion test div(k*grad(T)) = f, with k > 0
-// run: ./tests/test_advdiff_mms_2d_diffusion.app -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
+// run: ./test_advdiff_mms_2d_diffusion.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
+// python test: ./python/test_advdiff_mms_2d_diffusion.py
+// python sympy: ./mms/mms_2d_diffusion.py
 // ---------------------------------------
 static char help[] = "Application to solve an MMS 2D diffusion equation (ADVDIFF) with FD-PDE \n\n";
 
-#include "petsc.h"
 #include "../src/fdpde_advdiff.h"
-#include "../src/dmstagoutput.h"
 
 // ---------------------------------------
 // Function definitions
@@ -85,7 +85,7 @@ int main (int argc,char **argv)
   PetscCall(PetscOptionsGetString(NULL,NULL,"-fname",fname,sizeof(fname),NULL)); 
   PetscCall(PetscOptionsGetString(NULL,NULL,"-fdir",fdir,sizeof(fdir),NULL)); 
 
-  PetscCall(PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL)); 
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Create the FD-PDE object
   PetscCall(FDPDECreate(comm,nx,nz,0.0,L,0.0,H,FDPDE_ADVDIFF,&fd));

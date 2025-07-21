@@ -1,7 +1,6 @@
 /* Finite differences staggered grid context for STOKES-DARCY-2FIELD equations */
 
 #include "fdpde_stokesdarcy2field.h"
-#include "fdpde_stokes.h"
 
 const char stokesdarcy2_description[] =
 "  << FD-PDE Stokes-Darcy 2 Field Formulation >> solves the PDEs: \n"

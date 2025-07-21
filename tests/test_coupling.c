@@ -1,14 +1,14 @@
 static char help[] = "DMStagCoupling test \n\n";
+// run: ./test_coupling.sh -log_view
 
-#include "petsc.h"
-#include "../src/composite_prealloc_utils.h"
-
+#include "../src/fdpde_snes.h"
 
 PetscErrorCode test1(PetscInt mx,PetscInt my)
 {
   DM              dms[20];
   PetscInt        dof0,dof1,dof2,stencilWidth,ndms,d;
   Mat             A;
+  PetscFunctionBeginUser;
   
   dof0 = 0; dof1 = 0; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
@@ -41,6 +41,7 @@ PetscErrorCode test2(PetscInt mx,PetscInt my)
   DM              dms[20];
   PetscInt        dof0,dof1,dof2,stencilWidth,ndms,d;
   Mat             A;
+  PetscFunctionBeginUser;
   
   dof0 = 0; dof1 = 0; dof2 = 1; /* (vertex) (face) (element) */
   stencilWidth = 1;
@@ -73,6 +74,7 @@ PetscErrorCode test3(PetscInt mx,PetscInt my)
   DM              dms[20];
   PetscInt        dof0,dof1,dof2,stencilWidth,ndms,d;
   Mat             A;
+  PetscFunctionBeginUser;
   
   stencilWidth = 1;
   ndms = 4;
@@ -111,6 +113,7 @@ PetscErrorCode test4(PetscInt mx,PetscInt my)
   PetscInt        dof0,dof1,dof2,stencilWidth,ndms,d;
   Mat             A;
   PetscBool       mask[16];
+  PetscFunctionBeginUser;
   
   mask[0]  = PETSC_FALSE;   mask[1]  = PETSC_TRUE;   mask[2]  = PETSC_FALSE;   mask[3]  = PETSC_TRUE;
   mask[4]  = PETSC_FALSE;   mask[5]  = PETSC_FALSE;   mask[6]  = PETSC_FALSE;   mask[7]  = PETSC_FALSE;
@@ -150,8 +153,6 @@ PetscErrorCode test4(PetscInt mx,PetscInt my)
   
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
-
 
 #undef __FUNCT__
 #define __FUNCT__ "main"
