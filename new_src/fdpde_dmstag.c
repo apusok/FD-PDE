@@ -2700,3 +2700,412 @@ PetscErrorCode DMStagReadBinaryPython(DM *dm,Vec *x,const char prefix[])
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+// ---------------------------------------
+// static PetscErrorCode DMStagGetProductCoordinateArrays_Private(DM dm,void* arrX,void* arrY,void* arrZ,PetscBool read)
+// {
+//   PetscInt       dim,d,dofCheck[DMSTAG_MAX_STRATA],s;
+//   DM             dmCoord;
+//   void*          arr[DMSTAG_MAX_DIM];
+//   PetscBool      checkDof;
+  
+//   PetscFunctionBegin;
+//   PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+//   PetscCall(DMGetDimension(dm,&dim));
+//   if (dim > DMSTAG_MAX_DIM) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Not implemented for %" PetscInt_FMT " dimensions",dim);
+//   arr[0] = arrX; arr[1] = arrY; arr[2] = arrZ;
+//   PetscCall(DMGetCoordinateDM(dm,&dmCoord));
+//   if (!dmCoord) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"DM does not have a coordinate DM");
+//   {
+//     PetscBool isProduct;
+//     DMType    dmType;
+//     PetscCall(DMGetType(dmCoord,&dmType));
+//     PetscCall(PetscStrcmp(DMPRODUCT,dmType,&isProduct));
+//     if (!isProduct) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Coordinate DM is not of type DMPRODUCT");
+//   }
+//   for (s=0; s<DMSTAG_MAX_STRATA; ++s) dofCheck[s] = 0;
+//   checkDof = PETSC_FALSE;
+//   for (d=0; d<dim; ++d) {
+//     DM        subDM;
+//     DMType    dmType;
+//     PetscBool isStag;
+//     PetscInt  dof[DMSTAG_MAX_STRATA],subDim;
+//     Vec       coord1d_local;
+    
+//     /* Ignore unrequested arrays */
+//     if (!arr[d]) continue;
+    
+//     PetscCall(DMProductGetDM(dmCoord,d,&subDM));
+//     if (!subDM) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Coordinate DM is missing sub DM %" PetscInt_FMT,d);
+//     PetscCall(DMGetDimension(subDM,&subDim));
+//     if (subDim != 1) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Coordinate sub-DM is not of dimension 1");
+//     PetscCall(DMGetType(subDM,&dmType));
+//     PetscCall(PetscStrcmp(DMSTAG,dmType,&isStag));
+//     if (!isStag) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Coordinate sub-DM is not of type DMSTAG");
+//     PetscCall(DMStagGetDOF(subDM,&dof[0],&dof[1],&dof[2],&dof[3]));
+//     if (!checkDof) {
+//       for (s=0; s<DMSTAG_MAX_STRATA; ++s) dofCheck[s] = dof[s];
+//       checkDof = PETSC_TRUE;
+//     } else {
+//       for (s=0; s<DMSTAG_MAX_STRATA; ++s) {
+//         if (dofCheck[s] != dof[s]) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Coordinate sub-DMs have different dofs");
+//       }
+//     }
+//     PetscCall(DMGetCoordinatesLocal(subDM,&coord1d_local));
+//     if (read) {
+//       PetscCall(DMStagVecGetArrayRead(subDM,coord1d_local,arr[d]));
+//     } else {
+//       PetscCall(DMStagVecGetArray(subDM,coord1d_local,arr[d]));
+//     }
+//   }
+//   PetscFunctionReturn(PETSC_SUCCESS);
+// }
+
+// ---------------------------------------
+// /*@C
+//  DMStagGetProductCoordinateArraysRead - extract product coordinate arrays, read-only
+ 
+//  Logically Collective
+ 
+//  See the man page for DMStagGetProductCoordinateArrays() for more information.
+ 
+//  Input Parameter:
+//  . dm - the DMStag object
+ 
+//  Output Parameters:
+//  . arrX,arrY,arrZ - local 1D coordinate arrays
+ 
+//  Level: intermediate
+ 
+//  .seealso: DMSTAG, DMPRODUCT, DMStagGetProductCoordinateArrays(), DMStagSetUniformCoordinates(), DMStagSetUniformCoordinatesProduct(), DMStagGetProductCoordinateLocationSlot()
+//  @*/
+// PetscErrorCode _DMStagGetProductCoordinateArraysRead(DM dm,void* arrX,void* arrY,void* arrZ)
+// {
+//   PetscFunctionBegin;
+//   PetscCall(DMStagGetProductCoordinateArrays_Private(dm,arrX,arrY,arrZ,PETSC_TRUE));
+//   PetscFunctionReturn(PETSC_SUCCESS);
+// }
+
+// ---------------------------------------
+// static PetscErrorCode DMStagRestoreProductCoordinateArrays_Private(DM dm,void *arrX,void *arrY,void *arrZ,PetscBool read)
+// {
+//   PetscInt        dim,d;
+//   void*           arr[DMSTAG_MAX_DIM];
+//   DM              dmCoord;
+  
+//   PetscFunctionBegin;
+//   PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+//   PetscCall(DMGetDimension(dm,&dim));
+//   if (dim > DMSTAG_MAX_DIM) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Not implemented for % dimensions" PetscInt_FMT,dim);
+//   arr[0] = arrX; arr[1] = arrY; arr[2] = arrZ;
+//   PetscCall(DMGetCoordinateDM(dm,&dmCoord));
+//   for (d=0; d<dim; ++d) {
+//     DM  subDM;
+//     Vec coord1d_local;
+    
+//     /* Ignore unrequested arrays */
+//     if (!arr[d]) continue;
+    
+//     PetscCall(DMProductGetDM(dmCoord,d,&subDM));
+//     PetscCall(DMGetCoordinatesLocal(subDM,&coord1d_local));
+//     if (read) {
+//       PetscCall(DMStagVecRestoreArrayRead(subDM,coord1d_local,arr[d]));
+//     } else {
+//       PetscCall(DMStagVecRestoreArray(subDM,coord1d_local,arr[d]));
+//     }
+//   }
+//   PetscFunctionReturn(PETSC_SUCCESS);
+// }
+
+// ---------------------------------------
+// /*@C
+//  DMStagRestoreProductCoordinateArraysRead - restore local product array access, read-only
+ 
+//  Logically Collective
+ 
+//  Input Parameter:
+//  . dm - the DMStag object
+ 
+//  Output Parameters:
+//  . arrX,arrY,arrZ - local 1D coordinate arrays
+ 
+//  Level: intermediate
+ 
+//  .seealso: DMSTAG, DMStagGetProductCoordinateArrays(), DMStagGetProductCoordinateArraysRead()
+//  @*/
+// PetscErrorCode _DMStagRestoreProductCoordinateArraysRead(DM dm,void *arrX,void *arrY,void *arrZ)
+// {
+//   PetscFunctionBegin;
+//   PetscCall(DMStagRestoreProductCoordinateArrays_Private(dm,arrX,arrY,arrZ,PETSC_TRUE));
+//   PetscFunctionReturn(PETSC_SUCCESS);
+// }
+
+// ---------------------------------------
+// /*@C
+//  DMStagGetProductCoordinateLocationSlot - get slot for use with local product coordinate arrays
+ 
+//  Not Collective
+ 
+//  High-level helper function to get slot indices for 1D coordinate DMs,
+//  for use with DMStagGetProductCoordinateArrays() and related functions.
+ 
+//  Input Parameters:
+//  + dm - the DMStag object
+//  - loc - the grid location
+ 
+//  Output Parameter:
+//  . slot - the index to use in local arrays
+ 
+//  Notes:
+//  Checks that the coordinates are actually set up so that using the
+//  slots from the first 1d coordinate sub-DM is valid for all the 1D coordinate sub-DMs.
+ 
+//  Level: intermediate
+ 
+//  .seealso: DMSTAG, DMPRODUCT, DMStagGetProductCoordinateArrays(), DMStagGetProductCoordinateArraysRead(), DMStagSetUniformCoordinates()
+//  @*/
+// PetscErrorCode _DMStagGetProductCoordinateLocationSlot(DM dm,DMStagStencilLocation loc,PetscInt *slot)
+// {
+//   DM             dmCoord;
+//   PetscInt       dim,dofCheck[DMSTAG_MAX_STRATA],s,d;
+  
+//   PetscFunctionBegin;
+//   PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+//   PetscCall(DMGetDimension(dm,&dim));
+//   PetscCall(DMGetCoordinateDM(dm,&dmCoord));
+//   if (!dmCoord) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"DM does not have a coordinate DM");
+//   {
+//     PetscBool isProduct;
+//     DMType    dmType;
+//     PetscCall(DMGetType(dmCoord,&dmType));
+//     PetscCall(PetscStrcmp(DMPRODUCT,dmType,&isProduct));
+//     if (!isProduct) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Coordinate DM is not of type DMPRODUCT");
+//   }
+//   for (s=0; s<DMSTAG_MAX_STRATA; ++s) dofCheck[s] = 0;
+//   for (d=0; d<dim; ++d) {
+//     DM        subDM;
+//     DMType    dmType;
+//     PetscBool isStag;
+//     PetscInt  dof[DMSTAG_MAX_STRATA],subDim;
+//     PetscCall(DMProductGetDM(dmCoord,d,&subDM));
+//     if (!subDM) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Coordinate DM is missing sub DM %" PetscInt_FMT,d);
+//     PetscCall(DMGetDimension(subDM,&subDim));
+//     if (subDim != 1) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Coordinate sub-DM is not of dimension 1");
+//     PetscCall(DMGetType(subDM,&dmType));
+//     PetscCall(PetscStrcmp(DMSTAG,dmType,&isStag));
+//     if (!isStag) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Coordinate sub-DM is not of type DMSTAG");
+//     PetscCall(DMStagGetDOF(subDM,&dof[0],&dof[1],&dof[2],&dof[3]));
+//     if (d == 0) {
+//       const PetscInt component = 0;
+//       for (s=0; s<DMSTAG_MAX_STRATA; ++s) dofCheck[s] = dof[s];
+//       PetscCall(DMStagGetLocationSlot(subDM,loc,component,slot));
+//     } else {
+//       for (s=0; s<DMSTAG_MAX_STRATA; ++s) {
+//         if (dofCheck[s] != dof[s]) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Coordinate sub-DMs have different dofs");
+//       }
+//     }
+//   }
+//   PetscFunctionReturn(PETSC_SUCCESS);
+// }
+
+// ---------------------------------------
+// PetscErrorCode DMStagStencilLocationCanonicalize(DMStagStencilLocation loc,DMStagStencilLocation *locCanonical)
+// {
+//   PetscFunctionBegin;
+//   switch (loc) {
+//     case DMSTAG_ELEMENT:
+//       *locCanonical = DMSTAG_ELEMENT;
+//       break;
+//     case DMSTAG_LEFT:
+//     case DMSTAG_RIGHT:
+//       *locCanonical = DMSTAG_LEFT;
+//       break;
+//     case DMSTAG_DOWN:
+//     case DMSTAG_UP:
+//       *locCanonical = DMSTAG_DOWN;
+//       break;
+//     case DMSTAG_BACK:
+//     case DMSTAG_FRONT:
+//       *locCanonical = DMSTAG_BACK;
+//       break;
+//     case DMSTAG_DOWN_LEFT :
+//     case DMSTAG_DOWN_RIGHT :
+//     case DMSTAG_UP_LEFT :
+//     case DMSTAG_UP_RIGHT :
+//       *locCanonical = DMSTAG_DOWN_LEFT;
+//       break;
+//     case DMSTAG_BACK_LEFT:
+//     case DMSTAG_BACK_RIGHT:
+//     case DMSTAG_FRONT_LEFT:
+//     case DMSTAG_FRONT_RIGHT:
+//       *locCanonical = DMSTAG_BACK_LEFT;
+//       break;
+//     case DMSTAG_BACK_DOWN:
+//     case DMSTAG_BACK_UP:
+//     case DMSTAG_FRONT_DOWN:
+//     case DMSTAG_FRONT_UP:
+//       *locCanonical = DMSTAG_BACK_DOWN;
+//       break;
+//     case DMSTAG_BACK_DOWN_LEFT:
+//     case DMSTAG_BACK_DOWN_RIGHT:
+//     case DMSTAG_BACK_UP_LEFT:
+//     case DMSTAG_BACK_UP_RIGHT:
+//     case DMSTAG_FRONT_DOWN_LEFT:
+//     case DMSTAG_FRONT_DOWN_RIGHT:
+//     case DMSTAG_FRONT_UP_LEFT:
+//     case DMSTAG_FRONT_UP_RIGHT:
+//       *locCanonical = DMSTAG_BACK_DOWN_LEFT;
+//       break;
+//     default :
+//       *locCanonical = DMSTAG_NULL_LOCATION;
+//       break;
+//   }
+//   PetscFunctionReturn(PETSC_SUCCESS);
+// }
+
+// ---------------------------------------
+// /*@C
+//  DMStagCreateISFromStencils - Create an IS, using global numberings, for a subset of DOF in a DMStag object
+ 
+//  Collective
+ 
+//  Input Parameters:
+//  + dm - the DMStag object
+//  . nStencil - the number of stencils provided
+//  - stencils - an array of DMStagStencil objects (i,j, and k are ignored)
+ 
+//  Output Parameter:
+//  . is - the global IS
+ 
+//  Note:
+//  Redundant entries in s are ignored
+ 
+//  Level: advanced
+ 
+//  .seealso: DMSTAG, IS, DMStagStencil, DMCreateGlobalVector
+//  @*/
+// PetscErrorCode DMStagCreateISFromStencils(DM dm,PetscInt nStencil,DMStagStencil* stencils,IS *is)
+// {
+//   DMStagStencil          *ss;
+//   PetscInt               *idx,*idxLocal;
+//   const PetscInt         *ltogidx;
+//   PetscInt               p,p2,pmax,i,j,k,d,dim,count,nidx;
+//   ISLocalToGlobalMapping ltog;
+//   PetscInt               start[DMSTAG_MAX_DIM],n[DMSTAG_MAX_DIM],extraPoint[DMSTAG_MAX_DIM];
+  
+//   PetscFunctionBegin;
+//   PetscCall(DMGetDimension(dm,&dim));
+//   if (dim<1 || dim>3) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unsupported dimension %D",dim);
+  
+//   /* Only use non-redundant stencils */
+//   PetscCall(PetscMalloc1(nStencil,&ss));
+//   pmax = 0;
+//   for (p=0; p<nStencil; ++p) {
+//     PetscBool skip = PETSC_FALSE;
+//     DMStagStencil stencilPotential = stencils[p];
+//     PetscCall(DMStagStencilLocationCanonicalize(stencils[p].loc,&stencilPotential.loc));
+//     for (p2=0; p2<pmax; ++p2) { /* Quadratic complexity algorithm in nStencil */
+//       if (stencilPotential.loc == ss[p2].loc && stencilPotential.c == ss[p2].c) {
+//         skip = PETSC_TRUE;
+//         break;
+//       }
+//     }
+//     if (!skip) {
+//       ss[pmax] = stencilPotential;
+//       ++pmax;
+//     }
+//   }
+  
+//   PetscCall(PetscMalloc1(pmax,&idxLocal));
+//   PetscCall(DMGetLocalToGlobalMapping(dm,&ltog));
+//   PetscCall(ISLocalToGlobalMappingGetIndices(ltog,&ltogidx));
+//   PetscCall(DMStagGetCorners(dm,&start[0],&start[1],&start[2],&n[0],&n[1],&n[2],&extraPoint[0],&extraPoint[1],&extraPoint[2]));
+//   for (d=dim; d<DMSTAG_MAX_DIM; ++d) {
+//     start[d]      = 0;
+//     n[d]          = 1; /* To allow for a single loop nest below */
+//     extraPoint[d] = 0;
+//   }
+//   nidx = pmax; for (d=0; d<dim; ++d) nidx *= (n[d]+1); /* Overestimate (always assumes extraPoint) */
+//   PetscCall(PetscMalloc1(nidx,&idx));
+//   count = 0;
+//   /* Note that unused loop variables are not accessed, for lower dimensions */
+//   for (k=start[2]; k<start[2]+n[2]+extraPoint[2]; ++k) {
+//     for (j=start[1]; j<start[1]+n[1]+extraPoint[1]; ++j) {
+//       for (i=start[0]; i<start[0]+n[0]+extraPoint[0]; ++i) {
+//         for(p=0; p<pmax; ++p) {
+//           ss[p].i = i; ss[p].j = j; ss[p].k = k;
+//         }
+//         PetscCall(DMStagStencilToIndexLocal(dm,dim,pmax,ss,idxLocal));
+//         for(p=0; p<pmax; ++p) {
+//           const PetscInt gidx = ltogidx[idxLocal[p]];
+//           if (gidx >= 0) {
+//             idx[count] = gidx;
+//             ++count;
+//           }
+//         }
+//       }
+//     }
+//   }
+//   PetscCall(ISLocalToGlobalMappingRestoreIndices(ltog,&ltogidx));
+//   PetscCall(ISCreateGeneral(PetscObjectComm((PetscObject)dm),count,idx,PETSC_OWN_POINTER,is));
+  
+//   PetscCall(PetscFree(ss));
+//   PetscCall(PetscFree(idxLocal));
+//   PetscFunctionReturn(PETSC_SUCCESS);
+// }
+
+// ---------------------------------------
+// /* Note: this does a linear search, which should be bisection, but an even
+//  better strategy would be to use any information about which cell a particle
+//  is already in, as in most applications it would be found there or in a
+//  neighboring cell */
+// static PetscErrorCode DMStagLocatePointsIS_2D_Product_Private(DM dm,Vec pos,IS *iscell)
+// {
+//   PetscInt          localSize,bs,p,npoints,start[2],n[2];
+//   PetscInt          *cellidx;
+//   const PetscScalar *_coor;
+//   PetscScalar       **cArrX,**cArrY;
+//   PetscInt          iNext,iPrev;
+  
+//   PetscFunctionBegin;
+  
+//   PetscCall(VecGetLocalSize(pos,&localSize));
+//   PetscCall(VecGetBlockSize(pos,&bs));
+//   npoints = localSize/bs;
+  
+//   PetscCall(PetscMalloc1(npoints,&cellidx));
+//   PetscCall(VecGetArrayRead(pos,&_coor));
+  
+//   PetscCall(DMStagGetCorners(dm,&start[0],&start[1],NULL,&n[0],&n[1],NULL,NULL,NULL,NULL));
+//   PetscCall(DMStagGetProductCoordinateArraysRead(dm,&cArrX,&cArrY,NULL));
+//   PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_LEFT,&iPrev));
+//   PetscCall(DMStagGetProductCoordinateLocationSlot(dm,DMSTAG_RIGHT,&iNext));
+  
+//   for (p=0; p<npoints; p++) {
+//     PetscReal coor_p[2];
+    
+//     coor_p[0] = PetscRealPart(_coor[2*p]);
+//     coor_p[1] = PetscRealPart(_coor[2*p+1]);
+    
+//     if ((coor_p[0] >= cArrX[start[0]][iPrev]) && (coor_p[0] <= cArrX[start[0]+n[0]][iPrev]) && (coor_p[1] >= cArrY[start[1]][iPrev]) && (coor_p[1] <= cArrY[start[1]+n[1]][iPrev]))
+//     {
+//       PetscInt e,ind[2];
+//       for (ind[0]=start[0]; ind[0]<start[0]+n[0]; ++ind[0]) {
+//         if (coor_p[0] <= cArrX[ind[0]][iNext]) break;
+//       }
+//       for (ind[1]=start[1]; ind[1]<start[1]+n[1]; ++ind[1]) {
+//         if (coor_p[1] <= cArrY[ind[1]][iNext]) break;
+//       }
+//       PetscCall(DMStagGetLocalElementIndex(dm,ind,&e));
+//       cellidx[p] = e;
+//     } else {
+//       cellidx[p] = DMLOCATEPOINT_POINT_NOT_FOUND;
+//     }
+//   }
+//   PetscCall(DMStagRestoreProductCoordinateArraysRead(dm,&cArrX,&cArrY,NULL));
+//   PetscCall(VecRestoreArrayRead(pos,&_coor));
+  
+//   PetscCall(ISCreateGeneral(PETSC_COMM_SELF,npoints,cellidx,PETSC_OWN_POINTER,iscell));
+//   PetscFunctionReturn(PETSC_SUCCESS);
+// }
+

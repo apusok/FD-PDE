@@ -8,6 +8,7 @@ PYTHON_DIR = ../new_tests/python
 
 SRC := 	fdpde_snes.c \
 	fdpde_dmstag.c \
+	fdpde_dmswarm.c \
 	fdpde_utils.c \
 	fdpde.c \
 	fdpde_stokes.c \
@@ -27,6 +28,7 @@ HDR := 	benchmark_solcx.h \
 	benchmark_cornerflow.h \
 	fdpde_snes.h \
 	fdpde_dmstag.h \
+	fdpde_dmswarm.h \
 	fdpde_utils.h \
 	fdpde.h \
 	fdpde_stokes.h \
@@ -41,7 +43,7 @@ FDPDE_HDR = $(patsubst %,${FDPDE_DIR}/%,${HDR})
 
 FDPDE_OBJ := $(patsubst %.c,%.o,${FDPDE_SRC})
 
-TEST_SRC = 	${TEST_DIR}/test_convection_stokes_periodic.c \
+TEST_SRC = 	${TEST_DIR}/test_fdpde.c \
 
 # TEST_SRC = 	${TEST_DIR}/test_fdpde.c \
 	${TEST_DIR}/test_dmstagbclist.c \
@@ -83,11 +85,16 @@ TEST_SRC = 	${TEST_DIR}/test_convection_stokes_periodic.c \
 	${TEST_DIR}/test_coupling.c \
 	${TEST_DIR}/test_decoupled_convection.c \
 	${TEST_DIR}/test_convection_stokes_periodic.c \
+	${TEST_DIR}/test_material_point.c \
+	${TEST_DIR}/test_dmswarm_project.c \
+	${TEST_DIR}/test_stokes_rt.c \
+	${TEST_DIR}/test_stokes_rt_compare_pic_phasefield.c \
+	${TEST_DIR}/test_stokesdarcy2field_vep_inclusion_pic.c \
 
-TEST_OBJ := $(patsubst %.c,%.o,${TEST_SRC})
-TEST_APP := $(patsubst %.c,%,${TEST_SRC})
+TEST_OBJ := $(patsubst %.c,%.o,$(TEST_SRC))
+TEST_APP := $(patsubst %.c,%.sh,$(TEST_SRC))
 
-all: ${FDPDE_OBJ}
+all: $(FDPDE_OBJ)
 	@echo "# -------------------------------- #"
 	@echo "# Compiled src: " ${FDPDE_OBJ} "    "
 	@echo "# -------------------------------- #"
@@ -101,9 +108,8 @@ tests: ${TEST_APP}
 %.o: %.c $(FDPDE_HDR)
 	-$(PCC) $(CFLAGS) -O2 -o $@ -c $< $(PETSC_CC_INCLUDES)
 
-${TEST_APP}: ${TEST_OBJ} ${FDPDE_OBJ}
-	${RM} ${TEST_APP}
-	-${CLINKER} -o ${TEST_APP} ${TEST_OBJ} ${FDPDE_OBJ} ${PETSC_SNES_LIB} ${PETSC_CONTRIB}
+%.sh: %.o $(FDPDE_OBJ)
+	-$(CLINKER) -o $@ $< $(FDPDE_OBJ) $(PETSC_SNES_LIB) $(PETSC_CONTRIB)
 
 clean_tests:
 	@rm -rf $(TEST_OBJ)
@@ -117,7 +123,7 @@ clean_all:
 	@rm -rf $(TEST_OBJ)
 	@rm -rf $(TEST_APP)
 	@rm -rf *.dSYM $(TEST_DIR)/*.dSYM *.py *.vtr *.pbin *.info *.out $(TEST_DIR)/*.out $(PYTHON_DIR)/*.out
-	@rm -rf out_* $(TEST_DIR)/out_* $(PYTHON_DIR)/out_*
+	@rm -rf out_* $(TEST_DIR)/out_* $(PYTHON_DIR)/out_* $(TEST_DIR)/*.xmf $(TEST_DIR)/*.pbin
 	@rm -rf snes_failure* $(TEST_DIR)/snes_failure* $(PYTHON_DIR)/snes_failure*
 	@rm -rf enthalpy_failure* $(TEST_DIR)/enthalpy_failure* $(PYTHON_DIR)/enthalpy_failure*
 	@rm -rf __pycache__ $(TEST_DIR)/__pycache__ $(PYTHON_DIR)/__pycache__

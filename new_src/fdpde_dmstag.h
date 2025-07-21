@@ -47,12 +47,17 @@ PetscErrorCode DMStagBCListGetValues(DMStagBCList,const char,const char,PetscInt
 PetscErrorCode DMStagBCListInsertValues(DMStagBCList,const char,PetscInt,PetscInt*,PetscInt**,PetscScalar**,PetscScalar**,PetscScalar**,BCType**);
 PetscErrorCode DMStagBCListPinValue(DMStagBCList,const char,PetscInt,PetscScalar);
 PetscErrorCode DMStagBCListPinCornerValue(DMStagBCList,DMStagStencilLocation,const char,PetscInt,PetscScalar);
-PetscErrorCode DMStagCellSizeLocal_2d(DM dm, PetscInt *_nx, PetscInt *_ny, PetscScalar *_dx[],PetscScalar *_dy[]);
+PetscErrorCode DMStagCellSizeLocal_2d(DM, PetscInt*, PetscInt*,PetscScalar*[],PetscScalar*[]);
 
 // ---------------------------------------
 // DMStagView
 // ---------------------------------------
 PetscErrorCode DMStagViewBinaryPython(DM,Vec,const char*);
 PetscErrorCode DMStagReadBinaryPython(DM*,Vec*,const char*);
+
+// PetscErrorCode DMStagGetProductCoordinateArraysRead(DM,void*,void*,void*);
+// PetscErrorCode DMStagRestoreProductCoordinateArraysRead(DM,void*,void*,void*);
+// PetscErrorCode DMStagGetProductCoordinateLocationSlot(DM,DMStagStencilLocation,PetscInt*);
+// PetscErrorCode DMStagCreateISFromStencils(DM,PetscInt,DMStagStencil*,IS*);
 
 #endif
