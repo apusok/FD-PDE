@@ -18,8 +18,6 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
   PetscInt       iprev, inext, icenter;
   PetscScalar    ***c, ***_xEnthlocal;
   PetscLogDouble tlog[2];
-  PetscErrorCode ierr;
-
   PetscFunctionBeginUser;
 
   PetscTime(&tlog[0]);
@@ -34,61 +32,61 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
   k_hat[3] = usr->par->k_hat;
 
   // Get dm and solution vector for H, C, phi, T (Enth)
-  ierr = DMGetLocalVector(dmEnth, &xEnthlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmEnth, usr->xEnth, INSERT_VALUES, xEnthlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(dmEnth,xEnthlocal,&_xEnthlocal);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dmEnth, &xEnthlocal)); 
+  PetscCall(DMGlobalToLocal (dmEnth, usr->xEnth, INSERT_VALUES, xEnthlocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
 
   // Get dmcoeff
-  ierr = DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,RIGHT,&inext);CHKERRQ(ierr); 
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter);CHKERRQ(ierr);
+  PetscCall(DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL));
+  PetscCall(DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
+  PetscCall(DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,LEFT,&iprev));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,RIGHT,&inext)); 
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter));
 
   // Create coefficient local vector
-  ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
+  PetscCall(DMCreateLocalVector(dmcoeff, &coefflocal)); 
+  PetscCall(DMStagVecGetArray(dmcoeff, coefflocal, &c)); 
 
   // get location slots
   PetscInt  iphi,iT,iC,iCF;
-  ierr = DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&iphi);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_T  ,&iT  );CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_C  ,&iC  );CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_CF ,&iCF );CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&iphi));
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_T  ,&iT  ));
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_C  ,&iC  ));
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_CF ,&iCF ));
 
   PetscInt  icoeffA,icoeffC,icoeffD1,icoeffDC,iL,iR,iU,iD;
   PetscInt  A_corner[4],B_face[4],D2_face[4],D3_face[4],D4_face[4];
   iL = 0; iR  = 1; iD = 2; iU  = 3;
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,PVCOEFF_ELEMENT_A, &icoeffA);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,PVCOEFF_ELEMENT_C, &icoeffC);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,PVCOEFF_ELEMENT_D1,&icoeffD1);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,PVCOEFF_ELEMENT_DC,&icoeffDC);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,PVCOEFF_ELEMENT_A, &icoeffA));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,PVCOEFF_ELEMENT_C, &icoeffC));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,PVCOEFF_ELEMENT_D1,&icoeffD1));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,PVCOEFF_ELEMENT_DC,&icoeffDC));
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN_LEFT, PVCOEFF_VERTEX_A,&A_corner[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN_RIGHT,PVCOEFF_VERTEX_A,&A_corner[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP_LEFT,   PVCOEFF_VERTEX_A,&A_corner[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP_RIGHT,  PVCOEFF_VERTEX_A,&A_corner[3]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN_LEFT, PVCOEFF_VERTEX_A,&A_corner[0]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN_RIGHT,PVCOEFF_VERTEX_A,&A_corner[1]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP_LEFT,   PVCOEFF_VERTEX_A,&A_corner[2]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP_RIGHT,  PVCOEFF_VERTEX_A,&A_corner[3]));
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,  PVCOEFF_FACE_B, &B_face[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT, PVCOEFF_FACE_B, &B_face[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,  PVCOEFF_FACE_B, &B_face[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,    PVCOEFF_FACE_B, &B_face[iU]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,  PVCOEFF_FACE_B, &B_face[iL]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT, PVCOEFF_FACE_B, &B_face[iR]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,  PVCOEFF_FACE_B, &B_face[iD]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,    PVCOEFF_FACE_B, &B_face[iU]));
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,  PVCOEFF_FACE_D2,&D2_face[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT, PVCOEFF_FACE_D2,&D2_face[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,  PVCOEFF_FACE_D2,&D2_face[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,    PVCOEFF_FACE_D2,&D2_face[iU]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,  PVCOEFF_FACE_D2,&D2_face[iL]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT, PVCOEFF_FACE_D2,&D2_face[iR]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,  PVCOEFF_FACE_D2,&D2_face[iD]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,    PVCOEFF_FACE_D2,&D2_face[iU]));
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,  PVCOEFF_FACE_D3,&D3_face[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT, PVCOEFF_FACE_D3,&D3_face[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,  PVCOEFF_FACE_D3,&D3_face[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,    PVCOEFF_FACE_D3,&D3_face[iU]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,  PVCOEFF_FACE_D3,&D3_face[iL]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT, PVCOEFF_FACE_D3,&D3_face[iR]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,  PVCOEFF_FACE_D3,&D3_face[iD]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,    PVCOEFF_FACE_D3,&D3_face[iU]));
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,  PVCOEFF_FACE_D4,&D4_face[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT, PVCOEFF_FACE_D4,&D4_face[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,  PVCOEFF_FACE_D4,&D4_face[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,    PVCOEFF_FACE_D4,&D4_face[iU]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT,  PVCOEFF_FACE_D4,&D4_face[iL]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT, PVCOEFF_FACE_D4,&D4_face[iR]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN,  PVCOEFF_FACE_D4,&D4_face[iD]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,    PVCOEFF_FACE_D4,&D4_face[iU]));
   
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
@@ -241,21 +239,21 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
   }
 
   // Restore arrays, local vectors
-  ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL));
 
-  ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
-  ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(dmEnth,xEnthlocal,&_xEnthlocal);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmEnth, &xEnthlocal); CHKERRQ(ierr);
+  PetscCall(DMStagVecRestoreArray(dmcoeff,coefflocal,&c));
+  PetscCall(DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff)); 
+  PetscCall(DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff)); 
+  PetscCall(VecDestroy(&coefflocal)); 
+  PetscCall(DMStagVecRestoreArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
+  PetscCall(DMRestoreLocalVector(dmEnth, &xEnthlocal)); 
 
   PetscTime(&tlog[1]);
   if (usr->par->log_info) {
     printf("  FormCoefficient_PV: total                        %1.2e\n",tlog[1]-tlog[0]);
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -273,88 +271,87 @@ PetscErrorCode FormCoefficient_HC(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
   PetscScalar    ***c, ***_xPVlocal,***_xVellocal;
   PetscScalar    **coordx,**coordz;
   PetscLogDouble tlog[2];
-  PetscErrorCode ierr;
   PetscFunctionBeginUser;
 
   PetscTime(&tlog[0]);
   // get Stokes-Darcy velocities
-  ierr = DMGetLocalVector(usr->dmPV, &xPVlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (usr->dmPV, usr->xPV, INSERT_VALUES, xPVlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(usr->dmPV,xPVlocal,&_xPVlocal);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(usr->dmPV, &xPVlocal)); 
+  PetscCall(DMGlobalToLocal (usr->dmPV, usr->xPV, INSERT_VALUES, xPVlocal)); 
+  PetscCall(DMStagVecGetArrayRead(usr->dmPV,xPVlocal,&_xPVlocal));
 
-  ierr = DMGetLocalVector(usr->dmVel, &xVellocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (usr->dmVel, usr->xVel, INSERT_VALUES, xVellocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(usr->dmVel,xVellocal,&_xVellocal);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(usr->dmVel, &xVellocal)); 
+  PetscCall(DMGlobalToLocal (usr->dmVel, usr->xVel, INSERT_VALUES, xVellocal)); 
+  PetscCall(DMStagVecGetArrayRead(usr->dmVel,xVellocal,&_xVellocal));
 
   par = usr->par;
   // Get domain corners
-  ierr = DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
+  PetscCall(DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL));
+  PetscCall(DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
+  PetscCall(DMCreateLocalVector(dmcoeff, &coefflocal)); 
+  PetscCall(DMStagVecGetArray(dmcoeff, coefflocal, &c)); 
   
-  ierr = DMGetLocalVector(dm,&xlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal); CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dm,&xlocal)); 
+  PetscCall(DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal)); 
 
-  ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,RIGHT,&inext);CHKERRQ(ierr); 
+  PetscCall(DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,LEFT,&iprev));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,RIGHT,&inext)); 
 
   // get location slots
   PetscInt  pv_slot[4],vel_v_slot[4],vel_vf_slot[4],iL,iR,iU,iD,iP,iPc;
   iL = 0; iR  = 1;
   iD = 2; iU  = 3;
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_LEFT,   PV_FACE_VS,   &pv_slot[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_RIGHT,  PV_FACE_VS,   &pv_slot[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_DOWN,   PV_FACE_VS,   &pv_slot[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_UP,     PV_FACE_VS,   &pv_slot[iU]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(usr->dmPV,DMSTAG_LEFT,   PV_FACE_VS,   &pv_slot[iL]));
+  PetscCall(DMStagGetLocationSlot(usr->dmPV,DMSTAG_RIGHT,  PV_FACE_VS,   &pv_slot[iR]));
+  PetscCall(DMStagGetLocationSlot(usr->dmPV,DMSTAG_DOWN,   PV_FACE_VS,   &pv_slot[iD]));
+  PetscCall(DMStagGetLocationSlot(usr->dmPV,DMSTAG_UP,     PV_FACE_VS,   &pv_slot[iU]));
 
-  ierr = DMStagGetLocationSlot(usr->dmVel,DMSTAG_LEFT,  VEL_FACE_VF,  &vel_vf_slot[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmVel,DMSTAG_RIGHT, VEL_FACE_VF,  &vel_vf_slot[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmVel,DMSTAG_DOWN,  VEL_FACE_VF,  &vel_vf_slot[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmVel,DMSTAG_UP,    VEL_FACE_VF,  &vel_vf_slot[iU]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(usr->dmVel,DMSTAG_LEFT,  VEL_FACE_VF,  &vel_vf_slot[iL]));
+  PetscCall(DMStagGetLocationSlot(usr->dmVel,DMSTAG_RIGHT, VEL_FACE_VF,  &vel_vf_slot[iR]));
+  PetscCall(DMStagGetLocationSlot(usr->dmVel,DMSTAG_DOWN,  VEL_FACE_VF,  &vel_vf_slot[iD]));
+  PetscCall(DMStagGetLocationSlot(usr->dmVel,DMSTAG_UP,    VEL_FACE_VF,  &vel_vf_slot[iU]));
 
-  ierr = DMStagGetLocationSlot(usr->dmVel,DMSTAG_LEFT,  VEL_FACE_V,  &vel_v_slot[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmVel,DMSTAG_RIGHT, VEL_FACE_V,  &vel_v_slot[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmVel,DMSTAG_DOWN,  VEL_FACE_V,  &vel_v_slot[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmVel,DMSTAG_UP,    VEL_FACE_V,  &vel_v_slot[iU]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(usr->dmVel,DMSTAG_LEFT,  VEL_FACE_V,  &vel_v_slot[iL]));
+  PetscCall(DMStagGetLocationSlot(usr->dmVel,DMSTAG_RIGHT, VEL_FACE_V,  &vel_v_slot[iR]));
+  PetscCall(DMStagGetLocationSlot(usr->dmVel,DMSTAG_DOWN,  VEL_FACE_V,  &vel_v_slot[iD]));
+  PetscCall(DMStagGetLocationSlot(usr->dmVel,DMSTAG_UP,    VEL_FACE_V,  &vel_v_slot[iU]));
 
   PetscInt  e_slot[6],iA1,iB1,iD1,iA2,iB2,iD2;
   iA1 = 0; iB1 = 1; iD1 = 2;
   iA2 = 3; iB2 = 4; iD2 = 5;
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_A1, &e_slot[iA1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_B1, &e_slot[iB1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_D1, &e_slot[iD1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_A2, &e_slot[iA2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_B2, &e_slot[iB2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_D2, &e_slot[iD2]); CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_A1, &e_slot[iA1])); 
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_B1, &e_slot[iB1])); 
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_D1, &e_slot[iD1])); 
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_A2, &e_slot[iA2])); 
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_B2, &e_slot[iB2])); 
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_D2, &e_slot[iD2])); 
   
   PetscInt  c1_slot[4],c2_slot[4],v_slot[4],vf_slot[4],vs_slot[4];
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_C1,&c1_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_C1,&c1_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_C1,&c1_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_C1,&c1_slot[3]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_C1,&c1_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_C1,&c1_slot[1]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_C1,&c1_slot[2]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_C1,&c1_slot[3]));
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_C2,&c2_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_C2,&c2_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_C2,&c2_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_C2,&c2_slot[3]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_C2,&c2_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_C2,&c2_slot[1]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_C2,&c2_slot[2]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_C2,&c2_slot[3]));
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_V,&v_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_V,&v_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_V,&v_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_V,&v_slot[3]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_V,&v_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_V,&v_slot[1]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_V,&v_slot[2]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_V,&v_slot[3]));
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_VF,&vf_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_VF,&vf_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_VF,&vf_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_VF,&vf_slot[3]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_VF,&vf_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_VF,&vf_slot[1]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_VF,&vf_slot[2]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_VF,&vf_slot[3]));
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_VS,&vs_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_VS,&vs_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_VS,&vs_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_VS,&vs_slot[3]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_VS,&vs_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_VS,&vs_slot[1]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_VS,&vs_slot[2]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_VS,&vs_slot[3]));
 
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
@@ -424,24 +421,24 @@ PetscErrorCode FormCoefficient_HC(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
   }
 
   // Restore arrays, local vectors
-  ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL));
+  PetscCall(DMStagVecRestoreArray(dmcoeff,coefflocal,&c));
+  PetscCall(DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff)); 
+  PetscCall(DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff)); 
   
-  ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(usr->dmPV,xPVlocal,&_xPVlocal);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(usr->dmPV, &xPVlocal); CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(usr->dmVel,xVellocal,&_xVellocal);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(usr->dmVel, &xVellocal); CHKERRQ(ierr);
+  PetscCall(VecDestroy(&coefflocal)); 
+  PetscCall(DMRestoreLocalVector(dm,&xlocal)); 
+  PetscCall(DMStagVecRestoreArrayRead(usr->dmPV,xPVlocal,&_xPVlocal));
+  PetscCall(DMRestoreLocalVector(usr->dmPV, &xPVlocal)); 
+  PetscCall(DMStagVecRestoreArrayRead(usr->dmVel,xVellocal,&_xVellocal));
+  PetscCall(DMRestoreLocalVector(usr->dmVel, &xVellocal)); 
 
   PetscTime(&tlog[1]);
   if (usr->par->log_info) {
     printf("  FormCoefficient_HC: total                          %1.2e\n",tlog[1]-tlog[0]);
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -461,85 +458,84 @@ PetscErrorCode FormCoefficient_HC_VF_nonlinear(FDPDE fd, DM dm, Vec x, DM dmcoef
   PetscScalar    **coordx,**coordz;
   PetscScalar    ***_xPVlocal,***_xEnthlocal;
   PetscLogDouble tlog[2];
-  PetscErrorCode ierr;
   PetscFunctionBeginUser;
   
   PetscTime(&tlog[0]);
   // get Stokes-Darcy velocities
-  ierr = DMGetLocalVector(usr->dmPV, &xPVlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (usr->dmPV, usr->xPV, INSERT_VALUES, xPVlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(usr->dmPV,xPVlocal,&_xPVlocal);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(usr->dmPV, &xPVlocal)); 
+  PetscCall(DMGlobalToLocal (usr->dmPV, usr->xPV, INSERT_VALUES, xPVlocal)); 
+  PetscCall(DMStagVecGetArrayRead(usr->dmPV,xPVlocal,&_xPVlocal));
   
   // Update enthalpy variables - slow for each iteration
-  ierr = FDPDEEnthalpyUpdateDiagnostics(fd,dm,x,&dmEnth,&xEnth); CHKERRQ(ierr);
-  ierr = VecCopy(xEnth,usr->xEnth);CHKERRQ(ierr);
-  ierr = DMGetLocalVector(dmEnth,&xEnthlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmEnth,xEnth,INSERT_VALUES,xEnthlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(dmEnth,xEnthlocal,&_xEnthlocal);CHKERRQ(ierr);
+  PetscCall(FDPDEEnthalpyUpdateDiagnostics(fd,dm,x,&dmEnth,&xEnth)); 
+  PetscCall(VecCopy(xEnth,usr->xEnth));
+  PetscCall(DMGetLocalVector(dmEnth,&xEnthlocal)); 
+  PetscCall(DMGlobalToLocal (dmEnth,xEnth,INSERT_VALUES,xEnthlocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
   
   par = usr->par;
   // Get domain corners
-  ierr = DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMCreateLocalVector(dmcoeff, &coefflocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dmcoeff, coefflocal, &c); CHKERRQ(ierr);
+  PetscCall(DMStagGetGlobalSizes(dmcoeff,&Nx,&Nz,NULL));
+  PetscCall(DMStagGetCorners(dmcoeff, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
+  PetscCall(DMCreateLocalVector(dmcoeff, &coefflocal)); 
+  PetscCall(DMStagVecGetArray(dmcoeff, coefflocal, &c)); 
   
-  ierr = DMGetLocalVector(dm,&xlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal); CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dm,&xlocal)); 
+  PetscCall(DMGlobalToLocal (dm,x,INSERT_VALUES,xlocal)); 
   
-  ierr = DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmcoeff,RIGHT,&inext);CHKERRQ(ierr);
+  PetscCall(DMStagGetProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,ELEMENT,&icenter));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,LEFT,&iprev));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmcoeff,RIGHT,&inext));
 
   // get location slots
   PetscInt  pv_slot[6],phi_slot,iL,iR,iU,iD,iP,iPc;
   iP = 0; iPc = 1;
   iL = 2; iR  = 3;
   iD = 4; iU  = 5;
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_ELEMENT,PV_ELEMENT_P, &pv_slot[iP]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_ELEMENT,PV_ELEMENT_PC,&pv_slot[iPc]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_LEFT,   PV_FACE_VS,   &pv_slot[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_RIGHT,  PV_FACE_VS,   &pv_slot[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_DOWN,   PV_FACE_VS,   &pv_slot[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(usr->dmPV,DMSTAG_UP,     PV_FACE_VS,   &pv_slot[iU]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&phi_slot);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(usr->dmPV,DMSTAG_ELEMENT,PV_ELEMENT_P, &pv_slot[iP])); 
+  PetscCall(DMStagGetLocationSlot(usr->dmPV,DMSTAG_ELEMENT,PV_ELEMENT_PC,&pv_slot[iPc])); 
+  PetscCall(DMStagGetLocationSlot(usr->dmPV,DMSTAG_LEFT,   PV_FACE_VS,   &pv_slot[iL]));
+  PetscCall(DMStagGetLocationSlot(usr->dmPV,DMSTAG_RIGHT,  PV_FACE_VS,   &pv_slot[iR]));
+  PetscCall(DMStagGetLocationSlot(usr->dmPV,DMSTAG_DOWN,   PV_FACE_VS,   &pv_slot[iD]));
+  PetscCall(DMStagGetLocationSlot(usr->dmPV,DMSTAG_UP,     PV_FACE_VS,   &pv_slot[iU]));
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&phi_slot));
 
   PetscInt  e_slot[6],iA1,iB1,iD1,iA2,iB2,iD2;
   iA1 = 0; iB1 = 1; iD1 = 2;
   iA2 = 3; iB2 = 4; iD2 = 5;
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_A1, &e_slot[iA1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_B1, &e_slot[iB1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_D1, &e_slot[iD1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_A2, &e_slot[iA2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_B2, &e_slot[iB2]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_D2, &e_slot[iD2]); CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_A1, &e_slot[iA1])); 
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_B1, &e_slot[iB1])); 
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_D1, &e_slot[iD1])); 
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_A2, &e_slot[iA2])); 
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_B2, &e_slot[iB2])); 
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_ELEMENT,HCCOEFF_ELEMENT_D2, &e_slot[iD2])); 
   
   PetscInt  c1_slot[4],c2_slot[4],v_slot[4],vf_slot[4],vs_slot[4];
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_C1,&c1_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_C1,&c1_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_C1,&c1_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_C1,&c1_slot[3]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_C1,&c1_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_C1,&c1_slot[1]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_C1,&c1_slot[2]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_C1,&c1_slot[3]));
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_C2,&c2_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_C2,&c2_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_C2,&c2_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_C2,&c2_slot[3]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_C2,&c2_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_C2,&c2_slot[1]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_C2,&c2_slot[2]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_C2,&c2_slot[3]));
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_V,&v_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_V,&v_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_V,&v_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_V,&v_slot[3]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_V,&v_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_V,&v_slot[1]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_V,&v_slot[2]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_V,&v_slot[3]));
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_VF,&vf_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_VF,&vf_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_VF,&vf_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_VF,&vf_slot[3]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_VF,&vf_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_VF,&vf_slot[1]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_VF,&vf_slot[2]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_VF,&vf_slot[3]));
 
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_VS,&vs_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_VS,&vs_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_VS,&vs_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_VS,&vs_slot[3]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_LEFT, HCCOEFF_FACE_VS,&vs_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_RIGHT,HCCOEFF_FACE_VS,&vs_slot[1]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_DOWN, HCCOEFF_FACE_VS,&vs_slot[2]));
+  PetscCall(DMStagGetLocationSlot(dmcoeff,DMSTAG_UP,   HCCOEFF_FACE_VS,&vs_slot[3]));
   
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
@@ -661,26 +657,26 @@ PetscErrorCode FormCoefficient_HC_VF_nonlinear(FDPDE fd, DM dm, Vec x, DM dmcoef
   }
   
   // Restore arrays, local vectors
-  ierr = DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArray(dmcoeff,coefflocal,&c);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff); CHKERRQ(ierr);
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dmcoeff,&coordx,&coordz,NULL));
+  PetscCall(DMStagVecRestoreArray(dmcoeff,coefflocal,&c));
+  PetscCall(DMLocalToGlobalBegin(dmcoeff,coefflocal,INSERT_VALUES,coeff)); 
+  PetscCall(DMLocalToGlobalEnd  (dmcoeff,coefflocal,INSERT_VALUES,coeff)); 
   
-  ierr = VecDestroy(&coefflocal); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm,&xlocal); CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(usr->dmPV,xPVlocal,&_xPVlocal);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(usr->dmPV, &xPVlocal); CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(dmEnth,xEnthlocal,&_xEnthlocal);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmEnth, &xEnthlocal); CHKERRQ(ierr);
-  ierr = VecDestroy(&xEnth);CHKERRQ(ierr);
-  ierr = DMDestroy(&dmEnth);CHKERRQ(ierr);
+  PetscCall(VecDestroy(&coefflocal)); 
+  PetscCall(DMRestoreLocalVector(dm,&xlocal)); 
+  PetscCall(DMStagVecRestoreArrayRead(usr->dmPV,xPVlocal,&_xPVlocal));
+  PetscCall(DMRestoreLocalVector(usr->dmPV, &xPVlocal)); 
+  PetscCall(DMStagVecRestoreArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
+  PetscCall(DMRestoreLocalVector(dmEnth, &xEnthlocal)); 
+  PetscCall(VecDestroy(&xEnth));
+  PetscCall(DMDestroy(&dmEnth));
 
   PetscTime(&tlog[1]);
   if (usr->par->log_info) {
     printf("  FormCoefficient_HC_VF_nonlinear: total             %1.2e\n",tlog[1]-tlog[0]);
   }
   
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -693,7 +689,6 @@ EnthEvalErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,Pets
   PetscInt     ii;
   PetscScalar  Tsol, Tliq, Hsol, Hliq, phi, T, Cs, Cf, Ci;
   PetscScalar  G, RM, S;
-  PetscErrorCode ierr;
 
   G  = usr->nd->G;
   RM = usr->nd->RM;
@@ -711,7 +706,7 @@ EnthEvalErrorCode Form_Enthalpy(PetscScalar H,PetscScalar C[],PetscScalar P,Pets
     Cs  = Ci;
     Cf  = Liquidus(Solidus(Ci,P,G,PETSC_FALSE),P,G,RM,PETSC_TRUE);
   } else if ((H>=Hsol) && (H<Hliq)) {
-    ierr   = Porosity(H,Ci,P,&phi,S,G,RM);CHKERRQ(ierr);
+    PetscCall(Porosity(H,Ci,P,&phi,S,G,RM));
     T  = H - phi*S;
     Cs = Solidus (T,P,G,PETSC_TRUE);
     Cf = Liquidus(T,P,G,RM,PETSC_TRUE);
@@ -742,7 +737,7 @@ PetscErrorCode Form_PotentialTemperature(PetscScalar T,PetscScalar P,PetscScalar
 {
   UsrData      *usr = (UsrData*) ctx;
   PetscScalar  TP, rho, Az;
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   rho  = usr->par->rho0; // bulk density
   Az   = -usr->nd->A*P*usr->par->drho/rho;
@@ -750,5 +745,5 @@ PetscErrorCode Form_PotentialTemperature(PetscScalar T,PetscScalar P,PetscScalar
   TP = (T+usr->nd->thetaS)*exp(Az) - usr->nd->thetaS;
   *_TP = TP;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

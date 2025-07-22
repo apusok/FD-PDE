@@ -1,11 +1,10 @@
 #ifndef MBUOY3_H
 #define MBUOY3_H
 
-#include "petsc.h"
+#include <petsc.h>
 #include "../../src/fdpde_stokesdarcy3field.h"
-#include "../../src/fdpde_enthalpy.h"
 #include "../../src/fdpde_advdiff.h"
-#include "../../src/dmstagoutput.h"
+#include "../../src/fdpde_enthalpy.h"
 #include "../../src/benchmark_cornerflow.h"
 
 // ---------------------------------------

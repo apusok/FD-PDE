@@ -1,7 +1,7 @@
 // ---------------------------------------
 // Mid-ocean ridge model solving for conservation of mass, momentum, energy and composition using the Enthalpy Method
 // Model after Katz 2008, 2010 - Using a 3-Field formulation (OPTIMIZED)
-// run: ./mbuoy3.app -options_file model_test.opts
+// run: ./mbuoy3 -options_file model_test.opts
 // ---------------------------------------
 static char help[] = "Mid-ocean ridge with melt-matrix buoyancy model using a 3-Field formulation \n\n";
 
@@ -56,30 +56,29 @@ int main (int argc,char **argv)
 {
   UsrData         *usr;
   PetscLogDouble  start_time, end_time;
-  PetscErrorCode  ierr;
 
   // Initialize application
-  ierr = PetscInitialize(&argc,&argv,(char*)0,help); if (ierr) return ierr;
+  PetscCall(PetscInitialize(&argc,&argv,(char*)0,help));
   
   // Load command line or input file if required
-  ierr = PetscOptionsInsert(PETSC_NULL,&argc,&argv,NULL); CHKERRQ(ierr);
+  PetscCall(PetscOptionsInsert(PETSC_NULLPTR,&argc,&argv,NULL)); 
 
   // Initialize parameters - set default, read input, characteristic scales and non-dimensional params
-  ierr = UserParamsCreate(&usr,argc,argv); CHKERRQ(ierr);
+  PetscCall(UserParamsCreate(&usr,argc,argv)); 
 
   // Numerical solution
-  ierr = PetscTime(&start_time); CHKERRQ(ierr);
-  ierr = Numerical_solution(usr); CHKERRQ(ierr);
-  ierr = PetscTime(&end_time); CHKERRQ(ierr);
+  PetscCall(PetscTime(&start_time)); 
+  PetscCall(Numerical_solution(usr)); 
+  PetscCall(PetscTime(&end_time)); 
   PetscPrintf(PETSC_COMM_WORLD,"# Runtime: %g (sec) \n", end_time - start_time);
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
 
   // Destroy parameters
-  ierr = UserParamsDestroy(usr); CHKERRQ(ierr);
+  PetscCall(UserParamsDestroy(usr)); 
 
   // Finalize main
-  ierr = PetscFinalize();
-  return ierr;
+  PetscCall(PetscFinalize());
+  return 0;
 }
 
 // ---------------------------------------
@@ -101,9 +100,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   PetscBool      converged;
   char           fout[FNAME_LENGTH];
   PetscLogDouble start_time, end_time;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   nd  = usr->nd;
   par = usr->par;
@@ -121,38 +118,38 @@ PetscErrorCode Numerical_solution(void *ctx)
   // Set up mechanics - Stokes-Darcy system 3-Field (PV)
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
   PetscPrintf(PETSC_COMM_WORLD,"# Set-up MECHANICS: FD-PDE StokesDarcy3Field (PV)\n");
-  ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKESDARCY3FIELD,&fdPV);CHKERRQ(ierr);
-  ierr = FDPDESetUp(fdPV);CHKERRQ(ierr);
+  PetscCall(FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKESDARCY3FIELD,&fdPV));
+  PetscCall(FDPDESetUp(fdPV));
   if (usr->par->full_ridge) {
-    ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV_FullRidge,bc_description_PV,usr); CHKERRQ(ierr);
+    PetscCall(FDPDESetFunctionBCList(fdPV,FormBCList_PV_FullRidge,bc_description_PV,usr)); 
   } else {
-    ierr = FDPDESetFunctionBCList(fdPV,FormBCList_PV,bc_description_PV,usr); CHKERRQ(ierr);
+    PetscCall(FDPDESetFunctionBCList(fdPV,FormBCList_PV,bc_description_PV,usr)); 
   }
-  ierr = FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV,coeff_description_PV,usr); CHKERRQ(ierr);
-  ierr = SNESSetFromOptions(fdPV->snes); CHKERRQ(ierr);
-  ierr = FDPDEView(fdPV); CHKERRQ(ierr);
-  ierr = SNESSetOptionsPrefix(fdPV->snes,"pv_"); CHKERRQ(ierr);
+  PetscCall(FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV,coeff_description_PV,usr)); 
+  PetscCall(SNESSetFromOptions(fdPV->snes)); 
+  PetscCall(FDPDEView(fdPV)); 
+  PetscCall(SNESSetOptionsPrefix(fdPV->snes,"pv_")); 
   fdPV->output_solver_failure_report = PETSC_FALSE;
 
   // Set up Enthalpy system (HC)
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
   PetscPrintf(PETSC_COMM_WORLD,"# Set-up ENERGY and COMPOSITION: FD-PDE Enthalpy (HC) \n");
-  ierr = FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ENTHALPY,&fdHC);CHKERRQ(ierr);
-  ierr = FDPDESetUp(fdHC);CHKERRQ(ierr);
+  PetscCall(FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ENTHALPY,&fdHC));
+  PetscCall(FDPDESetUp(fdHC));
   if (usr->par->full_ridge) {
-    ierr = FDPDESetFunctionBCList(fdHC,FormBCList_HC_FullRidge,bc_description_HC,usr); CHKERRQ(ierr);
+    PetscCall(FDPDESetFunctionBCList(fdHC,FormBCList_HC_FullRidge,bc_description_HC,usr)); 
   } else {
-    ierr = FDPDESetFunctionBCList(fdHC,FormBCList_HC,bc_description_HC,usr); CHKERRQ(ierr);
+    PetscCall(FDPDESetFunctionBCList(fdHC,FormBCList_HC,bc_description_HC,usr)); 
   }
 
-  if (usr->par->vf_nonlinear) { ierr = FDPDESetFunctionCoefficient(fdHC,FormCoefficient_HC_VF_nonlinear,coeff_description_HC,usr); CHKERRQ(ierr);} 
-  else { ierr = FDPDESetFunctionCoefficient(fdHC,FormCoefficient_HC,coeff_description_HC,usr); CHKERRQ(ierr); }
+  if (usr->par->vf_nonlinear) { PetscCall(FDPDESetFunctionCoefficient(fdHC,FormCoefficient_HC_VF_nonlinear,coeff_description_HC,usr)); } 
+  else { PetscCall(FDPDESetFunctionCoefficient(fdHC,FormCoefficient_HC,coeff_description_HC,usr));  }
   
-  ierr = FDPDEEnthalpySetPotentialTemp(fdHC,Form_PotentialTemperature,usr);CHKERRQ(ierr);
-  ierr = FDPDEEnthalpySetEnthalpyMethod(fdHC,Form_Enthalpy,enthalpy_method_description,usr);CHKERRQ(ierr);
-  ierr = SNESSetFromOptions(fdHC->snes); CHKERRQ(ierr);
-  ierr = FDPDEView(fdHC); CHKERRQ(ierr);
-  ierr = SNESSetOptionsPrefix(fdHC->snes,"hc_"); CHKERRQ(ierr);
+  PetscCall(FDPDEEnthalpySetPotentialTemp(fdHC,Form_PotentialTemperature,usr));
+  PetscCall(FDPDEEnthalpySetEnthalpyMethod(fdHC,Form_Enthalpy,enthalpy_method_description,usr));
+  PetscCall(SNESSetFromOptions(fdHC->snes)); 
+  PetscCall(FDPDEView(fdHC)); 
+  PetscCall(SNESSetOptionsPrefix(fdHC->snes,"hc_")); 
   fdHC->output_solver_failure_report = PETSC_FALSE;
 
   // Set up advection and time-stepping
@@ -160,13 +157,13 @@ PetscErrorCode Numerical_solution(void *ctx)
   if (par->adv_scheme==0) advtype = ADV_UPWIND;
   if (par->adv_scheme==1) advtype = ADV_UPWIND2;
   if (par->adv_scheme==2) advtype = ADV_FROMM;
-  ierr = FDPDEEnthalpySetAdvectSchemeType(fdHC,advtype);CHKERRQ(ierr);
+  PetscCall(FDPDEEnthalpySetAdvectSchemeType(fdHC,advtype));
 
   TimeStepSchemeType timesteptype;
   if (par->ts_scheme ==  0) timesteptype = TS_FORWARD_EULER;
   if (par->ts_scheme ==  1) timesteptype = TS_BACKWARD_EULER;
   if (par->ts_scheme ==  2) timesteptype = TS_CRANK_NICHOLSON;
-  ierr = FDPDEEnthalpySetTimeStepSchemeType(fdHC,timesteptype);CHKERRQ(ierr);
+  PetscCall(FDPDEEnthalpySetTimeStepSchemeType(fdHC,timesteptype));
 
   // Log info
   if (usr->par->log_info) {
@@ -178,50 +175,50 @@ PetscErrorCode Numerical_solution(void *ctx)
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
   PetscPrintf(PETSC_COMM_WORLD,"# Preparing data for PV-HC coupling \n");
 
-  ierr = FDPDEGetDM(fdPV,&dmPV); CHKERRQ(ierr);
+  PetscCall(FDPDEGetDM(fdPV,&dmPV)); 
   usr->dmPV = dmPV;
 
-  ierr = FDPDEGetDM(fdHC,&dmHC); CHKERRQ(ierr);
+  PetscCall(FDPDEGetDM(fdHC,&dmHC)); 
   usr->dmHC = dmHC;
 
   {
     PetscInt nRanks0, nRanks1, nRanks2, nRanks3, size;
-    ierr = MPI_Comm_size(usr->comm,&size);CHKERRQ(ierr);
-    ierr = DMStagGetNumRanks(dmPV,&nRanks0,&nRanks1,NULL); CHKERRQ(ierr);
-    ierr = DMStagGetNumRanks(dmHC,&nRanks2,&nRanks3,NULL); CHKERRQ(ierr);
+    PetscCall(MPI_Comm_size(usr->comm,&size));
+    PetscCall(DMStagGetNumRanks(dmPV,&nRanks0,&nRanks1,NULL)); 
+    PetscCall(DMStagGetNumRanks(dmHC,&nRanks2,&nRanks3,NULL)); 
     PetscPrintf(PETSC_COMM_WORLD,"# Processor partitioning [%d cpus]: PV [%d,%d] HC [%d,%d]\n",size,nRanks0,nRanks1,nRanks2,nRanks3);
   }
 
-  ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
-  ierr = VecDuplicate(xPV,&usr->xPV);CHKERRQ(ierr);
-  ierr = VecDestroy(&xPV);CHKERRQ(ierr);
+  PetscCall(FDPDEGetSolution(fdPV,&xPV));
+  PetscCall(VecDuplicate(xPV,&usr->xPV));
+  PetscCall(VecDestroy(&xPV));
 
-  ierr = FDPDEGetSolution(fdHC,&xHC);CHKERRQ(ierr);
-  ierr = VecDuplicate(xHC,&usr->xHC);CHKERRQ(ierr);
-  ierr = VecDestroy(&xHC);CHKERRQ(ierr);
+  PetscCall(FDPDEGetSolution(fdHC,&xHC));
+  PetscCall(VecDuplicate(xHC,&usr->xHC));
+  PetscCall(VecDestroy(&xHC));
 
   // Create dmVel for bulk and fluid velocities (dof=2 on faces)
-  ierr = DMStagCreateCompatibleDMStag(usr->dmPV,0,2,0,0,&usr->dmVel); CHKERRQ(ierr);
-  ierr = DMSetUp(usr->dmVel); CHKERRQ(ierr);
-  ierr = DMStagSetUniformCoordinatesProduct(usr->dmVel,xmin,xmax,zmin,zmax,0.0,0.0);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(usr->dmVel,&usr->xVel);CHKERRQ(ierr);
+  PetscCall(DMStagCreateCompatibleDMStag(usr->dmPV,0,2,0,0,&usr->dmVel)); 
+  PetscCall(DMSetUp(usr->dmVel)); 
+  PetscCall(DMStagSetUniformCoordinatesProduct(usr->dmVel,xmin,xmax,zmin,zmax,0.0,0.0));
+  PetscCall(DMCreateGlobalVector(usr->dmVel,&usr->xVel));
 
   // Create dmmatProp for material properties (dof=7 in center)
-  ierr = DMStagCreateCompatibleDMStag(usr->dmPV,0,0,7,0,&usr->dmmatProp); CHKERRQ(ierr);
-  ierr = DMSetUp(usr->dmmatProp); CHKERRQ(ierr);
-  ierr = DMStagSetUniformCoordinatesProduct(usr->dmmatProp,xmin,xmax,zmin,zmax,0.0,0.0);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(usr->dmmatProp,&usr->xmatProp);CHKERRQ(ierr);
+  PetscCall(DMStagCreateCompatibleDMStag(usr->dmPV,0,0,7,0,&usr->dmmatProp)); 
+  PetscCall(DMSetUp(usr->dmmatProp)); 
+  PetscCall(DMStagSetUniformCoordinatesProduct(usr->dmmatProp,xmin,xmax,zmin,zmax,0.0,0.0));
+  PetscCall(DMCreateGlobalVector(usr->dmmatProp,&usr->xmatProp));
 
   if (par->restart==0) {
     // Initial conditions - corner flow and half-space cooling model
     PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
     PetscPrintf(PETSC_COMM_WORLD,"# Set initial conditions \n");
-    ierr = SetInitialConditions(fdPV,fdHC,usr);CHKERRQ(ierr);
+    PetscCall(SetInitialConditions(fdPV,fdHC,usr));
   } else { 
     // Restart from file
     PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
     PetscPrintf(PETSC_COMM_WORLD,"# Restart from timestep %d \n",par->restart);
-    ierr = LoadRestartFromFile(fdPV,fdHC,usr);CHKERRQ(ierr);
+    PetscCall(LoadRestartFromFile(fdPV,fdHC,usr));
   } 
 
   nd->istep++;
@@ -230,135 +227,135 @@ PetscErrorCode Numerical_solution(void *ctx)
   while ((nd->t <= nd->tmax) && (nd->istep <= par->tstep)) {
     PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
     PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",nd->istep);
-    ierr = PetscTime(&start_time); CHKERRQ(ierr);
+    PetscCall(PetscTime(&start_time)); 
     
     // Solve energy and composition
     PetscPrintf(PETSC_COMM_WORLD,"# (HC) Energy-Composition Solver - Enthalpy Method \n");
 
     // Set time step size
-    ierr   = FDPDEEnthalpyComputeExplicitTimestep(fdHC,&dt);CHKERRQ(ierr);
+    PetscCall(FDPDEEnthalpyComputeExplicitTimestep(fdHC,&dt));
     nd->dt = PetscMin(dt,nd->dtmax);
-    ierr   = FDPDEEnthalpySetTimestep(fdHC,nd->dt); CHKERRQ(ierr);
+    PetscCall(FDPDEEnthalpySetTimestep(fdHC,nd->dt)); 
 
     converged = PETSC_FALSE;
     while (!converged) {
       PetscPrintf(PETSC_COMM_WORLD,"# Time-step (iteration): dt = %1.12e \n",nd->dt);
-      ierr = FDPDESolve(fdHC,&converged);CHKERRQ(ierr);
+      PetscCall(FDPDESolve(fdHC,&converged));
       if (!converged) { // Reduce dt if not converged
         nd->dt *= 1e-1;
-        ierr = FDPDEEnthalpySetTimestep(fdHC,nd->dt); CHKERRQ(ierr);
+        PetscCall(FDPDEEnthalpySetTimestep(fdHC,nd->dt)); 
       }
     }
     PetscPrintf(PETSC_COMM_WORLD,"# Time-step (non-dimensional): dt = %1.12e dtmax = %1.12e dtmax_grid = %1.12e\n",nd->dt,nd->dtmax,dt);
 
     // Get solution
-    ierr = FDPDEGetSolution(fdHC,&xHC);CHKERRQ(ierr);
-    ierr = VecCopy(xHC,usr->xHC);CHKERRQ(ierr);
-    ierr = VecDestroy(&xHC);CHKERRQ(ierr);
+    PetscCall(FDPDEGetSolution(fdHC,&xHC));
+    PetscCall(VecCopy(xHC,usr->xHC));
+    PetscCall(VecDestroy(&xHC));
 
     // Update fields
-    ierr = FDPDEEnthalpyUpdateDiagnostics(fdHC,usr->dmHC,usr->xHC,NULL,&xEnth); CHKERRQ(ierr);
-    ierr = VecCopy(xEnth,usr->xEnth);CHKERRQ(ierr);
-    ierr = VecDestroy(&xEnth);CHKERRQ(ierr);
+    PetscCall(FDPDEEnthalpyUpdateDiagnostics(fdHC,usr->dmHC,usr->xHC,NULL,&xEnth)); 
+    PetscCall(VecCopy(xEnth,usr->xEnth));
+    PetscCall(VecDestroy(&xEnth));
 
     // Solve PV - default solves every timestep
     if ((nd->istep == 1 ) || (nd->istep % par->hc_cycles == 0 )) {
       PetscPrintf(PETSC_COMM_WORLD,"# (PV) Mechanics Solver - Stokes-Darcy3Field \n");
-      // ierr = FDPDESolve(fdPV,NULL);CHKERRQ(ierr);
+      // PetscCall(FDPDESolve(fdPV,NULL));
 
       SNESConvergedReason reason;
       converged = PETSC_FALSE;
       while (!converged) {
-        ierr = FDPDESolve(fdPV,&converged);CHKERRQ(ierr);
-        ierr = SNESGetConvergedReason(fdPV->snes,&reason); CHKERRQ(ierr);
+        PetscCall(FDPDESolve(fdPV,&converged));
+        PetscCall(SNESGetConvergedReason(fdPV->snes,&reason)); 
         if (!converged) { // use pc_telescope if failed
           if (reason == -3) { // SNES_DIVERGED_LINEAR_SOLVE = -3 (error occurs in full ridge models with comp buoy)
             PetscPrintf(PETSC_COMM_WORLD,"# PV Solver FAILED - Switching to pc_telescope \n");
             PetscInt size;
             char     fsize[10];
-            ierr = MPI_Comm_size(usr->comm,&size);CHKERRQ(ierr);
-            ierr = PetscSNPrintf(fsize,sizeof(fsize),"%d",size);
-            ierr = PetscOptionsClearValue(NULL,"-pv_pc_type");CHKERRQ(ierr);
-            ierr = PetscOptionsClearValue(NULL,"-pv_pc_factor_mat_solver_type");CHKERRQ(ierr);
+            PetscCall(MPI_Comm_size(usr->comm,&size));
+            PetscCall(PetscSNPrintf(fsize,sizeof(fsize),"%d",size));
+            PetscCall(PetscOptionsClearValue(NULL,"-pv_pc_type"));
+            PetscCall(PetscOptionsClearValue(NULL,"-pv_pc_factor_mat_solver_type"));
 
-            ierr = PetscOptionsSetValue(NULL, "-pv_pc_type", "telescope"); CHKERRQ(ierr);
-            ierr = PetscOptionsSetValue(NULL, "-pv_pc_telescope_reduction_factor",fsize); CHKERRQ(ierr);
-            ierr = PetscOptionsSetValue(NULL, "-pv_telescope_pc_type", "lu"); CHKERRQ(ierr);
-            ierr = PetscOptionsSetValue(NULL, "-pv_telescope_pc_factor_mat_solver_type", "mumps"); CHKERRQ(ierr);
+            PetscCall(PetscOptionsSetValue(NULL, "-pv_pc_type", "telescope")); 
+            PetscCall(PetscOptionsSetValue(NULL, "-pv_pc_telescope_reduction_factor",fsize)); 
+            PetscCall(PetscOptionsSetValue(NULL, "-pv_telescope_pc_type", "lu")); 
+            PetscCall(PetscOptionsSetValue(NULL, "-pv_telescope_pc_factor_mat_solver_type", "mumps")); 
           } else {
             break; // terminate loop if different error
           }
         }
       }
 
-      ierr = FDPDEGetSolution(fdPV,&xPV);CHKERRQ(ierr);
-      ierr = VecCopy(xPV,usr->xPV);CHKERRQ(ierr);
-      ierr = VecDestroy(&xPV);CHKERRQ(ierr);
+      PetscCall(FDPDEGetSolution(fdPV,&xPV));
+      PetscCall(VecCopy(xPV,usr->xPV));
+      PetscCall(VecDestroy(&xPV));
     }
 
     // Update material properties for output
-    ierr = UpdateMaterialProperties(usr->dmEnth,usr->xEnth,usr->dmmatProp,usr->xmatProp,usr);CHKERRQ(ierr);
+    PetscCall(UpdateMaterialProperties(usr->dmEnth,usr->xEnth,usr->dmmatProp,usr->xmatProp,usr));
 
     // Update fluid velocity
-    ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmEnth,usr->xEnth,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
+    PetscCall(ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmEnth,usr->xEnth,usr->dmVel,usr->xVel,usr));
 
     // Update melting rate and copy 
-    ierr = ComputeGamma(usr->dmmatProp,usr->xmatProp,usr->dmPV,usr->xPV,usr->dmEnth,usr->xEnth,usr->xEnthold,usr); CHKERRQ(ierr);
+    PetscCall(ComputeGamma(usr->dmmatProp,usr->xmatProp,usr->dmPV,usr->xPV,usr->dmEnth,usr->xEnth,usr->xEnthold,usr)); 
 
     // Prepare data for next time-step
-    ierr = VecCopy(usr->xEnth,usr->xEnthold);CHKERRQ(ierr);
-    ierr = FDPDEEnthalpyGetPrevSolution(fdHC,&xHCprev);CHKERRQ(ierr);
-    ierr = VecCopy(usr->xHC,xHCprev);CHKERRQ(ierr);
-    ierr = VecDestroy(&xHCprev);CHKERRQ(ierr);
-    ierr = FDPDEGetCoefficient(fdHC,&dmHCcoeff,&xHCcoeff);CHKERRQ(ierr);
-    ierr = FDPDEEnthalpyGetPrevCoefficient(fdHC,&xHCcoeffprev);CHKERRQ(ierr);
-    ierr = VecCopy(xHCcoeff,xHCcoeffprev);CHKERRQ(ierr);
-    ierr = VecDestroy(&xHCcoeffprev);CHKERRQ(ierr);
+    PetscCall(VecCopy(usr->xEnth,usr->xEnthold));
+    PetscCall(FDPDEEnthalpyGetPrevSolution(fdHC,&xHCprev));
+    PetscCall(VecCopy(usr->xHC,xHCprev));
+    PetscCall(VecDestroy(&xHCprev));
+    PetscCall(FDPDEGetCoefficient(fdHC,&dmHCcoeff,&xHCcoeff));
+    PetscCall(FDPDEEnthalpyGetPrevCoefficient(fdHC,&xHCcoeffprev));
+    PetscCall(VecCopy(xHCcoeff,xHCcoeffprev));
+    PetscCall(VecDestroy(&xHCcoeffprev));
 
     // Update lithostatic pressure 
-    ierr = FDPDEEnthalpyGetPressure(fdHC,&dmP,&xP);CHKERRQ(ierr);
-    ierr = FDPDEEnthalpyGetPrevPressure(fdHC,&xPprev);CHKERRQ(ierr);
-    ierr = VecCopy(xP,xPprev);CHKERRQ(ierr);
-    ierr = UpdateLithostaticPressure(dmP,xP,usr);CHKERRQ(ierr);
-    ierr = VecDestroy(&xP);CHKERRQ(ierr);
-    ierr = VecDestroy(&xPprev);CHKERRQ(ierr);
-    ierr = DMDestroy(&dmP);CHKERRQ(ierr);
+    PetscCall(FDPDEEnthalpyGetPressure(fdHC,&dmP,&xP));
+    PetscCall(FDPDEEnthalpyGetPrevPressure(fdHC,&xPprev));
+    PetscCall(VecCopy(xP,xPprev));
+    PetscCall(UpdateLithostaticPressure(dmP,xP,usr));
+    PetscCall(VecDestroy(&xP));
+    PetscCall(VecDestroy(&xPprev));
+    PetscCall(DMDestroy(&dmP));
 
     // Compute fluxes out and crustal thickness
-    ierr = ComputeMeltExtractOutflux(usr); CHKERRQ(ierr);
-    ierr = ComputeAsymmetryFullRidge(usr); CHKERRQ(ierr);
+    PetscCall(ComputeMeltExtractOutflux(usr)); 
+    PetscCall(ComputeAsymmetryFullRidge(usr)); 
 
     // Update time
     nd->t += nd->dt;
 
     // Output solution
     if ((nd->istep % par->tout == 0 ) || (fmod(nd->t,nd->dt_out) < nd->dt)) {
-      ierr = DoOutput(fdPV,fdHC,usr);CHKERRQ(ierr);
+      PetscCall(DoOutput(fdPV,fdHC,usr));
     }
 
     nd->istep++;
 
-    ierr = PetscTime(&end_time); CHKERRQ(ierr);
+    PetscCall(PetscTime(&end_time)); 
     PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e [yr] dt = %1.12e [yr] \n",nd->t*usr->scal->t/SEC_YEAR,nd->dt*usr->scal->t/SEC_YEAR);
     PetscPrintf(PETSC_COMM_WORLD,"# Timestep runtime: %g (sec) \n\n", end_time - start_time);
   }
 
   // Destroy objects
-  ierr = FDPDEDestroy(&fdPV);CHKERRQ(ierr);
-  ierr = FDPDEDestroy(&fdHC);CHKERRQ(ierr);
+  PetscCall(FDPDEDestroy(&fdPV));
+  PetscCall(FDPDEDestroy(&fdHC));
 
-  ierr = VecDestroy(&usr->xPV);CHKERRQ(ierr);
-  ierr = VecDestroy(&usr->xHC);CHKERRQ(ierr);
-  ierr = VecDestroy(&usr->xVel);CHKERRQ(ierr);
-  ierr = VecDestroy(&usr->xEnth);CHKERRQ(ierr);
-  ierr = VecDestroy(&usr->xEnthold);CHKERRQ(ierr);
-  ierr = VecDestroy(&usr->xmatProp);CHKERRQ(ierr);
+  PetscCall(VecDestroy(&usr->xPV));
+  PetscCall(VecDestroy(&usr->xHC));
+  PetscCall(VecDestroy(&usr->xVel));
+  PetscCall(VecDestroy(&usr->xEnth));
+  PetscCall(VecDestroy(&usr->xEnthold));
+  PetscCall(VecDestroy(&usr->xmatProp));
 
-  ierr = DMDestroy(&usr->dmPV);CHKERRQ(ierr);
-  ierr = DMDestroy(&usr->dmHC);CHKERRQ(ierr);
-  ierr = DMDestroy(&usr->dmVel);CHKERRQ(ierr);
-  ierr = DMDestroy(&usr->dmEnth);CHKERRQ(ierr);
-  ierr = DMDestroy(&usr->dmmatProp);CHKERRQ(ierr);
+  PetscCall(DMDestroy(&usr->dmPV));
+  PetscCall(DMDestroy(&usr->dmHC));
+  PetscCall(DMDestroy(&usr->dmVel));
+  PetscCall(DMDestroy(&usr->dmEnth));
+  PetscCall(DMDestroy(&usr->dmmatProp));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

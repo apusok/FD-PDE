@@ -14,78 +14,76 @@ PetscErrorCode SetInitialConditions(FDPDE fdPV, FDPDE fdHC, void *ctx)
   DM             dmP, dmHCcoeff;
   Vec            xP, xPprev, xHCprev, xHCguess, xHCcoeff, xHCcoeffprev, xEnth;
   char           fout[FNAME_LENGTH];
-  PetscErrorCode ierr;
-  
   PetscFunctionBeginUser;
 
   // corner flow model for PV
-  ierr = CornerFlow_MOR(usr);CHKERRQ(ierr);
+  PetscCall(CornerFlow_MOR(usr));
 
   // half-space cooling model - initialize H, C
-  ierr = HalfSpaceCooling_MOR(usr);CHKERRQ(ierr);
+  PetscCall(HalfSpaceCooling_MOR(usr));
 
-  ierr = PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->nd->istep);
-  ierr = CreateDirectory(usr->par->fdir_out);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHC_HS_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xHC,fout);CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->nd->istep));
+  PetscCall(CreateDirectory(usr->par->fdir_out));
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xHC_HS_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagViewBinaryPython(usr->dmHC,usr->xHC,fout));
 
   // Update lithostatic pressure
-  ierr = FDPDEEnthalpyGetPressure(fdHC,&dmP,&xP);CHKERRQ(ierr);
-  ierr = UpdateLithostaticPressure(dmP,xP,usr);CHKERRQ(ierr);
-  ierr = FDPDEEnthalpyGetPrevPressure(fdHC,&xPprev);CHKERRQ(ierr);
-  ierr = VecCopy(xP,xPprev);CHKERRQ(ierr);
-  ierr = VecDestroy(&xP);CHKERRQ(ierr);
-  ierr = VecDestroy(&xPprev);CHKERRQ(ierr);
-  ierr = DMDestroy(&dmP);CHKERRQ(ierr);
+  PetscCall(FDPDEEnthalpyGetPressure(fdHC,&dmP,&xP));
+  PetscCall(UpdateLithostaticPressure(dmP,xP,usr));
+  PetscCall(FDPDEEnthalpyGetPrevPressure(fdHC,&xPprev));
+  PetscCall(VecCopy(xP,xPprev));
+  PetscCall(VecDestroy(&xP));
+  PetscCall(VecDestroy(&xPprev));
+  PetscCall(DMDestroy(&dmP));
 
   // Update Enthalpy diagnostics
-  ierr = FDPDEEnthalpyUpdateDiagnostics(fdHC,usr->dmHC,usr->xHC,&usr->dmEnth,&usr->xEnth); CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xEnth_HS_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagViewBinaryPython(usr->dmEnth,usr->xEnth,fout);CHKERRQ(ierr);
+  PetscCall(FDPDEEnthalpyUpdateDiagnostics(fdHC,usr->dmHC,usr->xHC,&usr->dmEnth,&usr->xEnth)); 
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xEnth_HS_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagViewBinaryPython(usr->dmEnth,usr->xEnth,fout));
 
   // Correct H-S*phi and C=Cs to ensure phi=phi*phi_init
-  ierr = CorrectInitialHCZeroPorosity(usr->dmEnth,usr->xEnth,usr);CHKERRQ(ierr);
+  PetscCall(CorrectInitialHCZeroPorosity(usr->dmEnth,usr->xEnth,usr));
 
   if (usr->par->initial_bulk_comp) { // initial bulk composition
-    ierr = CorrectInitialHCBulkComposition(usr);CHKERRQ(ierr);
+    PetscCall(CorrectInitialHCBulkComposition(usr));
   }
 
   // Update Enthalpy again for visualization and to initialize xEnthold
-  ierr = FDPDEEnthalpyUpdateDiagnostics(fdHC,usr->dmHC,usr->xHC,NULL,&xEnth); CHKERRQ(ierr);
-  ierr = VecCopy(xEnth,usr->xEnth);CHKERRQ(ierr);
-  ierr = VecDestroy(&xEnth);CHKERRQ(ierr);
+  PetscCall(FDPDEEnthalpyUpdateDiagnostics(fdHC,usr->dmHC,usr->xHC,NULL,&xEnth)); 
+  PetscCall(VecCopy(xEnth,usr->xEnth));
+  PetscCall(VecDestroy(&xEnth));
 
-  ierr = VecDuplicate(usr->xEnth,&usr->xEnthold);CHKERRQ(ierr);
-  ierr = VecCopy(usr->xEnth,usr->xEnthold);CHKERRQ(ierr);
+  PetscCall(VecDuplicate(usr->xEnth,&usr->xEnthold));
+  PetscCall(VecCopy(usr->xEnth,usr->xEnthold));
 
   // Update fluid velocity to zero and v=vs
-  ierr = ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmEnth,usr->xEnth,usr->dmVel,usr->xVel,usr);CHKERRQ(ierr);
+  PetscCall(ComputeFluidAndBulkVelocity(usr->dmPV,usr->xPV,usr->dmEnth,usr->xEnth,usr->dmVel,usr->xVel,usr));
 
   // Initialize guess and previous solution in fdHC
-  ierr = FDPDEEnthalpyGetPrevSolution(fdHC,&xHCprev);CHKERRQ(ierr);
-  ierr = VecCopy(usr->xHC,xHCprev);CHKERRQ(ierr);
-  ierr = FDPDEGetSolutionGuess(fdHC,&xHCguess);CHKERRQ(ierr);
-  ierr = VecCopy(xHCprev,xHCguess);CHKERRQ(ierr);
-  ierr = VecDestroy(&xHCprev);CHKERRQ(ierr);
-  ierr = VecDestroy(&xHCguess);CHKERRQ(ierr);
+  PetscCall(FDPDEEnthalpyGetPrevSolution(fdHC,&xHCprev));
+  PetscCall(VecCopy(usr->xHC,xHCprev));
+  PetscCall(FDPDEGetSolutionGuess(fdHC,&xHCguess));
+  PetscCall(VecCopy(xHCprev,xHCguess));
+  PetscCall(VecDestroy(&xHCprev));
+  PetscCall(VecDestroy(&xHCguess));
 
   // Set initial coefficient structure
-  ierr = FDPDEGetCoefficient(fdHC,&dmHCcoeff,&xHCcoeff);CHKERRQ(ierr);
-  ierr = FDPDEEnthalpyGetPrevCoefficient(fdHC,&xHCcoeffprev);CHKERRQ(ierr);
-  ierr = FormCoefficient_HC(fdHC,usr->dmHC,usr->xHC,dmHCcoeff,xHCcoeffprev,usr);CHKERRQ(ierr);
-  ierr = VecCopy(xHCcoeffprev,xHCcoeff);CHKERRQ(ierr);
+  PetscCall(FDPDEGetCoefficient(fdHC,&dmHCcoeff,&xHCcoeff));
+  PetscCall(FDPDEEnthalpyGetPrevCoefficient(fdHC,&xHCcoeffprev));
+  PetscCall(FormCoefficient_HC(fdHC,usr->dmHC,usr->xHC,dmHCcoeff,xHCcoeffprev,usr));
+  PetscCall(VecCopy(xHCcoeffprev,xHCcoeff));
 
   // Output prev coefficient
-  ierr = PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->nd->istep);
-  ierr = CreateDirectory(usr->par->fdir_out);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHCcoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagViewBinaryPython(dmHCcoeff,xHCcoeffprev,fout);CHKERRQ(ierr);
-  ierr = VecDestroy(&xHCcoeffprev);CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->nd->istep));
+  PetscCall(CreateDirectory(usr->par->fdir_out));
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xHCcoeff_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagViewBinaryPython(dmHCcoeff,xHCcoeffprev,fout));
+  PetscCall(VecDestroy(&xHCcoeffprev));
 
   // Output initial conditions
-  ierr = DoOutput(fdPV,fdHC,usr);CHKERRQ(ierr);
+  PetscCall(DoOutput(fdPV,fdHC,usr));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -101,9 +99,7 @@ PetscErrorCode CornerFlow_MOR(void *ctx)
   PetscScalar    **coordx,**coordz;
   Vec            x, xlocal;
   DM             dm;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   dm = usr->dmPV;
   x  = usr->xPV;
@@ -117,16 +113,16 @@ PetscErrorCode CornerFlow_MOR(void *ctx)
   u0   = usr->nd->U0;
   eta0 = nd_param(usr->par->eta0,usr->scal->eta);
 
-  ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMCreateLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+  PetscCall(DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL));
+  PetscCall(DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
+  PetscCall(DMCreateLocalVector(dm, &xlocal)); 
+  PetscCall(DMStagVecGetArray(dm, xlocal, &xx)); 
 
 // Get dm coordinates array
-  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
-  ierr = DMStagGetProductCoordinateLocationSlot(dm,LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dm,RIGHT,&inext);CHKERRQ(ierr); 
+  PetscCall(DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter)); 
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dm,LEFT,&iprev));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dm,RIGHT,&inext)); 
 
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
@@ -137,14 +133,14 @@ PetscErrorCode CornerFlow_MOR(void *ctx)
       xp = coordx[i][iprev ]; 
       zp = coordz[j][icenter];
       evaluate_CornerFlow_MOR(C1, C4, u0, eta0, xp, zp, v, &p);
-      ierr = DMStagGetLocationSlot(dm, LEFT, 0, &idx); CHKERRQ(ierr);
+      PetscCall(DMStagGetLocationSlot(dm, LEFT, 0, &idx)); 
       xx[j][i][idx] = v[0];
 
       if (i == Nx-1) {
         xp = coordx[i][inext  ];
         zp = coordz[j][icenter];
         evaluate_CornerFlow_MOR(C1, C4, u0, eta0, xp, zp, v, &p);
-        ierr = DMStagGetLocationSlot(dm, RIGHT, 0, &idx); CHKERRQ(ierr);
+        PetscCall(DMStagGetLocationSlot(dm, RIGHT, 0, &idx)); 
         xx[j][i][idx] = v[0];
       }
 
@@ -152,14 +148,14 @@ PetscErrorCode CornerFlow_MOR(void *ctx)
       xp = coordx[i][icenter];
       zp = coordz[j][iprev  ];
       evaluate_CornerFlow_MOR(C1, C4, u0, eta0, xp, zp, v, &p);
-      ierr = DMStagGetLocationSlot(dm, DOWN, 0, &idx); CHKERRQ(ierr);
+      PetscCall(DMStagGetLocationSlot(dm, DOWN, 0, &idx)); 
       xx[j][i][idx] = v[1];
 
       if (j == Nz-1) {
         xp = coordx[i][icenter];
         zp = coordz[j][inext  ];
         evaluate_CornerFlow_MOR(C1, C4, u0, eta0, xp, zp, v, &p);
-        ierr = DMStagGetLocationSlot(dm, UP, 0, &idx); CHKERRQ(ierr);
+        PetscCall(DMStagGetLocationSlot(dm, UP, 0, &idx)); 
         xx[j][i][idx] = v[1];
       }
     
@@ -167,7 +163,7 @@ PetscErrorCode CornerFlow_MOR(void *ctx)
       xp = coordx[i][icenter];
       zp = coordz[j][icenter];
       evaluate_CornerFlow_MOR(C1, C4, u0, eta0, xp, zp, v, &p);
-      ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &idx); CHKERRQ(ierr);
+      PetscCall(DMStagGetLocationSlot(dm, ELEMENT, 0, &idx)); 
       xx[j][i][idx] = p;
 
       // no need to initialize pc here
@@ -175,13 +171,13 @@ PetscErrorCode CornerFlow_MOR(void *ctx)
   }
 
   // Restore arrays
-  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
-  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL));
+  PetscCall(DMStagVecRestoreArray(dm,xlocal,&xx)); 
+  PetscCall(DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x)); 
+  PetscCall(DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x)); 
+  PetscCall(VecDestroy(&xlocal)); 
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -194,8 +190,7 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
   PetscScalar    **coordx,**coordz, ***xx, Cs0, Tm, xmor;
   Vec            x, xlocal;
   DM             dm;
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   dm  = usr->dmHC;
   x   = usr->xHC;
@@ -203,15 +198,15 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
   Tm  = (usr->par->Tp-T_KELVIN)*exp(-usr->nd->A*usr->nd->zmin)+T_KELVIN;
   xmor = usr->nd->xmor;
 
-  ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
-  ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &iH); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dm, ELEMENT, 1, &iC); CHKERRQ(ierr);
+  PetscCall(DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL));
+  PetscCall(DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
+  PetscCall(DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter)); 
+  PetscCall(DMStagGetLocationSlot(dm, ELEMENT, 0, &iH)); 
+  PetscCall(DMStagGetLocationSlot(dm, ELEMENT, 1, &iC)); 
 
-  ierr = DMCreateLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+  PetscCall(DMCreateLocalVector(dm, &xlocal)); 
+  PetscCall(DMStagVecGetArray(dm, xlocal, &xx)); 
 
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
@@ -240,13 +235,13 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
   }
 
   // Restore arrays
-  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
-  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL));
+  PetscCall(DMStagVecRestoreArray(dm,xlocal,&xx)); 
+  PetscCall(DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x)); 
+  PetscCall(DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x)); 
+  PetscCall(VecDestroy(&xlocal)); 
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -258,17 +253,16 @@ PetscErrorCode UpdateLithostaticPressure(DM dm, Vec x, void *ctx)
   PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, idx, icenter;
   PetscScalar    **coordx,**coordz, ***xx;
   Vec            xlocal;
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
-  ierr = DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter);CHKERRQ(ierr); 
-  ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &idx); CHKERRQ(ierr);
+  PetscCall(DMStagGetGlobalSizes(dm, &Nx, &Nz,NULL));
+  PetscCall(DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
+  PetscCall(DMStagGetProductCoordinateArraysRead(dm,&coordx,&coordz,NULL));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dm,ELEMENT,&icenter)); 
+  PetscCall(DMStagGetLocationSlot(dm, ELEMENT, 0, &idx)); 
 
-  ierr = DMCreateLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+  PetscCall(DMCreateLocalVector(dm, &xlocal)); 
+  PetscCall(DMStagVecGetArray(dm, xlocal, &xx)); 
 
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
@@ -280,13 +274,13 @@ PetscErrorCode UpdateLithostaticPressure(DM dm, Vec x, void *ctx)
   }
 
   // Restore arrays
-  ierr = DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
-  ierr = VecDestroy(&xlocal); CHKERRQ(ierr);
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dm,&coordx,&coordz,NULL));
+  PetscCall(DMStagVecRestoreArray(dm,xlocal,&xx)); 
+  PetscCall(DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x)); 
+  PetscCall(DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x)); 
+  PetscCall(VecDestroy(&xlocal)); 
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -300,28 +294,27 @@ PetscErrorCode CorrectInitialHCZeroPorosity(DM dmEnth, Vec xEnth, void *ctx)
   Vec            x, xlocal, xnewlocal;
   DM             dm;
   PetscLogDouble tlog[2];
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   PetscTime(&tlog[0]);
   dm  = usr->dmHC;
   x   = usr->xHC;
 
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dm, ELEMENT, 0, &iH); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dm, ELEMENT, 1, &iC); CHKERRQ(ierr);
+  PetscCall(DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
+  PetscCall(DMStagGetLocationSlot(dm, ELEMENT, 0, &iH)); 
+  PetscCall(DMStagGetLocationSlot(dm, ELEMENT, 1, &iC)); 
 
-  ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dm, &xlocal)); 
+  PetscCall(DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal)); 
+  PetscCall(DMStagVecGetArray(dm, xlocal, &xx)); 
 
-  ierr = DMGetLocalVector(dmEnth, &xnewlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmEnth, xEnth, INSERT_VALUES, xnewlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(dmEnth,xnewlocal,&enth);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dmEnth, &xnewlocal)); 
+  PetscCall(DMGlobalToLocal (dmEnth, xEnth, INSERT_VALUES, xnewlocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmEnth,xnewlocal,&enth));
 
-  ierr = DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&dm_slot[0]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_CS ,&dm_slot[1]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_CF ,&dm_slot[2]); CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&dm_slot[0])); 
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_CS ,&dm_slot[1])); 
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_CF ,&dm_slot[2])); 
 
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
@@ -343,20 +336,20 @@ PetscErrorCode CorrectInitialHCZeroPorosity(DM dmEnth, Vec xEnth, void *ctx)
   }
 
   // Restore arrays
-  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm, &xlocal); CHKERRQ(ierr);
+  PetscCall(DMStagVecRestoreArray(dm,xlocal,&xx)); 
+  PetscCall(DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x)); 
+  PetscCall(DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x)); 
+  PetscCall(DMRestoreLocalVector(dm, &xlocal)); 
 
-  ierr = DMStagVecRestoreArrayRead(dmEnth,xnewlocal,&enth);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmEnth, &xnewlocal); CHKERRQ(ierr);
+  PetscCall(DMStagVecRestoreArrayRead(dmEnth,xnewlocal,&enth));
+  PetscCall(DMRestoreLocalVector(dmEnth, &xnewlocal)); 
 
   PetscTime(&tlog[1]);
   if (usr->par->log_info) {
     printf("  CorrectInitialHCZeroPorosity: total                %1.2e\n",tlog[1]-tlog[0]);
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -370,27 +363,26 @@ PetscErrorCode CorrectInitialHCBulkComposition(void *ctx)
   Vec            x, xlocal;
   DM             dm;
   PetscMPIInt    size;
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   dm  = usr->dmHC;
   x   = usr->xHC;
 
-  ierr = MPI_Comm_size(usr->comm,&size);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dm, ELEMENT, 1, &iC); CHKERRQ(ierr);
+  PetscCall(MPI_Comm_size(usr->comm,&size));
+  PetscCall(DMStagGetCorners(dm, &sx, &sz, NULL, &nx, &nz, NULL, NULL, NULL, NULL)); 
+  PetscCall(DMStagGetLocationSlot(dm, ELEMENT, 1, &iC)); 
 
-  ierr = DMGetLocalVector(dm, &xlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dm, xlocal, &xx); CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dm, &xlocal)); 
+  PetscCall(DMGlobalToLocal (dm, x, INSERT_VALUES, xlocal)); 
+  PetscCall(DMStagVecGetArray(dm, xlocal, &xx)); 
 
   PetscScalar *xmor;
   PetscInt *_send, *_recv, irank, s_rank[2], s_neigh[2];
   
   // create data 
-  ierr = PetscCalloc1(nz,&xmor); CHKERRQ(ierr);
-  ierr = PetscCalloc1(size,&_send); CHKERRQ(ierr);
-  ierr = PetscCalloc1(size,&_recv); CHKERRQ(ierr);
+  PetscCall(PetscCalloc1(nz,&xmor)); 
+  PetscCall(PetscCalloc1(size,&_send)); 
+  PetscCall(PetscCalloc1(size,&_recv)); 
   
   for (irank = 0; irank < size; irank++) {
     _send[irank] = -1;
@@ -402,8 +394,8 @@ PetscErrorCode CorrectInitialHCBulkComposition(void *ctx)
   // first all procs send/recv start coord to each other
   for (irank = 0; irank < size; irank++) {
     if (irank!=usr->rank) {
-      ierr = MPI_Send(&s_rank,2,MPI_INT,irank,0,usr->comm);
-      ierr = MPI_Recv(&s_neigh,2,MPI_INT,irank,0,usr->comm,MPI_STATUS_IGNORE);
+      PetscCall(MPI_Send(&s_rank,2,MPI_INT,irank,0,usr->comm));
+      PetscCall(MPI_Recv(&s_neigh,2,MPI_INT,irank,0,usr->comm,MPI_STATUS_IGNORE));
 
       if (s_rank[1]==s_neigh[1]) {
         if (s_rank[0] ==0) _send[irank] = 1;
@@ -423,10 +415,10 @@ PetscErrorCode CorrectInitialHCBulkComposition(void *ctx)
   for (irank = 0; irank < size; irank++) {
     if (irank!=usr->rank) {
       if (_send[irank] == 1) {
-        ierr = MPI_Send(xmor,nz,MPI_DOUBLE,irank,0,usr->comm);
+        PetscCall(MPI_Send(xmor,nz,MPI_DOUBLE,irank,0,usr->comm));
       }
       if (_recv[irank] == 1) {
-        ierr = MPI_Recv(xmor,nz,MPI_DOUBLE,irank,0,usr->comm,MPI_STATUS_IGNORE);
+        PetscCall(MPI_Recv(xmor,nz,MPI_DOUBLE,irank,0,usr->comm,MPI_STATUS_IGNORE));
       }
     }
   }
@@ -439,17 +431,17 @@ PetscErrorCode CorrectInitialHCBulkComposition(void *ctx)
   }
 
   // free data 
-  ierr = PetscFree(xmor);CHKERRQ(ierr);
-  ierr = PetscFree(_send);CHKERRQ(ierr);
-  ierr = PetscFree(_recv);CHKERRQ(ierr);
+  PetscCall(PetscFree(xmor));
+  PetscCall(PetscFree(_send));
+  PetscCall(PetscFree(_recv));
 
   // Restore arrays
-  ierr = DMStagVecRestoreArray(dm,xlocal,&xx); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm, &xlocal); CHKERRQ(ierr);
+  PetscCall(DMStagVecRestoreArray(dm,xlocal,&xx)); 
+  PetscCall(DMLocalToGlobalBegin(dm,xlocal,INSERT_VALUES,x)); 
+  PetscCall(DMLocalToGlobalEnd  (dm,xlocal,INSERT_VALUES,x)); 
+  PetscCall(DMRestoreLocalVector(dm, &xlocal)); 
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -465,8 +457,7 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmEnth, Vec xEnt
   PetscScalar    ***_xPVlocal,***_xEnthlocal;
   PetscInt       pv_slot[6],phi_slot,v_slot[8],iL,iR,iU,iD,iP,iPc;
   PetscLogDouble tlog[2];
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   PetscTime(&tlog[0]);
   k_hat[0] = 0.0;
@@ -474,46 +465,46 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmEnth, Vec xEnt
   k_hat[2] = usr->par->k_hat;
   k_hat[3] = usr->par->k_hat;
 
-  ierr = DMStagGetGlobalSizes(dmVel,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dmVel,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL); CHKERRQ(ierr);
+  PetscCall(DMStagGetGlobalSizes(dmVel,&Nx,&Nz,NULL));
+  PetscCall(DMStagGetCorners(dmVel,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL)); 
 
   // get coordinates of dmPV for center and edges
-  ierr = DMStagGetProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,RIGHT,&inext);CHKERRQ(ierr); 
-  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,ELEMENT,&icenter);CHKERRQ(ierr); 
+  PetscCall(DMStagGetProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmPV,LEFT,&iprev));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmPV,RIGHT,&inext)); 
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmPV,ELEMENT,&icenter)); 
   
-  ierr = DMCreateLocalVector(dmVel,&xVellocal);CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dmVel, xVellocal, &xx); CHKERRQ(ierr);
+  PetscCall(DMCreateLocalVector(dmVel,&xVellocal));
+  PetscCall(DMStagVecGetArray(dmVel, xVellocal, &xx)); 
 
-  ierr = DMGetLocalVector(dmPV, &xPVlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmPV, xPV, INSERT_VALUES, xPVlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(dmPV,xPVlocal,&_xPVlocal);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dmPV, &xPVlocal)); 
+  PetscCall(DMGlobalToLocal (dmPV, xPV, INSERT_VALUES, xPVlocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmPV,xPVlocal,&_xPVlocal));
 
-  ierr = DMGetLocalVector(dmEnth, &xEnthlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmEnth, xEnth, INSERT_VALUES, xEnthlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(dmEnth,xEnthlocal,&_xEnthlocal);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dmEnth, &xEnthlocal)); 
+  PetscCall(DMGlobalToLocal (dmEnth, xEnth, INSERT_VALUES, xEnthlocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
 
   // get slots
   iP = 0; iPc = 1;
   iL = 2; iR  = 3;
   iD = 4; iU  = 5;
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_ELEMENT,PV_ELEMENT_P, &pv_slot[iP]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_ELEMENT,PV_ELEMENT_PC,&pv_slot[iPc]); CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_LEFT,   PV_FACE_VS,   &pv_slot[iL]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_RIGHT,  PV_FACE_VS,   &pv_slot[iR]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_DOWN,   PV_FACE_VS,   &pv_slot[iD]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_UP,     PV_FACE_VS,   &pv_slot[iU]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&phi_slot);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmPV,DMSTAG_ELEMENT,PV_ELEMENT_P, &pv_slot[iP])); 
+  PetscCall(DMStagGetLocationSlot(dmPV,DMSTAG_ELEMENT,PV_ELEMENT_PC,&pv_slot[iPc])); 
+  PetscCall(DMStagGetLocationSlot(dmPV,DMSTAG_LEFT,   PV_FACE_VS,   &pv_slot[iL]));
+  PetscCall(DMStagGetLocationSlot(dmPV,DMSTAG_RIGHT,  PV_FACE_VS,   &pv_slot[iR]));
+  PetscCall(DMStagGetLocationSlot(dmPV,DMSTAG_DOWN,   PV_FACE_VS,   &pv_slot[iD]));
+  PetscCall(DMStagGetLocationSlot(dmPV,DMSTAG_UP,     PV_FACE_VS,   &pv_slot[iU]));
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&phi_slot));
 
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_LEFT,  VEL_FACE_VF, &v_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_RIGHT, VEL_FACE_VF, &v_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_DOWN,  VEL_FACE_VF, &v_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_UP,    VEL_FACE_VF, &v_slot[3]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_LEFT,  VEL_FACE_V,  &v_slot[4]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_RIGHT, VEL_FACE_V,  &v_slot[5]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_DOWN,  VEL_FACE_V,  &v_slot[6]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_UP,    VEL_FACE_V,  &v_slot[7]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmVel,DMSTAG_LEFT,  VEL_FACE_VF, &v_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmVel,DMSTAG_RIGHT, VEL_FACE_VF, &v_slot[1]));
+  PetscCall(DMStagGetLocationSlot(dmVel,DMSTAG_DOWN,  VEL_FACE_VF, &v_slot[2]));
+  PetscCall(DMStagGetLocationSlot(dmVel,DMSTAG_UP,    VEL_FACE_VF, &v_slot[3]));
+  PetscCall(DMStagGetLocationSlot(dmVel,DMSTAG_LEFT,  VEL_FACE_V,  &v_slot[4]));
+  PetscCall(DMStagGetLocationSlot(dmVel,DMSTAG_RIGHT, VEL_FACE_V,  &v_slot[5]));
+  PetscCall(DMStagGetLocationSlot(dmVel,DMSTAG_DOWN,  VEL_FACE_V,  &v_slot[6]));
+  PetscCall(DMStagGetLocationSlot(dmVel,DMSTAG_UP,    VEL_FACE_V,  &v_slot[7]));
 
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
@@ -592,23 +583,23 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmEnth, Vec xEnt
   }
 
   // Restore arrays
-  ierr = DMStagVecRestoreArray(dmVel,xVellocal,&xx); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dmVel,xVellocal,INSERT_VALUES,xVel); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dmVel,xVellocal,INSERT_VALUES,xVel); CHKERRQ(ierr);
-  ierr = VecDestroy(&xVellocal); CHKERRQ(ierr);
+  PetscCall(DMStagVecRestoreArray(dmVel,xVellocal,&xx)); 
+  PetscCall(DMLocalToGlobalBegin(dmVel,xVellocal,INSERT_VALUES,xVel)); 
+  PetscCall(DMLocalToGlobalEnd  (dmVel,xVellocal,INSERT_VALUES,xVel)); 
+  PetscCall(VecDestroy(&xVellocal)); 
 
-  ierr = DMStagRestoreProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(dmPV,xPVlocal,&_xPVlocal);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmPV, &xPVlocal); CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(dmEnth,xEnthlocal,&_xEnthlocal);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmEnth, &xEnthlocal); CHKERRQ(ierr);
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL));
+  PetscCall(DMStagVecRestoreArrayRead(dmPV,xPVlocal,&_xPVlocal));
+  PetscCall(DMRestoreLocalVector(dmPV, &xPVlocal)); 
+  PetscCall(DMStagVecRestoreArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
+  PetscCall(DMRestoreLocalVector(dmEnth, &xEnthlocal)); 
 
   PetscTime(&tlog[1]);
   if (usr->par->log_info) {
     printf("  ComputeFluidAndBulkVelocity: total                 %1.2e\n",tlog[1]-tlog[0]);
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -625,29 +616,28 @@ PetscErrorCode UpdateMaterialProperties(DM dmEnth, Vec xEnth, DM dmmatProp, Vec 
   PetscScalar    ***xx, ***_xEnthlocal;
   Vec            xmatProplocal,xEnthlocal;
   PetscLogDouble tlog[2];
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   PetscTime(&tlog[0]);
   nd  = usr->nd;
   par = usr->par;
   scal= usr->scal;
 
-  ierr = DMStagGetCorners(dmmatProp,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL); CHKERRQ(ierr);  
-  ierr = DMCreateLocalVector(dmmatProp,&xmatProplocal);CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dmmatProp, xmatProplocal, &xx); CHKERRQ(ierr);
+  PetscCall(DMStagGetCorners(dmmatProp,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL));   
+  PetscCall(DMCreateLocalVector(dmmatProp,&xmatProplocal));
+  PetscCall(DMStagVecGetArray(dmmatProp, xmatProplocal, &xx)); 
 
-  ierr = DMGetLocalVector(dmEnth, &xEnthlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmEnth, xEnth, INSERT_VALUES, xEnthlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(dmEnth,xEnthlocal,&_xEnthlocal);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dmEnth, &xEnthlocal)); 
+  PetscCall(DMGlobalToLocal (dmEnth, xEnth, INSERT_VALUES, xEnthlocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
 
-  ierr = DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&iphi);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_T,  &iT);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_CS, &iCS);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_CF, &iCF);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&iphi));
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_T,  &iT));
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_CS, &iCS));
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_CF, &iCF));
 
   for (ii = 0; ii < 6; ii++) {
-    ierr = DMStagGetLocationSlot(dmmatProp,DMSTAG_ELEMENT,ii,&idx[ii]); CHKERRQ(ierr);
+    PetscCall(DMStagGetLocationSlot(dmmatProp,DMSTAG_ELEMENT,ii,&idx[ii])); 
   }
 
   // Loop over local domain
@@ -679,20 +669,20 @@ PetscErrorCode UpdateMaterialProperties(DM dmEnth, Vec xEnth, DM dmmatProp, Vec 
   }
 
   // Restore arrays
-  ierr = DMStagVecRestoreArray(dmmatProp,xmatProplocal,&xx); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dmmatProp,xmatProplocal,INSERT_VALUES,xmatProp); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dmmatProp,xmatProplocal,INSERT_VALUES,xmatProp); CHKERRQ(ierr);
-  ierr = VecDestroy(&xmatProplocal); CHKERRQ(ierr);
+  PetscCall(DMStagVecRestoreArray(dmmatProp,xmatProplocal,&xx)); 
+  PetscCall(DMLocalToGlobalBegin(dmmatProp,xmatProplocal,INSERT_VALUES,xmatProp)); 
+  PetscCall(DMLocalToGlobalEnd  (dmmatProp,xmatProplocal,INSERT_VALUES,xmatProp)); 
+  PetscCall(VecDestroy(&xmatProplocal)); 
 
-  ierr = DMStagVecRestoreArrayRead(dmEnth,xEnthlocal,&_xEnthlocal);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmEnth,&xEnthlocal); CHKERRQ(ierr);
+  PetscCall(DMStagVecRestoreArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
+  PetscCall(DMRestoreLocalVector(dmEnth,&xEnthlocal)); 
 
   PetscTime(&tlog[1]);
   if (usr->par->log_info) {
     printf("  UpdateMaterialProperties: total                    %1.2e\n",tlog[1]-tlog[0]);
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -707,104 +697,102 @@ PetscErrorCode LoadRestartFromFile(FDPDE fdPV, FDPDE fdHC, void *ctx)
   Vec            x, xP, xPprev, xHCprev, xHCguess,xHCcoeff, xHCcoeffprev;
   char           fout[FNAME_LENGTH];
   PetscViewer    viewer;
-  PetscErrorCode ierr;
-  
   PetscFunctionBeginUser;
 
   usr->nd->istep = usr->par->restart;
-  ierr = PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->nd->istep);
+  PetscCall(PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->nd->istep));
 
   // load time data
-  ierr = LoadParametersFromFile(usr);CHKERRQ(ierr);
+  PetscCall(LoadParametersFromFile(usr));
 
   // correct restart variable from bag
   usr->par->restart = usr->nd->istep;
-  ierr = InputPrintData(usr);CHKERRQ(ierr);
+  PetscCall(InputPrintData(usr));
 
   // load PV data
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPV_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  ierr = VecCopy(x,usr->xPV);CHKERRQ(ierr);
-  ierr = VecCopy(x,fdPV->xguess);CHKERRQ(ierr);
-  ierr = VecDestroy(&x); CHKERRQ(ierr);
-  ierr = DMDestroy(&dm); CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xPV_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagReadBinaryPython(&dm,&x,fout));
+  PetscCall(VecCopy(x,usr->xPV));
+  PetscCall(VecCopy(x,fdPV->xguess));
+  PetscCall(VecDestroy(&x)); 
+  PetscCall(DMDestroy(&dm)); 
   
   // load HC data
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHC_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  ierr = VecCopy(x,usr->xHC);CHKERRQ(ierr);
-  ierr = VecCopy(x,fdHC->xguess);CHKERRQ(ierr);
-  ierr = VecDestroy(&x); CHKERRQ(ierr);
-  ierr = DMDestroy(&dm); CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xHC_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagReadBinaryPython(&dm,&x,fout));
+  PetscCall(VecCopy(x,usr->xHC));
+  PetscCall(VecCopy(x,fdHC->xguess));
+  PetscCall(VecDestroy(&x)); 
+  PetscCall(DMDestroy(&dm)); 
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_resPV_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  ierr = VecCopy(x,fdPV->r);CHKERRQ(ierr);
-  ierr = VecDestroy(&x); CHKERRQ(ierr);
-  ierr = DMDestroy(&dm); CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_resPV_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagReadBinaryPython(&dm,&x,fout));
+  PetscCall(VecCopy(x,fdPV->r));
+  PetscCall(VecDestroy(&x)); 
+  PetscCall(DMDestroy(&dm)); 
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_resHC_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  ierr = VecCopy(x,fdHC->r);CHKERRQ(ierr);
-  ierr = VecDestroy(&x); CHKERRQ(ierr);
-  ierr = DMDestroy(&dm); CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_resHC_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagReadBinaryPython(&dm,&x,fout));
+  PetscCall(VecCopy(x,fdHC->r));
+  PetscCall(VecDestroy(&x)); 
+  PetscCall(DMDestroy(&dm)); 
   
   // load lithostatic pressure
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPressure_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  ierr = FDPDEEnthalpyGetPressure(fdHC,&dmP,&xP);CHKERRQ(ierr);
-  ierr = VecCopy(x,xP);CHKERRQ(ierr);
-  ierr = VecDestroy(&xP);CHKERRQ(ierr);
-  ierr = VecDestroy(&x); CHKERRQ(ierr);
-  ierr = DMDestroy(&dm); CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xPressure_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagReadBinaryPython(&dm,&x,fout));
+  PetscCall(FDPDEEnthalpyGetPressure(fdHC,&dmP,&xP));
+  PetscCall(VecCopy(x,xP));
+  PetscCall(VecDestroy(&xP));
+  PetscCall(VecDestroy(&x)); 
+  PetscCall(DMDestroy(&dm)); 
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPressurePrev_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  ierr = FDPDEEnthalpyGetPrevPressure(fdHC,&xPprev);CHKERRQ(ierr);
-  ierr = VecCopy(x,xPprev);CHKERRQ(ierr);
-  ierr = VecDestroy(&xPprev);CHKERRQ(ierr);
-  ierr = VecDestroy(&x); CHKERRQ(ierr);
-  ierr = DMDestroy(&dm); CHKERRQ(ierr);
-  ierr = DMDestroy(&dmP);CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xPressurePrev_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagReadBinaryPython(&dm,&x,fout));
+  PetscCall(FDPDEEnthalpyGetPrevPressure(fdHC,&xPprev));
+  PetscCall(VecCopy(x,xPprev));
+  PetscCall(VecDestroy(&xPprev));
+  PetscCall(VecDestroy(&x)); 
+  PetscCall(DMDestroy(&dm)); 
+  PetscCall(DMDestroy(&dmP));
 
   // load Enthalpy diagnostics
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xEnth_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagReadBinaryPython(&dmEnth,&x,fout);CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xEnth_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagReadBinaryPython(&dmEnth,&x,fout));
   usr->dmEnth = dmEnth;
-  ierr = VecDuplicate(x,&usr->xEnth);CHKERRQ(ierr);
-  ierr = VecDuplicate(x,&usr->xEnthold);CHKERRQ(ierr);
-  ierr = VecCopy(x,usr->xEnth);CHKERRQ(ierr);
-  ierr = VecCopy(x,usr->xEnthold);CHKERRQ(ierr); // this should be loaded from file too
-  ierr = VecDestroy(&x); CHKERRQ(ierr);
+  PetscCall(VecDuplicate(x,&usr->xEnth));
+  PetscCall(VecDuplicate(x,&usr->xEnthold));
+  PetscCall(VecCopy(x,usr->xEnth));
+  PetscCall(VecCopy(x,usr->xEnthold)); // this should be loaded from file too
+  PetscCall(VecDestroy(&x)); 
 
   // load velocity
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xVel_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  ierr = VecCopy(x,usr->xVel);CHKERRQ(ierr);
-  ierr = VecDestroy(&x); CHKERRQ(ierr);
-  ierr = DMDestroy(&dm); CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xVel_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagReadBinaryPython(&dm,&x,fout));
+  PetscCall(VecCopy(x,usr->xVel));
+  PetscCall(VecDestroy(&x)); 
+  PetscCall(DMDestroy(&dm)); 
 
   // initialize guess and previous solution in fdHC
-  ierr = FDPDEEnthalpyGetPrevSolution(fdHC,&xHCprev);CHKERRQ(ierr);
-  ierr = VecCopy(usr->xHC,xHCprev);CHKERRQ(ierr);
-  ierr = VecDestroy(&xHCprev);CHKERRQ(ierr);
+  PetscCall(FDPDEEnthalpyGetPrevSolution(fdHC,&xHCprev));
+  PetscCall(VecCopy(usr->xHC,xHCprev));
+  PetscCall(VecDestroy(&xHCprev));
 
   // load coefficient structure
-  ierr = FDPDEGetCoefficient(fdHC,&dmHCcoeff,&xHCcoeff);CHKERRQ(ierr);
-  ierr = FDPDEEnthalpyGetPrevCoefficient(fdHC,&xHCcoeffprev);CHKERRQ(ierr);
+  PetscCall(FDPDEGetCoefficient(fdHC,&dmHCcoeff,&xHCcoeff));
+  PetscCall(FDPDEEnthalpyGetPrevCoefficient(fdHC,&xHCcoeffprev));
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHCcoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagReadBinaryPython(&dm,&x,fout);CHKERRQ(ierr);
-  ierr = VecCopy(x,xHCcoeffprev);CHKERRQ(ierr);
-  ierr = VecCopy(x,xHCcoeff);CHKERRQ(ierr);
-  ierr = VecDestroy(&x); CHKERRQ(ierr);
-  ierr = DMDestroy(&dm); CHKERRQ(ierr);
-  ierr = VecDestroy(&xHCcoeffprev);CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xHCcoeff_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagReadBinaryPython(&dm,&x,fout));
+  PetscCall(VecCopy(x,xHCcoeffprev));
+  PetscCall(VecCopy(x,xHCcoeff));
+  PetscCall(VecDestroy(&x)); 
+  PetscCall(DMDestroy(&dm)); 
+  PetscCall(VecDestroy(&xHCcoeffprev));
 
   // Output load conditions
-  ierr = DoOutput(fdPV,fdHC,usr);CHKERRQ(ierr);
+  PetscCall(DoOutput(fdPV,fdHC,usr));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -818,70 +806,68 @@ PetscErrorCode DoOutput(FDPDE fdPV, FDPDE fdHC, void *ctx)
   char           fout[FNAME_LENGTH];
   DM             dmPVcoeff, dmHCcoeff,dmP;
   Vec            xPVcoeff, xHCcoeff, xP, xPprev;
-  PetscErrorCode ierr;
-  
   PetscFunctionBeginUser;
 
   if ((usr->par->restart) && (usr->nd->istep==usr->par->restart)) {
-    ierr = PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d_r",usr->nd->istep);
+    PetscCall(PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d_r",usr->nd->istep));
   } else {
-    ierr = PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->nd->istep);
+    PetscCall(PetscSNPrintf(usr->par->fdir_out,sizeof(usr->par->fdir_out),"Timestep%d",usr->nd->istep));
   }
-  ierr = CreateDirectory(usr->par->fdir_out);CHKERRQ(ierr);
+  PetscCall(CreateDirectory(usr->par->fdir_out));
 
   // Output bag and parameters
-  ierr = OutputParameters(usr);CHKERRQ(ierr); 
+  PetscCall(OutputParameters(usr)); 
 
   // Output solution vectors
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPV_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagViewBinaryPython(usr->dmPV,usr->xPV,fout);CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xPV_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagViewBinaryPython(usr->dmPV,usr->xPV,fout));
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHC_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagViewBinaryPython(usr->dmHC,usr->xHC,fout);CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xHC_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagViewBinaryPython(usr->dmHC,usr->xHC,fout));
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xEnth_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagViewBinaryPython(usr->dmEnth,usr->xEnth,fout);CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xEnth_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagViewBinaryPython(usr->dmEnth,usr->xEnth,fout));
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xVel_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagViewBinaryPython(usr->dmVel,usr->xVel,fout);CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xVel_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagViewBinaryPython(usr->dmVel,usr->xVel,fout));
 
   if (usr->nd->istep > 0) {
     // coefficients
-    ierr = FDPDEGetCoefficient(fdHC,&dmHCcoeff,&xHCcoeff);CHKERRQ(ierr);
-    ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xHCcoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
-    ierr = DMStagViewBinaryPython(dmHCcoeff,xHCcoeff,fout);CHKERRQ(ierr);
+    PetscCall(FDPDEGetCoefficient(fdHC,&dmHCcoeff,&xHCcoeff));
+    PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xHCcoeff_ts%d",usr->par->fdir_out,usr->nd->istep));
+    PetscCall(DMStagViewBinaryPython(dmHCcoeff,xHCcoeff,fout));
 
-    ierr = FDPDEGetCoefficient(fdPV,&dmPVcoeff,&xPVcoeff);CHKERRQ(ierr);
-    ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPVcoeff_ts%d",usr->par->fdir_out,usr->nd->istep);
-    ierr = DMStagViewBinaryPython(dmPVcoeff,xPVcoeff,fout);CHKERRQ(ierr);
+    PetscCall(FDPDEGetCoefficient(fdPV,&dmPVcoeff,&xPVcoeff));
+    PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xPVcoeff_ts%d",usr->par->fdir_out,usr->nd->istep));
+    PetscCall(DMStagViewBinaryPython(dmPVcoeff,xPVcoeff,fout));
 
     // material properties eta, permeability, density
-    ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_matProp_ts%d",usr->par->fdir_out,usr->nd->istep);
-    ierr = DMStagViewBinaryPython(usr->dmmatProp,usr->xmatProp,fout);CHKERRQ(ierr);
+    PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_matProp_ts%d",usr->par->fdir_out,usr->nd->istep));
+    PetscCall(DMStagViewBinaryPython(usr->dmmatProp,usr->xmatProp,fout));
   }
 
   // residuals
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_resPV_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagViewBinaryPython(usr->dmPV,fdPV->r,fout);CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_resPV_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagViewBinaryPython(usr->dmPV,fdPV->r,fout));
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_resHC_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagViewBinaryPython(usr->dmHC,fdHC->r,fout);CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_resHC_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagViewBinaryPython(usr->dmHC,fdHC->r,fout));
 
   // lithostatic pressure
-  ierr = FDPDEEnthalpyGetPressure(fdHC,&dmP,&xP);CHKERRQ(ierr);
-  ierr = FDPDEEnthalpyGetPrevPressure(fdHC,&xPprev);CHKERRQ(ierr);
+  PetscCall(FDPDEEnthalpyGetPressure(fdHC,&dmP,&xP));
+  PetscCall(FDPDEEnthalpyGetPrevPressure(fdHC,&xPprev));
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPressure_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagViewBinaryPython(dmP,xP,fout);CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xPressure_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagViewBinaryPython(dmP,xP,fout));
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/out_xPressurePrev_ts%d",usr->par->fdir_out,usr->nd->istep);
-  ierr = DMStagViewBinaryPython(dmP,xPprev,fout);CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/out_xPressurePrev_ts%d",usr->par->fdir_out,usr->nd->istep));
+  PetscCall(DMStagViewBinaryPython(dmP,xPprev,fout));
 
-  ierr = VecDestroy(&xP);CHKERRQ(ierr);
-  ierr = VecDestroy(&xPprev);CHKERRQ(ierr);
-  ierr = DMDestroy(&dmP);CHKERRQ(ierr);
+  PetscCall(VecDestroy(&xP));
+  PetscCall(VecDestroy(&xPprev));
+  PetscCall(DMDestroy(&dmP));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -893,19 +879,18 @@ PetscErrorCode CreateDirectory(const char *name)
 {
   PetscMPIInt rank;
   int         status;
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   // create a new directory if it doesn't exist on rank zero
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+  PetscCall(MPI_Comm_rank(PETSC_COMM_WORLD,&rank));
   if(rank==0) {
     status = mkdir(name,0777);
     if(!status) PetscPrintf(PETSC_COMM_WORLD,"# New directory created: %s \n",name);
     else        PetscPrintf(PETSC_COMM_WORLD,"# Did not create new directory: %s \n",name);
   }
-  ierr = MPI_Barrier(PETSC_COMM_WORLD); CHKERRQ(ierr);
+  PetscCall(MPI_Barrier(PETSC_COMM_WORLD)); 
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -922,8 +907,7 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
   Vec            xVellocal, xEnthlocal;
   PetscScalar    ***_xEnthlocal,***_xVellocal;
   PetscLogDouble tlog[2];
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   PetscTime(&tlog[0]);
   dmHC = usr->dmHC;
@@ -934,24 +918,24 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
   else full_ridge = 1.0;
 
   // get coordinates of dmVel for edges
-  ierr = DMStagGetGlobalSizes(dmVel, &Nx, &Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dmVel,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL); CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateArraysRead(dmVel,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmVel,LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmVel,RIGHT,&inext);CHKERRQ(ierr); 
+  PetscCall(DMStagGetGlobalSizes(dmVel, &Nx, &Nz,NULL));
+  PetscCall(DMStagGetCorners(dmVel,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL)); 
+  PetscCall(DMStagGetProductCoordinateArraysRead(dmVel,&coordx,&coordz,NULL));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmVel,LEFT,&iprev));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmVel,RIGHT,&inext)); 
 
-  ierr = DMGetLocalVector(dmVel, &xVellocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmVel, usr->xVel, INSERT_VALUES, xVellocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(dmVel,xVellocal,&_xVellocal);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dmVel, &xVellocal)); 
+  PetscCall(DMGlobalToLocal (dmVel, usr->xVel, INSERT_VALUES, xVellocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmVel,xVellocal,&_xVellocal));
 
-  ierr = DMGetLocalVector(dmEnth, &xEnthlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmEnth, usr->xEnth, INSERT_VALUES, xEnthlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(dmEnth,xEnthlocal,&_xEnthlocal);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dmEnth, &xEnthlocal)); 
+  PetscCall(DMGlobalToLocal (dmEnth, usr->xEnth, INSERT_VALUES, xEnthlocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
 
-  ierr = DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&iphi);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_CF ,&iCF );CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_DOWN,VEL_FACE_VF, &v_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmVel,DMSTAG_UP,  VEL_FACE_VF, &v_slot[1]);CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&iphi));
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_CF ,&iCF ));
+  PetscCall(DMStagGetLocationSlot(dmVel,DMSTAG_DOWN,VEL_FACE_VF, &v_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmVel,DMSTAG_UP,  VEL_FACE_VF, &v_slot[1]));
 
   // check indices for xMOR
   imor_s = Nx;
@@ -999,12 +983,12 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
   }
 
   // Parallel
-  ierr = MPI_Allreduce(&out_F,&gout_F,1,MPI_DOUBLE,MPI_SUM,usr->comm);CHKERRQ(ierr);
-  ierr = MPI_Allreduce(&out_C,&gout_C,1,MPI_DOUBLE,MPI_SUM,usr->comm);CHKERRQ(ierr);
+  PetscCall(MPI_Allreduce(&out_F,&gout_F,1,MPI_DOUBLE,MPI_SUM,usr->comm));
+  PetscCall(MPI_Allreduce(&out_C,&gout_C,1,MPI_DOUBLE,MPI_SUM,usr->comm));
 
   // Parallel phi_max, vfz_max
-  ierr = MPI_Allreduce(&vfz_max,&gvfz_max,1,MPI_DOUBLE,MPI_MAX,usr->comm);CHKERRQ(ierr);
-  ierr = MPI_Allreduce(&phi_max,&gphi_max,1,MPI_DOUBLE,MPI_MAX,usr->comm);CHKERRQ(ierr);
+  PetscCall(MPI_Allreduce(&vfz_max,&gvfz_max,1,MPI_DOUBLE,MPI_MAX,usr->comm));
+  PetscCall(MPI_Allreduce(&phi_max,&gphi_max,1,MPI_DOUBLE,MPI_MAX,usr->comm));
 
   PetscScalar C, F, h_crust, t;
   t = (usr->nd->t+usr->nd->dt)*usr->scal->t/SEC_YEAR; 
@@ -1019,18 +1003,18 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
   PetscPrintf(PETSC_COMM_WORLD,"#              phi_max = %1.12e vfz_max = %1.12e [cm/yr]\n",gphi_max,gvfz_max*usr->scal->v/1.0e-2*SEC_YEAR);
 
   // Restore arrays
-  ierr = DMStagRestoreProductCoordinateArraysRead(dmVel,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(dmVel,xVellocal,&_xVellocal);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmVel, &xVellocal); CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(dmEnth,xEnthlocal,&_xEnthlocal);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmEnth,&xEnthlocal); CHKERRQ(ierr);
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dmVel,&coordx,&coordz,NULL));
+  PetscCall(DMStagVecRestoreArrayRead(dmVel,xVellocal,&_xVellocal));
+  PetscCall(DMRestoreLocalVector(dmVel, &xVellocal)); 
+  PetscCall(DMStagVecRestoreArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
+  PetscCall(DMRestoreLocalVector(dmEnth,&xEnthlocal)); 
 
   PetscTime(&tlog[1]);
   if (usr->par->log_info) {
     printf("  ComputeMeltExtractOutflux: total                   %1.2e\n",tlog[1]-tlog[0]);
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -1045,23 +1029,22 @@ PetscErrorCode ComputeAsymmetryFullRidge(void *ctx)
   DM             dmEnth;
   Vec            xEnthlocal;
   PetscLogDouble tlog[2];
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   
-  if (!usr->par->full_ridge) PetscFunctionReturn(0);
+  if (!usr->par->full_ridge) PetscFunctionReturn(PETSC_SUCCESS);
 
   PetscTime(&tlog[0]);
   dmEnth=usr->dmEnth;
 
   // get coordinates
-  ierr = DMStagGetCorners(dmEnth,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL); CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateArraysRead(dmEnth,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmEnth,ELEMENT,&icenter);CHKERRQ(ierr);
+  PetscCall(DMStagGetCorners(dmEnth,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL)); 
+  PetscCall(DMStagGetProductCoordinateArraysRead(dmEnth,&coordx,&coordz,NULL));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmEnth,ELEMENT,&icenter));
 
-  ierr = DMGetLocalVector(dmEnth, &xEnthlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmEnth, usr->xEnth, INSERT_VALUES, xEnthlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(dmEnth,xEnthlocal,&_xEnthlocal);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&iphi);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dmEnth, &xEnthlocal)); 
+  PetscCall(DMGlobalToLocal (dmEnth, usr->xEnth, INSERT_VALUES, xEnthlocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&iphi));
 
   xmor    = 0.0;
   A_left  = 0.0;
@@ -1085,8 +1068,8 @@ PetscErrorCode ComputeAsymmetryFullRidge(void *ctx)
   }
 
   // Parallel
-  ierr = MPI_Allreduce(&A_left ,&gA_left ,1,MPI_DOUBLE,MPI_SUM,usr->comm);CHKERRQ(ierr);
-  ierr = MPI_Allreduce(&A_right,&gA_right,1,MPI_DOUBLE,MPI_SUM,usr->comm);CHKERRQ(ierr);
+  PetscCall(MPI_Allreduce(&A_left ,&gA_left ,1,MPI_DOUBLE,MPI_SUM,usr->comm));
+  PetscCall(MPI_Allreduce(&A_right,&gA_right,1,MPI_DOUBLE,MPI_SUM,usr->comm));
 
   if (gA_left+gA_right>0.0) A = 2.0*gA_right/(gA_left+gA_right)-1.0;
 
@@ -1095,16 +1078,16 @@ PetscErrorCode ComputeAsymmetryFullRidge(void *ctx)
   PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
 
   // Restore arrays
-  ierr = DMStagRestoreProductCoordinateArraysRead(dmEnth,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(dmEnth,xEnthlocal,&_xEnthlocal);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmEnth,&xEnthlocal); CHKERRQ(ierr);
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dmEnth,&coordx,&coordz,NULL));
+  PetscCall(DMStagVecRestoreArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
+  PetscCall(DMRestoreLocalVector(dmEnth,&xEnthlocal)); 
 
   PetscTime(&tlog[1]);
   if (usr->par->log_info) {
     printf("  ComputeAsymmetryFullRidge: total                   %1.2e\n",tlog[1]-tlog[0]);
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
@@ -1117,16 +1100,15 @@ PetscErrorCode OutputParameters(void *ctx)
   char           prefix[FNAME_LENGTH],fout[FNAME_LENGTH],string[FNAME_LENGTH];
   FILE           *fp = NULL;
   PetscViewer    viewer;
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   // Output bag and parameters
-  ierr = PetscSNPrintf(prefix,sizeof(prefix),"%s/%s",usr->par->fdir_out,"parameters");
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s.pbin",prefix);
-  ierr = PetscViewerBinaryOpen(usr->comm,fout,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(prefix,sizeof(prefix),"%s/%s",usr->par->fdir_out,"parameters"));
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s.pbin",prefix));
+  PetscCall(PetscViewerBinaryOpen(usr->comm,fout,FILE_MODE_WRITE,&viewer));
 
   // create an additional file for loading in python
-  ierr = PetscSNPrintf(string,sizeof(string),"%s.py",prefix);
+  PetscCall(PetscSNPrintf(string,sizeof(string),"%s.py",prefix));
   fp = fopen(string,"w");
   if (!fp) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot open file %s",string);
   fprintf(fp,"import PetscBinaryIO as pio\n");
@@ -1141,15 +1123,15 @@ PetscErrorCode OutputParameters(void *ctx)
   fprintf(fp,"  with open(filename) as fp:\n");
 
   // parameters - scal
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->scal->x,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->scal->v,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->scal->t,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->scal->K,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->scal->P,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->scal->eta,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->scal->rho,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->scal->H,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->scal->Gamma,1,PETSC_DOUBLE);CHKERRQ(ierr);
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->scal->x,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->scal->v,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->scal->t,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->scal->K,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->scal->P,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->scal->eta,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->scal->rho,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->scal->H,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->scal->Gamma,1,PETSC_DOUBLE));
 
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['scalx'] = v\n");
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['scalv'] = v\n");
@@ -1162,15 +1144,15 @@ PetscErrorCode OutputParameters(void *ctx)
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['scalGamma'] = v\n");
 
   // parameters - nd
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->L,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->H,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->xmin,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->zmin,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->xmor,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->U0,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->visc_ratio,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->eta_min,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->eta_max,1,PETSC_DOUBLE);CHKERRQ(ierr);
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->L,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->H,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->xmin,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->zmin,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->xmor,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->U0,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->visc_ratio,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->eta_min,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->eta_max,1,PETSC_DOUBLE));
 
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['L'] = v\n");
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['H'] = v\n");
@@ -1182,11 +1164,11 @@ PetscErrorCode OutputParameters(void *ctx)
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['eta_min'] = v\n");
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['eta_max'] = v\n");
 
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->istep,1,PETSC_INT);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->t,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->dt,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->tmax,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->dtmax,1,PETSC_DOUBLE);CHKERRQ(ierr);
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->istep,1,PETSC_INT));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->t,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->dt,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->tmax,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->dtmax,1,PETSC_DOUBLE));
 
   fprintf(fp,"    v = io.readInteger(fp)\n"); fprintf(fp,"    data['istep'] = v\n");
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['t'] = v\n");
@@ -1194,16 +1176,16 @@ PetscErrorCode OutputParameters(void *ctx)
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['tmax'] = v\n");
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['dtmax'] = v\n");
 
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->delta,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->alpha_s,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->beta_s,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->A,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->S,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->PeT,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->PeC,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->thetaS,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->G,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->nd->RM,1,PETSC_DOUBLE);CHKERRQ(ierr);
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->delta,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->alpha_s,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->beta_s,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->A,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->S,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->PeT,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->PeC,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->thetaS,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->G,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->nd->RM,1,PETSC_DOUBLE));
 
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['delta'] = v\n");
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['alpha_s'] = v\n");
@@ -1218,10 +1200,10 @@ PetscErrorCode OutputParameters(void *ctx)
 
   // Note: readBag() in PetscBinaryIO.py is not yet implemented, so will close the python file without reading bag
   // Also some bag parameters needed for scaling
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->par->C0,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->par->DC,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->par->T0,1,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryWrite(viewer,(void*)&usr->par->DT,1,PETSC_DOUBLE);CHKERRQ(ierr);
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->par->C0,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->par->DC,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->par->T0,1,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryWrite(viewer,(void*)&usr->par->DT,1,PETSC_DOUBLE));
 
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['C0'] = v\n");
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['DC'] = v\n");
@@ -1229,14 +1211,14 @@ PetscErrorCode OutputParameters(void *ctx)
   fprintf(fp,"    v = io.readReal(fp)\n"); fprintf(fp,"    data['DT'] = v\n");
 
   // output bag
-  ierr = PetscBagView(usr->bag,viewer);CHKERRQ(ierr);
+  PetscCall(PetscBagView(usr->bag,viewer));
 
   fprintf(fp,"    return data\n\n");
   fclose(fp);
 
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  PetscCall(PetscViewerDestroy(&viewer));
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -1247,56 +1229,55 @@ PetscErrorCode LoadParametersFromFile(void *ctx)
   UsrData        *usr = (UsrData*)ctx;
   char           fout[FNAME_LENGTH];
   PetscViewer    viewer;
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
-  ierr = PetscSNPrintf(fout,sizeof(fout),"%s/parameters.pbin",usr->par->fdir_out);
-  ierr = PetscViewerBinaryOpen(usr->comm,fout,FILE_MODE_READ,&viewer);CHKERRQ(ierr);
+  PetscCall(PetscSNPrintf(fout,sizeof(fout),"%s/parameters.pbin",usr->par->fdir_out));
+  PetscCall(PetscViewerBinaryOpen(usr->comm,fout,FILE_MODE_READ,&viewer));
 
   // parameters - scal
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->scal->x,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->scal->v,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->scal->t,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->scal->K,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->scal->P,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->scal->eta,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->scal->rho,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->scal->H,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->scal->Gamma,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->scal->x,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->scal->v,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->scal->t,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->scal->K,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->scal->P,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->scal->eta,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->scal->rho,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->scal->H,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->scal->Gamma,1,NULL,PETSC_DOUBLE));
 
   // parameters - nd
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->L,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->H,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->xmin,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->zmin,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->xmor,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->U0,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->visc_ratio,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->eta_min,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->eta_max,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->L,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->H,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->xmin,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->zmin,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->xmor,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->U0,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->visc_ratio,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->eta_min,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->eta_max,1,NULL,PETSC_DOUBLE));
 
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->istep,1,NULL,PETSC_INT);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->t,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->dt,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->tmax,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->dtmax,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->istep,1,NULL,PETSC_INT));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->t,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->dt,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->tmax,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->dtmax,1,NULL,PETSC_DOUBLE));
 
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->delta,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->alpha_s,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->beta_s,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->A,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->S,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->PeT,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->PeC,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->thetaS,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->G,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->nd->RM,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->delta,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->alpha_s,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->beta_s,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->A,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->S,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->PeT,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->PeC,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->thetaS,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->G,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->nd->RM,1,NULL,PETSC_DOUBLE));
 
   // these bag parameters are needed for scaling in python
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->par->C0,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->par->DC,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->par->T0,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryRead(viewer,(void*)&usr->par->DT,1,NULL,PETSC_DOUBLE);CHKERRQ(ierr);
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->par->C0,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->par->DC,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->par->T0,1,NULL,PETSC_DOUBLE));
+  PetscCall(PetscViewerBinaryRead(viewer,(void*)&usr->par->DT,1,NULL,PETSC_DOUBLE));
 
   // save timestep
   PetscInt    tstep, tout, hc_cycles;
@@ -1326,8 +1307,8 @@ PetscErrorCode LoadParametersFromFile(void *ctx)
   dCdx_bottom = usr->par->dCdx_bottom;
 
   // read bag
-  ierr = PetscBagLoad(viewer,usr->bag);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  PetscCall(PetscBagLoad(viewer,usr->bag));
+  PetscCall(PetscViewerDestroy(&viewer));
 
   usr->par->tstep = tstep;
   usr->par->tout  = tout;
@@ -1362,7 +1343,7 @@ PetscErrorCode LoadParametersFromFile(void *ctx)
   usr->par->dTdx_bottom = dTdx_bottom;
   usr->par->dCdx_bottom = dCdx_bottom;
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // ---------------------------------------
@@ -1377,42 +1358,41 @@ PetscErrorCode ComputeGamma(DM dmmatProp, Vec xmatProp, DM dmPV, Vec xPV, DM dmE
   PetscScalar    ***_xPVlocal,***_xEnthlocal,***_xEntholdlocal;
   PetscInt       pv_slot[4],iphi;
   PetscLogDouble tlog[2];
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   PetscTime(&tlog[0]);
-  ierr = DMStagGetGlobalSizes(dmPV,&Nx,&Nz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetCorners(dmPV,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL); CHKERRQ(ierr);
+  PetscCall(DMStagGetGlobalSizes(dmPV,&Nx,&Nz,NULL));
+  PetscCall(DMStagGetCorners(dmPV,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL)); 
 
   // get coordinates of dmPV for center and edges
-  ierr = DMStagGetProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,LEFT,&iprev);CHKERRQ(ierr);
-  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,RIGHT,&inext);CHKERRQ(ierr); 
-  ierr = DMStagGetProductCoordinateLocationSlot(dmPV,ELEMENT,&icenter);CHKERRQ(ierr); 
+  PetscCall(DMStagGetProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmPV,LEFT,&iprev));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmPV,RIGHT,&inext)); 
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmPV,ELEMENT,&icenter)); 
   
-  ierr = DMGetLocalVector(dmmatProp,&xmatProplocal);CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmmatProp, xmatProp, INSERT_VALUES, xmatProplocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dmmatProp, xmatProplocal, &xx); CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dmmatProp,&xmatProplocal));
+  PetscCall(DMGlobalToLocal (dmmatProp, xmatProp, INSERT_VALUES, xmatProplocal)); 
+  PetscCall(DMStagVecGetArray(dmmatProp, xmatProplocal, &xx)); 
 
-  ierr = DMGetLocalVector(dmPV, &xPVlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmPV, xPV, INSERT_VALUES, xPVlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(dmPV,xPVlocal,&_xPVlocal);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dmPV, &xPVlocal)); 
+  PetscCall(DMGlobalToLocal (dmPV, xPV, INSERT_VALUES, xPVlocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmPV,xPVlocal,&_xPVlocal));
 
-  ierr = DMGetLocalVector(dmEnth, &xEnthlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmEnth, xEnth, INSERT_VALUES, xEnthlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(dmEnth,xEnthlocal,&_xEnthlocal);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dmEnth, &xEnthlocal)); 
+  PetscCall(DMGlobalToLocal (dmEnth, xEnth, INSERT_VALUES, xEnthlocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
 
-  ierr = DMGetLocalVector(dmEnth, &xEntholdlocal); CHKERRQ(ierr);
-  ierr = DMGlobalToLocal (dmEnth, xEnthold, INSERT_VALUES, xEntholdlocal); CHKERRQ(ierr);
-  ierr = DMStagVecGetArrayRead(dmEnth,xEntholdlocal,&_xEntholdlocal);CHKERRQ(ierr);
+  PetscCall(DMGetLocalVector(dmEnth, &xEntholdlocal)); 
+  PetscCall(DMGlobalToLocal (dmEnth, xEnthold, INSERT_VALUES, xEntholdlocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmEnth,xEntholdlocal,&_xEntholdlocal));
 
   // get location slots
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_LEFT,   PV_FACE_VS,   &pv_slot[0]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_RIGHT,  PV_FACE_VS,   &pv_slot[1]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_DOWN,   PV_FACE_VS,   &pv_slot[2]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmPV,DMSTAG_UP,     PV_FACE_VS,   &pv_slot[3]);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&iphi);CHKERRQ(ierr);
-  ierr = DMStagGetLocationSlot(dmmatProp,ELEMENT,6,&idx); CHKERRQ(ierr);
+  PetscCall(DMStagGetLocationSlot(dmPV,DMSTAG_LEFT,   PV_FACE_VS,   &pv_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmPV,DMSTAG_RIGHT,  PV_FACE_VS,   &pv_slot[1]));
+  PetscCall(DMStagGetLocationSlot(dmPV,DMSTAG_DOWN,   PV_FACE_VS,   &pv_slot[2]));
+  PetscCall(DMStagGetLocationSlot(dmPV,DMSTAG_UP,     PV_FACE_VS,   &pv_slot[3]));
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&iphi));
+  PetscCall(DMStagGetLocationSlot(dmmatProp,ELEMENT,6,&idx)); 
 
   // Loop over local domain
   for (j = sz; j < sz+nz; j++) {
@@ -1468,7 +1448,7 @@ PetscErrorCode ComputeGamma(DM dmmatProp, Vec xmatProp, DM dmPV, Vec xPV, DM dmE
       dz[2] = (dz[0]+dz[1])*0.5;
 
       // advection term div(phis*vs) - assume backward Euler+Fromm scheme: gamma = dphi/dt - adv^new
-      ierr = AdvectionResidual(v,phis,dx,dz,usr->nd->dt,ADV_FROMM,&adv); CHKERRQ(ierr);
+      PetscCall(AdvectionResidual(v,phis,dx,dz,usr->nd->dt,ADV_FROMM,&adv)); 
 
       // update gamma
       xx[j][i][idx] = (phi[0]-phiold[0])/usr->nd->dt - adv;
@@ -1476,25 +1456,25 @@ PetscErrorCode ComputeGamma(DM dmmatProp, Vec xmatProp, DM dmPV, Vec xPV, DM dmE
   }
 
   // Restore arrays
-  ierr = DMStagVecRestoreArray(dmmatProp,xmatProplocal,&xx); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dmmatProp,xmatProplocal,INSERT_VALUES,xmatProp); CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd  (dmmatProp,xmatProplocal,INSERT_VALUES,xmatProp); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmmatProp,&xmatProplocal); CHKERRQ(ierr);
+  PetscCall(DMStagVecRestoreArray(dmmatProp,xmatProplocal,&xx)); 
+  PetscCall(DMLocalToGlobalBegin(dmmatProp,xmatProplocal,INSERT_VALUES,xmatProp)); 
+  PetscCall(DMLocalToGlobalEnd  (dmmatProp,xmatProplocal,INSERT_VALUES,xmatProp)); 
+  PetscCall(DMRestoreLocalVector(dmmatProp,&xmatProplocal)); 
 
-  ierr = DMStagRestoreProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL);CHKERRQ(ierr);
-  ierr = DMStagVecRestoreArrayRead(dmPV,xPVlocal,&_xPVlocal);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmPV, &xPVlocal); CHKERRQ(ierr);
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dmPV,&coordx,&coordz,NULL));
+  PetscCall(DMStagVecRestoreArrayRead(dmPV,xPVlocal,&_xPVlocal));
+  PetscCall(DMRestoreLocalVector(dmPV, &xPVlocal)); 
 
-  ierr = DMStagVecRestoreArrayRead(dmEnth,xEnthlocal,&_xEnthlocal);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmEnth, &xEnthlocal); CHKERRQ(ierr);
+  PetscCall(DMStagVecRestoreArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
+  PetscCall(DMRestoreLocalVector(dmEnth, &xEnthlocal)); 
 
-  ierr = DMStagVecRestoreArrayRead(dmEnth,xEntholdlocal,&_xEntholdlocal);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dmEnth, &xEntholdlocal); CHKERRQ(ierr);
+  PetscCall(DMStagVecRestoreArrayRead(dmEnth,xEntholdlocal,&_xEntholdlocal));
+  PetscCall(DMRestoreLocalVector(dmEnth, &xEntholdlocal)); 
 
   PetscTime(&tlog[1]);
   if (usr->par->log_info) {
     printf("  ComputeGamma: total                                %1.2e\n",tlog[1]-tlog[0]);
   }
 
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
