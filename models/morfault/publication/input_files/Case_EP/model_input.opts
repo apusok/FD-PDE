@@ -1,4 +1,4 @@
-# Run: ./morfault.app -log_view -options_file model_input.opts > log_out.out
+# Run: ./morfault -log_view -options_file model_input.opts > log_out.out
 
 # domain parameters
 -L 100.0e3

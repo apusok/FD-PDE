@@ -1,4 +1,4 @@
-# Run: ../mbuoy3.app -options_file model_half_ridge.opts > log_out.out
+# Run: ../mbuoy3 -options_file model_half_ridge.opts > log_out.out
 
 # model options
 -full_ridge 1

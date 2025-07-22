@@ -52,27 +52,23 @@ Best way to get started with the FD-PDE framework is to first check the manual a
 
 ## Installing Dependencies
 ### PETSc
-The PETSc version (v3.14) can be obtained from [petsc](https://gitlab.com/petsc/petsc.git):
+Requirements for Mac OSX: up-to-date Xcode/Command Line Tools, Anaconda Navigator/python, Homebrew (install gcc@15, mpich because PETSc requires gfortran).
+
+The PETSc version (v3.23) can be obtained from [petsc](https://gitlab.com/petsc/petsc.git):
 
 `git clone -b maint https://gitlab.com/petsc/petsc.git petsc`
 
-`git checkout v3.14`
-
 <!-- Do `git pull` in the petsc directory anytime to obtain new patches that have been added. -->
 
-Configure options (change `<PATH>` accordingly):
+**Configure options for Mac OSX Sequoia 15.5.** OPTIMIZED version recommended for model runs (change `<PATH_OPT>` accordingly):
 
-OPTIMIZED version recommended for model runs:
+`./configure --prefix=<PATH_OPT> --download-fblaslapack --download-hdf5 --download-mumps --download-scalapack --download-parmetis --download-metis --download-cmake --with-debugging=0 --enable-shared --with-cxx-dialect=C++11 --download-superlu_dist --download-spooles --download-suitesparse --download-ml --download-hypre --download-hwloc --download-make --download-mpich --download-netlib-lapack --with-netlib-lapack-c-bindings --with-precision=double --with-shared-libraries=1 --with-scalar-type=real CC=clang CXX=clang++ FC=gfortran --FOPTFLAGS=-O2 --CXXOPTFLAGS=-O2 --COPTFLAGS=-O2`
 
-`./configure --prefix=<PATH_OPT> --FOPTFLAGS=-O2 --CXXOPTFLAGS=-O2 --COPTFLAGS=-O2 --download-fblaslapack --download-hdf5 --download-mumps --download-scalapack --download-parmetis --download-metis --download-cmake --with-debugging=0 --download-mpich --enable-shared --download-pastix --download-ptscotch --with-cxx-dialect=C++11 --download-superlu_dist --download-spooles --download-suitesparse --download-ml --download-hypre --download-hwloc --download-make`
+Please get in touch with AP for DEBUG configure options recommended for code development.
 
-DEBUG version recommended for code development (optional):
+Specify PETSc environment variable for bash (in `~/.bashrc`) or zsh (in `~/.zshrc`) shell:
 
-`./configure --prefix=<PATH_DEBUG> --download-fblaslapack --download-hdf5 --download-mumps --download-scalapack --download-parmetis --download-metis --download-cmake --with-debugging --download-mpich --enable-shared --download-pastix --download-ptscotch --with-cxx-dialect=C++11 --download-superlu_dist --download-spooles --download-suitesparse --download-ml --download-hypre --download-hwloc --download-make`
-
-Specify PETSc environment variable for bash (in `~/.bashrc` or `~/.bash_profile`) or zsh shell:
-
-`export PETSC_DIR=<PATH>`
+`export PETSC_DIR=<PATH_OPT>`
 
 ### Python
 
@@ -91,7 +87,7 @@ To compile the tests, run the following in `FD-PDE/src/`:
 - Make executables: `make tests`
 
 To run the tests in `FD-PDE/tests/`:
-- Run individual test (example): `./test_fdpde`
+- Run individual test (example): `./test_fdpde_`
 - Run suite of tests: `python runApplicationTests.py` in `/FD-PDE/tests/python/`
 - Visualization: using python examples in `/FD-PDE/tests/python/`.
 
