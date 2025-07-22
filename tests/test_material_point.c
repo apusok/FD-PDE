@@ -1,4 +1,4 @@
-// run: ./test_material_point.sh -log_view
+// run: ./test_material_point_ -log_view
 
 static char help[] = "Material point layout test \n\n";
 

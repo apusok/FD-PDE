@@ -1,6 +1,6 @@
 // ---------------------------------------
 // LAPLACE (ADVDIFF) benchmark \nabla^2 T = 0
-// run: ./test_advdiff_laplace.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
+// run: ./test_advdiff_laplace_ -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
 // python test: ./python/test_advdiff_laplace.py
 // ---------------------------------------
 static char help[] = "Application to solve the Laplace equation (ADVDIFF) with FD-PDE \n\n";

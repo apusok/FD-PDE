@@ -1,6 +1,6 @@
 // ---------------------------------------
 // (ENTHALPY) Pure advection and time-stepping test - PERIODIC BCs
-// run: ./test_enthalpy_periodic.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
+// run: ./test_enthalpy_periodic_ -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
 // python test: ./python/test_enthalpy_periodic.py
 // ---------------------------------------
 static char help[] = "Application to solve advection of a Gaussian pulse in time (ENTHALPY) with FD-PDE and PERIODIC BCs\n\n";

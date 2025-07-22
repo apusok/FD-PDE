@@ -4,7 +4,7 @@
 // Example 3.1.2 - Zero source term, variable vertical wind, characteristic boundary layers (Neumann BC).
 // Example 3.1.3 - Zero source term, constant wind at a 30◦ angle to the left of vertical, downstream boundary layer and interior layer.
 // Example 3.1.4 - Zero source term, recirculating wind, characteristic boundary layers.
-// run: ./test_advdiff_elman.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
+// run: ./test_advdiff_elman_ -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
 // python test: ./python/test_advdiff_elman.py
 // ---------------------------------------
 static char help[] = "Application (examples from Elman 2005) to solve the convection diffusion equation (ADVDIFF) with FD-PDE \n\n";

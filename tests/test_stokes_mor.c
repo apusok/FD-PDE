@@ -1,6 +1,6 @@
 // ---------------------------------------
 // Corner flow (mid-ocean ridges) benchmark
-// run: ./test_stokes_mor.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
+// run: ./test_stokes_mor_ -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
 // python test: ./python/test_stokes_mor.py
 // ---------------------------------------
 static char help[] = "Application to solve the 2D corner flow (mid-ocean ridges) benchmark with FD-PDE \n\n";

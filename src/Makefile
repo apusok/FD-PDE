@@ -90,7 +90,7 @@ TEST_SRC = 	${TEST_DIR}/test_fdpde.c \
 	${TEST_DIR}/test_stokesdarcy2field_vep_inclusion_pic.c \
 
 TEST_OBJ := $(patsubst %.c,%.o,$(TEST_SRC))
-TEST_APP := $(patsubst %.c,%.sh,$(TEST_SRC))
+TEST_APP := $(patsubst %.c,%_,$(TEST_SRC))
 
 all: $(FDPDE_OBJ)
 	@echo "# -------------------------------- #"
@@ -106,7 +106,7 @@ tests: ${TEST_APP}
 %.o: %.c $(FDPDE_HDR)
 	-$(PCC) $(CFLAGS) -O2 -o $@ -c $< $(PETSC_CC_INCLUDES)
 
-%.sh: %.o $(FDPDE_OBJ)
+%_: %.o $(FDPDE_OBJ)
 	-$(CLINKER) -o $@ $< $(FDPDE_OBJ) $(PETSC_SNES_LIB) $(PETSC_CONTRIB)
 
 clean_tests:

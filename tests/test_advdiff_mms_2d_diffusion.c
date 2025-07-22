@@ -1,6 +1,6 @@
 // ---------------------------------------
 // MMS 2D diffusion test div(k*grad(T)) = f, with k > 0
-// run: ./test_advdiff_mms_2d_diffusion.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
+// run: ./test_advdiff_mms_2d_diffusion_ -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
 // python test: ./python/test_advdiff_mms_2d_diffusion.py
 // python sympy: ./mms/mms_2d_diffusion.py
 // ---------------------------------------

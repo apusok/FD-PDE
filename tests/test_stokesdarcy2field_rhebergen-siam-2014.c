@@ -1,6 +1,6 @@
 // ---------------------------------------
 // Rhebergen et al. 2014, SIAM - Ex. 6.1
-// run: ./test_stokesdarcy2field_rhebergen-siam-2014.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
+// run: ./test_stokesdarcy2field_rhebergen-siam-2014_ -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
 // python test: ./python/test_stokesdarcy2field_mms_rhebergen_siam_2014.py
 // python sympy: ./mms/mms_rhebergen_2014_siam.py
 // ---------------------------------------

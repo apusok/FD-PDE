@@ -1,5 +1,5 @@
 static char help[] = "Test: DMStagCellSize_2d, Coordinates of true boundary returned from DMStagBCListGetValues. \n\n";
-// run: ./test_trueboundary.sh
+// run: ./test_trueboundary_
 
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
 #define DOWN       DMSTAG_DOWN

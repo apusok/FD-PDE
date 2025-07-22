@@ -30,12 +30,12 @@ if (create_plot):
 
 # options = ' -log_view -viewer_binary_skip_info'
 options = ' -log_view'
-str1 = 'mpiexec -n 1 ../test_dmstagoutput_read.sh '+ \
+str1 = 'mpiexec -n 1 ../test_dmstagoutput_read_ '+ \
       ' -nx '+str(nx)+' -ny '+str(ny)+' -dof0 '+str(dof0)+' -dof1 '+str(dof1)+' -dof2 '+str(dof2)+ \
       options
 os.system(str1)
 
-str4 = 'mpiexec -n '+str(ncpu)+' ../test_dmstagoutput_read.sh '+ \
+str4 = 'mpiexec -n '+str(ncpu)+' ../test_dmstagoutput_read_ '+ \
       ' -nx '+str(nx)+' -ny '+str(ny)+' -dof0 '+str(dof0)+' -dof1 '+str(dof1)+' -dof2 '+str(dof2)+ \
       options
 os.system(str4)

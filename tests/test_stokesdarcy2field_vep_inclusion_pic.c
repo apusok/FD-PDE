@@ -1,7 +1,7 @@
 // ---------------------------------------
 // Shortening a two-phase block (Stokes-Darcy flow with PIC method)
 // Rheology: visco-elasto-(visco)plastic model
-// run: ./test_stokesdarcy2field_vep_inclusion_pic.sh -nx 100 -nz 100 -pc_type lu -pc_factor_mat_solver_type umfpack -log_view
+// run: ./test_stokesdarcy2field_vep_inclusion_pic_ -nx 100 -nz 100 -pc_type lu -pc_factor_mat_solver_type umfpack -log_view
 // python test: ./python/test_stokesdarcy2field_vep_inclusion_pic.py
 // ---------------------------------------
 static char help[] = "Application for shortening of a visco-elasto-(visco)plastic two-phase block in the absence of gravity with particles\n\n";

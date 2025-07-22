@@ -1,5 +1,5 @@
 // ---------------------------------------
-// run: ./test_stokes_rt.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -snes_type ksponly -snes_fd_color -nt 800 -log_view
+// run: ./test_stokes_rt_ -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -snes_type ksponly -snes_fd_color -nt 800 -log_view
 // python test (need viz): ./python/test_stokes_rt.py
 // Visualize: with ParaView to open xmf files
 // ---------------------------------------

@@ -1,6 +1,6 @@
 // ---------------------------------------
 // (ADVDIFF) Advection-diffusion convergence test using MMS
-// run: ./test_advdiff_mms_convergence.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
+// run: ./test_advdiff_mms_convergence_ -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
 // python test: ./python/test_advdiff_mms_convergence.py
 // sympy: ./mms/mms_advdiff_convergence.py
 // ---------------------------------------

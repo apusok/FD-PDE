@@ -2,7 +2,7 @@
 // Two-phase StokesDarcy model with an interface which is captured using the Phasefield method
 // R = 0, infinitely small compaction length, so that it is Stokes flow.
 // Rheology: visco-elasto-plastic model, inifinitely large C, G and Z.
-// run: ./test_stokesdarcy2field_rt.sh -nx 100 -nz 100 -pc_type lu -pc_factor_mat_solver_type umfpack -log_view
+// run: ./test_stokesdarcy2field_rt_ -nx 100 -nz 100 -pc_type lu -pc_factor_mat_solver_type umfpack -log_view
 // python test: ./python/test_stokesdarcy2field_rt.py
 // ---------------------------------------
 static char help[] = "Application for two phase StokesDarcy model with a planar interface \n\n";

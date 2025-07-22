@@ -1,5 +1,5 @@
 static char help[] = "DMStag output and read test \n\n";
-// run: ./test_dmstagoutput_read.sh
+// run: ./test_dmstagoutput_read_
 
 #include "../src/fdpde_dmstag.h"
 

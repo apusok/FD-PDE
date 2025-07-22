@@ -5,6 +5,7 @@
 # EXECs
 *.o
 *.app
+*_
 
 # SNES REPORTS
 snes_failure*

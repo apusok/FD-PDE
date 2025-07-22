@@ -1,5 +1,5 @@
 static char help[] = "DMStag output test - outputs dummy data for all combinations of dofs \n\n";
-// run: ./test_dmstagoutput.sh
+// run: ./test_dmstagoutput_
 
 #include "../src/fdpde_dmstag.h"
 

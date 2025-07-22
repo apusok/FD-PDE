@@ -1,5 +1,5 @@
 static char help[] = "DMStagCoupling test \n\n";
-// run: ./test_coupling.sh -log_view
+// run: ./test_coupling_ -log_view
 
 #include "../src/fdpde_snes.h"
 

@@ -1,6 +1,6 @@
 // ---------------------------------------
 // MMS test for Katz, 2019, Ch 13.
-// run: ./test_stokesdarcy2field_mms_katz_ch13.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
+// run: ./test_stokesdarcy2field_mms_katz_ch13_ -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
 // python test: ./python/test_stokesdarcy2field_mms_katz_ch13.py
 // python sympy: ./mms/mms_katz_ch13_stokes_darcy.py
 // ---------------------------------------

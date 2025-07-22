@@ -1,7 +1,7 @@
 // ---------------------------------------
 // Uniform shear stress of a visco-elasto-plastic block subject to the Stokes model
 // Rheology: visco-elasto-plastic model
-// run: ./test_stokesdarcy2field_vep_0d_shear.sh -pc_factor_mat_solver_type umfpack -pc_type lu -nx 5 -nz 5 -tstep 10 -tmax 1 -log_view
+// run: ./test_stokesdarcy2field_vep_0d_shear_ -pc_factor_mat_solver_type umfpack -pc_type lu -nx 5 -nz 5 -tstep 10 -tmax 1 -log_view
 // python test: ./python/test_stokesdarcy2field_vep_0d_shear.py
 // ---------------------------------------
 static char help[] = "Application for validating the visco-elasto-plastic model with zero-dimensional problems about uniform deformation (simple shear) in the absence of gravity \n\n";

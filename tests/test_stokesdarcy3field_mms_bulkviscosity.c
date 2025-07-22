@@ -1,6 +1,6 @@
 // ---------------------------------------
 // MMS test for 3-Field and 2-Field
-// run: ./test_stokesdarcy3field_mms_bulkviscosity.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
+// run: ./test_stokesdarcy3field_mms_bulkviscosity_ -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
 // python test: ./python/test_stokesdarcy3field_mms_bulkviscosity.py
 // python sympy: ./mms/mms_stokesdarcy3field_bulkviscosity.py
 // ---------------------------------------

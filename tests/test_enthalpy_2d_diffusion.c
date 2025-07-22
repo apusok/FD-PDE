@@ -1,6 +1,6 @@
 // ---------------------------------------
 // 2D diffusion to test the enthalpy implementation
-// run: ./test_enthalpy_2d_diffusion.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -log_view
+// run: ./test_enthalpy_2d_diffusion_ -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -log_view
 // python output: python/test_enthalpy_2d_diffusion.py
 // ---------------------------------------
 static char help[] = "2D Diffusion problem using the Enthalpy Method\n\n";

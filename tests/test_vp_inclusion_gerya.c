@@ -1,7 +1,7 @@
 // ---------------------------------------
 // Shortening of a visco-plastic (von Mises criterion) block in the absence of gravity
 // Setup from T. Gerya, 2018, Ch. 13, ex. 13.2
-// run: ./test_vp_inclusion_gerya.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -ksp_monitor -nx 20 -nz 20 -log_view
+// run: ./test_vp_inclusion_gerya_ -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -ksp_monitor -nx 20 -nz 20 -log_view
 // python test: ./python/test_vp_inclusion_gerya.py
 // ---------------------------------------
 static char help[] = "Application for shortening of a visco-plastic block in the absence of gravity \n\n";

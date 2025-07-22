@@ -8,7 +8,7 @@
 //    2B - eta0=1e23, b=ln(16384), c=ln(64), L=2500, Ra0 = 1e4
 // Time-dependent models (not tested):
 //    3A - eta0=1e23, b=0, c=0, L=1500, Ra = 216000
-// run: ./test_decoupled_convection.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
+// run: ./test_decoupled_convection_ -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10 -log_view
 // python test: ./python/test_decoupled_convection.py
 //
 // NON-DIMENSIONLESS FORM as in Moresi and Solomatov (1995) - decoupled PV-T

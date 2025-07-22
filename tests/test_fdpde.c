@@ -1,5 +1,5 @@
 static char help[] = "FD-PDE test \n\n";
-// run: ./test_fdpde.sh -log_view
+// run: ./test_fdpde_ -log_view
 
 #include "../src/fdpde_stokes.h"
 

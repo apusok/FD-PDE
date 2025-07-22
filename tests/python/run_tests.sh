@@ -54,7 +54,7 @@ test ="FAST"
 SECONDS=0
 fname="composite_laplace"
 echo -e "  test_$fname.c > log_$fname.out [0h 0m 1s]"
-../test_$fname.sh $solveropts -nx 21 -nz 11 > log_$fname.out
+../test_$fname_ $solveropts -nx 21 -nz 11 > log_$fname.out
 time=$SECONDS
 echo "    >> took $(($time/3600))h $(($time%3600/60))m $(($time%60))s"
 
@@ -62,7 +62,7 @@ test ="FAST"
 SECONDS=0
 fname="coupling"
 echo -e "  test_$fname.c > log_$fname.out [0h 0m 1s]"
-../test_$fname.sh -nx 31 -nz 11 > log_$fname.out
+../test_$fname_ -nx 31 -nz 11 > log_$fname.out
 time=$SECONDS
 echo "    >> took $(($time/3600))h $(($time%3600/60))m $(($time%60))s"
 
@@ -78,7 +78,7 @@ test ="FAST"
 SECONDS=0
 fname="dmstagbclist"
 echo -e "  test_$fname.c > log_$fname.out [1s]"
-../test_$fname.sh -nx 21 -nz 11 > log_$fname.out
+../test_$fname_ -nx 21 -nz 11 > log_$fname.out
 time=$SECONDS
 echo "    >> took $(($time/3600))h $(($time%3600/60))m $(($time%60))s"
 
@@ -105,7 +105,7 @@ test ="FAST"
 SECONDS=0
 fname="fdpde"
 echo -e "  test_$fname.c > log_$fname.out [0h 0m 1s]"
-../test_$fname.sh $solveropts -nx 21 -nz 21 > log_$fname.out
+../test_$fname_ $solveropts -nx 21 -nz 21 > log_$fname.out
 time=$SECONDS
 echo "    >> took $(($time/3600))h $(($time%3600/60))m $(($time%60))s"
 
@@ -113,7 +113,7 @@ test ="FAST"
 SECONDS=0
 fname="material_point"
 echo -e "  test_$fname.c > log_$fname.out [0h 0m 1s]"
-../test_$fname.sh $solveropts -nx 21 -nz 21 > log_$fname.out
+../test_$fname_ $solveropts -nx 21 -nz 21 > log_$fname.out
 time=$SECONDS
 echo "    >> took $(($time/3600))h $(($time%3600/60))m $(($time%60))s"
 
@@ -137,7 +137,7 @@ test ="FAST"
 SECONDS=0
 fname="stokes_solcx_vargrid"
 echo -e "  test_$fname.c > log_$fname.out [1s]"
-../test_$fname.sh $solveropts -nx 21 -nz 21 > log_$fname.out
+../test_$fname_ $solveropts -nx 21 -nz 21 > log_$fname.out
 time=$SECONDS
 echo "    >> took $(($time/3600))h $(($time%3600/60))m $(($time%60))s"
 
@@ -146,7 +146,7 @@ SECONDS=0
 fname="stokes_rt"
 echo -e "  test_$fname.c > log_$fname.out [10s]"
 mkdir -p out_$fname
-../test_$fname.sh $solveropts -snes_type ksponly -snes_fd_color -output_dir out_stokes_rt -nt 101 -nx 21 -nz 21 > log_$fname.out
+../test_$fname_ $solveropts -snes_type ksponly -snes_fd_color -output_dir out_stokes_rt -nt 101 -nx 21 -nz 21 > log_$fname.out
 # DMSwarmViewXDMF() doesn't work with directory prefix
 mv -f *.pbin *.xmf out_$fname/
 time=$SECONDS
@@ -196,7 +196,7 @@ test ="FAST"
 SECONDS=0
 fname="trueboundary"
 echo -e "  test_$fname.c > log_$fname.out [1s]"
-../test_$fname.sh -nx 21 -nz 11 > log_$fname.out
+../test_$fname_ -nx 21 -nz 11 > log_$fname.out
 time=$SECONDS
 echo "    >> took $(($time/3600))h $(($time%3600/60))m $(($time%60))s"
 

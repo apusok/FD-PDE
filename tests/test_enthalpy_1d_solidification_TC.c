@@ -3,7 +3,7 @@
 // Equations (non-dimensional): dH/dt-div^2T=0, H=T+phi/St 
 // This problem is formulated with T as primary energy variable. Composition is kept constant.
 // We use H as primary variable here though.
-// run: ./test_enthalpy_1d_solidification_TC.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -log_view
+// run: ./test_enthalpy_1d_solidification_TC_ -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -log_view
 // python output: /python/test_enthalpy_1d_solidification_TC.py
 // ---------------------------------------
 static char help[] = "1D Solidification problem using the Enthalpy Method\n\n";

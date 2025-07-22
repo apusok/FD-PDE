@@ -1,7 +1,7 @@
 // ---------------------------------------
 // Four-Lid-driven rotational flow benchmark - constant grid spacing
 // Direction of four lid movement: Up->rightward, Right->downward, Bottom->leftward, Left->upward 
-// run: ./test_stokes_lid_driven.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
+// run: ./test_stokes_lid_driven_ -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -nx 10 -nz 10
 // python test: ./python/test_stokes_lid_driven.py
 // ---------------------------------------
 static char help[] = "Application to solve the four-lid-driven rotational flow benchmark with FD-PDE \n\n";

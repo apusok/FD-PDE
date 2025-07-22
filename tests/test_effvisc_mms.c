@@ -1,6 +1,6 @@
 // ---------------------------------------
 // MMS test to verify a power-law effective viscosity approach, where eta=eta0*(epsII/eps0)^(1/np-1), zeta = eta/phi
-// run: ./test_effvisc_mms.sh -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -ksp_monitor -nx 20 -nz 20 -log_view
+// run: ./test_effvisc_mms_ -pc_type lu -pc_factor_mat_solver_type umfpack -pc_factor_mat_ordering_type external -snes_monitor -ksp_monitor -nx 20 -nz 20 -log_view
 // python test: ./python/test_effvisc_mms.py
 // python sympy: ./mms/mms_effvisc_powerlaw.py
 // ---------------------------------------

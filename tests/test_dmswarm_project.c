@@ -1,5 +1,5 @@
 static char help[] = "Test for projection of material properties from dmswarm to dmstag\n\n";
-// Run: mpiexec -n 2 ./test_dmswarm_project.sh -log_view
+// Run: mpiexec -n 2 ./test_dmswarm_project_ -log_view
 // Visualize: 1) dmswarm - use ParaView to open xmf files
 // 2) xproj - using python
 // >>> import dmstagoutput as dmout
