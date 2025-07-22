@@ -170,13 +170,13 @@ static PetscErrorCode tau_a(PetscScalar tauIIp, PetscScalar DPt, PetscScalar eta
                             PetscScalar Pf, PetscScalar alphaP, PetscScalar cdl, PetscScalar phi, PetscScalar C, 
                             PetscScalar sigmat, PetscScalar theta, PetscScalar eta_K, PetscScalar a[5])
 {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   a[0] = C*PetscCosScalar(theta) - sigmat*PetscSinScalar(theta);
   a[1] = C*PetscCosScalar(theta) + (1.0-alphaP)*Pf*PetscSinScalar(theta);
   a[2] = (1.0-phi)/eta_ve*(cdl*zeta_ve/(1.0-phi)*PetscPowScalar(PetscSinScalar(theta),2) + eta_K);
   a[3] = a[1] + DPt * PetscSinScalar(theta);
   a[4] = a[0]*(a[2] + 1.0) - a[3] - a[2]*tauIIp;
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 static PetscScalar ftau(PetscScalar a[5], PetscScalar tauIIt, PetscScalar x)
@@ -267,8 +267,7 @@ PetscErrorCode Plastic_LocalSolver(PetscScalar *xve,PetscScalar C, PetscScalar s
 { 
   UsrData        *usr = (UsrData*)ctx;
   PetscScalar     F,a[5],tauIIt,DPt,zeta_ve,eta_ve,eta_K,sint,alphaP,cdl;
-  PetscErrorCode  ierr;
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   tauIIt      = xve[0];
   DPt         = xve[1];
@@ -284,7 +283,7 @@ PetscErrorCode Plastic_LocalSolver(PetscScalar *xve,PetscScalar C, PetscScalar s
   cdl    = PetscExpScalar(-usr->par->phi_min/phi);
 
   // get coefficients A
-  ierr = tau_a(tauIIt,DPt,eta_ve,zeta_ve,Pf,alphaP,cdl,phi,C,sigmat,theta,eta_K,a); CHKERRQ(ierr);
+  PetscCall(tau_a(tauIIt,DPt,eta_ve,zeta_ve,Pf,alphaP,cdl,phi,C,sigmat,theta,eta_K,a)); 
 
   // trial solution
   xsol[0] = tauIIt; // tauII
@@ -292,7 +291,7 @@ PetscErrorCode Plastic_LocalSolver(PetscScalar *xve,PetscScalar C, PetscScalar s
   xsol[2] = 0.0;    // dotlam
   
   // check if it yields
-  F = ResF(xsol,a,theta,eta_K); CHKERRQ(ierr);
+  F = ResF(xsol,a,theta,eta_K); 
   
   if (F>0) { // yield
     if (xsol[0] < usr->par->tf_tol) { // case 2
@@ -300,10 +299,10 @@ PetscErrorCode Plastic_LocalSolver(PetscScalar *xve,PetscScalar C, PetscScalar s
       xsol[2] = (a[0]-a[1]-DPt*sint)/(cdl*zeta_ve/(1.0-phi)*sint*sint + eta_K);
       xsol[1] = DPt + cdl*zeta_ve/(1.0-phi) * sint * xsol[2]; 
     } else { // case 3
-      xsol[0] = VEVP_hyper_tau(a, tauIIt, usr->par->tf_tol, usr->par->Nmax); CHKERRQ(ierr);
+      xsol[0] = VEVP_hyper_tau(a, tauIIt, usr->par->tf_tol, usr->par->Nmax); 
       xsol[2] = lamtau(a,xsol[0],DPt,sint,zeta_ve,cdl,phi,eta_K);
       xsol[1] = DPt + cdl*zeta_ve/(1.0-phi) * sint * xsol[2]; 
     }
   }
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

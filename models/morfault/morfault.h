@@ -1,12 +1,9 @@
 #ifndef MORFAULT_H
 #define MORFAULT_H
 
-#include "petsc.h"
+#include <petsc.h>
 #include "../../src/fdpde_stokesdarcy2field.h"
 #include "../../src/fdpde_advdiff.h"
-#include "../../src/consteq.h"
-#include "../../src/dmstagoutput.h"
-#include "../../src/material_point.h"
 
 // ---------------------------------------
 // Data structures

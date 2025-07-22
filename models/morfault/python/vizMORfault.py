@@ -430,7 +430,8 @@ def parse_marker_file(fname,fdir):
         ise = line.index('"',iss+1,-1)
         n = int(line[iss+1:ise])
       if '.pbin' in line:
-        fdata = line[:-1]
+        ll = line.index("o")
+        fdata = line[ll:-1]
       
       if '<DataItem Format="Binary" Endian="Big" DataType="Int" Dimensions' in line:
         iss = line.index('"')
@@ -506,14 +507,12 @@ def parse_marker_file(fname,fdir):
     # load binary data
     # print(fdir+'/'+fdata)
     with open(fdir+'/'+fdata, "rb") as f:
-      for i in range(0,3*n):
-        topo = np.fromfile(f,np.dtype(dtype0),count=1)
+      topo = np.fromfile(f,np.dtype(dtype0),count=3*n)
+      xz   = np.fromfile(f,np.dtype(dtype1),count=2*n)
+      mark.id = np.fromfile(f,np.dtype(dtype1),count=n)
       for i in range(0,n):
-        mark.x[i] = np.fromfile(f,np.dtype(dtype1),count=1)
-        mark.z[i] = np.fromfile(f,np.dtype(dtype1),count=1)
-      for i in range(0,n):
-        mark.id[i] = np.fromfile(f,np.dtype(dtype1),count=1)
-
+        mark.x[i] = xz[2*i  ]
+        mark.z[i] = xz[2*i+1]
     # print(mark.n)
     return mark
   except OSError:
