@@ -92,7 +92,7 @@ typedef struct {
   PetscScalar    mat0_eta0, mat1_eta0, mat2_eta0, mat3_eta0, mat4_eta0, mat5_eta0;
   PetscScalar    mat0_zeta0, mat1_zeta0, mat2_zeta0, mat3_zeta0, mat4_zeta0, mat5_zeta0;
   PetscScalar    mat0_G, mat1_G, mat2_G, mat3_G, mat4_G, mat5_G, mat0_Z0, mat1_Z0, mat2_Z0, mat3_Z0, mat4_Z0, mat5_Z0; 
-  PetscScalar    mat0_C, mat1_C, mat2_C, mat3_C, mat4_C, mat5_C;
+  PetscScalar    mat0_C, mat1_C, mat2_C, mat3_C, mat4_C, mat5_C, mat0_nu, mat1_nu, mat2_nu, mat3_nu, mat4_nu, mat5_nu; 
   PetscScalar    mat0_sigmat, mat1_sigmat, mat2_sigmat, mat3_sigmat, mat4_sigmat, mat5_sigmat;
   PetscScalar    mat0_theta, mat1_theta, mat2_theta, mat3_theta, mat4_theta, mat5_theta; 
   char           mat0_name[FNAME_LENGTH],mat1_name[FNAME_LENGTH],mat2_name[FNAME_LENGTH], mat3_name[FNAME_LENGTH],mat4_name[FNAME_LENGTH],mat5_name[FNAME_LENGTH];
@@ -222,6 +222,7 @@ static PetscScalar nd_param (PetscScalar x, PetscScalar scal) { return(x/scal);}
 static PetscScalar dim_param(PetscScalar x, PetscScalar scal) { return(x*scal);}
 static PetscScalar nd_paramT (PetscScalar x, PetscScalar x0, PetscScalar scal) { return((x-x0)/scal);}
 static PetscScalar dim_paramT(PetscScalar x, PetscScalar x0, PetscScalar scal) { return(x*scal+x0);}
+static PetscScalar elastic_bulk_modulus(PetscScalar G, PetscScalar nu) { return((2*G*(1.0+nu))/(3*(1.0-2*nu)));}
 static PetscScalar WeightAverageValue(PetscScalar *a, PetscScalar *wt, PetscInt n) {
   PetscInt    i;
   PetscScalar awt = 0.0;

@@ -181,7 +181,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterInt(bag, &par->marker_phases, 6, "marker_phases", "Number of marker phases [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->matid_default, 5, "matid_default", "Default material phase for scaling [-]"); CHKERRQ(ierr);
 
-  if (par->marker_phases > MAX_MAT_PHASE) SETERRQ(usr->comm,PETSC_ERR_USER,"Number of marker_phases = %d is higher than allowed MAX_MAT_PHASE = %d",par->marker_phases,MAX_MAT_PHASE);
+  if (par->marker_phases > MAX_MAT_PHASE) SETERRQ2(usr->comm,PETSC_ERR_USER,"Number of marker_phases = %d is higher than allowed MAX_MAT_PHASE = %d",par->marker_phases,MAX_MAT_PHASE);
 
   ierr = PetscBagRegisterInt(bag, &par->mat0_id, 0, "mat0_id", "Material phase 0 [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterString(bag,&par->mat0_name,FNAME_LENGTH,"mat0_name","stick-water","Name for material phase 0"); CHKERRQ(ierr);
@@ -197,6 +197,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->mat0_eta0, 1.0e18, "mat0_eta0", "Material phase 0 Reference shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat0_zeta0, par->eta_max, "mat0_zeta0", "Material phase 0 Reference compaction viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat0_G, 1e20, "mat0_G", "Shear elastic modulus 0 [Pa]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->mat0_nu, 0.3, "mat0_nu", "Poisson's ratio [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat0_Z0, 1e40, "mat0_Z0", "Reference poro-elastic modulus 0 [Pa]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat0_C, 1e40, "mat0_C", "Material phase 0 Cohesion (Pa)"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat0_sigmat, 1e40, "mat0_sigmat", "Material phase 0 Yield stress (Pa)"); CHKERRQ(ierr);
@@ -216,6 +217,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->mat1_eta0, 1.0e19, "mat1_eta0", "Material phase 1 Reference shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat1_zeta0, 4.0e19, "mat1_zeta0", "Material phase 1 Reference compaction viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat1_G, 6e10, "mat1_G", "Shear elastic modulus 1 [Pa]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->mat1_nu, 0.3, "mat1_nu", "Poisson's ratio [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat1_Z0, 1e40, "mat1_Z0", "Reference poro-elastic modulus 1 [Pa]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat1_C, 1e40, "mat1_C", "Material phase 1 Cohesion (Pa)"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat1_sigmat, 1e40, "mat1_sigmat", "Material phase 1 Yield stress (Pa)"); CHKERRQ(ierr);
@@ -235,6 +237,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->mat2_eta0, 1.0e19, "mat2_eta0", "Material phase 2 Reference shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat2_zeta0, 4.0e19, "mat2_zeta0", "Material phase 2 Reference compaction viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat2_G, 6e10, "mat2_G", "Shear elastic modulus 2 [Pa]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->mat2_nu, 0.3, "mat2_nu", "Poisson's ratio [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat2_Z0, 1e40, "mat2_Z0", "Reference poro-elastic modulus 2 [Pa]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat2_C, 1e40, "mat2_C", "Material phase 2 Cohesion (Pa)"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat2_sigmat, 1e40, "mat2_sigmat", "Material phase 2 Yield stress (Pa)"); CHKERRQ(ierr);
@@ -254,6 +257,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->mat3_eta0, 1.0e19, "mat3_eta0", "Material phase 3 Reference shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat3_zeta0, 4.0e19, "mat3_zeta0", "Material phase 3 Reference compaction viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat3_G, 6e10, "mat3_G", "Shear elastic modulus 3 [Pa]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->mat3_nu, 0.3, "mat3_nu", "Poisson's ratio [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat3_Z0, 1e40, "mat3_Z0", "Reference poro-elastic modulus 3 [Pa]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat3_C, 1e40, "mat3_C", "Material phase 3 Cohesion (Pa)"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat3_sigmat, 1e40, "mat3_sigmat", "Material phase 3 Yield stress (Pa)"); CHKERRQ(ierr);
@@ -271,6 +275,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterInt(bag, &par->mat4_eta_function, 0, "mat4_eta_function", "Material phase 4 eta function: 0-constant, 1-phi, 2-phi,T, 3-phi,T,eps [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(bag, &par->mat4_zeta_function, 0, "mat4_zeta_function", "Material phase 4 zeta function: 0-constant, 1-phi, 2-phi,T, 3-phi,T,eps [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat4_eta0, 1.0e19, "mat4_eta0", "Material phase 4 Reference shear viscosity [Pa.s]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->mat4_nu, 0.3, "mat4_nu", "Poisson's ratio [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat4_zeta0, 4.0e19, "mat4_zeta0", "Material phase 4 Reference compaction viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat4_G, 6e10, "mat4_G", "Shear elastic modulus 4 [Pa]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat4_Z0, 1e40, "mat4_Z0", "Reference poro-elastic modulus 4 [Pa]"); CHKERRQ(ierr);
@@ -292,10 +297,19 @@ PetscErrorCode InputParameters(UsrData **_usr)
   ierr = PetscBagRegisterScalar(bag, &par->mat5_eta0, 1.0e19, "mat5_eta0", "Material phase 5 Reference shear viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat5_zeta0, 4.0e19, "mat5_zeta0", "Material phase 5 Reference compaction viscosity [Pa.s]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat5_G, 6e10, "mat5_G", "Shear elastic modulus 5 [Pa]"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterScalar(bag, &par->mat5_nu, 0.3, "mat5_nu", "Poisson's ratio [-]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat5_Z0, 1e40, "mat5_Z0", "Reference poro-elastic modulus 5 [Pa]"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat5_C, 1e40, "mat5_C", "Material phase 5 Cohesion (Pa)"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat5_sigmat, 1e40, "mat5_sigmat", "Material phase 5 Yield stress (Pa)"); CHKERRQ(ierr);
   ierr = PetscBagRegisterScalar(bag, &par->mat5_theta, 0.0, "mat5_theta", "Material phase 5 Friction angle (-)"); CHKERRQ(ierr);
+
+  // calculate bulk modulus as function of Poisson's ratio and shear modulus
+  par->mat0_Z0 = elastic_bulk_modulus(par->mat0_G,par->mat0_nu);
+  par->mat1_Z0 = elastic_bulk_modulus(par->mat1_G,par->mat1_nu);
+  par->mat2_Z0 = elastic_bulk_modulus(par->mat2_G,par->mat2_nu);
+  par->mat3_Z0 = elastic_bulk_modulus(par->mat3_G,par->mat3_nu);
+  par->mat4_Z0 = elastic_bulk_modulus(par->mat4_G,par->mat4_nu);
+  par->mat5_Z0 = elastic_bulk_modulus(par->mat5_G,par->mat5_nu);
 
   // time stepping and advection parameters
   ierr = PetscBagRegisterInt(bag, &par->ts_scheme,2, "ts_scheme", "Time stepping scheme 0-forward euler, 1-backward euler, 2-crank-nicholson"); CHKERRQ(ierr);
