@@ -325,7 +325,7 @@ pv_solver  = ' -pv_pc_type lu -pv_pc_factor_mat_solver_type umfpack -pv_pc_facto
 phi_solver = ' -phi_pc_type lu -phi_pc_factor_mat_solver_type umfpack -phi_pc_factor_mat_ordering_type external -phi_snes_monitor_true_residual -phi_ksp_monitor_true_residual -phi_snes_converged_reason -phi_ksp_converged_reason'
 
 # Run test
-str1 = '../mor_mechanics.app'+pv_solver+phi_solver+ \
+str1 = '../mor_mechanics'+pv_solver+phi_solver+ \
   ' -L '+str(L)+ \
   ' -H '+str(H)+ \
   ' -xMOR '+str(xMOR)+ \
