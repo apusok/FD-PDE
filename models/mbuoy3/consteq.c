@@ -191,6 +191,10 @@ PetscScalar HalfSpaceCoolingTemp(PetscScalar Tm, PetscScalar T0, PetscScalar z, 
   return T0 + (Tm-T0)*erf(z/(factor*sqrt(kappa*t)));
 }
 
+PetscScalar MantleAdiabat(PetscScalar Tp, PetscScalar A, PetscScalar z) 
+{ 
+  return (Tp-T_KELVIN)*exp(-A*z)+T_KELVIN;
+}
 // ---------------------------------------
 // ShearViscosity
 // ---------------------------------------

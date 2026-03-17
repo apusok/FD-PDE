@@ -15,6 +15,7 @@
 #define SEC_YEAR      31536000 //3600.00*24.00*365.00
 #define T_KELVIN      273.15
 #define PHI_CUTOFF    1e-12
+#define MAX_LENGTH    10
 
 // define convenient names for DMStagStencilLocation
 #define DOWN_LEFT  DMSTAG_DOWN_LEFT
@@ -78,12 +79,12 @@ typedef struct {
   PetscScalar    Tp, Ts, cp, La, rho0, drho, alpha, beta, kappa, D;
   PetscScalar    n, K0, eta0, zeta0, mu, eta_min, eta_max, lambda, EoR, Teta0, dsol, zetaExp; 
   PetscScalar    C0, DC, T0, Ms, Mf, gamma_inv, DT, phi_init, phi_min, fextract, hs_factor;
-  PetscScalar    dTdx_bottom, dCdx_bottom;
-  PetscInt       ts_scheme, adv_scheme, tout, tstep, restart, full_ridge;
+  PetscScalar    dTdx_bottom, dCdx_bottom, dike_z[MAX_LENGTH];
+  PetscInt       ts_scheme, adv_scheme, tout, tstep, restart, full_ridge, vertical_dike, ncells_dike, dike_j[MAX_LENGTH];
   PetscScalar    tmax, dtmax, dt_out;
   PetscInt       visc_shear, visc_bulk, forcing, buoyancy, buoy_phi, buoy_C, buoy_T, extract_mech, initial_bulk_comp, hc_cycles, vf_nonlinear;
   char           fname_in[FNAME_LENGTH], fname_out[FNAME_LENGTH], fdir_out[FNAME_LENGTH]; 
-  PetscBool      start_run, log_info;
+  PetscBool      start_run, log_info, extract_dike;
 } Params;
 
 typedef struct {
@@ -133,6 +134,8 @@ PetscErrorCode FormBCList_PV(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_HC(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_PV_FullRidge(DM, Vec, DMStagBCList, void*);
 PetscErrorCode FormBCList_HC_FullRidge(DM, Vec, DMStagBCList, void*);
+PetscErrorCode FormBCList_PV_dike(DM, Vec, DMStagBCList, void*);
+PetscErrorCode FormBCList_HC_dike(DM, Vec, DMStagBCList, void*);
 
 // constitutive equations
 PetscErrorCode Porosity(PetscScalar,PetscScalar,PetscScalar,PetscScalar*,PetscScalar,PetscScalar,PetscScalar);
@@ -146,6 +149,7 @@ PetscScalar BulkVelocity(PetscScalar,PetscScalar,PetscScalar);
 PetscScalar Permeability(PetscScalar,PetscScalar);
 PetscScalar FluidBuoyancy(PetscScalar,PetscScalar,PetscScalar,PetscScalar);
 PetscScalar HalfSpaceCoolingTemp(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar);
+PetscScalar MantleAdiabat(PetscScalar,PetscScalar,PetscScalar); 
 PetscScalar SolidDensity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt);
 PetscScalar FluidDensity(PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscScalar,PetscInt); 
 PetscScalar BulkDensity(PetscScalar,PetscScalar,PetscScalar); 
@@ -174,8 +178,10 @@ PetscErrorCode CreateDirectory(const char*);
 PetscErrorCode OutputParameters(void*); 
 PetscErrorCode LoadParametersFromFile(void*);
 PetscErrorCode ComputeMeltExtractOutflux(void*); 
+PetscErrorCode ComputeMeltExtractOutflux_dike(void*); 
 PetscErrorCode ComputeAsymmetryFullRidge(void*); 
 PetscErrorCode ComputeGamma(DM,Vec,DM,Vec,DM,Vec,Vec,void*); 
+PetscErrorCode GetDikeIndices(void*);
 
 // ---------------------------------------
 // Useful functions

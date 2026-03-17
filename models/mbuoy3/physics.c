@@ -250,7 +250,7 @@ PetscErrorCode FormCoefficient_PV(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
 
   PetscTime(&tlog[1]);
   if (usr->par->log_info) {
-    printf("  FormCoefficient_PV: total                        %1.2e\n",tlog[1]-tlog[0]);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormCoefficient_PV: total                        %1.2e\n",tlog[1]-tlog[0]));
   }
 
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -435,7 +435,7 @@ PetscErrorCode FormCoefficient_HC(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff,
 
   PetscTime(&tlog[1]);
   if (usr->par->log_info) {
-    printf("  FormCoefficient_HC: total                          %1.2e\n",tlog[1]-tlog[0]);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormCoefficient_HC: total                          %1.2e\n",tlog[1]-tlog[0]));
   }
 
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -673,7 +673,7 @@ PetscErrorCode FormCoefficient_HC_VF_nonlinear(FDPDE fd, DM dm, Vec x, DM dmcoef
 
   PetscTime(&tlog[1]);
   if (usr->par->log_info) {
-    printf("  FormCoefficient_HC_VF_nonlinear: total             %1.2e\n",tlog[1]-tlog[0]);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormCoefficient_HC_VF_nonlinear: total             %1.2e\n",tlog[1]-tlog[0]));
   }
   
   PetscFunctionReturn(PETSC_SUCCESS);

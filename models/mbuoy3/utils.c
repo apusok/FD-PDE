@@ -221,9 +221,12 @@ PetscErrorCode HalfSpaceCooling_MOR(void *ctx)
       if (age <= 0.0) T = Tm; 
       else T = HalfSpaceCoolingTemp(Tm,usr->par->Ts,-dim_param(coordz[j][icenter],usr->scal->x),usr->par->kappa,age,usr->par->hs_factor); 
 
-      // check adiabat in the mantle
-      Ta  = (usr->par->Tp-T_KELVIN)*exp(-usr->nd->A*coordz[j][icenter])+T_KELVIN;
-      //if (T>Ta) T = (3.0*Ta+T)*0.25;
+      // adiabat in the mantle
+      // Ta  = (usr->par->Tp-T_KELVIN)*exp(-usr->nd->A*coordz[j][icenter])+T_KELVIN;
+      Ta = MantleAdiabat(usr->par->Tp,usr->nd->A,coordz[j][icenter]);
+      if (T>Ta) T = Ta;
+
+      // non-dimensionalise
       nd_T = (T - usr->par->T0)/usr->par->DT;
 
       // enthalpy H = S*phi+T (phi=0)
@@ -346,7 +349,7 @@ PetscErrorCode CorrectInitialHCZeroPorosity(DM dmEnth, Vec xEnth, void *ctx)
 
   PetscTime(&tlog[1]);
   if (usr->par->log_info) {
-    printf("  CorrectInitialHCZeroPorosity: total                %1.2e\n",tlog[1]-tlog[0]);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  CorrectInitialHCZeroPorosity: total                %1.2e\n",tlog[1]-tlog[0]));
   }
 
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -450,7 +453,7 @@ PetscErrorCode CorrectInitialHCBulkComposition(void *ctx)
 PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmEnth, Vec xEnth, DM dmVel, Vec xVel, void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
-  PetscInt       i, j, ii, sx, sz, nx, nz, Nx, Nz, iprev,inext,icenter;
+  PetscInt       i, j, k, ii, sx, sz, nx, nz, Nx, Nz, iprev,inext,icenter;
   PetscScalar    ***xx, dx, dz, k_hat[4];
   PetscScalar    **coordx,**coordz;
   Vec            xVellocal,xPVlocal,xEnthlocal;
@@ -558,8 +561,17 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmEnth, Vec xEnt
       phi[2] = (Q[3]+Q[0])*0.5; 
       phi[3] = (Q[4]+Q[0])*0.5; 
 
-      if ((fabs(coordx[i][icenter])<=usr->nd->xmor) && (j==nz+sz-1)) { // dphi/dz=0 just beneath the axis
-        phi[3] = usr->par->fextract*phi[2]; // phi[3];
+      if (usr->par->extract_dike){ // dike
+        for (k = 0; k < usr->par->ncells_dike; k++){
+          if (coordz[j][icenter]==usr->par->dike_z[k]) {
+            phi[0]   = 2*Q[0]-phi[1]; 
+            gradP[0] = usr->par->fextract*(-usr->par->dike_z[k]/((coordx[i][inext]-coordx[i][iprev])*2.0));
+          }
+        }
+      } else { // horizontal window
+        if ((fabs(coordx[i][icenter])<=usr->nd->xmor) && (j==Nz-1)) { // dphi/dz=0 just beneath the axis
+          phi[3] = usr->par->fextract*phi[2]; // phi[3];
+        }
       }
       
       for (ii = 0; ii < 4; ii++) {
@@ -571,8 +583,14 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmEnth, Vec xEnt
 
         // fluid velocity
         vf = FluidVelocity(vs[ii],phi[ii],gradP[ii],gradPc[ii],Bf,K,k_hat[ii]);
-        if ((ii==3) && (fabs(coordx[i][icenter])<=usr->nd->xmor) && (j==nz+sz-1)) {
-          vf = usr->par->fextract*vf;
+        if (usr->par->extract_dike){ // dike
+          if ((ii==0) && (j>=usr->par->dike_j[usr->par->ncells_dike-1]) && (i==0)) {
+            vf = usr->par->fextract*vf;
+          }
+        } else { // horizontal window
+          if ((ii==3) && (fabs(coordx[i][icenter])<=usr->nd->xmor) && (j==Nz-1)) {
+            vf = usr->par->fextract*vf;
+          }
         }
         xx[j][i][v_slot[ii]] = vf;
 
@@ -596,7 +614,7 @@ PetscErrorCode ComputeFluidAndBulkVelocity(DM dmPV, Vec xPV, DM dmEnth, Vec xEnt
 
   PetscTime(&tlog[1]);
   if (usr->par->log_info) {
-    printf("  ComputeFluidAndBulkVelocity: total                 %1.2e\n",tlog[1]-tlog[0]);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  ComputeFluidAndBulkVelocity: total                 %1.2e\n",tlog[1]-tlog[0]));
   }
 
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -679,7 +697,7 @@ PetscErrorCode UpdateMaterialProperties(DM dmEnth, Vec xEnth, DM dmmatProp, Vec 
 
   PetscTime(&tlog[1]);
   if (usr->par->log_info) {
-    printf("  UpdateMaterialProperties: total                    %1.2e\n",tlog[1]-tlog[0]);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  UpdateMaterialProperties: total                    %1.2e\n",tlog[1]-tlog[0]));
   }
 
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -885,8 +903,8 @@ PetscErrorCode CreateDirectory(const char *name)
   PetscCall(MPI_Comm_rank(PETSC_COMM_WORLD,&rank));
   if(rank==0) {
     status = mkdir(name,0777);
-    if(!status) PetscPrintf(PETSC_COMM_WORLD,"# New directory created: %s \n",name);
-    else        PetscPrintf(PETSC_COMM_WORLD,"# Did not create new directory: %s \n",name);
+    if(!status) PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# New directory created: %s \n",name));
+    else        PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Did not create new directory: %s \n",name));
   }
   PetscCall(MPI_Barrier(PETSC_COMM_WORLD)); 
 
@@ -900,12 +918,12 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
 {
   UsrData       *usr = (UsrData*) ctx;
   PetscInt       i, j, imor_s, imor_e, sx, sz, nx, nz, Nx, Nz, iprev,inext;
-  PetscInt       iphi,iCF,v_slot[2];
+  PetscInt       iphi,iCF,v_slot[2],vs_slot[2];
   PetscScalar    **coordx,**coordz;
-  PetscScalar    out_F, out_C, gout_F, gout_C, phi_max, vfz_max, gphi_max, gvfz_max, full_ridge;
-  DM             dmHC, dmVel, dmEnth;
-  Vec            xVellocal, xEnthlocal;
-  PetscScalar    ***_xEnthlocal,***_xVellocal;
+  PetscScalar    out_F, out_C, gout_F, gout_C, phi_max, vfz_max, gphi_max, gvfz_max, full_ridge, vz_max, gvz_max;
+  DM             dmHC, dmVel, dmEnth, dmPV;
+  Vec            xVellocal, xEnthlocal, xPVlocal;
+  PetscScalar    ***_xEnthlocal,***_xVellocal,***_xPVlocal;
   PetscLogDouble tlog[2];
   PetscFunctionBeginUser;
 
@@ -913,6 +931,7 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
   dmHC = usr->dmHC;
   dmVel= usr->dmVel;
   dmEnth=usr->dmEnth;
+  dmPV = usr->dmPV;
 
   if (usr->par->full_ridge) full_ridge = 2.0;
   else full_ridge = 1.0;
@@ -923,6 +942,10 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
   PetscCall(DMStagGetProductCoordinateArraysRead(dmVel,&coordx,&coordz,NULL));
   PetscCall(DMStagGetProductCoordinateLocationSlot(dmVel,LEFT,&iprev));
   PetscCall(DMStagGetProductCoordinateLocationSlot(dmVel,RIGHT,&inext)); 
+
+  PetscCall(DMGetLocalVector(dmPV, &xPVlocal)); 
+  PetscCall(DMGlobalToLocal (dmPV, usr->xPV, INSERT_VALUES, xPVlocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmPV,xPVlocal,&_xPVlocal));
 
   PetscCall(DMGetLocalVector(dmVel, &xVellocal)); 
   PetscCall(DMGlobalToLocal (dmVel, usr->xVel, INSERT_VALUES, xVellocal)); 
@@ -936,6 +959,9 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
   PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_CF ,&iCF ));
   PetscCall(DMStagGetLocationSlot(dmVel,DMSTAG_DOWN,VEL_FACE_VF, &v_slot[0]));
   PetscCall(DMStagGetLocationSlot(dmVel,DMSTAG_UP,  VEL_FACE_VF, &v_slot[1]));
+
+  PetscCall(DMStagGetLocationSlot(dmPV,DMSTAG_DOWN,PV_FACE_VS, &vs_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmPV,DMSTAG_UP,  PV_FACE_VS, &vs_slot[1]));
 
   // check indices for xMOR
   imor_s = Nx;
@@ -953,11 +979,13 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
   gout_C   = 0.0;
   gvfz_max = 0.0;
   gphi_max = 0.0;
+  gvz_max  = 0.0;
 
   out_F = 0.0;
   out_C = 0.0;
   phi_max = 0.0;
   vfz_max = 0.0;
+  vz_max  = 0.0;
 
   // Loop over local domain for xMOR
   if ((imor_s>=sx) && (imor_e<sx+nx) && (sz+nz==Nz)) { // check if MOR axis is on processor
@@ -982,6 +1010,17 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
     }
   }
 
+  // calculate maximum upwelling velocity
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      PetscScalar vz;
+
+      // get solid velocity (z)
+      vz = (_xPVlocal[j][i][vs_slot[0]]+_xPVlocal[j][i][vs_slot[1]])*0.5;
+      vz_max  = PetscMax(vz_max,vz);
+    }
+  }
+
   // Parallel
   PetscCall(MPI_Allreduce(&out_F,&gout_F,1,MPI_DOUBLE,MPI_SUM,usr->comm));
   PetscCall(MPI_Allreduce(&out_C,&gout_C,1,MPI_DOUBLE,MPI_SUM,usr->comm));
@@ -989,18 +1028,20 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
   // Parallel phi_max, vfz_max
   PetscCall(MPI_Allreduce(&vfz_max,&gvfz_max,1,MPI_DOUBLE,MPI_MAX,usr->comm));
   PetscCall(MPI_Allreduce(&phi_max,&gphi_max,1,MPI_DOUBLE,MPI_MAX,usr->comm));
+  PetscCall(MPI_Allreduce(&vz_max,&gvz_max,1,MPI_DOUBLE,MPI_MAX,usr->comm));
 
   PetscScalar C, F, h_crust, t;
   t = (usr->nd->t+usr->nd->dt)*usr->scal->t/SEC_YEAR; 
   if (gout_F==0.0) C = usr->par->C0;
   else C = gout_C/gout_F*usr->par->DC+usr->par->C0;
   F = gout_F*usr->par->rho0*usr->scal->v*usr->scal->x*SEC_YEAR/full_ridge; // kg/m/year
-  h_crust = F/(usr->par->rho0*usr->par->U0)*1.0e2; // m
+  if (usr->par->U0==0.0) h_crust = 0.0;
+  else h_crust = F/(usr->par->rho0*usr->par->U0)*1.0e2; // m
 
   // Output
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-  PetscPrintf(PETSC_COMM_WORLD,"# xMOR FLUXES: t = %1.12e [yr] C = %1.12e [wt. frac.] F = %1.12e [kg/m/yr] h_crust = %1.12e [m]\n",t,C,F,h_crust);
-  PetscPrintf(PETSC_COMM_WORLD,"#              phi_max = %1.12e vfz_max = %1.12e [cm/yr]\n",gphi_max,gvfz_max*usr->scal->v/1.0e-2*SEC_YEAR);
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# xMOR FLUXES: t = %1.12e [yr] C = %1.12e [wt. frac.] F = %1.12e [kg/m/yr] h_crust = %1.12e [m]\n",t,C,F,h_crust));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"#              phi_max = %1.12e vfz_max = %1.12e [cm/yr] vz_max = %1.12e [cm/yr] \n",gphi_max,gvfz_max*usr->scal->v/1.0e-2*SEC_YEAR,gvz_max*usr->scal->v/1.0e-2*SEC_YEAR));
 
   // Restore arrays
   PetscCall(DMStagRestoreProductCoordinateArraysRead(dmVel,&coordx,&coordz,NULL));
@@ -1008,11 +1049,146 @@ PetscErrorCode ComputeMeltExtractOutflux(void *ctx)
   PetscCall(DMRestoreLocalVector(dmVel, &xVellocal)); 
   PetscCall(DMStagVecRestoreArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
   PetscCall(DMRestoreLocalVector(dmEnth,&xEnthlocal)); 
+  PetscCall(DMStagVecRestoreArrayRead(dmPV,xPVlocal,&_xPVlocal));
+  PetscCall(DMRestoreLocalVector(dmPV,&xPVlocal)); 
 
   PetscTime(&tlog[1]);
   if (usr->par->log_info) {
-    printf("  ComputeMeltExtractOutflux: total                   %1.2e\n",tlog[1]-tlog[0]);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  ComputeMeltExtractOutflux: total                   %1.2e\n",tlog[1]-tlog[0]));
   }
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+// ---------------------------------------
+// Compute crustal thickness and fluxes out for vertical dike melt extraction
+// ---------------------------------------
+PetscErrorCode ComputeMeltExtractOutflux_dike(void *ctx) 
+{
+  UsrData       *usr = (UsrData*) ctx;
+  PetscInt       i, j, js, je, sx, sz, nx, nz, Nx, Nz, iprev, inext;
+  PetscInt       iphi,iCF,v_slot[2],vs_slot[2];
+  PetscScalar    **coordx,**coordz;
+  PetscScalar    out_F, out_C, gout_F, gout_C, phi_max, vfx_max, gphi_max, gvfx_max, vz_max, gvz_max;
+  DM             dmHC, dmVel, dmEnth, dmPV;
+  Vec            xVellocal, xEnthlocal, xPVlocal;
+  PetscScalar    ***_xEnthlocal,***_xVellocal,***_xPVlocal;
+  PetscFunctionBeginUser;
+
+  dmHC = usr->dmHC;
+  dmVel= usr->dmVel;
+  dmEnth=usr->dmEnth;
+  dmPV = usr->dmPV;
+
+  // get coordinates of dmVel for edges
+  PetscCall(DMStagGetGlobalSizes(dmVel, &Nx, &Nz,NULL));
+  PetscCall(DMStagGetCorners(dmVel,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL)); 
+  PetscCall(DMStagGetProductCoordinateArraysRead(dmVel,&coordx,&coordz,NULL));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmVel,LEFT,&iprev));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmVel,RIGHT,&inext)); 
+
+  PetscCall(DMGetLocalVector(dmPV, &xPVlocal)); 
+  PetscCall(DMGlobalToLocal (dmPV, usr->xPV, INSERT_VALUES, xPVlocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmPV,xPVlocal,&_xPVlocal));
+
+  PetscCall(DMGetLocalVector(dmVel, &xVellocal)); 
+  PetscCall(DMGlobalToLocal (dmVel, usr->xVel, INSERT_VALUES, xVellocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmVel,xVellocal,&_xVellocal));
+
+  PetscCall(DMGetLocalVector(dmEnth, &xEnthlocal)); 
+  PetscCall(DMGlobalToLocal (dmEnth, usr->xEnth, INSERT_VALUES, xEnthlocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
+
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&iphi));
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_CF ,&iCF ));
+  PetscCall(DMStagGetLocationSlot(dmVel,DMSTAG_LEFT,VEL_FACE_VF, &v_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmVel,DMSTAG_RIGHT,VEL_FACE_VF,&v_slot[1]));
+
+  PetscCall(DMStagGetLocationSlot(dmPV,DMSTAG_DOWN,PV_FACE_VS, &vs_slot[0]));
+  PetscCall(DMStagGetLocationSlot(dmPV,DMSTAG_UP,  PV_FACE_VS, &vs_slot[1]));
+
+  // indices for dike
+  js = usr->par->dike_j[usr->par->ncells_dike-1];
+  je = usr->par->dike_j[0];
+  i  = 0;
+
+  gout_F   = 0.0;
+  gout_C   = 0.0;
+  gvfx_max = 0.0;
+  gphi_max = 0.0;
+  gvz_max  = 0.0;
+
+  out_F = 0.0;
+  out_C = 0.0;
+  phi_max = 0.0;
+  vfx_max = 0.0;
+  vz_max  = 0.0;
+
+  // Loop over local domain - check if dike is on processor
+  if ((sx==0) && (js>=sz) && (je<sz+nz)) { 
+    for (j = js; j < je+1; j++) {
+      PetscScalar vf, dx, phi, Cf, flux_ij;
+
+      // get fluid velocity (x)
+      vf = -(_xVellocal[j][i][v_slot[0]]+_xVellocal[j][i][v_slot[1]])*0.5;
+
+      // get porosity and CF
+      phi = _xEnthlocal[j][i][iphi];
+      Cf  = _xEnthlocal[j][i][iCF ];
+
+      vfx_max = PetscMax(vfx_max,vf);
+      phi_max = PetscMax(phi_max,phi);
+
+      dx = coordx[i][inext]-coordx[i][iprev];
+      flux_ij = phi*vf*dx; // horizontal flux
+      out_F += flux_ij;
+      out_C += flux_ij*Cf;
+    }
+  }
+
+  // calculate maximum upwelling velocity
+  for (j = sz; j < sz+nz; j++) {
+    for (i = sx; i <sx+nx; i++) {
+      PetscScalar vz;
+
+      // get solid velocity (z)
+      vz = (_xPVlocal[j][i][vs_slot[0]]+_xPVlocal[j][i][vs_slot[1]])*0.5;
+      vz_max  = PetscMax(vz_max,vz);
+    }
+  }
+
+  // Parallel
+  PetscCall(MPI_Allreduce(&out_F,&gout_F,1,MPI_DOUBLE,MPI_SUM,usr->comm));
+  PetscCall(MPI_Allreduce(&out_C,&gout_C,1,MPI_DOUBLE,MPI_SUM,usr->comm));
+
+  // Parallel phi_max, vfz_max
+  PetscCall(MPI_Allreduce(&vfx_max,&gvfx_max,1,MPI_DOUBLE,MPI_MAX,usr->comm));
+  PetscCall(MPI_Allreduce(&phi_max,&gphi_max,1,MPI_DOUBLE,MPI_MAX,usr->comm));
+  PetscCall(MPI_Allreduce(&vz_max,&gvz_max,1,MPI_DOUBLE,MPI_MAX,usr->comm));
+
+  PetscScalar C, F, h_crust, t;
+  t = (usr->nd->t+usr->nd->dt)*usr->scal->t/SEC_YEAR; 
+
+  if (gout_F==0.0) C = usr->par->C0;
+  else C = gout_C/gout_F*usr->par->DC+usr->par->C0;
+  F = gout_F*usr->par->rho0*usr->scal->v*usr->scal->x*SEC_YEAR; // kg/m/year
+
+  if (usr->par->U0==0.0) h_crust = 0.0;
+  else h_crust = F/(usr->par->rho0*usr->par->U0)*1.0e2; // m
+
+  // Output
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Dike FLUXES: t = %1.12e [yr] C = %1.12e [wt. frac.] F = %1.12e [kg/m/yr] h_crust = %1.12e [m]\n",t,C,F,h_crust));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"#              phi_max = %1.12e vfx_max = %1.12e [cm/yr] vz_max = %1.12e [cm/yr] \n",gphi_max,gvfx_max*usr->scal->v/1.0e-2*SEC_YEAR,gvz_max*usr->scal->v/1.0e-2*SEC_YEAR));
+
+  // Restore arrays
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dmVel,&coordx,&coordz,NULL));
+  PetscCall(DMStagVecRestoreArrayRead(dmVel,xVellocal,&_xVellocal));
+  PetscCall(DMRestoreLocalVector(dmVel, &xVellocal)); 
+  PetscCall(DMStagVecRestoreArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
+  PetscCall(DMRestoreLocalVector(dmEnth,&xEnthlocal)); 
+  PetscCall(DMStagVecRestoreArrayRead(dmPV,xPVlocal,&_xPVlocal));
+  PetscCall(DMRestoreLocalVector(dmPV,&xPVlocal)); 
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1074,8 +1250,8 @@ PetscErrorCode ComputeAsymmetryFullRidge(void *ctx)
   if (gA_left+gA_right>0.0) A = 2.0*gA_right/(gA_left+gA_right)-1.0;
 
   // Output
-  PetscPrintf(PETSC_COMM_WORLD,"# Asymmetry (full ridge): A = %1.12e A_left = %1.12e A_right = %1.12e \n",A,gA_left,gA_right);
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Asymmetry (full ridge): A = %1.12e A_left = %1.12e A_right = %1.12e \n",A,gA_left,gA_right));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
 
   // Restore arrays
   PetscCall(DMStagRestoreProductCoordinateArraysRead(dmEnth,&coordx,&coordz,NULL));
@@ -1084,7 +1260,7 @@ PetscErrorCode ComputeAsymmetryFullRidge(void *ctx)
 
   PetscTime(&tlog[1]);
   if (usr->par->log_info) {
-    printf("  ComputeAsymmetryFullRidge: total                   %1.2e\n",tlog[1]-tlog[0]);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  ComputeAsymmetryFullRidge: total                   %1.2e\n",tlog[1]-tlog[0]));
   }
 
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -1306,6 +1482,10 @@ PetscErrorCode LoadParametersFromFile(void *ctx)
   dTdx_bottom = usr->par->dTdx_bottom;
   dCdx_bottom = usr->par->dCdx_bottom;
 
+  // save spreading rate
+  PetscScalar U0;
+  U0 = usr->par->U0;
+
   // read bag
   PetscCall(PetscBagLoad(viewer,usr->bag));
   PetscCall(PetscViewerDestroy(&viewer));
@@ -1342,6 +1522,10 @@ PetscErrorCode LoadParametersFromFile(void *ctx)
   usr->par->forcing = forcing;
   usr->par->dTdx_bottom = dTdx_bottom;
   usr->par->dCdx_bottom = dCdx_bottom;
+
+  // spreading rate
+  usr->par->U0 = U0;
+  usr->nd->U0 = nd_param(U0,usr->scal->v)*1e-2/SEC_YEAR;
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1475,6 +1659,54 @@ PetscErrorCode ComputeGamma(DM dmmatProp, Vec xmatProp, DM dmPV, Vec xPV, DM dmE
   if (usr->par->log_info) {
     printf("  ComputeGamma: total                                %1.2e\n",tlog[1]-tlog[0]);
   }
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+// ---------------------------------------
+PetscErrorCode GetDikeIndices(void *ctx)
+{
+  UsrData       *usr = (UsrData*) ctx;
+  PetscInt       i, j, sx, sz, nx, nz, Nx, Nz, iphi, ict, icenter;
+  PetscScalar    **coordx,**coordz;
+  DM             dmEnth;
+  Vec            xEnthlocal;
+  PetscScalar    ***_xEnthlocal;
+  PetscFunctionBeginUser;
+
+  dmEnth = usr->dmEnth;
+
+  PetscCall(DMStagGetGlobalSizes(dmEnth, &Nx, &Nz,NULL));
+  PetscCall(DMStagGetCorners(dmEnth,&sx,&sz,NULL,&nx,&nz,NULL,NULL,NULL,NULL)); 
+
+  // get coordinates of dmPV for center and edges
+  PetscCall(DMStagGetProductCoordinateArraysRead(dmEnth,&coordx,&coordz,NULL));
+  PetscCall(DMStagGetProductCoordinateLocationSlot(dmEnth,ELEMENT,&icenter)); 
+
+  PetscCall(DMGetLocalVector(dmEnth, &xEnthlocal)); 
+  PetscCall(DMGlobalToLocal (dmEnth, usr->xEnth, INSERT_VALUES, xEnthlocal)); 
+  PetscCall(DMStagVecGetArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
+  PetscCall(DMStagGetLocationSlot(dmEnth,DMSTAG_ELEMENT,ENTH_ELEMENT_PHI,&iphi));
+
+  i   = 0;
+  ict = 0;
+  // Loop over local domain
+  if (sx==0) { // check if MOR axis is on processor
+    for (j = Nz-1; j >= 0; j--) {
+      if (_xEnthlocal[j][i][iphi]>0.0) {
+        usr->par->dike_j[ict] = j;
+        usr->par->dike_z[ict] = coordz[j][icenter];
+        ict++;
+      }
+      if (ict == usr->par->ncells_dike) break; // terminate loop if all indices found
+    }
+  }
+
+  if (usr->par->dike_j[0]<Nz-1) usr->par->extract_dike = PETSC_TRUE;
+
+  PetscCall(DMStagRestoreProductCoordinateArraysRead(dmEnth,&coordx,&coordz,NULL));
+  PetscCall(DMStagVecRestoreArrayRead(dmEnth,xEnthlocal,&_xEnthlocal));
+  PetscCall(DMRestoreLocalVector(dmEnth,&xEnthlocal)); 
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }

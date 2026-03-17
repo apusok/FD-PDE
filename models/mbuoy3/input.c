@@ -187,7 +187,7 @@ PetscErrorCode InputParameters(UsrData **_usr)
   PetscCall(PetscBagRegisterScalar(bag, &par->xmor, 4.0e3, "xmor", "Distance from mid-ocean ridge axis for melt extraction ~6km [m]")); 
   PetscCall(PetscBagRegisterScalar(bag, &par->fextract, 0.2, "fextract", "Percentage of melt extraction")); 
 
-  PetscCall(PetscBagRegisterInt(bag, &par->vf_nonlinear,0, "vf_nonlinear", "0-update vf outside HC solve, 1-update vf inside HC solve")); 
+  PetscCall(PetscBagRegisterInt(bag, &par->vf_nonlinear,1, "vf_nonlinear", "0-update vf outside HC solve, 1-update vf inside HC solve")); 
 
   // time stepping and advection parameters
   PetscCall(PetscBagRegisterInt(bag, &par->ts_scheme,2, "ts_scheme", "Time stepping scheme 0-forward euler, 1-backward euler, 2-crank-nicholson")); 
@@ -200,6 +200,8 @@ PetscErrorCode InputParameters(UsrData **_usr)
   PetscCall(PetscBagRegisterInt(bag, &par->restart,0, "restart", "Restart from #istep, 0-means start from beginning")); 
 
   PetscCall(PetscBagRegisterInt(bag, &par->full_ridge,0, "full_ridge", "0-half ridge, 1-full ridge")); 
+  PetscCall(PetscBagRegisterInt(bag, &par->vertical_dike,0, "vertical_dike", "0-horizontal_window, 1-vertical_dike, 2-dynamic window")); 
+  PetscCall(PetscBagRegisterInt(bag, &par->ncells_dike,3, "ncells_dike", "Number of cells for vertical dike")); 
   par->start_run = PETSC_TRUE;
   PetscCall(PetscBagRegisterBool(bag, &par->log_info,PETSC_FALSE, "model_log_info", "Output profiling data (T/F)")); 
 
@@ -208,6 +210,16 @@ PetscErrorCode InputParameters(UsrData **_usr)
     par->xmin = par->xmin-par->L;
     par->L    = 2.0*par->L;
   }
+
+  // initialize dike parameters
+  PetscInt i;
+  for (i = 0; i < par->ncells_dike; i++) { 
+    par->dike_j[i] = -1; 
+    par->dike_z[i] =  0; 
+  }
+
+  if (par->vertical_dike==1) par->extract_dike = PETSC_TRUE;
+  else                       par->extract_dike = PETSC_FALSE;
 
   // input/output 
   par->fname_in[0] = '\0';
@@ -241,48 +253,48 @@ PetscErrorCode InputPrintData(UsrData *usr)
     PetscCall(PetscOptionsGetAll(NULL, &opts)); 
 
     // Print header and petsc options
-    PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-    PetscPrintf(usr->comm,"# MID-OCEAN RIDGE BUOYANCY - 3-Field: %s \n",&(date[0]));
-    PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-    PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
-    PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+    PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+    PetscCall(PetscPrintf(usr->comm,"# MID-OCEAN RIDGE BUOYANCY - 3-Field: %s \n",&(date[0])));
+    PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+    PetscCall(PetscPrintf(usr->comm,"# PETSc options: %s \n",opts));
+    PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
     // Free memory
     PetscCall(PetscFree(opts)); 
 
     // Input file info
     if (usr->par->fname_in[0] == '\0') { // string is empty
-      PetscPrintf(usr->comm,"# Input options file: NONE (using default options)\n");
+      PetscCall(PetscPrintf(usr->comm,"# Input options file: NONE (using default options)\n"));
     }
     else {
-      PetscPrintf(usr->comm,"# Input options file: %s \n",usr->par->fname_in);
+      PetscCall(PetscPrintf(usr->comm,"# Input options file: %s \n",usr->par->fname_in));
     }
   }
 
   // Print usr bag
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
   PetscCall(PetscBagView(usr->bag,PETSC_VIEWER_STDOUT_WORLD)); 
 
   // Print scal and nd params
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n"); 
-  PetscPrintf(usr->comm,"# Characteristic scales:\n");
-  PetscPrintf(usr->comm,"#     [x]   = %1.12e (m    ) [v]     = %1.12e (m/s    ) [t]   = %1.12e (s   )\n",scal->x,scal->v,scal->t);
-  PetscPrintf(usr->comm,"#     [K]   = %1.12e (m2   ) [P]     = %1.12e (Pa     ) [eta] = %1.12e (Pa.s)\n",scal->K,scal->P,scal->eta);
-  PetscPrintf(usr->comm,"#     [rho] = %1.12e (kg/m3) [Gamma] = %1.12e (kg/m3/s) [H]   = %1.12e (J/m3)\n",scal->rho,scal->Gamma,scal->H);
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n")); 
+  PetscCall(PetscPrintf(usr->comm,"# Characteristic scales:\n"));
+  PetscCall(PetscPrintf(usr->comm,"#     [x]   = %1.12e (m    ) [v]     = %1.12e (m/s    ) [t]   = %1.12e (s   )\n",scal->x,scal->v,scal->t));
+  PetscCall(PetscPrintf(usr->comm,"#     [K]   = %1.12e (m2   ) [P]     = %1.12e (Pa     ) [eta] = %1.12e (Pa.s)\n",scal->K,scal->P,scal->eta));
+  PetscCall(PetscPrintf(usr->comm,"#     [rho] = %1.12e (kg/m3) [Gamma] = %1.12e (kg/m3/s) [H]   = %1.12e (J/m3)\n",scal->rho,scal->Gamma,scal->H));
  
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# Nondimensional parameters:\n");
-  PetscPrintf(usr->comm,"#     delta   = %1.12e \n",nd->delta);
-  PetscPrintf(usr->comm,"#     alpha_s = %1.12e \n",nd->alpha_s);
-  PetscPrintf(usr->comm,"#     beta_s  = %1.12e \n",nd->beta_s);
-  PetscPrintf(usr->comm,"#     alpha_ls= %1.12e \n",nd->alpha_ls);
-  PetscPrintf(usr->comm,"#     beta_ls = %1.12e \n",nd->beta_ls);
-  PetscPrintf(usr->comm,"#     A       = %1.12e \n",nd->A);
-  PetscPrintf(usr->comm,"#     S       = %1.12e \n",nd->S);
-  PetscPrintf(usr->comm,"#     PeT     = %1.12e \n",nd->PeT);
-  PetscPrintf(usr->comm,"#     PeC     = %1.12e \n",nd->PeC);
-  PetscPrintf(usr->comm,"#     G       = %1.12e \n",nd->G);
-  PetscPrintf(usr->comm,"#     RM      = %1.12e \n",nd->RM);
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# Nondimensional parameters:\n"));
+  PetscCall(PetscPrintf(usr->comm,"#     delta   = %1.12e \n",nd->delta));
+  PetscCall(PetscPrintf(usr->comm,"#     alpha_s = %1.12e \n",nd->alpha_s));
+  PetscCall(PetscPrintf(usr->comm,"#     beta_s  = %1.12e \n",nd->beta_s));
+  PetscCall(PetscPrintf(usr->comm,"#     alpha_ls= %1.12e \n",nd->alpha_ls));
+  PetscCall(PetscPrintf(usr->comm,"#     beta_ls = %1.12e \n",nd->beta_ls));
+  PetscCall(PetscPrintf(usr->comm,"#     A       = %1.12e \n",nd->A));
+  PetscCall(PetscPrintf(usr->comm,"#     S       = %1.12e \n",nd->S));
+  PetscCall(PetscPrintf(usr->comm,"#     PeT     = %1.12e \n",nd->PeT));
+  PetscCall(PetscPrintf(usr->comm,"#     PeC     = %1.12e \n",nd->PeC));
+  PetscCall(PetscPrintf(usr->comm,"#     G       = %1.12e \n",nd->G));
+  PetscCall(PetscPrintf(usr->comm,"#     RM      = %1.12e \n",nd->RM));
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }

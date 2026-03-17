@@ -1073,11 +1073,17 @@ def parse_outflux_log_file(fname):
         outf.tstep[i0] = float(line[10:indt])
       
       # if (i0<tstep):
-      if 'xMOR FLUXES:' in line:
+      if 'FLUXES:' in line:
         outf.t[i0] = float(line[19:37])
-        outf.F[i0] = float(line[82:101])
+        try:
+          outf.F[i0] = float(line[82:102])
+        except:
+          outf.F[i0] = float(line[82:101])
         outf.C[i0] = float(line[47:66])
-        outf.h[i0] = float(line[121:140])
+        try:
+          outf.h[i0] = float(line[121:141])
+        except:
+          outf.h[i0] = float(line[121:140])
 
       if 'vfz_max' in line:
         outf.vfz_max[i0] = float(line[54:72])
@@ -1381,10 +1387,31 @@ def plot_reference_crustal_thickness(A,tstart,tend,fname):
   crust_avg = np.average(crust_thick[np.where((time_myr>=tstart) & (time_myr<=tend))])
 
   ax.plot(time_myr, crust_thick, 'k', label = 'H ('+str(tstart)+'-'+str(tend)+' Myr) = '+str(np.around(crust_avg,4))+' km')
-  ax.plot(time_myr[-1], crust_thick[-1], 'ro',label = 'End ('+str(tend)+'-'+str(tend)+' Myr) = '+str(np.around(crust_thick[-1],4)))
+  ax.plot(time_myr[-1], crust_thick[-1], 'ro',label = 'End ('+str(tend)+'-'+str(tend)+' Myr) = '+str(np.around(crust_thick[-1],4))+' km')
   plt.grid(True)
   plt.ylim([0, 20])
   ax.legend()
+  ax.set_xlabel('Time [Myr]')
+  ax.set_ylabel('Crustal thickness [km]')
+
+  plt.savefig(fname+'.pdf', bbox_inches = 'tight')
+  plt.close()
+
+# ---------------------------------
+def plot_crustal_thickness(A,fname):
+
+  fig = plt.figure(1,figsize=(4,1.5))
+  ax = plt.subplot(1,1,1)
+  plt.grid(linestyle = ':', linewidth = 0.5)
+
+  time_myr = A.flux.t[1:-1]/1e6
+  crust_thick = A.flux.h[1:-1]/1000
+
+  ax.plot(time_myr, crust_thick, 'k')
+  ax.plot(time_myr[-1], crust_thick[-1], 'ro')
+  plt.grid(True)
+  # plt.ylim([0, 20])
+  # ax.legend()
   ax.set_xlabel('Time [Myr]')
   ax.set_ylabel('Crustal thickness [km]')
 
@@ -1575,7 +1602,7 @@ def plot_porosity_half_ridge(A,istart,iend,jstart,jend,fname,istep,dim):
 
   # solidus contour
   if (istep>0):
-    cs = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, A.Enth.phi[jstart:jend  ,istart:iend  ], levels=[1e-8,], colors = ('k',),linewidths=(0.8,), extend='both')
+    cs = ax.contour(A.grid.xc[istart:iend  ]*scalx, A.grid.zc[jstart:jend  ]*scalx, A.Enth.phi[jstart:jend  ,istart:iend  ], levels=[1e-8,], colors = ('silver',),linewidths=(0.8,), extend='both')
 
   t = A.nd.t*scalt
 

@@ -70,8 +70,8 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
   PetscCall(Numerical_solution(usr)); 
   PetscCall(PetscTime(&end_time)); 
-  PetscPrintf(PETSC_COMM_WORLD,"# Runtime: %g (sec) \n", end_time - start_time);
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Runtime: %g (sec) \n", end_time - start_time));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
 
   // Destroy parameters
   PetscCall(UserParamsDestroy(usr)); 
@@ -115,15 +115,20 @@ PetscErrorCode Numerical_solution(void *ctx)
   xmax = nd->xmin+nd->L;
   zmax = nd->zmin+nd->H;
 
+  if ((usr->par->full_ridge) && (usr->par->vertical_dike)) {
+    SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Melt extraction through a vertical dike is not yet implemented for the full-ridge model!");
+  }
+
   // Set up mechanics - Stokes-Darcy system 3-Field (PV)
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-  PetscPrintf(PETSC_COMM_WORLD,"# Set-up MECHANICS: FD-PDE StokesDarcy3Field (PV)\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Set-up MECHANICS: FD-PDE StokesDarcy3Field (PV)\n"));
   PetscCall(FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKESDARCY3FIELD,&fdPV));
   PetscCall(FDPDESetUp(fdPV));
   if (usr->par->full_ridge) {
     PetscCall(FDPDESetFunctionBCList(fdPV,FormBCList_PV_FullRidge,bc_description_PV,usr)); 
   } else {
-    PetscCall(FDPDESetFunctionBCList(fdPV,FormBCList_PV,bc_description_PV,usr)); 
+    if (usr->par->extract_dike) PetscCall(FDPDESetFunctionBCList(fdPV,FormBCList_PV_dike,bc_description_PV,usr)); 
+    else                         PetscCall(FDPDESetFunctionBCList(fdPV,FormBCList_PV,bc_description_PV,usr)); 
   }
   PetscCall(FDPDESetFunctionCoefficient(fdPV,FormCoefficient_PV,coeff_description_PV,usr)); 
   PetscCall(SNESSetFromOptions(fdPV->snes)); 
@@ -132,18 +137,19 @@ PetscErrorCode Numerical_solution(void *ctx)
   fdPV->output_solver_failure_report = PETSC_FALSE;
 
   // Set up Enthalpy system (HC)
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-  PetscPrintf(PETSC_COMM_WORLD,"# Set-up ENERGY and COMPOSITION: FD-PDE Enthalpy (HC) \n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Set-up ENERGY and COMPOSITION: FD-PDE Enthalpy (HC) \n"));
   PetscCall(FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ENTHALPY,&fdHC));
   PetscCall(FDPDESetUp(fdHC));
   if (usr->par->full_ridge) {
     PetscCall(FDPDESetFunctionBCList(fdHC,FormBCList_HC_FullRidge,bc_description_HC,usr)); 
   } else {
-    PetscCall(FDPDESetFunctionBCList(fdHC,FormBCList_HC,bc_description_HC,usr)); 
+    if (usr->par->extract_dike) PetscCall(FDPDESetFunctionBCList(fdHC,FormBCList_HC_dike,bc_description_HC,usr)); 
+    else                         PetscCall(FDPDESetFunctionBCList(fdHC,FormBCList_HC,bc_description_HC,usr)); 
   }
 
   if (usr->par->vf_nonlinear) { PetscCall(FDPDESetFunctionCoefficient(fdHC,FormCoefficient_HC_VF_nonlinear,coeff_description_HC,usr)); } 
-  else { PetscCall(FDPDESetFunctionCoefficient(fdHC,FormCoefficient_HC,coeff_description_HC,usr));  }
+  else { PetscCall(FDPDESetFunctionCoefficient(fdHC,FormCoefficient_HC,coeff_description_HC,usr)); }
   
   PetscCall(FDPDEEnthalpySetPotentialTemp(fdHC,Form_PotentialTemperature,usr));
   PetscCall(FDPDEEnthalpySetEnthalpyMethod(fdHC,Form_Enthalpy,enthalpy_method_description,usr));
@@ -172,8 +178,8 @@ PetscErrorCode Numerical_solution(void *ctx)
   }
   
   // Prepare data for coupling HC-PV
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-  PetscPrintf(PETSC_COMM_WORLD,"# Preparing data for PV-HC coupling \n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Preparing data for PV-HC coupling \n"));
 
   PetscCall(FDPDEGetDM(fdPV,&dmPV)); 
   usr->dmPV = dmPV;
@@ -186,7 +192,7 @@ PetscErrorCode Numerical_solution(void *ctx)
     PetscCall(MPI_Comm_size(usr->comm,&size));
     PetscCall(DMStagGetNumRanks(dmPV,&nRanks0,&nRanks1,NULL)); 
     PetscCall(DMStagGetNumRanks(dmHC,&nRanks2,&nRanks3,NULL)); 
-    PetscPrintf(PETSC_COMM_WORLD,"# Processor partitioning [%d cpus]: PV [%d,%d] HC [%d,%d]\n",size,nRanks0,nRanks1,nRanks2,nRanks3);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Processor partitioning [%d cpus]: PV [%d,%d] HC [%d,%d]\n",size,nRanks0,nRanks1,nRanks2,nRanks3));
   }
 
   PetscCall(FDPDEGetSolution(fdPV,&xPV));
@@ -211,13 +217,13 @@ PetscErrorCode Numerical_solution(void *ctx)
 
   if (par->restart==0) {
     // Initial conditions - corner flow and half-space cooling model
-    PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-    PetscPrintf(PETSC_COMM_WORLD,"# Set initial conditions \n");
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Set initial conditions \n"));
     PetscCall(SetInitialConditions(fdPV,fdHC,usr));
   } else { 
     // Restart from file
-    PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-    PetscPrintf(PETSC_COMM_WORLD,"# Restart from timestep %d \n",par->restart);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Restart from timestep %d \n",par->restart));
     PetscCall(LoadRestartFromFile(fdPV,fdHC,usr));
   } 
 
@@ -225,12 +231,12 @@ PetscErrorCode Numerical_solution(void *ctx)
 
   // Time loop
   while ((nd->t <= nd->tmax) && (nd->istep <= par->tstep)) {
-    PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-    PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",nd->istep);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",nd->istep));
     PetscCall(PetscTime(&start_time)); 
     
     // Solve energy and composition
-    PetscPrintf(PETSC_COMM_WORLD,"# (HC) Energy-Composition Solver - Enthalpy Method \n");
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# (HC) Energy-Composition Solver - Enthalpy Method \n"));
 
     // Set time step size
     PetscCall(FDPDEEnthalpyComputeExplicitTimestep(fdHC,&dt));
@@ -239,14 +245,14 @@ PetscErrorCode Numerical_solution(void *ctx)
 
     converged = PETSC_FALSE;
     while (!converged) {
-      PetscPrintf(PETSC_COMM_WORLD,"# Time-step (iteration): dt = %1.12e \n",nd->dt);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Time-step (iteration): dt = %1.12e \n",nd->dt));
       PetscCall(FDPDESolve(fdHC,&converged));
       if (!converged) { // Reduce dt if not converged
         nd->dt *= 1e-1;
         PetscCall(FDPDEEnthalpySetTimestep(fdHC,nd->dt)); 
       }
     }
-    PetscPrintf(PETSC_COMM_WORLD,"# Time-step (non-dimensional): dt = %1.12e dtmax = %1.12e dtmax_grid = %1.12e\n",nd->dt,nd->dtmax,dt);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Time-step (non-dimensional): dt = %1.12e dtmax = %1.12e dtmax_grid = %1.12e\n",nd->dt,nd->dtmax,dt));
 
     // Get solution
     PetscCall(FDPDEGetSolution(fdHC,&xHC));
@@ -258,9 +264,18 @@ PetscErrorCode Numerical_solution(void *ctx)
     PetscCall(VecCopy(xEnth,usr->xEnth));
     PetscCall(VecDestroy(&xEnth));
 
+    // Calculate dike parameters
+    if (usr->par->vertical_dike > 0) PetscCall(GetDikeIndices(usr));
+
+    // change BCs if needed
+    if ((usr->par->vertical_dike==2) && (usr->par->extract_dike)) {
+      PetscCall(FDPDESetFunctionBCList(fdPV,FormBCList_PV_dike,bc_description_PV,usr)); 
+      PetscCall(FDPDESetFunctionBCList(fdHC,FormBCList_HC_dike,bc_description_HC,usr)); 
+    }
+
     // Solve PV - default solves every timestep
     if ((nd->istep == 1 ) || (nd->istep % par->hc_cycles == 0 )) {
-      PetscPrintf(PETSC_COMM_WORLD,"# (PV) Mechanics Solver - Stokes-Darcy3Field \n");
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# (PV) Mechanics Solver - Stokes-Darcy3Field \n"));
       // PetscCall(FDPDESolve(fdPV,NULL));
 
       SNESConvergedReason reason;
@@ -270,7 +285,7 @@ PetscErrorCode Numerical_solution(void *ctx)
         PetscCall(SNESGetConvergedReason(fdPV->snes,&reason)); 
         if (!converged) { // use pc_telescope if failed
           if (reason == -3) { // SNES_DIVERGED_LINEAR_SOLVE = -3 (error occurs in full ridge models with comp buoy)
-            PetscPrintf(PETSC_COMM_WORLD,"# PV Solver FAILED - Switching to pc_telescope \n");
+            PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# PV Solver FAILED - Switching to pc_telescope \n"));
             PetscInt size;
             char     fsize[10];
             PetscCall(MPI_Comm_size(usr->comm,&size));
@@ -322,7 +337,8 @@ PetscErrorCode Numerical_solution(void *ctx)
     PetscCall(DMDestroy(&dmP));
 
     // Compute fluxes out and crustal thickness
-    PetscCall(ComputeMeltExtractOutflux(usr)); 
+    if (usr->par->extract_dike) PetscCall(ComputeMeltExtractOutflux_dike(usr)); 
+    else                        PetscCall(ComputeMeltExtractOutflux(usr)); 
     PetscCall(ComputeAsymmetryFullRidge(usr)); 
 
     // Update time
@@ -336,8 +352,8 @@ PetscErrorCode Numerical_solution(void *ctx)
     nd->istep++;
 
     PetscCall(PetscTime(&end_time)); 
-    PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e [yr] dt = %1.12e [yr] \n",nd->t*usr->scal->t/SEC_YEAR,nd->dt*usr->scal->t/SEC_YEAR);
-    PetscPrintf(PETSC_COMM_WORLD,"# Timestep runtime: %g (sec) \n\n", end_time - start_time);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e [yr] dt = %1.12e [yr] \n",nd->t*usr->scal->t/SEC_YEAR,nd->dt*usr->scal->t/SEC_YEAR));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Timestep runtime: %g (sec) \n\n", end_time - start_time));
   }
 
   // Destroy objects
