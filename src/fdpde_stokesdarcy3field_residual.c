@@ -122,14 +122,14 @@ PetscErrorCode FormFunction_StokesDarcy3Field(SNES snes, Vec x, Vec f, void *ctx
   PetscTime(&tlog[6]);
   
   if (fd->log_info) {
-    printf("  FormFunction_StokesDarcy3Field: total            %1.2e\n",tlog[6]-tlog[0]);
-    printf("  FormFunction_StokesDarcy3Field: bclist->evaluate %1.2e\n",tlog[1]-tlog[0]);
-    printf("  FormFunction_StokesDarcy3Field: form_coefficient %1.2e\n",tlog[2]-tlog[1]);
-    printf("  FormFunction_StokesDarcy3Field: g2l(input)       %1.2e\n",tlog[3]-tlog[2]);
-    printf("  FormFunction_StokesDarcy3Field: cell-loop        %1.2e\n",tlog[4]-tlog[3]);
-    printf("  FormFunction_StokesDarcy3Field: bclist_set       %1.2e\n",tlog[5]-tlog[4]);
-    printf("  FormFunction_StokesDarcy3Field: g2l(output)      %1.2e\n",tlog[6]-tlog[5]);
-    printf("----------------------------------------------------------------------\n");
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_StokesDarcy3Field: total            %1.2e\n",tlog[6]-tlog[0]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_StokesDarcy3Field: bclist->evaluate %1.2e\n",tlog[1]-tlog[0]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_StokesDarcy3Field: form_coefficient %1.2e\n",tlog[2]-tlog[1]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_StokesDarcy3Field: g2l(input)       %1.2e\n",tlog[3]-tlog[2]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_StokesDarcy3Field: cell-loop        %1.2e\n",tlog[4]-tlog[3]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_StokesDarcy3Field: bclist_set       %1.2e\n",tlog[5]-tlog[4]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_StokesDarcy3Field: g2l(output)      %1.2e\n",tlog[6]-tlog[5]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"----------------------------------------------------------------------\n"));
   }
   
   PetscFunctionReturn(PETSC_SUCCESS);

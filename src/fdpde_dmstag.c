@@ -919,25 +919,25 @@ PetscErrorCode DMStagBCListView(DMStagBCList list)
   DMStagBC       *bc;
   
   PetscFunctionBegin;
-  PetscPrintf(PETSC_COMM_WORLD,"DMStagBCListView\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"DMStagBCListView\n"));
   PetscCall(DMStagGetDOF(list->dm,&dof[0],&dof[1],&dof[2],NULL));
-  PetscPrintf(PETSC_COMM_WORLD,"  stratum size: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]);
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  stratum size: %D (vertices) %D (faces) %D (elements)\n",dof[0],dof[1],dof[2]));
   
-  PetscPrintf(PETSC_COMM_SELF,"  bc_vertices: size %D\n",list->nbc_vertex);
+  PetscCall(PetscPrintf(PETSC_COMM_SELF,"  bc_vertices: size %D\n",list->nbc_vertex));
   bc = list->bc_v;
   for (i=0; i<list->nbc_vertex; i++) {
-    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j,loc (%D %D %D) dof %D value %+1.2e type %D\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc,bc[i].point.c,bc[i].val,(PetscInt)bc[i].type);
+    PetscCall(PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j,loc (%D %D %D) dof %D value %+1.2e type %D\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc,bc[i].point.c,bc[i].val,(PetscInt)bc[i].type));
   }
-  PetscPrintf(PETSC_COMM_SELF,"  bc_faces: size %D\n",list->nbc_face);
+  PetscCall(PetscPrintf(PETSC_COMM_SELF,"  bc_faces: size %D\n",list->nbc_face));
   bc = list->bc_f;
   for (i=0; i<list->nbc_face; i++) {
-    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j,loc (%D %D %D) dof %D value %+1.2e type %D\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc,bc[i].point.c,bc[i].val,(PetscInt)bc[i].type);
+    PetscCall(PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j,loc (%D %D %D) dof %D value %+1.2e type %D\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc,bc[i].point.c,bc[i].val,(PetscInt)bc[i].type));
   }
   
-  PetscPrintf(PETSC_COMM_SELF,"  bc_elements: size %D\n",list->nbc_element);
+  PetscCall(PetscPrintf(PETSC_COMM_SELF,"  bc_elements: size %D\n",list->nbc_element));
   bc = list->bc_e;
   for (i=0; i<list->nbc_element; i++) {
-    PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j,loc (%D %D %D) dof %D value %+1.2e type %D\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc,bc[i].point.c,bc[i].val,(PetscInt)bc[i].type);
+    PetscCall(PetscPrintf(PETSC_COMM_SELF,"    [%D] x,y (%+1.2e,%+1.2e) i,j,loc (%D %D %D) dof %D value %+1.2e type %D\n",i,bc[i].coord[0],bc[i].coord[1],bc[i].point.i,bc[i].point.j,bc[i].point.loc,bc[i].point.c,bc[i].val,(PetscInt)bc[i].type));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1051,11 +1051,11 @@ static PetscErrorCode _DMStagBCListPinValue(DMStagBCList list,
   if (found > 1) SETERRQ(comm,PETSC_ERR_SUP,"A target pin-points was identified on more than one sub-domain");
   
   if (bcpoint) {
-    // printf("[Pin-point BC]\n");
-    // printf("  pin point: i,j   %d %d <rank %d>\n",bcpoint->point.i,bcpoint->point.j,(int)rank);
-    // printf("  pin point: c     %d\n",bcpoint->point.c);
-    // printf("  pin point: coor  %+1.4e %+1.4e\n",bcpoint->coord[0],bcpoint->coord[1]);
-    // printf("  pin point: val   %+1.4e\n",bcpoint->val);
+    // PetscCall(PetscPrintf(PETSC_COMM_WORLD,"[Pin-point BC]\n"));
+    // PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  pin point: i,j   %d %d <rank %d>\n",bcpoint->point.i,bcpoint->point.j,(int)rank));
+    // PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  pin point: c     %d\n",bcpoint->point.c));
+    // PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  pin point: coor  %+1.4e %+1.4e\n",bcpoint->coord[0],bcpoint->coord[1]));
+    // PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  pin point: val   %+1.4e\n",bcpoint->val));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1193,7 +1193,7 @@ PetscErrorCode DMStagViewBinaryPython_SEQ(DM dm,Vec X,const char prefix[])
   // {
   //   size_t k,len;
   //   PetscCall(PetscStrlen(prefix,&len));
-  //   for (k=0; k<len; k++) if (prefix[k] == '.') PetscPrintf(comm,"[DMStagViewBinaryPython_SEQ] Warning: prefix %s contains the symbol '.'. Hence you will not be able to import the emitted python script. Consider change the prefix\n",prefix);
+  //   for (k=0; k<len; k++) if (prefix[k] == '.') PetscCall(PetscPrintf(comm,"[DMStagViewBinaryPython_SEQ] Warning: prefix %s contains the symbol '.'. Hence you will not be able to import the emitted python script. Consider change the prefix\n",prefix));
   // }
   
   PetscCall(PetscSNPrintf(fname,PETSC_MAX_PATH_LEN-1,"%s.pbin",prefix));
@@ -1461,7 +1461,7 @@ PetscErrorCode DMStagViewBinaryPython_MPI(DM dm,Vec X,const char prefix[])
   {
     size_t k,len;
     PetscCall(PetscStrlen(prefix,&len));
-    for (k=0; k<len; k++) if (prefix[k] == '.') PetscPrintf(comm,"[DMStagViewBinaryPython_SEQ] Warning: prefix %s contains the symbol '.'. Hence you will not be able to import the emiited python script. Consider change the prefix\n",prefix);
+    for (k=0; k<len; k++) if (prefix[k] == '.') PetscCall(PetscPrintf(comm,"[DMStagViewBinaryPython_SEQ] Warning: prefix %s contains the symbol '.'. Hence you will not be able to import the emiited python script. Consider change the prefix\n",prefix));
   }
   
   PetscCall(PetscSNPrintf(fname,PETSC_MAX_PATH_LEN-1,"%s.pbin",prefix));

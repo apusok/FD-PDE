@@ -115,10 +115,10 @@ PetscErrorCode FDPDEView_AdvDiff(FDPDE fd)
 
   ad = fd->data;
 
-  PetscPrintf(fd->comm,"[ADVDIFF] FDPDEView:\n");
-  PetscPrintf(fd->comm,"  # Advection Scheme type: %s\n",AdvectSchemeTypeNames[(int)ad->advtype]);
-  PetscPrintf(fd->comm,"  # Time step Scheme type: %s\n",TimeStepSchemeTypeNames[(int)ad->timesteptype]);
-  PetscPrintf(fd->comm,"  # Theta: %g\n",ad->theta);
+  PetscCall(PetscPrintf(fd->comm,"[ADVDIFF] FDPDEView:\n"));
+  PetscCall(PetscPrintf(fd->comm,"  # Advection Scheme type: %s\n",AdvectSchemeTypeNames[(int)ad->advtype]));
+  PetscCall(PetscPrintf(fd->comm,"  # Time step Scheme type: %s\n",TimeStepSchemeTypeNames[(int)ad->timesteptype]));
+  PetscCall(PetscPrintf(fd->comm,"  # Theta: %g\n",ad->theta));
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }

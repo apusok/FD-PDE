@@ -134,13 +134,13 @@ PetscErrorCode FDPDEView_Enthalpy(FDPDE fd)
   PetscFunctionBegin;
 
   en = fd->data;
-  PetscPrintf(fd->comm,"[ENTHALPY] FDPDEView:\n");
-  PetscPrintf(fd->comm,"  # Advection Scheme type: %s\n",AdvectSchemeTypeNames_Enthalpy[(int)en->advtype]);
-  PetscPrintf(fd->comm,"  # Time step Scheme type: %s\n",TimeStepSchemeTypeNames_Enthalpy[(int)en->timesteptype]);
-  PetscPrintf(fd->comm,"  # Theta: %g\n",en->theta);
-  PetscPrintf(fd->comm,"  # Number chemical components: %d\n",en->ncomponents);
-  PetscPrintf(fd->comm,"  # Enthalpy Method description:\n");
-  PetscPrintf(fd->comm,"    %s\n",en->description_enthalpy);
+  PetscCall(PetscPrintf(fd->comm,"[ENTHALPY] FDPDEView:\n"));
+  PetscCall(PetscPrintf(fd->comm,"  # Advection Scheme type: %s\n",AdvectSchemeTypeNames_Enthalpy[(int)en->advtype]));
+  PetscCall(PetscPrintf(fd->comm,"  # Time step Scheme type: %s\n",TimeStepSchemeTypeNames_Enthalpy[(int)en->timesteptype]));
+  PetscCall(PetscPrintf(fd->comm,"  # Theta: %g\n",en->theta));
+  PetscCall(PetscPrintf(fd->comm,"  # Number chemical components: %d\n",en->ncomponents));
+  PetscCall(PetscPrintf(fd->comm,"  # Enthalpy Method description:\n"));
+  PetscCall(PetscPrintf(fd->comm,"    %s\n",en->description_enthalpy));
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -525,7 +525,7 @@ PetscErrorCode FDPDEEnthalpyComputeExplicitTimestep(FDPDE fd, PetscScalar *dt)
 
   PetscTime(&tlog[1]);
   if (fd->log_info) {
-    printf("  FDPDEEnthalpyComputeExplicitTimestep: total        %1.2e\n",tlog[1]-tlog[0]);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FDPDEEnthalpyComputeExplicitTimestep: total        %1.2e\n",tlog[1]-tlog[0]));
   }
 
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -879,7 +879,7 @@ PetscErrorCode FDPDEEnthalpyUpdateDiagnostics(FDPDE fd, DM dm, Vec x, DM *_dmnew
 
   PetscTime(&tlog[1]);
   if (fd->log_info) {
-    printf("  FDPDEEnthalpyUpdateDiagnostics: total              %1.2e\n",tlog[1]-tlog[0]);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FDPDEEnthalpyUpdateDiagnostics: total              %1.2e\n",tlog[1]-tlog[0]));
   }
   
   PetscFunctionReturn(PETSC_SUCCESS);

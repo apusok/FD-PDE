@@ -445,7 +445,7 @@ static PetscErrorCode convert_in_place(DM dm,PetscInt n,const DMStagStencil *pos
   PetscFunctionBegin;
   PetscCall(PetscMalloc1(n,&_ix));
   PetscCall(private_DMStagStencilToIndexLocal(dm,n,pos,_ix));
-  //for (i=0; i<n; i++) printf("ix[%d] = %d\n",i,ix[i]);
+  //for (i=0; i<n; i++) PetscCall(PetscPrintf(PETSC_COMM_WORLD,"ix[%d] = %d\n",i,ix[i]));
   *ix = _ix;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -813,18 +813,18 @@ static PetscErrorCode _preallocate_coupled(Mat p,PetscInt i,DM row_dm,PetscInt n
     PetscCall(DMGetLocalToGlobalMapping(cols_dm[d],&ltog));
     PetscCall(ISLocalToGlobalMappingGetIndices(ltog,(const PetscInt**)&indices[d]));
     PetscCall(ISLocalToGlobalMappingGetSize(ltog,&ltog_size));
-    printf("[%d] ltog size %d\n",d,ltog_size);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"[%d] ltog size %d\n",d,ltog_size));
   }
   
   /* insert */
   PetscCall(CreateStencilBuffer_2D(row_dm,&r_max_size,&r_point_buffer));
-  printf("r_max_size[%d] = %d\n",i,r_max_size);
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"r_max_size[%d] = %d\n",i,r_max_size));
   
   PetscCall(PetscCalloc1(ncols,&c_point_buffer));
   PetscCall(PetscCalloc1(ncols,&c_max_size));
   for (j=0; j<ncols; j++) {
     PetscCall(CreateStencilBuffer_2D(cols_dm[j],&c_max_size[j],&c_point_buffer[j]));
-    printf("[%d] c_max_size[%d] = %d\n",i,j,c_max_size[j]);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"[%d] c_max_size[%d] = %d\n",i,j,c_max_size[j]));
   }
   
   for (cj=sz; cj<sz+nz; cj++) {
@@ -833,12 +833,12 @@ static PetscErrorCode _preallocate_coupled(Mat p,PetscInt i,DM row_dm,PetscInt n
       PetscCall(FillStencilCentral_2D(row_dm,ci,cj,Ni,Nj,&r_used,r_point_buffer));
       PetscCall(convert_in_place(row_dm,r_used,r_point_buffer,&rowidx));
       for (ii=0; ii<r_used; ii++) {
-        //printf("ii %d : rowidx[jj] %d\n",ii,rowidx[ii]);
+        //PetscCall(PetscPrintf(PETSC_COMM_WORLD,"ii %d : rowidx[jj] %d\n",ii,rowidx[ii]));
         if (rowidx[ii] < 0) { continue; }
         remap = indices[i][ rowidx[ii] ];
-        //printf("-->ii %d : remap %d\n",ii,remap);
+        //PetscCall(PetscPrintf(PETSC_COMM_WORLD,"-->ii %d : remap %d\n",ii,remap));
         rowidx[ii] = remap + offset[i];
-        //printf("-->-->ii %d : rowidx[jj] %d\n",ii,rowidx[ii]);
+        //PetscCall(PetscPrintf(PETSC_COMM_WORLD,"-->-->ii %d : rowidx[jj] %d\n",ii,rowidx[ii]));
       }
       
       for (j=0; j<ncols; j++) {
@@ -848,16 +848,16 @@ static PetscErrorCode _preallocate_coupled(Mat p,PetscInt i,DM row_dm,PetscInt n
         PetscCall(convert_in_place(cols_dm[j],c_used,c_point_buffer[j],&colidx));
         
         for (jj=0; jj<c_used; jj++) {
-          //printf("jj %d : colidx[jj] %d\n",jj,colidx[jj]);
+          //PetscCall(PetscPrintf(PETSC_COMM_WORLD,"jj %d : colidx[jj] %d\n",jj,colidx[jj]));
           if (colidx[jj] < 0) { continue; }
           remap = indices[j][ colidx[jj] ];
           colidx[jj] = remap + offset[j];
         }
 
         /*
-        printf("i %d j %d (ci %d cj %d) ->\n",i,j,ci,cj);
-        for (ii=0; ii<r_used; ii++)  printf(" %d ",rowidx[ii]); printf("\n");
-        for (jj=0; jj<c_used; jj++)  printf(" %d ",colidx[jj]); printf("\n");
+        PetscCall(PetscPrintf(PETSC_COMM_WORLD,"i %d j %d (ci %d cj %d) ->\n",i,j,ci,cj));
+        for (ii=0; ii<r_used; ii++)  PetscCall(PetscPrintf(PETSC_COMM_WORLD," %d ",rowidx[ii]); printf("\n"));
+        for (jj=0; jj<c_used; jj++)  PetscCall(PetscPrintf(PETSC_COMM_WORLD," %d ",colidx[jj]); printf("\n"));
         */
         
         for (ii=0; ii<r_used; ii++) {
@@ -954,11 +954,11 @@ PetscErrorCode FDPDECoupledCreateMatrix(PetscInt ndm,DM dm[],MatType mtype,Mat *
   }
   
   for (d=0; d<ndm; d++) {
-    printf("[%d] MxN %d %d mxn %d %d\n",d,M[d],N[d],m[d],n[d]);
-    printf("offset[%d] %d\n",d,offset[d]);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"[%d] MxN %d %d mxn %d %d\n",d,M[d],N[d],m[d],n[d]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"offset[%d] %d\n",d,offset[d]));
   }
-  printf("sizes MxN %d %d <global>\n",sizes[2],sizes[3]);
-  printf("sizes mxn %d %d <local>\n",sizes[0],sizes[1]);
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"sizes MxN %d %d <global>\n",sizes[2],sizes[3]));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"sizes mxn %d %d <local>\n",sizes[0],sizes[1]));
   
   PetscCall(MatCreate(PetscObjectComm((PetscObject)dm[0]),&preallocator)); 
   PetscCall(MatSetSizes(preallocator,sizes[0],sizes[1],sizes[2],sizes[3])); 
@@ -1054,11 +1054,11 @@ PetscErrorCode FDPDECoupledCreateMatrix2(PetscInt ndm,DM dm[],PetscBool mask[],M
     sizes[3] += N[d];
   }
   for (d=0; d<ndm; d++) {
-    printf("[%d] MxN %d %d mxn %d %d\n",d,M[d],N[d],m[d],n[d]);
-    printf("offset[%d] %d\n",d,offset[d]);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"[%d] MxN %d %d mxn %d %d\n",d,M[d],N[d],m[d],n[d]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"offset[%d] %d\n",d,offset[d]));
   }
-  printf("sizes MxN %d %d <global>\n",sizes[2],sizes[3]);
-  printf("sizes mxn %d %d <local>\n",sizes[0],sizes[1]);
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"sizes MxN %d %d <global>\n",sizes[2],sizes[3]));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"sizes mxn %d %d <local>\n",sizes[0],sizes[1]));
   
   PetscCall(MatCreate(PetscObjectComm((PetscObject)dm[0]),&preallocator)); 
   PetscCall(MatSetSizes(preallocator,sizes[0],sizes[1],sizes[2],sizes[3])); 

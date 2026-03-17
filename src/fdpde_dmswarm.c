@@ -107,7 +107,7 @@ PetscErrorCode MPoint_ProjectP0_arith(DM dmswarm,const char propname[],
   for (c=0; c<ncell; c++) {
     PetscBool in_global_space;
     PetscCall(DMStagLocalElementIndexInGlobalSpace_2d(dmcell,c,&in_global_space));
-    if (in_global_space) printf("cell %d : cnt %+1.4e\n",c,cnt[c]);
+    if (in_global_space) PetscCall(PetscPrintf(PETSC_COMM_WORLD,"cell %d : cnt %+1.4e\n",c,cnt[c]));
   }
   
   for (c=0; c<ncell; c++) {

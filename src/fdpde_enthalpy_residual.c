@@ -278,18 +278,18 @@ PetscErrorCode FormFunction_Enthalpy(SNES snes, Vec x, Vec f, void *ctx)
   PetscTime(&tlog[10]);
 
   if (fd->log_info) {
-    printf("  FormFunction_Enthalpy: total                       %1.2e\n",tlog[9]-tlog[0]);
-    printf("  FormFunction_Enthalpy: g2l(input)                  %1.2e\n",tlog[1]-tlog[0]);
-    printf("  FormFunction_Enthalpy: en->timesteptype != TS_NONE %1.2e\n",tlog[2]-tlog[1]);
-    printf("  FormFunction_Enthalpy: ApplyEnthalpyMethod         %1.2e\n",tlog[3]-tlog[2]);
-    printf("  FormFunction_Enthalpy: form_coefficient            %1.2e\n",tlog[4]-tlog[3]);
-    printf("  FormFunction_Enthalpy: g2l+UpdateCoeffStructure    %1.2e\n",tlog[5]-tlog[4]);
-    printf("  FormFunction_Enthalpy: bclist->eval                %1.2e\n",tlog[6]-tlog[5]);
-    printf("  FormFunction_Enthalpy: cell-loop                   %1.2e\n",tlog[7]-tlog[6]);
-    printf("  FormFunction_Enthalpy: form_user_bc                %1.2e\n",tlog[8]-tlog[7]);
-    printf("  FormFunction_Enthalpy: DMStagBCListApply_Enthalpy  %1.2e\n",tlog[9]-tlog[8]);
-    printf("  FormFunction_Enthalpy: g2l(output)                 %1.2e\n",tlog[10]-tlog[9]);
-    printf("----------------------------------------------------------------------\n");
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_Enthalpy: total                       %1.2e\n",tlog[9]-tlog[0]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_Enthalpy: g2l(input)                  %1.2e\n",tlog[1]-tlog[0]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_Enthalpy: en->timesteptype != TS_NONE %1.2e\n",tlog[2]-tlog[1]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_Enthalpy: ApplyEnthalpyMethod         %1.2e\n",tlog[3]-tlog[2]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_Enthalpy: form_coefficient            %1.2e\n",tlog[4]-tlog[3]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_Enthalpy: g2l+UpdateCoeffStructure    %1.2e\n",tlog[5]-tlog[4]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_Enthalpy: bclist->eval                %1.2e\n",tlog[6]-tlog[5]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_Enthalpy: cell-loop                   %1.2e\n",tlog[7]-tlog[6]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_Enthalpy: form_user_bc                %1.2e\n",tlog[8]-tlog[7]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_Enthalpy: DMStagBCListApply_Enthalpy  %1.2e\n",tlog[9]-tlog[8]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"  FormFunction_Enthalpy: g2l(output)                 %1.2e\n",tlog[10]-tlog[9]));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"----------------------------------------------------------------------\n"));
   }
   
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -418,7 +418,7 @@ PetscErrorCode ApplyEnthalpyMethod(FDPDE fd, DM dm,Vec xlocal,DM dmP, Vec Plocal
             sum_C  += _xlocal[j][i][dm_slot[ii]];
             C[ii-1] = _xlocal[j][i][dm_slot[ii]];
           }
-          C[dof2-1] = 1.0 - sum_C;
+          C[dof2-1] = PetscMax(0.0,1.0 - sum_C);
         }
         
         P = _Plocal[j][i][dmP_slot];
@@ -486,11 +486,11 @@ PetscErrorCode ApplyEnthalpyReport_Failure(FDPDE fd,PetscViewer viewer, Enthalpy
   PetscFunctionBegin;
 
   PetscCall(PetscViewerFileGetName(viewer,&vname));
-  PetscPrintf(PETSC_COMM_SELF,"=====================================================================\n");
-  PetscPrintf(PETSC_COMM_SELF,"====  ENTHALPY METHOD has failed! \n");
-  PetscPrintf(PETSC_COMM_SELF,"====  Please inspect the following file to diagnose the problem\n");
-  PetscPrintf(PETSC_COMM_SELF,"====  %s\n",vname);
-  PetscPrintf(PETSC_COMM_SELF,"=====================================================================\n");
+  PetscCall(PetscPrintf(PETSC_COMM_SELF,"=====================================================================\n"));
+  PetscCall(PetscPrintf(PETSC_COMM_SELF,"====  ENTHALPY METHOD has failed! \n"));
+  PetscCall(PetscPrintf(PETSC_COMM_SELF,"====  Please inspect the following file to diagnose the problem\n"));
+  PetscCall(PetscPrintf(PETSC_COMM_SELF,"====  %s\n",vname));
+  PetscCall(PetscPrintf(PETSC_COMM_SELF,"=====================================================================\n"));
 
   PetscViewerASCIIPrintf(viewer,"ENTHALPY METHOD FAILURE REPORT\n");
   PetscViewerASCIIPrintf(viewer,"[PDE summary]\n");

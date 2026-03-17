@@ -299,32 +299,32 @@ PetscErrorCode FDPDEView(FDPDE fd)
 {
   PetscFunctionBegin;
 
-  PetscPrintf(fd->comm,"FDPDEView:\n");
-  PetscPrintf(fd->comm,"  # FD-PDE type: %s\n",FDPDETypeNames[(int)fd->type]);
+  PetscCall(PetscPrintf(fd->comm,"FDPDEView:\n"));
+  PetscCall(PetscPrintf(fd->comm,"  # FD-PDE type: %s\n",FDPDETypeNames[(int)fd->type]));
   
-  PetscPrintf(fd->comm,"  # FD-PDE description:\n");
-  PetscPrintf(fd->comm,"    %s\n",fd->description);
+  PetscCall(PetscPrintf(fd->comm,"  # FD-PDE description:\n"));
+  PetscCall(PetscPrintf(fd->comm,"    %s\n",fd->description));
 
-  PetscPrintf(fd->comm,"  # Coefficient description:\n");
-  PetscPrintf(fd->comm,"    %s\n",fd->description_coeff);
+  PetscCall(PetscPrintf(fd->comm,"  # Coefficient description:\n"));
+  PetscCall(PetscPrintf(fd->comm,"    %s\n",fd->description_coeff));
 
-  PetscPrintf(fd->comm,"  # BC description:\n");
-  PetscPrintf(fd->comm,"    %s\n",fd->description_bc);
+  PetscCall(PetscPrintf(fd->comm,"  # BC description:\n"));
+  PetscCall(PetscPrintf(fd->comm,"    %s\n",fd->description_bc));
 
-  PetscPrintf(fd->comm,"  # global size elements: %D (x-dir) %D (z-dir)\n",fd->Nx,fd->Nz);
+  PetscCall(PetscPrintf(fd->comm,"  # global size elements: %D (x-dir) %D (z-dir)\n",fd->Nx,fd->Nz));
 
   if (fd->dmstag) {
-    PetscPrintf(fd->comm,"  # dmstag: %D (vertices) %D (faces) %D (elements)\n",fd->dof0,fd->dof1,fd->dof2);
+    PetscCall(PetscPrintf(fd->comm,"  # dmstag: %D (vertices) %D (faces) %D (elements)\n",fd->dof0,fd->dof1,fd->dof2));
   } else {
-    PetscPrintf(fd->comm,"  # dmstag: not available\n");
+    PetscCall(PetscPrintf(fd->comm,"  # dmstag: not available\n"));
   }
   if (fd->dmcoeff) {
-    PetscPrintf(fd->comm,"  # dmcoeff: %D (vertices) %D (faces) %D (elements)\n",fd->dofc0,fd->dofc1,fd->dofc2);
+    PetscCall(PetscPrintf(fd->comm,"  # dmcoeff: %D (vertices) %D (faces) %D (elements)\n",fd->dofc0,fd->dofc1,fd->dofc2));
   } else {
-    PetscPrintf(fd->comm,"  # dmcoeff: not available\n");
+    PetscCall(PetscPrintf(fd->comm,"  # dmcoeff: not available\n"));
   }
-  if (fd->setupcalled) PetscPrintf(fd->comm,"  # FDPDESetUp: TRUE \n\n");
-  else PetscPrintf(fd->comm,"  # FDPDESetUp: FALSE \n\n");
+  if (fd->setupcalled) PetscCall(PetscPrintf(fd->comm,"  # FDPDESetUp: TRUE \n\n"));
+  else PetscCall(PetscPrintf(fd->comm,"  # FDPDESetUp: FALSE \n\n"));
 
   // view FD-PDE specific info
   if (fd->ops->view) { PetscCall(fd->ops->view(fd));  }
@@ -574,17 +574,17 @@ static PetscErrorCode FDPDESolveReport_Failure(FDPDE fd,PetscViewer viewer)
   PetscFunctionBegin;
   PetscCall(SNESGetOptionsPrefix(fd->snes,&prefix));
   PetscCall(SNESGetConvergedReason(fd->snes,&reason)); 
-  PetscPrintf(fd->comm,"=====================================================================\n");
-  if (prefix) PetscPrintf(fd->comm,"====  SNES (prefix = %s) has failed to converge\n",prefix);
-  else PetscPrintf(fd->comm,"====  SNES has failed to converge\n");
+  PetscCall(PetscPrintf(fd->comm,"=====================================================================\n"));
+  if (prefix) PetscCall(PetscPrintf(fd->comm,"====  SNES (prefix = %s) has failed to converge\n",prefix));
+  else PetscCall(PetscPrintf(fd->comm,"====  SNES has failed to converge\n"));
   
   if (viewer != PETSC_VIEWER_STDOUT_WORLD) {
     const char *vname;
     PetscCall(PetscViewerFileGetName(viewer,&vname));
-    PetscPrintf(fd->comm,"====  Please inspect the following file to diagnose the problem\n");
-    PetscPrintf(fd->comm,"====  %s\n",vname);
+    PetscCall(PetscPrintf(fd->comm,"====  Please inspect the following file to diagnose the problem\n"));
+    PetscCall(PetscPrintf(fd->comm,"====  %s\n",vname));
   }
-  PetscPrintf(fd->comm,"=====================================================================\n");
+  PetscCall(PetscPrintf(fd->comm,"=====================================================================\n"));
 
   PetscCall(PetscOptionsGetBool(NULL,NULL,"-python_snes_failed_report",&out_python,NULL));
   
@@ -1171,7 +1171,7 @@ PetscErrorCode FDPDESetLinearPreallocatorStencil(FDPDE fd, PetscBool flg)
 {
   PetscFunctionBegin;
   if (fd->setupcalled) SETERRQ(fd->comm,PETSC_ERR_ORDER,"Must call FDPDESetLinearPreallocatorStencil() before FDPDESetUp()");
-  if (fd->type == FDPDE_ADVDIFF) PetscPrintf(PETSC_COMM_WORLD,"WARNING: This routine has no effect for FD-PDE Type = ADVDIFF! Only linear preallocator implemented.\n");
+  if (fd->type == FDPDE_ADVDIFF) PetscCall(PetscPrintf(PETSC_COMM_WORLD,"WARNING: This routine has no effect for FD-PDE Type = ADVDIFF! Only linear preallocator implemented.\n"));
   fd->linearsolve = flg;
   PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -150,7 +150,7 @@ PetscErrorCode FDPDEView_Composite(FDPDE fd)
   PetscFunctionBegin;
   composite = (PDEComposite*)fd->data;
   for (i=0; i<composite->n; i++) {
-    PetscPrintf(PETSC_COMM_WORLD,"Composite FDPDE[%D] \n",i);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"Composite FDPDE[%D] \n",i));
     PetscCall(FDPDEView(composite->pdelist[i]));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -292,7 +292,7 @@ PetscErrorCode FDPDECompositeSynchronizeGlobalVectors(FDPDE fd,Vec X)
 //       PetscCall(SNESSolve(composite->pdelist[i]->snes,NULL,subX[i]));
 //       PetscCall(SNESComputeFunction(composite->pdelist[i]->snes,subX[i],subF[i]));
 //       VecNorm(subF[i],NORM_2,&normF);
-//       printf("[iteraton %d][pde %d] |F| %+1.6e\n",its,i,normF);
+//       PetscCall(PetscPrintf(PETSC_COMM_WORLD,"[iteraton %d][pde %d] |F| %+1.6e\n",its,i,normF));
 //     }
 
 //     PetscCall(DMCompositeRestoreAccessArray(dm,fd->r,composite->n,NULL,subF));
@@ -300,7 +300,7 @@ PetscErrorCode FDPDECompositeSynchronizeGlobalVectors(FDPDE fd,Vec X)
 
 //     PetscCall(SNESComputeFunction(fd->snes,X,fd->r));
 //     PetscCall(VecNorm(fd->r,NORM_2,&normF));
-//     printf("[iteraton %d] |F| %+1.6e |F|/|F0| %+1.6e\n",its,normF,normF/normF0);
+//     PetscCall(PetscPrintf(PETSC_COMM_WORLD,"[iteraton %d] |F| %+1.6e |F|/|F0| %+1.6e\n",its,normF,normF/normF0));
 //     if (normF < atol) break;
 //     if (normF/normF0 < rtol) break;
 //   }
@@ -367,7 +367,7 @@ PetscErrorCode FDPDECompositeSynchronizeGlobalVectors(FDPDE fd,Vec X)
 //       PetscCall(SNESSolve(composite->pdelist[i]->snes,NULL,subX[i]));
 //       PetscCall(SNESComputeFunction(composite->pdelist[i]->snes,subX[i],subF[i]));
 //       PetscCall(VecNorm(subF[i],NORM_2,&normF));
-//       printf("[iteraton %d][pde %d] |F| %+1.6e\n",its,i,normF);
+//       PetscCall(PetscPrintf(PETSC_COMM_WORLD,"[iteraton %d][pde %d] |F| %+1.6e\n",its,i,normF));
 //     }
     
 //     /* update state */
@@ -381,7 +381,7 @@ PetscErrorCode FDPDECompositeSynchronizeGlobalVectors(FDPDE fd,Vec X)
 //     PetscCall(SNESComputeFunction(fd->snes,X,fd->r));
     
 //     PetscCall(VecNorm(fd->r,NORM_2,&normF));
-//     printf("[iteraton %d] |F| %+1.6e |F|/|F0| %+1.6e\n",its,normF,normF/normF0);
+//     PetscCall(PetscPrintf(PETSC_COMM_WORLD,"[iteraton %d] |F| %+1.6e |F|/|F0| %+1.6e\n",its,normF,normF/normF0));
 //     if (normF < atol) break;
 //     if (normF/normF0 < rtol) break;
 //   }
