@@ -181,7 +181,7 @@ PetscErrorCode Numerical_solution(void *ctx)
 
   // Time loop
   while ((par->t <= par->tmax) && (istep<par->tstep) && (usr->par->steady_state==0)) {
-    PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep));
 
     // Update time
     par->tprev = par->t;
@@ -755,7 +755,7 @@ PetscErrorCode VerifySteadyState(DM dm,Vec x,Vec xprev, void *ctx)
   PetscCall(MPI_Allreduce(&max_val,&gmax_val,1,MPI_DOUBLE,MPI_MAX,usr->comm));
   if (gmax_val<tol) usr->par->steady_state = 1;
 
-  PetscPrintf(PETSC_COMM_WORLD,"# >> Steady-state check: dt = %1.6e tol = %1.6e max(|x-xprev|) = %1.6e\n",usr->par->dt,tol,gmax_val);
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# >> Steady-state check: dt = %1.6e tol = %1.6e max(|x-xprev|) = %1.6e\n",usr->par->dt,tol,gmax_val));
 
   // Restore vectors
   PetscCall(DMRestoreLocalVector(dm,&xlocal)); 
@@ -872,15 +872,15 @@ PetscErrorCode InputPrintData(UsrData *usr)
   PetscCall(PetscOptionsGetAll(NULL, &opts)); 
 
   // Print header and petsc options
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# 1-D Eutectic Solidification (Enthalpy): %s \n",&(date[0]));
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# 1-D Eutectic Solidification (Enthalpy): %s \n",&(date[0])));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# PETSc options: %s \n",opts));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Print usr bag
   PetscCall(PetscBagView(usr->bag,PETSC_VIEWER_STDOUT_WORLD)); 
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Free memory
   PetscCall(PetscFree(opts)); 
@@ -912,8 +912,8 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
   PetscCall(Numerical_solution(usr)); 
   PetscCall(PetscTime(&end_time)); 
-  PetscPrintf(PETSC_COMM_WORLD,"# Runtime: %g (sec) \n", end_time - start_time);
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Runtime: %g (sec) \n", end_time - start_time));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
 
   // Destroy objects
   PetscCall(PetscBagDestroy(&usr->bag)); 

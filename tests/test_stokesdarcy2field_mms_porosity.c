@@ -224,7 +224,7 @@ PetscErrorCode Numerical_solution(void *ctx)
 
   // Time loop
   while ((usr->par->t <= usr->par->tmax) && (istep<=usr->par->tstep)) {
-    PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep));
 
     // Set dt for porosity evolution 
     usr->par->dt = usr->par->dtmax;
@@ -282,8 +282,8 @@ PetscErrorCode Numerical_solution(void *ctx)
     // increment timestep
     istep++;
 
-    PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e dt = %1.12e \n",usr->par->tprev,usr->par->dt);
-    PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e dt = %1.12e \n",usr->par->tprev,usr->par->dt));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
   }
 
   // Destroy objects
@@ -386,15 +386,15 @@ PetscErrorCode InputPrintData(UsrData *usr)
   PetscCall(PetscOptionsGetAll(NULL, &opts)); 
 
   // Print header and petsc options
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# Test_stokesdarcy2field_porosity_evolution: %s \n",&(date[0]));
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# Test_stokesdarcy2field_porosity_evolution: %s \n",&(date[0])));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# PETSc options: %s \n",opts));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Print usr bag
   PetscCall(PetscBagView(usr->bag,PETSC_VIEWER_STDOUT_WORLD)); 
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Free memory
   PetscCall(PetscFree(opts)); 
@@ -1329,13 +1329,13 @@ PetscErrorCode ComputeErrorNorms(DM dmPV,Vec xPV,Vec xmms_PV,DM dmphi,Vec xphi,V
   PetscCall(DMRestoreLocalVector(dmphi, &xaphilocal )); 
 
   // Print information
-  // PetscPrintf(comm,"# --------------------------------------- #\n");
-  PetscPrintf(comm,"# NORMS: \n");
-  PetscPrintf(comm,"# Velocity: norm2 = %1.12e norm2x = %1.12e norm2z = %1.12e \n",nrm2v,nrm2vx,nrm2vz);
-  PetscPrintf(comm,"# Pressure: norm2 = %1.12e\n",nrm2p);
-  PetscPrintf(comm,"# Porosity: norm2 = %1.12e\n",nrm2phi);
-  PetscPrintf(comm,"# Porosity err-squared: num = %1.12e mms = %1.12e\n",gsum_err[3],gsum_mms[3]);
-  PetscPrintf(comm,"# Grid info: hx = %1.12e hz = %1.12e\n",dx,dz);
+  // PetscCall(PetscPrintf(comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(comm,"# NORMS: \n"));
+  PetscCall(PetscPrintf(comm,"# Velocity: norm2 = %1.12e norm2x = %1.12e norm2z = %1.12e \n",nrm2v,nrm2vx,nrm2vz));
+  PetscCall(PetscPrintf(comm,"# Pressure: norm2 = %1.12e\n",nrm2p));
+  PetscCall(PetscPrintf(comm,"# Porosity: norm2 = %1.12e\n",nrm2phi));
+  PetscCall(PetscPrintf(comm,"# Porosity err-squared: num = %1.12e mms = %1.12e\n",gsum_err[3],gsum_mms[3]));
+  PetscCall(PetscPrintf(comm,"# Grid info: hx = %1.12e hz = %1.12e\n",dx,dz));
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1366,8 +1366,8 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
   PetscCall(Numerical_solution(usr)); 
   PetscCall(PetscTime(&end_time)); 
-  PetscPrintf(PETSC_COMM_WORLD,"# Runtime: %g (sec) \n", end_time - start_time);
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Runtime: %g (sec) \n", end_time - start_time));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
 
   // Destroy objects
   PetscCall(PetscBagDestroy(&usr->bag)); 

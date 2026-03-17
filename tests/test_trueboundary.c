@@ -39,7 +39,7 @@ PetscErrorCode test1(PetscInt nx,PetscInt ny)
   
   for (j=0; j<ny_local; j++) {
     for (i=0; i<nx_local; i++) {
-      PetscPrintf(PETSC_COMM_WORLD," [i,j](local) = [%d,%d], [i,j](global) = [%d,%d],  dx = %g, dy = %g \n",i,j,i+is,j+js,dx[i],dy[j]);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD," [i,j](local) = [%d,%d], [i,j](global) = [%d,%d],  dx = %g, dy = %g \n",i,j,i+is,j+js,dx[i],dy[j]));
     }
   }
 

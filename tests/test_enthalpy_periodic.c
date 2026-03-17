@@ -145,7 +145,7 @@ PetscErrorCode Numerical_solution(void *ctx)
 
   // Time loop
   while (istep<tstep) {
-    PetscPrintf(PETSC_COMM_WORLD,"# Timestep %d out of %d: time %1.3f\n",istep,tstep,usr->par->t);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Timestep %d out of %d: time %1.3f\n",istep,tstep,usr->par->t));
 
     // update pressure
     PetscCall(FDPDEEnthalpyGetPressure(fd,NULL,&xP));
@@ -437,15 +437,15 @@ PetscErrorCode InputPrintData(UsrData *usr)
   PetscCall(PetscOptionsGetAll(NULL, &opts)); 
 
   // Print header and petsc options
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# 2-D Diffusion (Enthalpy): %s \n",&(date[0]));
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# 2-D Diffusion (Enthalpy): %s \n",&(date[0])));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# PETSc options: %s \n",opts));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Print usr bag
   PetscCall(PetscBagView(usr->bag,PETSC_VIEWER_STDOUT_WORLD)); 
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Free memory
   PetscCall(PetscFree(opts)); 
@@ -477,8 +477,8 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
   PetscCall(Numerical_solution(usr)); 
   PetscCall(PetscTime(&end_time)); 
-  PetscPrintf(PETSC_COMM_WORLD,"# Runtime: %g (sec) \n", end_time - start_time);
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Runtime: %g (sec) \n", end_time - start_time));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
 
   // Destroy objects
   PetscCall(PetscBagDestroy(&usr->bag)); 

@@ -144,7 +144,7 @@ PetscErrorCode Numerical_convection(void *ctx)
 
   // Create the sub FD-pde objects
   // 1. Stokes
-  PetscPrintf(PETSC_COMM_WORLD,"# Set FD-PDE Stokes for pressure-velocity\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Set FD-PDE Stokes for pressure-velocity\n"));
   PetscCall(FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKES,&fdstokes));
   PetscCall(FDPDESetUp(fdstokes));
   PetscCall(FDPDESetFunctionBCList(fdstokes,FormBCList_Stokes,bc_description_stokes,NULL)); 
@@ -152,7 +152,7 @@ PetscErrorCode Numerical_convection(void *ctx)
   PetscCall(SNESSetFromOptions(fdstokes->snes)); 
 
   // 2. Temperature (Advection-diffusion)
-  PetscPrintf(PETSC_COMM_WORLD,"# Set FD-PDE AdvDiff for temperature\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Set FD-PDE AdvDiff for temperature\n"));
   PetscCall(FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ADVDIFF,&fdtemp));
   PetscCall(FDPDESetUp(fdtemp));
 
@@ -181,7 +181,7 @@ PetscErrorCode Numerical_convection(void *ctx)
   PetscCall(VecDestroy(&xPV));
 
   // Set initial temperature profile into xT, Tcoeff
-  PetscPrintf(PETSC_COMM_WORLD,"# Set initial temperature profile\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Set initial temperature profile\n"));
   PetscCall(FDPDEAdvDiffGetPrevSolution(fdtemp,&xTprev));
   PetscCall(SetInitialTempProfile(dmT,xTprev,usr));
   PetscCall(VecCopy(xTprev,usr->xTprev));
@@ -192,7 +192,7 @@ PetscErrorCode Numerical_convection(void *ctx)
   PetscCall(VecDestroy(&xTguess));
 
   // Solve Stokes to calculate velocities
-  PetscPrintf(PETSC_COMM_WORLD,"# Set initial PV profile\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Set initial PV profile\n"));
   PetscCall(FDPDESolve(fdstokes,NULL));
   PetscCall(FDPDEGetSolution(fdstokes,&xPV));
   PetscCall(VecCopy(xPV,usr->xPV));
@@ -208,9 +208,9 @@ PetscErrorCode Numerical_convection(void *ctx)
 
   // Time loop
   while ((usr->par->t <= usr->par->nd_tmax) && (istep<=usr->par->tstep)) {
-    PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-    PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep);
-    PetscPrintf(PETSC_COMM_WORLD,"# Ra: %1.12e\n",usr->par->Ra);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Ra: %1.12e\n",usr->par->Ra));
     
     // Set dt for temperature advection 
     if (istep == 0) { // first timestep
@@ -228,7 +228,7 @@ PetscErrorCode Numerical_convection(void *ctx)
     usr->par->t    += usr->par->dt;
 
     // Temperature Solver
-    PetscPrintf(PETSC_COMM_WORLD,"# Temperature Solver: \n");
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Temperature Solver: \n"));
     converged = PETSC_FALSE;
     while (!converged) {
       PetscCall(FDPDESolve(fdtemp,&converged));
@@ -252,7 +252,7 @@ PetscErrorCode Numerical_convection(void *ctx)
     PetscCall(VecDestroy(&Tcoeffprev));
 
     // Stokes Solver - use Tprev
-    PetscPrintf(PETSC_COMM_WORLD,"# Stokes Solver: \n");
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Stokes Solver: \n"));
     PetscCall(FDPDESolve(fdstokes,NULL));
     PetscCall(FDPDEGetSolution(fdstokes,&xPV));
     PetscCall(VecCopy(xPV,usr->xPV));
@@ -303,8 +303,8 @@ PetscErrorCode MantleConvectionDiagnostics(DM dmPV, Vec xPV, DM dmT, Vec xT, voi
   PetscScalar    vrms, lvrms, gvrms, q;
   PetscFunctionBeginUser;
 
-  PetscPrintf(usr->comm,"# Mantle convection diagnostics: \n");
-  PetscPrintf(usr->comm,"# Rayleigh number: Ra = %1.12e \n",usr->par->Ra);
+  PetscCall(PetscPrintf(usr->comm,"# Mantle convection diagnostics: \n"));
+  PetscCall(PetscPrintf(usr->comm,"# Rayleigh number: Ra = %1.12e \n",usr->par->Ra));
 
   // Parameters
   L = usr->par->L;
@@ -363,7 +363,7 @@ PetscErrorCode MantleConvectionDiagnostics(DM dmPV, Vec xPV, DM dmT, Vec xT, voi
 
   // Nusselt number
   Nu = -gT[1]/gT[0];
-  PetscPrintf(usr->comm,"# Nusselt number: Nu = %1.12e \n",Nu);
+  PetscCall(PetscPrintf(usr->comm,"# Nusselt number: Nu = %1.12e \n",Nu));
 
   // 2. Root-mean-square velocity (vrms) - using dimensional params
   lvrms = 0.0;
@@ -387,7 +387,7 @@ PetscErrorCode MantleConvectionDiagnostics(DM dmPV, Vec xPV, DM dmT, Vec xT, voi
 
   // Vrms
   vrms = H/usr->par->kappa*PetscSqrtReal(gvrms/H/L);
-  PetscPrintf(usr->comm,"# Root-mean-squared velocity: vrms = %1.12e \n",vrms);
+  PetscCall(PetscPrintf(usr->comm,"# Root-mean-squared velocity: vrms = %1.12e \n",vrms));
 
   // Non-dimensional temperature gradients at the corners of the cells
   i = sx;
@@ -400,7 +400,7 @@ PetscErrorCode MantleConvectionDiagnostics(DM dmPV, Vec xPV, DM dmT, Vec xT, voi
     point[1].i = i; point[1].j = j+1; point[1].loc = ELEMENT; point[1].c = 0;
     PetscCall(DMStagVecGetValuesStencil(dmT,xTlocal,2,point,T)); 
     q = -(T[1]-T[0])/dz;
-    PetscPrintf(usr->comm,"# Corner flux (down-left): q1 = %1.12e \n",q);
+    PetscCall(PetscPrintf(usr->comm,"# Corner flux (down-left): q1 = %1.12e \n",q));
   }
 
   i = sx;
@@ -413,7 +413,7 @@ PetscErrorCode MantleConvectionDiagnostics(DM dmPV, Vec xPV, DM dmT, Vec xT, voi
     point[1].i = i; point[1].j = j-1; point[1].loc = ELEMENT; point[1].c = 0;
     PetscCall(DMStagVecGetValuesStencil(dmT,xTlocal,2,point,T)); 
     q = -(T[0]-T[1])/dz;
-    PetscPrintf(usr->comm,"# Corner flux (up-left): q2 = %1.12e \n",q);
+    PetscCall(PetscPrintf(usr->comm,"# Corner flux (up-left): q2 = %1.12e \n",q));
   } 
 
   i = sx+nx-1;
@@ -426,7 +426,7 @@ PetscErrorCode MantleConvectionDiagnostics(DM dmPV, Vec xPV, DM dmT, Vec xT, voi
     point[1].i = i; point[1].j = j+1; point[1].loc = ELEMENT; point[1].c = 0;
     PetscCall(DMStagVecGetValuesStencil(dmT,xTlocal,2,point,T)); 
     q = -(T[1]-T[0])/dz;
-    PetscPrintf(usr->comm,"# Corner flux (down-right): q3 = %1.12e \n",q);
+    PetscCall(PetscPrintf(usr->comm,"# Corner flux (down-right): q3 = %1.12e \n",q));
   } 
 
   i = sx+nx-1;
@@ -439,7 +439,7 @@ PetscErrorCode MantleConvectionDiagnostics(DM dmPV, Vec xPV, DM dmT, Vec xT, voi
     point[1].i = i; point[1].j = j-1; point[1].loc = ELEMENT; point[1].c = 0;
     PetscCall(DMStagVecGetValuesStencil(dmT,xTlocal,2,point,T)); 
     q = -(T[0]-T[1])/dz;
-    PetscPrintf(usr->comm,"# Corner flux (up-right): q4 = %1.12e \n",q);
+    PetscCall(PetscPrintf(usr->comm,"# Corner flux (up-right): q4 = %1.12e \n",q));
   } 
 
   // Restore arrays, local vectors
@@ -1056,24 +1056,24 @@ PetscErrorCode InputPrintData(UsrData *usr)
   PetscCall(PetscOptionsGetAll(NULL, &opts)); 
 
   // Print header and petsc options
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# Test_convection_nd1: %s \n",&(date[0]));
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# Test_convection_nd1: %s \n",&(date[0])));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# PETSc options: %s \n",opts));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Input file info
   if (usr->par->fname_in[0] == '\0') { // string is empty
-    PetscPrintf(usr->comm,"# Input options file: NONE \n");
+    PetscCall(PetscPrintf(usr->comm,"# Input options file: NONE \n"));
   }
   else {
-    PetscPrintf(usr->comm,"# Input options file: %s \n",usr->par->fname_in);
+    PetscCall(PetscPrintf(usr->comm,"# Input options file: %s \n",usr->par->fname_in));
   }
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Print usr bag
   PetscCall(PetscBagView(usr->bag,PETSC_VIEWER_STDOUT_WORLD)); 
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Free memory
   PetscCall(PetscFree(opts)); 
@@ -1123,8 +1123,8 @@ int main (int argc,char **argv)
 
   // End time
   PetscCall(PetscTime(&end_time)); 
-  PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time);
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
   
   // Finalize main
   PetscCall(PetscFinalize());

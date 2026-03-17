@@ -320,15 +320,15 @@ PetscErrorCode InputPrintData(UsrData *usr)
   PetscCall(PetscOptionsGetAll(NULL, &opts)); 
 
   // Print header and petsc options
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# Test_stokesdarcy2field_mms_compare_nd: %s \n",&(date[0]));
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# Test_stokesdarcy2field_mms_compare_nd: %s \n",&(date[0])));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# PETSc options: %s \n",opts));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Print usr bag
   PetscCall(PetscBagView(usr->bag,PETSC_VIEWER_STDOUT_WORLD)); 
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Free memory
   PetscCall(PetscFree(opts)); 
@@ -1004,11 +1004,11 @@ PetscErrorCode ComputeErrorNorms(DM dm,Vec x,Vec xMMS,PetscInt test)
   PetscCall(DMRestoreLocalVector(dm, &xalocal )); 
 
   // Print information
-  PetscPrintf(comm,"# --------------------------------------- #\n");
-  PetscPrintf(comm,"# NORMS: \n");
-  PetscPrintf(comm,"# Velocity MMS%d: norm2 = %1.12e norm2x = %1.12e norm2z = %1.12e \n",test,nrm2v,nrm2vx,nrm2vz);
-  PetscPrintf(comm,"# Pressure MMS%d: norm2 = %1.12e\n",test,nrm2p);
-  PetscPrintf(comm,"# Grid info MMS%d: hx = %1.12e hz = %1.12e\n",test,dx,dz);
+  PetscCall(PetscPrintf(comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(comm,"# NORMS: \n"));
+  PetscCall(PetscPrintf(comm,"# Velocity MMS%d: norm2 = %1.12e norm2x = %1.12e norm2z = %1.12e \n",test,nrm2v,nrm2vx,nrm2vz));
+  PetscCall(PetscPrintf(comm,"# Pressure MMS%d: norm2 = %1.12e\n",test,nrm2p));
+  PetscCall(PetscPrintf(comm,"# Grid info MMS%d: hx = %1.12e hz = %1.12e\n",test,dx,dz));
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -1138,15 +1138,15 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
   PetscCall(StokesDarcy_Numerical(usr,1)); 
   PetscCall(PetscTime(&end_time)); 
-  PetscPrintf(PETSC_COMM_WORLD,"# Runtime MMS1: %g (sec) \n", end_time - start_time);
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Runtime MMS1: %g (sec) \n", end_time - start_time));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
 
   // Numerical solution using the FD pde object - MMS2
   PetscCall(PetscTime(&start_time)); 
   PetscCall(StokesDarcy_Numerical(usr,2)); 
   PetscCall(PetscTime(&end_time)); 
-  PetscPrintf(PETSC_COMM_WORLD,"# Runtime MMS2: %g (sec) \n", end_time - start_time);
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Runtime MMS2: %g (sec) \n", end_time - start_time));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
 
   // Destroy objects
   PetscCall(PetscBagDestroy(&usr->bag)); 

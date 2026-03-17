@@ -122,8 +122,8 @@ int main (int argc,char **argv)
   PetscCall(FDPDEDestroy(&fd));
 
   PetscCall(PetscTime(&end_time)); 
-  PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time);
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
   
   // Finalize main
   PetscCall(PetscFinalize());
@@ -371,9 +371,9 @@ PetscErrorCode ComputeErrorNorms(DM dm,Vec x,Vec xMMS)
   PetscCall(DMRestoreLocalVector(dm,&xalocal)); 
 
   // Print information
-  PetscPrintf(comm,"# NORMS: \n");
-  PetscPrintf(comm,"# Solution: norm1 = %1.12e\n",gnrm);
-  PetscPrintf(comm,"# Grid info: hx = %1.12e hz = %1.12e \n",dx,dz);
+  PetscCall(PetscPrintf(comm,"# NORMS: \n"));
+  PetscCall(PetscPrintf(comm,"# Solution: norm1 = %1.12e\n",gnrm));
+  PetscCall(PetscPrintf(comm,"# Grid info: hx = %1.12e hz = %1.12e \n",dx,dz));
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }

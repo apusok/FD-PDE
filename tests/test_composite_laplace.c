@@ -215,7 +215,7 @@ PetscErrorCode Numerical_Laplace_Decoupled(DM _dm[], Vec _x[], void *ctx)
   for (i=0; i<n; i++) {
     PetscCall(FDPDEGetDM(pdes[i],&_dm[i])); 
     PetscCall(FDPDEGetSolution(pdes[i],&_x[i]));
-    printf("solution %d\n",i);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"solution %d\n",i));
     //VecView(_x[i],PETSC_VIEWER_STDOUT_WORLD);
   }
   
@@ -292,7 +292,7 @@ PetscErrorCode FormCoefficient_Laplace(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec c
   PetscFunctionBeginUser;
 
   PetscCall(FDPDEGetAuxGlobalVectors(fd,&naux,&aux_vecs));
-  //PetscPrintf(PETSC_COMM_WORLD,"Found %D auxillary vectors\n",naux);
+  //PetscCall(PetscPrintf(PETSC_COMM_WORLD,"Found %D auxillary vectors\n",naux));
   
   // Element: A = rho*cp (dof 0), C = heat production/sink (dof 1)
   // Edges: k (dof 0), velocity (dof 1)
@@ -393,7 +393,7 @@ PetscErrorCode FormCoefficient_Laplace_NL(FDPDE fd, DM dm, Vec x, DM dmcoeff, Ve
   PetscFunctionBeginUser;
   
   PetscCall(FDPDEGetAuxGlobalVectors(fd,&naux,&aux_vecs));
-  //PetscPrintf(PETSC_COMM_WORLD,"Found %D auxillary vectors\n",naux);
+  //PetscCall(PetscPrintf(PETSC_COMM_WORLD,"Found %D auxillary vectors\n",naux));
 
   x_u = aux_vecs[0];
   x_v = aux_vecs[1];
@@ -914,8 +914,8 @@ int main (int argc,char **argv)
 
   // End time
   PetscCall(PetscTime(&end_time)); 
-  PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time);
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
   
   // Finalize main
   PetscCall(PetscFinalize());

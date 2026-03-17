@@ -110,7 +110,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   PetscCall(FDPDEView(fd)); 
 
   // Create initial guess with a linear viscous
-  PetscPrintf(PETSC_COMM_WORLD,"\n# INITIAL GUESS #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"\n# INITIAL GUESS #\n"));
   PetscCall(FDPDESolve(fd,NULL));
   PetscCall(FDPDEGetSolution(fd,&x)); 
 
@@ -130,7 +130,7 @@ PetscErrorCode Numerical_solution(void *ctx)
   // MatView(fd->J,PETSC_VIEWER_STDOUT_WORLD);
 
   // FD SNES Solver
-  PetscPrintf(PETSC_COMM_WORLD,"\n# SNES SOLVE #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"\n# SNES SOLVE #\n"));
   PetscCall(FDPDESolve(fd,NULL));
   PetscCall(FDPDEGetSolution(fd,&x)); 
 
@@ -688,15 +688,15 @@ PetscErrorCode InputPrintData(UsrData *usr)
   PetscCall(PetscOptionsGetAll(NULL, &opts)); 
 
   // Print header and petsc options
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# Test_plastic_indenter: %s \n",&(date[0]));
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# Test_plastic_indenter: %s \n",&(date[0])));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# PETSc options: %s \n",opts));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Print usr bag
   PetscCall(PetscBagView(usr->bag,PETSC_VIEWER_STDOUT_WORLD)); 
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Free memory
   PetscCall(PetscFree(opts)); 
@@ -730,8 +730,8 @@ int main (int argc,char **argv)
   PetscCall(PetscTime(&start_time)); 
   PetscCall(Numerical_solution(usr)); 
   PetscCall(PetscTime(&end_time)); 
-  PetscPrintf(PETSC_COMM_WORLD,"# Runtime: %g (sec) \n", end_time - start_time);
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Runtime: %g (sec) \n", end_time - start_time));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
 
   // Destroy objects
   PetscCall(PetscBagDestroy(&usr->bag)); 

@@ -232,24 +232,24 @@ PetscErrorCode InputPrintData(UsrData *usr)
   PetscCall(PetscOptionsGetAll(NULL, &opts)); 
 
   // Print header and petsc options
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# Test_stokes_solcx: %s \n",&(date[0]));
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# Test_stokes_solcx: %s \n",&(date[0])));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# PETSc options: %s \n",opts));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Input file info
   if (usr->par->fname_in[0] == '\0') { // string is empty
-    PetscPrintf(usr->comm,"# Input options file: NONE \n");
+    PetscCall(PetscPrintf(usr->comm,"# Input options file: NONE \n"));
   }
   else {
-    PetscPrintf(usr->comm,"# Input options file: %s \n",usr->par->fname_in);
+    PetscCall(PetscPrintf(usr->comm,"# Input options file: %s \n",usr->par->fname_in));
   }
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Print usr bag
   PetscCall(PetscBagView(usr->bag,PETSC_VIEWER_STDOUT_WORLD)); 
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Free memory
   PetscCall(PetscFree(opts)); 
@@ -678,11 +678,11 @@ PetscErrorCode ComputeErrorNorms(DM dm,Vec x,Vec xanalytic, void *ctx)
   PetscCall(VecDestroy(&xalocal)); 
 
   // Print information
-  PetscPrintf(comm,"# --------------------------------------- #\n");
-  PetscPrintf(comm,"# NORMS: \n");
-  PetscPrintf(comm,"# Velocity: norm1 = %1.12e norm1x = %1.12e norm1z = %1.12e \n",gnrm[0]+gnrm[1],gnrm[0],gnrm[1]);
-  PetscPrintf(comm,"# Pressure: norm1 = %1.12e\n",gnrm[2]);
-  PetscPrintf(comm,"# Grid info: hx = %1.12e hz = %1.12e \n",dx,dz);
+  PetscCall(PetscPrintf(comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(comm,"# NORMS: \n"));
+  PetscCall(PetscPrintf(comm,"# Velocity: norm1 = %1.12e norm1x = %1.12e norm1z = %1.12e \n",gnrm[0]+gnrm[1],gnrm[0],gnrm[1]));
+  PetscCall(PetscPrintf(comm,"# Pressure: norm1 = %1.12e\n",gnrm[2]));
+  PetscCall(PetscPrintf(comm,"# Grid info: hx = %1.12e hz = %1.12e \n",dx,dz));
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -741,8 +741,8 @@ int main (int argc,char **argv)
 
   // End time
   PetscCall(PetscTime(&end_time)); 
-  PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time);
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
   
   // Finalize main
   PetscCall(PetscFinalize());

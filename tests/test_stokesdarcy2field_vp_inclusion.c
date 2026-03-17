@@ -137,7 +137,7 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
   PetscCall(FDPDEView(fd)); 
 
   // Create initial guess with a linear viscous
-  PetscPrintf(PETSC_COMM_WORLD,"\n# INITIAL GUESS #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"\n# INITIAL GUESS #\n"));
   PetscCall(FDPDESolve(fd,NULL));
   PetscCall(FDPDEGetSolution(fd,&x)); 
 
@@ -165,7 +165,7 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
   usr->par->plasticity = PETSC_TRUE; 
 
   // Picard Solver
-  PetscPrintf(PETSC_COMM_WORLD,"\n# PICARD SOLVE #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"\n# PICARD SOLVE #\n"));
   PetscCall(FDPDESolvePicard(fd,NULL));
   
   PetscCall(FDPDEGetSolution(fd,&x));
@@ -175,7 +175,7 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
   PetscCall(VecDestroy(&x));
   
   // FD SNES Solver
-  PetscPrintf(PETSC_COMM_WORLD,"\n# SNES SOLVE #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"\n# SNES SOLVE #\n"));
   PetscCall(FDPDESolve(fd,NULL));
   PetscCall(FDPDEGetSolution(fd,&x)); 
 
@@ -339,15 +339,15 @@ PetscErrorCode InputPrintData(UsrData *usr)
   PetscCall(PetscOptionsGetAll(NULL, &opts)); 
 
   // Print header and petsc options
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# Test_stokesdarcy2field_vp_inclusion: %s \n",&(date[0]));
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# Test_stokesdarcy2field_vp_inclusion: %s \n",&(date[0])));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# PETSc options: %s \n",opts));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Print usr bag
   PetscCall(PetscBagView(usr->bag,PETSC_VIEWER_STDOUT_WORLD)); 
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Free memory
   PetscCall(PetscFree(opts)); 
@@ -1459,8 +1459,8 @@ int main (int argc,char **argv)
 
   // End time
   PetscCall(PetscTime(&end_time)); 
-  PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time);
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
   
   // Finalize main
   PetscCall(PetscFinalize());

@@ -116,7 +116,7 @@ PetscErrorCode Numerical_convection(void *ctx)
 
   // Create the sub FD-pde objects
   // 1. Stokes
-  PetscPrintf(PETSC_COMM_WORLD,"# Set FD-PDE Stokes for pressure-velocity\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Set FD-PDE Stokes for pressure-velocity\n"));
   PetscCall(FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKES,&fdstokes));
   PetscCall(FDPDESetDMBoundaryType(fdstokes,DM_BOUNDARY_PERIODIC,DM_BOUNDARY_NONE));
   PetscCall(FDPDESetUp(fdstokes));
@@ -125,7 +125,7 @@ PetscErrorCode Numerical_convection(void *ctx)
   PetscCall(SNESSetFromOptions(fdstokes->snes)); 
 
   // 2. Temperature (Advection-diffusion)
-  PetscPrintf(PETSC_COMM_WORLD,"# Set FD-PDE AdvDiff for temperature\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Set FD-PDE AdvDiff for temperature\n"));
   PetscCall(FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_ADVDIFF,&fdtemp));
   PetscCall(FDPDESetDMBoundaryType(fdtemp,DM_BOUNDARY_PERIODIC,DM_BOUNDARY_NONE));
   PetscCall(FDPDESetUp(fdtemp));
@@ -151,7 +151,7 @@ PetscErrorCode Numerical_convection(void *ctx)
   PetscCall(VecDestroy(&xPV));
 
   // Set initial temperature profile into xT, Tcoeff
-  PetscPrintf(PETSC_COMM_WORLD,"# Set initial temperature profile\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Set initial temperature profile\n"));
   PetscCall(FDPDEAdvDiffGetPrevSolution(fdtemp,&xTprev));
   PetscCall(SetInitialTempProfile(dmT,xTprev,usr));
   PetscCall(VecCopy(xTprev,usr->xTprev));
@@ -162,7 +162,7 @@ PetscErrorCode Numerical_convection(void *ctx)
   PetscCall(VecDestroy(&xTguess));
 
   // Solve Stokes to calculate velocities
-  PetscPrintf(PETSC_COMM_WORLD,"# Set initial PV profile\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Set initial PV profile\n"));
   PetscCall(FDPDESolve(fdstokes,NULL));
   PetscCall(FDPDEGetSolution(fdstokes,&xPV));
   PetscCall(VecCopy(xPV,usr->xPV));
@@ -178,9 +178,9 @@ PetscErrorCode Numerical_convection(void *ctx)
 
   // Time loop
   while ((usr->par->t <= usr->par->tmax) && (istep<=usr->par->tstep)) {
-    PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-    PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep);
-    PetscPrintf(PETSC_COMM_WORLD,"# Ra: %1.12e\n",usr->par->Ra);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Ra: %1.12e\n",usr->par->Ra));
     
     // Set dt for temperature advection 
     if (istep == 0) { // first timestep
@@ -198,7 +198,7 @@ PetscErrorCode Numerical_convection(void *ctx)
     usr->par->t    += usr->par->dt;
 
     // Temperature Solver
-    PetscPrintf(PETSC_COMM_WORLD,"# Temperature Solver: \n");
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Temperature Solver: \n"));
     converged = PETSC_FALSE;
     while (!converged) {
       PetscCall(FDPDESolve(fdtemp,&converged));
@@ -222,7 +222,7 @@ PetscErrorCode Numerical_convection(void *ctx)
     PetscCall(VecDestroy(&Tcoeffprev));
 
     // Stokes Solver - use Tprev
-    PetscPrintf(PETSC_COMM_WORLD,"# Stokes Solver: \n");
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Stokes Solver: \n"));
     PetscCall(FDPDESolve(fdstokes,NULL));
     PetscCall(FDPDEGetSolution(fdstokes,&xPV));
     PetscCall(VecCopy(xPV,usr->xPV));
@@ -242,7 +242,7 @@ PetscErrorCode Numerical_convection(void *ctx)
     // increment timestep
     istep++;
 
-    PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e dt = %1.12e tmax = %1.12e\n",usr->par->t,usr->par->dt,usr->par->tmax);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# TIME: time = %1.12e dt = %1.12e tmax = %1.12e\n",usr->par->t,usr->par->dt,usr->par->tmax));
   }
 
   PetscCall(DMDestroy(&dmPV)); 
@@ -773,24 +773,24 @@ PetscErrorCode InputPrintData(UsrData *usr)
   PetscCall(PetscOptionsGetAll(NULL, &opts)); 
 
   // Print header and petsc options
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# Test_convection_periodic: %s \n",&(date[0]));
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# Test_convection_periodic: %s \n",&(date[0])));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# PETSc options: %s \n",opts));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Input file info
   if (usr->par->fname_in[0] == '\0') { // string is empty
-    PetscPrintf(usr->comm,"# Input options file: NONE \n");
+    PetscCall(PetscPrintf(usr->comm,"# Input options file: NONE \n"));
   }
   else {
-    PetscPrintf(usr->comm,"# Input options file: %s \n",usr->par->fname_in);
+    PetscCall(PetscPrintf(usr->comm,"# Input options file: %s \n",usr->par->fname_in));
   }
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Print usr bag
   PetscCall(PetscBagView(usr->bag,PETSC_VIEWER_STDOUT_WORLD)); 
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Free memory
   PetscCall(PetscFree(opts)); 
@@ -840,8 +840,8 @@ int main (int argc,char **argv)
 
   // End time
   PetscCall(PetscTime(&end_time)); 
-  PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time);
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
   
   // Finalize main
   PetscCall(PetscFinalize());

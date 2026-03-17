@@ -47,7 +47,7 @@ PetscErrorCode test_layout(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmGetLocalSize(dmswarm,&npoints));
     PetscCall(DMSwarmGetField(dmswarm,DMSwarmPICField_coor,NULL,NULL,(void**)&pcoor));
     for (p=0; p<npoints; p++) {
-      printf("%d : %+1.4e %+1.4e\n",p,pcoor[2*p],pcoor[2*p+1]);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"%d : %+1.4e %+1.4e\n",p,pcoor[2*p],pcoor[2*p+1]));
     }
     PetscCall(DMSwarmRestoreField(dmswarm,DMSwarmPICField_coor,NULL,NULL,(void**)&pcoor));
   }
@@ -144,7 +144,7 @@ PetscErrorCode test_advection_rk1(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmGetLocalSize(dmswarm,&npoints));
     PetscCall(DMSwarmGetField(dmswarm,DMSwarmPICField_coor,NULL,NULL,(void**)&pcoor));
     for (p=0; p<npoints; p++) {
-      printf("%d : %+1.4e %+1.4e\n",p,pcoor[2*p],pcoor[2*p+1]);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"%d : %+1.4e %+1.4e\n",p,pcoor[2*p],pcoor[2*p+1]));
     }
     PetscCall(DMSwarmRestoreField(dmswarm,DMSwarmPICField_coor,NULL,NULL,(void**)&pcoor));
   }
@@ -196,12 +196,12 @@ PetscErrorCode test_custom_tools_set(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmGetLocalSize(dmswarmA,&npoints));
     PetscCall(DMSwarmGetField(dmswarmA,"eta",NULL,NULL,(void**)&field));
     for (p=0; p<npoints; p++) {
-      printf("%d (eta) %+1.4e \n",p,field[p]);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"%d (eta) %+1.4e \n",p,field[p]));
     }
     PetscCall(DMSwarmRestoreField(dmswarmA,"eta",NULL,NULL,(void**)&field));
     PetscCall(DMSwarmGetField(dmswarmA,"xi",NULL,NULL,(void**)&field));
     for (p=0; p<npoints; p++) {
-      printf("%d (xi) %+1.4e %+1.4e \n",p,field[2*p],field[2*p+1]);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"%d (xi) %+1.4e %+1.4e \n",p,field[2*p],field[2*p+1]));
     }
     PetscCall(DMSwarmRestoreField(dmswarmA,"xi",NULL,NULL,(void**)&field));
   }
@@ -217,12 +217,12 @@ PetscErrorCode test_custom_tools_set(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmGetLocalSize(dmswarmA,&npoints));
     PetscCall(DMSwarmGetField(dmswarmA,"eta",NULL,NULL,(void**)&field));
     for (p=0; p<npoints; p++) {
-      printf("%d (eta) %+1.4e \n",p,field[p]);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"%d (eta) %+1.4e \n",p,field[p]));
     }
     PetscCall(DMSwarmRestoreField(dmswarmA,"eta",NULL,NULL,(void**)&field));
     PetscCall(DMSwarmGetField(dmswarmA,"xi",NULL,NULL,(void**)&field));
     for (p=0; p<npoints; p++) {
-      printf("%d (xi) %+1.4e %+1.4e \n",p,field[2*p],field[2*p+1]);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"%d (xi) %+1.4e %+1.4e \n",p,field[2*p],field[2*p+1]));
     }
     PetscCall(DMSwarmRestoreField(dmswarmA,"xi",NULL,NULL,(void**)&field));
   }
@@ -239,12 +239,12 @@ PetscErrorCode test_custom_tools_set(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmGetLocalSize(dmswarmA,&npoints));
     PetscCall(DMSwarmGetField(dmswarmA,"eta",NULL,NULL,(void**)&field));
     for (p=0; p<npoints; p++) {
-      printf("%d (eta) %+1.4e \n",p,field[p]);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"%d (eta) %+1.4e \n",p,field[p]));
     }
     PetscCall(DMSwarmRestoreField(dmswarmA,"eta",NULL,NULL,(void**)&field));
     PetscCall(DMSwarmGetField(dmswarmA,"xi",NULL,NULL,(void**)&field));
     for (p=0; p<npoints; p++) {
-      printf("%d (xi) %+1.4e %+1.4e \n",p,field[2*p],field[2*p+1]);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"%d (xi) %+1.4e %+1.4e \n",p,field[2*p],field[2*p+1]));
     }
     PetscCall(DMSwarmRestoreField(dmswarmA,"xi",NULL,NULL,(void**)&field));
   }
@@ -311,7 +311,7 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmRestoreField(dmswarmA,cellid,NULL,NULL,(void**)&field));
   }
 
-  printf("<< A init >>\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"<< A init >>\n"));
   {
     const DM swarm = dmswarmA;
     PetscReal *field;
@@ -324,7 +324,7 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmGetField(swarm,"eta",NULL,NULL,(void**)&field));
     PetscCall(DMSwarmGetField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     for (p=0; p<npoints; p++) {
-      printf("[swarmA] [%d] (pid) %ld (wil) %d (eta) %+1.4e \n",p,pid[p],fieldpid[p],field[p]);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"[swarmA] [%d] (pid) %ld (wil) %d (eta) %+1.4e \n",p,pid[p],fieldpid[p],field[p]));
     }
     PetscCall(DMSwarmRestoreField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     PetscCall(DMSwarmRestoreField(swarm,"eta",NULL,NULL,(void**)&field));
@@ -339,12 +339,12 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmGetLocalSize(swarm,&npoints));
     PetscCall(DMSwarmGetField(swarm,"eta",NULL,NULL,(void**)&field));
     for (p=0; p<npoints; p++) {
-      printf("%d (eta) %+1.4e \n",p,field[p]);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"%d (eta) %+1.4e \n",p,field[p]));
     }
     PetscCall(DMSwarmRestoreField(swarm,"eta",NULL,NULL,(void**)&field));
     PetscCall(DMSwarmGetField(swarm,"xi",NULL,NULL,(void**)&field));
     for (p=0; p<npoints; p++) {
-      printf("%d (xi) %+1.4e %+1.4e \n",p,field[2*p],field[2*p+1]);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"%d (xi) %+1.4e %+1.4e \n",p,field[2*p],field[2*p+1]));
     }
     PetscCall(DMSwarmRestoreField(swarm,"xi",NULL,NULL,(void**)&field));
   }
@@ -380,7 +380,7 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmRestoreField(swarm,"xi",NULL,NULL,(void**)&field));
   }
 
-  printf("<< B with copied eta : set xi >>\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"<< B with copied eta : set xi >>\n"));
   {
     const DM swarm = dmswarmB;
     PetscReal *field;
@@ -393,12 +393,12 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmGetField(swarm,"eta",NULL,NULL,(void**)&field));
     PetscCall(DMSwarmGetField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     for (p=0; p<npoints; p++) {
-      printf("[swarmB] [%d] (pid) %ld (wil) %d (eta) %+1.4e \n",p,pid[p],fieldpid[p],field[p]);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"[swarmB] [%d] (pid) %ld (wil) %d (eta) %+1.4e \n",p,pid[p],fieldpid[p],field[p]));
     }
     PetscCall(DMSwarmRestoreField(swarm,"eta",NULL,NULL,(void**)&field));
     PetscCall(DMSwarmGetField(swarm,"xi",NULL,NULL,(void**)&field));
     for (p=0; p<npoints; p++) {
-      printf("[swarmB] [%d] (pid) %ld (wil) %d (xi) %+1.4e %+1.4e \n",p,pid[p],fieldpid[p],field[2*p],field[2*p+1]);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"[swarmB] [%d] (pid) %ld (wil) %d (xi) %+1.4e %+1.4e \n",p,pid[p],fieldpid[p],field[2*p],field[2*p+1]));
     }
     PetscCall(DMSwarmRestoreField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     PetscCall(DMSwarmRestoreField(swarm,"xi",NULL,NULL,(void**)&field));
@@ -418,7 +418,7 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmRestoreField(swarm,"eta",NULL,NULL,(void**)&field));
   }
 
-  printf("<< A prior to deleting >>\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"<< A prior to deleting >>\n"));
   {
     const DM swarm = dmswarmA;
     PetscReal *field;
@@ -431,7 +431,7 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmGetField(swarm,"eta",NULL,NULL,(void**)&field));
     PetscCall(DMSwarmGetField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     for (p=0; p<npoints; p++) {
-      printf("[swarmA] [%d] (pid) %ld (wil) %d (eta) %+1.4e \n",p,pid[p],fieldpid[p],field[p]);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"[swarmA] [%d] (pid) %ld (wil) %d (eta) %+1.4e \n",p,pid[p],fieldpid[p],field[p]));
     }
     PetscCall(DMSwarmRestoreField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     PetscCall(DMSwarmRestoreField(swarm,"eta",NULL,NULL,(void**)&field));
@@ -443,7 +443,7 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmRemovePoints(dmswarmA,4,list));
   }
 
-  printf("<< A after deletion >>\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"<< A after deletion >>\n"));
   {
     const DM swarm = dmswarmA;
     PetscReal *field;
@@ -456,7 +456,7 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmGetField(swarm,"eta",NULL,NULL,(void**)&field));
     PetscCall(DMSwarmGetField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     for (p=0; p<npoints; p++) {
-      printf("[swarmA] [%d] (pid) %ld (wil) %d (eta) %+1.4e \n",p,pid[p],fieldpid[p],field[p]);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"[swarmA] [%d] (pid) %ld (wil) %d (eta) %+1.4e \n",p,pid[p],fieldpid[p],field[p]));
     }
     PetscCall(DMSwarmRestoreField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     PetscCall(DMSwarmRestoreField(swarm,"eta",NULL,NULL,(void**)&field));
@@ -468,7 +468,7 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmCopyFieldValues(dmswarmB,dmswarmA,&copy_occurred));
   }
 
-  printf("<< A after insertition >>\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"<< A after insertition >>\n"));
   {
     const DM swarm = dmswarmA;
     PetscReal *field;
@@ -481,7 +481,7 @@ PetscErrorCode test_custom_tools_dup_copy(PetscInt nx,PetscInt ny)
     PetscCall(DMSwarmGetField(swarm,"eta",NULL,NULL,(void**)&field));
     PetscCall(DMSwarmGetField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     for (p=0; p<npoints; p++) {
-      printf("[swarmA] [%d] (pid) %ld (wil) %d (eta) %+1.4e \n",p,pid[p],fieldpid[p],field[p]);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD,"[swarmA] [%d] (pid) %ld (wil) %d (eta) %+1.4e \n",p,pid[p],fieldpid[p],field[p]));
     }
     PetscCall(DMSwarmRestoreField(swarm,DMSwarmField_pid,NULL,NULL,(void**)&pid));
     PetscCall(DMSwarmRestoreField(swarm,"eta",NULL,NULL,(void**)&field));

@@ -141,14 +141,14 @@ static PetscScalar volf_2d(PetscScalar f1, PetscScalar f2, PetscScalar cc, Petsc
 
     // tol2 = 20*tol;
     
-    //PetscPrintf(PETSC_COMM_WORLD, "ENTER check, f1 = %1.4f, f2 = %1.4f, d1= %1.4f, d2 = %1.4f, tx = %1.4f, cc = %g, ar=%g\n", f1, f2,d1, d2, tx, cc, ar);
+    //PetscCall(PetscPrintf(PETSC_COMM_WORLD, "ENTER check, f1 = %1.4f, f2 = %1.4f, d1= %1.4f, d2 = %1.4f, tx = %1.4f, cc = %g, ar=%g\n", f1, f2,d1, d2, tx, cc, ar));
 
     //if (PetscAbs(tx)>1.0 && PetscAbs(tx)-1.0 <= tol2) {tx = tx/PetscAbs(tx);}
 
     if (PetscAbs(tx)>1.0) {
       if (PetscAbs(tx)-1.0 > tol) {
-        PetscPrintf(PETSC_COMM_WORLD, "f1 = %1.4f, f2 = %1.4f, d1= %1.4f, d2 = %1.4f, r10 = %1.4f, r20=%1.4f, cc = %1.4f, tx = %1.4f\n", f1, f2,d1, d2,r10, r20, cc, tx);
-        //        PetscPrintf(PETSC_COMM_WORLD, "f1 = %1.4f, f2 = %1.4f, d1= %1.4f, d2 = %1.4f, r10 = %1.4f, r20=%1.4f, ff1 = %1.4f, ff2=%1.4f, cc = %1.4f, tx = %1.4f\n", f1, f2,d1, d2,r10, r20, ff1, ff2,cc, tx);        
+        PetscCall(PetscPrintf(PETSC_COMM_WORLD, "f1 = %1.4f, f2 = %1.4f, d1= %1.4f, d2 = %1.4f, r10 = %1.4f, r20=%1.4f, cc = %1.4f, tx = %1.4f\n", f1, f2,d1, d2,r10, r20, cc, tx));
+        //        PetscCall(PetscPrintf(PETSC_COMM_WORLD, "f1 = %1.4f, f2 = %1.4f, d1= %1.4f, d2 = %1.4f, r10 = %1.4f, r20=%1.4f, ff1 = %1.4f, ff2=%1.4f, cc = %1.4f, tx = %1.4f\n", f1, f2,d1, d2,r10, r20, ff1, ff2,cc, tx));        
       }
       tx = tx/PetscAbs(tx);
     }
@@ -188,7 +188,7 @@ static PetscScalar volf_2d(PetscScalar f1, PetscScalar f2, PetscScalar cc, Petsc
       result = (x1 - (0.5*k0*(x1*x1 - x0*x0) + k1*(x1-x0)))/ar;
 
       if (result <0 || result > 1.0) {
-        PetscPrintf(PETSC_COMM_WORLD, "WRONG vvf, greater than 1 or smaller than zero, volf = %1.4f", result);}
+        PetscCall(PetscPrintf(PETSC_COMM_WORLD, "WRONG vvf, greater than 1 or smaller than zero, volf = %1.4f", result));}
 
     }
   }
@@ -232,14 +232,14 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
   iwrt = PETSC_TRUE;
   tmax = usr->par->tmax;
   
-  PetscPrintf(usr->comm, "check point at the beginning");
+  PetscCall(PetscPrintf(usr->comm, "check point at the beginning"));
 
   // Create the FD-pde object
   PetscCall(FDPDECreate(usr->comm,nx,nz,xmin,xmax,zmin,zmax,FDPDE_STOKESDARCY2FIELD,&fd));
   PetscCall(FDPDESetUp(fd));
   PetscCall(FDPDEGetDM(fd,&usr->dmPV)); 
 
-  PetscPrintf(usr->comm, "check point after create");
+  PetscCall(PetscPrintf(usr->comm, "check point after create"));
 
   // Create DM/vec for strain rates, yield, deviatoric/volumetric stress, and stress_old
   PetscCall(DMStagCreateCompatibleDMStag(usr->dmPV,4,0,4,0,&usr->dmeps)); 
@@ -252,7 +252,7 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
   PetscCall(DMCreateGlobalVector(usr->dmeps,&usr->xtau_old)); 
   PetscCall(DMCreateGlobalVector(usr->dmeps,&usr->xDP_old)); 
 
-  PetscPrintf(usr->comm, "check point after dmeps");
+  PetscCall(PetscPrintf(usr->comm, "check point after dmeps"));
 
   // store DM for the velocity field
   PetscCall(DMCreateGlobalVector(usr->dmPV,&usr->xVel)); 
@@ -274,7 +274,7 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
   PetscCall(DMCreateGlobalVector(usr->dmf, &usr->nfp)); 
   PetscCall(DMCreateGlobalVector(usr->dmf, &usr->nfn)); 
 
-  PetscPrintf(usr->comm, "check point after dmf");
+  PetscCall(PetscPrintf(usr->comm, "check point after dmf"));
 
   // Create a vec to store the magnitude of velocity at every cell center
   // use the same DM with fp and fn for the conveience to know VMag in different fluids.
@@ -285,7 +285,7 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
   PetscCall(VecCopy(x, usr->xVel));
   PetscCall(VecDestroy(&x));
 
-  PetscPrintf(usr->comm, "check point befor vec zeros");
+  PetscCall(PetscPrintf(usr->comm, "check point befor vec zeros"));
   // Create DM/vec for tau_old and DP_old, Initialise the two Vecs as zeros.
   PetscCall(VecZeroEntries(usr->xtau_old)); 
   PetscCall(VecZeroEntries(usr->xDP_old)); 
@@ -311,7 +311,7 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
   {  
   // Create initial guess with a linear viscous
   usr->par->plasticity = PETSC_FALSE; 
-  PetscPrintf(usr->comm,"\n# INITIAL GUESS #\n");
+  PetscCall(PetscPrintf(usr->comm,"\n# INITIAL GUESS #\n"));
 
   PetscCall(FDPDESolve(fd,NULL));
   PetscCall(FDPDEGetSolution(fd,&x));
@@ -335,7 +335,7 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
   PetscCall(DMStagViewBinaryPython(usr->dmf,usr->f,fout));
   
   // FD SNES Solver
-  PetscPrintf(usr->comm,"\n# SNES SOLVE #\n");
+  PetscCall(PetscPrintf(usr->comm,"\n# SNES SOLVE #\n"));
   
   // Time loop  
   //while (istep<tstep) {
@@ -368,8 +368,8 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
     // Update time
     usr->par->t += usr->par->dt;  // computation start from t = dt
 
-    PetscPrintf(usr->comm,"# TIME CHECK POINT %d out of %d after %d steps: time %1.4f\n\n",ickpt, maxckpt, istep, usr->par->t);
-    PetscPrintf(usr->comm,"# next check piont: %1.4f; distance between check points: %1.4f\n\n", tckpt, dtck);
+    PetscCall(PetscPrintf(usr->comm,"# TIME CHECK POINT %d out of %d after %d steps: time %1.4f\n\n",ickpt, maxckpt, istep, usr->par->t));
+    PetscCall(PetscPrintf(usr->comm,"# next check piont: %1.4f; distance between check points: %1.4f\n\n", tckpt, dtck));
 
     // 2nd order runge-kutta
 #if 0
@@ -413,7 +413,7 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
       PetscScalar hk1norm, hk2norm;
       PetscCall(VecNorm(hk1, NORM_1, &hk1norm));
       PetscCall(VecNorm(hk2, NORM_1, &hk2norm));
-      PetscPrintf(usr->comm, "hk1norm=%g, hk2norm=%g \n", hk1norm, hk2norm);
+      PetscCall(PetscPrintf(usr->comm, "hk1norm=%g, hk2norm=%g \n", hk1norm, hk2norm));
       
       // destroy vectors after use
       PetscCall(VecDestroy(&f));
@@ -510,7 +510,7 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
       PetscCall(VecNorm(hk2, NORM_1, &hk2norm));
       PetscCall(VecNorm(hk3, NORM_1, &hk3norm));
       PetscCall(VecNorm(hk4, NORM_1, &hk4norm));
-      PetscPrintf(usr->comm, "hk1norm=%g, hk2norm=%g, hk3norm=%g, hk4norm=%g \n", hk1norm, hk2norm, hk3norm,hk4norm);
+      PetscCall(PetscPrintf(usr->comm, "hk1norm=%g, hk2norm=%g, hk3norm=%g, hk4norm=%g \n", hk1norm, hk2norm, hk3norm,hk4norm));
       
       // destroy vectors after use
       PetscCall(VecDestroy(&f));
@@ -522,7 +522,7 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
     }
 #endif    
     
-    PetscPrintf(usr->comm,"# TIME: time = %1.12e dt = %1.12e \n",usr->par->t,usr->par->dt);
+    PetscCall(PetscPrintf(usr->comm,"# TIME: time = %1.12e dt = %1.12e \n",usr->par->t,usr->par->dt));
 
     // Update wxz, xtau_old and xDP_old
     //PetscCall(UpdateWxz(usr->dmPV, usr->xVel, usr)); 
@@ -569,7 +569,7 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
     PetscScalar fmax, fmin;
     PetscCall(VecMax(usr->f,NULL,&fmax)); 
     PetscCall(VecMin(usr->f,NULL,&fmin)); 
-    PetscPrintf(usr->comm, "Phase field: Maximum of f = %1.8f, Minimum of f = %1.8f\n", fmax, fmin); 
+    PetscCall(PetscPrintf(usr->comm, "Phase field: Maximum of f = %1.8f, Minimum of f = %1.8f\n", fmax, fmin)); 
 
 
     //check max(x) and min(x) - both face and center values are compared though, but pressure might be small if gravity <= 1 and eta << 1.
@@ -593,7 +593,7 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
     dtgap = tckpt - usr->par->t;   // gap between the current time and the next checkpoint
 
     //if (usr->par->t >= 0.04) {usr->par->F1 = 0.0; usr->par->F2 = 0.0; usr->par->F3 = 0.0;} //turn off gravity
-    //PetscPrintf(usr->comm,"dtt= %g, dtgap = %g, diff = %g\n", dtt, dtgap, dtt-dtgap);
+    //PetscCall(PetscPrintf(usr->comm,"dtt= %g, dtgap = %g, diff = %g\n", dtt, dtgap, dtt-dtgap));
 
     if (dtgap <= 0) SETERRQ(usr->comm, PETSC_ERR_ARG_NULL, "dtgap is smaller or equal to zero, the next check points, tckpt, has not been updated properly");
     
@@ -601,8 +601,8 @@ PetscErrorCode StokesDarcy_Numerical(void *ctx)
     if (dtgap > 1.1*dtt) {usr->par->dt = dtt;}
     else {usr->par->dt = dtgap; ickpt++; tckpt += dtck; iwrt = PETSC_TRUE;}
     
-    PetscPrintf(usr->comm, "Phase field: Maximum of U = %1.8f at i = %d of %d, %d  \n", xxmax, imax, isize, isp); 
-    PetscPrintf(usr->comm, "Phase field: gamma = %1.8f\n", usr->par->gamma); 
+    PetscCall(PetscPrintf(usr->comm, "Phase field: Maximum of U = %1.8f at i = %d of %d, %d  \n", xxmax, imax, isize, isp)); 
+    PetscCall(PetscPrintf(usr->comm, "Phase field: gamma = %1.8f\n", usr->par->gamma)); 
 
 
     //if (ickpt >= 9 )  {dtck = 10*usr->par->dtck;} //potentially increase dt
@@ -771,15 +771,15 @@ PetscErrorCode InputPrintData(UsrData *usr)
   PetscCall(PetscOptionsGetAll(NULL, &opts)); 
 
   // Print header and petsc options
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# Test_stokesdarcy2field_phasefield: %s \n",&(date[0]));
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# Test_stokesdarcy2field_phasefield: %s \n",&(date[0])));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# PETSc options: %s \n",opts));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Print usr bag
   PetscCall(PetscBagView(usr->bag,PETSC_VIEWER_STDOUT_WORLD)); 
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Free memory
   PetscCall(PetscFree(opts)); 
@@ -945,7 +945,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         ifp = (PetscInt)fp;
         ifn = (PetscInt)fn;
 
-        //PetscPrintf(usr->comm, "i = %d, j = %d, ifp= %d, ifn = %d, volf=%g  \n", i, j, ifp, ifn, volf);
+        //PetscCall(PetscPrintf(usr->comm, "i = %d, j = %d, ifp= %d, ifn = %d, volf=%g  \n", i, j, ifp, ifn, volf));
         
         eta_u = etaa[ifp];
         eta_d = etaa[ifn];
@@ -959,7 +959,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         C_u = Ca[ifp];
         C_d = Ca[ifn];
         
-        //        PetscPrintf(usr->comm, "eta =%g, %g, zeta=%g, %g, g = %g, %g, f = %g, %g  \n", eta_u, eta_d, zeta_u, zeta_d, G_u, G_d, F_u, F_d);
+        //        PetscCall(PetscPrintf(usr->comm, "eta =%g, %g, zeta=%g, %g, g = %g, %g, f = %g, %g  \n", eta_u, eta_d, zeta_u, zeta_d, G_u, G_d, F_u, F_d));
         //---------------
 
         eta_v  = eta_u  * volf + eta_d  * (1.0 - volf);
@@ -972,7 +972,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         if (eta_v < 1e-8) { PetscCall(PetscPrintf(usr->comm, "i,j=%d, %d, eta_v = %g, volf = %g, eta_u = %g, eta_d = %g\n", i, j, eta_v, volf, eta_u, eta_d));}
         if (zeta_v < 1e-8) { PetscCall(PetscPrintf(usr->comm, "i,j=%d, %d, zeta_v = %g, volf = %g, zeta_u = %g, zeta_d = %g\n", i, j, zeta_v, volf, zeta_u, zeta_d));}
 
-        //        PetscPrintf(usr->comm, "i,j = %d, %d, eta =%g,, zeta=%g, Y = %g, g = %g \n",i,j, eta_v, zeta_v, Y, G);
+        //        PetscCall(PetscPrintf(usr->comm, "i,j = %d, %d, eta =%g,, zeta=%g, Y = %g, g = %g \n",i,j, eta_v, zeta_v, Y, G));
 
         eta_e = G*dt;
         
@@ -1022,7 +1022,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
         PetscCall(DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx)); 
         c[j][i][idx] = eta;
 
-        //PetscPrintf(usr->comm, "A (center) = %g, i = %d, j = %d \n", c[j][i][idx], i, j); 
+        //PetscCall(PetscPrintf(usr->comm, "A (center) = %g, i = %d, j = %d \n", c[j][i][idx], i, j)); 
         
         // deviatoric stress and its second invariant
         // 1. remove the minimum etamin while calculating the built-up stress
@@ -1096,10 +1096,10 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
           Y[ii]  = C_u    * volf[ii] + C_d    * (1.0 - volf[ii]);
           G = G_u * volf[ii] + G_d * (1.0 - volf[ii]);
 
-          if (Y[ii] < 1e-8) { PetscPrintf(usr->comm, "Edge, ii, i,j=%d, %d, %d, Y[ii] = %g, volf[ii] = %g, C_u = %g, C_d = %g\n", ii, i, j, Y[ii], volf[ii], C_u, C_d);}
-          if (G < 1e-8) { PetscPrintf(usr->comm, "Edge, ii, i,j=%d, %d, %d, G = %g, volf[ii] = %g, G_u = %g, G_d = %g\n", ii, i, j, G, volf[ii], G_u, G_d);}
-          if (eta_v < 1e-8) { PetscPrintf(usr->comm, "Edge, ii, i,j=%d, %d, %d, eta_v = %g, volf[ii] = %g, eta_u = %g, eta_d = %g\n", ii, i, j, eta_v, volf[ii], eta_u, eta_d);}
-          if (zeta_v < 1e-8) { PetscPrintf(usr->comm, "Edge, ii, i,j=%d, %d, %d, zeta_v = %g, volf[ii] = %g, zeta_u = %g, zeta_d = %g\n", ii, i, j, zeta_v, volf[ii], zeta_u, zeta_d);}
+          if (Y[ii] < 1e-8) { PetscCall(PetscPrintf(usr->comm, "Edge, ii, i,j=%d, %d, %d, Y[ii] = %g, volf[ii] = %g, C_u = %g, C_d = %g\n", ii, i, j, Y[ii], volf[ii], C_u, C_d));}
+          if (G < 1e-8) { PetscCall(PetscPrintf(usr->comm, "Edge, ii, i,j=%d, %d, %d, G = %g, volf[ii] = %g, G_u = %g, G_d = %g\n", ii, i, j, G, volf[ii], G_u, G_d));}
+          if (eta_v < 1e-8) { PetscCall(PetscPrintf(usr->comm, "Edge, ii, i,j=%d, %d, %d, eta_v = %g, volf[ii] = %g, eta_u = %g, eta_d = %g\n", ii, i, j, eta_v, volf[ii], eta_u, eta_d));}
+          if (zeta_v < 1e-8) { PetscCall(PetscPrintf(usr->comm, "Edge, ii, i,j=%d, %d, %d, zeta_v = %g, volf[ii] = %g, zeta_u = %g, zeta_d = %g\n", ii, i, j, zeta_v, volf[ii], zeta_u, zeta_d));}
 
           eta_e = G*dt;
           
@@ -1116,7 +1116,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
           PetscCall(DMStagGetLocationSlot(dmcoeff, point[ii].loc, 0, &idx)); 
           c[j][i][idx] = eta;
 
-          //PetscPrintf(usr->comm, "A (corner) = %g, i = %d, j= %d, ii=%d  \n", c[j][i][idx], i, j, ii); 
+          //PetscCall(PetscPrintf(usr->comm, "A (corner) = %g, i = %d, j= %d, ii=%d  \n", c[j][i][idx], i, j, ii)); 
 
           // elastic stress evolution parameter
           cs[ii] = (eta-em)/(G*dt);
@@ -1299,7 +1299,7 @@ PetscErrorCode FormCoefficient(FDPDE fd, DM dm, Vec x, DM dmcoeff, Vec coeff, vo
           
           c[j][i][idx] = -pow(R,2) * Kphi * F;
 
-          //          PetscPrintf(usr->comm, "D3 = %g \n", c[j][i][idx]); 
+          //          PetscCall(PetscPrintf(usr->comm, "D3 = %g \n", c[j][i][idx])); 
           
         }
       }
@@ -2029,7 +2029,7 @@ PetscErrorCode SetInitialField(DM dm, Vec x, void *ctx)
       
       xx[j][i][idx] = fval;
 
-      //PetscPrintf(usr->comm, "i = %d, j = %d, ifp= %d, ifn = %d, fp=%g, fn=%g  \n", i, j, (PetscInt)fp[j][i][idx], (PetscInt)fn[j][i][idx], fp[j][i][idx], fn[j][i][idx]);
+      //PetscCall(PetscPrintf(usr->comm, "i = %d, j = %d, ifp= %d, ifn = %d, fp=%g, fn=%g  \n", i, j, (PetscInt)fp[j][i][idx], (PetscInt)fn[j][i][idx], fp[j][i][idx], fn[j][i][idx]));
     }
   }
 
@@ -2097,7 +2097,7 @@ PetscErrorCode CleanUpFPFN(DM dm, void *ctx)
       //****updated vf does not come back into the global vector
       if (vf<1e-8) {fp[j][i][idx] = 0.01;}
       if (1.0 - vf<1e-8) {fn[j][i][idx] = 0.01;}
-      //PetscPrintf(usr->comm, "i = %d, j = %d, ifp= %d, ifn = %d, fp=%g, fn=%g, vf = %g  \n", i, j, (PetscInt)fp[j][i][idx], (PetscInt)fn[j][i][idx], fp[j][i][idx], fn[j][i][idx], vf);
+      //PetscCall(PetscPrintf(usr->comm, "i = %d, j = %d, ifp= %d, ifn = %d, fp=%g, fn=%g, vf = %g  \n", i, j, (PetscInt)fp[j][i][idx], (PetscInt)fn[j][i][idx], fp[j][i][idx], fn[j][i][idx], vf));
     }
   }
 
@@ -2180,19 +2180,19 @@ PetscErrorCode CollectFPFN(DM dm, void *ctx)
         if ((PetscInt)nfp[j][i][idx] != (PetscInt)fp[ii] && (PetscInt)fp[ii] !=0) {
           if ((PetscInt)nfp[j][i][idx] ==0 ) {nfp[j][i][idx] = fp[ii];}
           else {
-            PetscPrintf(usr->comm, "error region, cell i,j = %d, %d, fp=%g, %g, %g, %g, %g, %g, %g, %g, %g \n", i, j, fp[0], fp[1], fp[2], fp[3], fp[4], fp[5], fp[6], fp[7], fp[8]);
+            PetscCall(PetscPrintf(usr->comm, "error region, cell i,j = %d, %d, fp=%g, %g, %g, %g, %g, %g, %g, %g, %g \n", i, j, fp[0], fp[1], fp[2], fp[3], fp[4], fp[5], fp[6], fp[7], fp[8]));
             SETERRQ(usr->comm, PETSC_ERR_ARG_NULL, "THREE FLUIDS IN 9 CELLS: positive fluid");
           }
         }
         if ((PetscInt)nfn[j][i][idx] != (PetscInt)fn[ii] && (PetscInt)fn[ii] !=0) {
           if ((PetscInt)nfn[j][i][idx] ==0 ) {nfn[j][i][idx] = fn[ii];}
           else {
-            PetscPrintf(usr->comm, "error region, cell i,j = %d, %d, fp=%g, %g, %g, %g, %g, %g, %g, %g, %g \n", i, j, fn[0], fn[1], fn[2], fn[3], fn[4], fn[5], fn[6], fn[7], fn[8]);
+            PetscCall(PetscPrintf(usr->comm, "error region, cell i,j = %d, %d, fp=%g, %g, %g, %g, %g, %g, %g, %g, %g \n", i, j, fn[0], fn[1], fn[2], fn[3], fn[4], fn[5], fn[6], fn[7], fn[8]));
             SETERRQ(usr->comm, PETSC_ERR_ARG_NULL, "THREE FLUIDS IN 9 CELLS: negative fluid");
           }
         }
       }
-      //      PetscPrintf(usr->comm, "i = %d, j = %d, infp= %d, infn = %d, nfp=%g, nfn=%g,  \n", i, j, (PetscInt)nfp[j][i][idx], (PetscInt)nfn[j][i][idx], nfp[j][i][idx], nfn[j][i][idx]);
+      //      PetscCall(PetscPrintf(usr->comm, "i = %d, j = %d, infp= %d, infn = %d, nfp=%g, nfn=%g,  \n", i, j, (PetscInt)nfp[j][i][idx], (PetscInt)nfn[j][i][idx], nfp[j][i][idx], nfn[j][i][idx]));
     }
   }
 
@@ -2433,7 +2433,7 @@ PetscErrorCode ExplicitStep(DM dm, Vec xprev, Vec x, PetscScalar dt, void *ctx)
 
         PetscCall(DMStagVecGetValuesStencil(usr->dmPV,xVellocal,4,pf,vf)); 
 
-        //        PetscPrintf(usr->comm, "vf check: %g, %g, %g, %g\n", vf[0], vf[1], vf[2], vf[3]);
+        //        PetscCall(PetscPrintf(usr->comm, "vf check: %g, %g, %g, %g\n", vf[0], vf[1], vf[2], vf[3]));
         
         // central difference method
         fval -= 0.5*(vf[1]*(fe[2]+fe[0]) - vf[0]*(fe[1]+fe[0]))/dx[ix] + 0.5*(vf[3]*(fe[4]+fe[0]) - vf[2]*(fe[3]+fe[0]))/dz[iz];
@@ -2705,7 +2705,7 @@ PetscErrorCode UpdateVolFrac(DM dm, Vec x, void *ctx)
           vvf[j][i][id] = vvf[j][i][ic];
           vvf[j][i][idl] = vvf[j][i][il];
         }
-        //        PetscPrintf(usr->comm, "i, j, = %d, %d, vvf-ic = %g, vvf-il = %g, vvf-id = %g, vvf-idl = %g \n", i, j, vvf[j][i][ic], vvf[j][i][il], vvf[j][i][id], vvf[j][i][idl]);
+        //        PetscCall(PetscPrintf(usr->comm, "i, j, = %d, %d, vvf-ic = %g, vvf-il = %g, vvf-id = %g, vvf-idl = %g \n", i, j, vvf[j][i][ic], vvf[j][i][il], vvf[j][i][id], vvf[j][i][idl]));
       }
     }
   }
@@ -2786,8 +2786,8 @@ int main (int argc,char **argv)
 
   // End time
   PetscCall(PetscTime(&end_time)); 
-  PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time);
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
   
   // Finalize main
   PetscCall(PetscFinalize());

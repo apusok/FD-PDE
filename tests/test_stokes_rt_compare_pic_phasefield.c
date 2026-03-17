@@ -69,7 +69,7 @@ static PetscScalar volf_2d(PetscScalar f1, PetscScalar f2, PetscScalar cc, Petsc
 
     if (PetscAbs(tx)>1.0) {
       if (PetscAbs(tx)-1.0 > tol) {
-        PetscPrintf(PETSC_COMM_WORLD, "f1 = %1.4f, f2 = %1.4f, d1= %1.4f, d2 = %1.4f, r10 = %1.4f, r20=%1.4f, cc = %1.4f, tx = %1.4f\n", f1, f2,d1, d2,r10, r20, cc, tx);
+        PetscCall(PetscPrintf(PETSC_COMM_WORLD, "f1 = %1.4f, f2 = %1.4f, d1= %1.4f, d2 = %1.4f, r10 = %1.4f, r20=%1.4f, cc = %1.4f, tx = %1.4f\n", f1, f2,d1, d2,r10, r20, cc, tx));
       }
       tx = tx/PetscAbs(tx);
     }
@@ -107,7 +107,7 @@ static PetscScalar volf_2d(PetscScalar f1, PetscScalar f2, PetscScalar cc, Petsc
       result = (x1 - (0.5*k0*(x1*x1 - x0*x0) + k1*(x1-x0)))/ar;
 
       if (result <0 || result > 1.0) {
-        PetscPrintf(PETSC_COMM_WORLD, "WRONG vvf, greater than 1 or smaller than zero, volf = %1.4f", result);}
+        PetscCall(PetscPrintf(PETSC_COMM_WORLD, "WRONG vvf, greater than 1 or smaller than zero, volf = %1.4f", result));}
 
     }
   }
@@ -206,8 +206,8 @@ PetscErrorCode Stokes_RT_PIC(void *ctx)
   PetscCall(DMSwarmViewFieldsXDMF(dmswarm,fout,1,fieldname)); 
 
   for (istep=1; istep<usr->par->nt; istep++) {
-    PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-    PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep));
     PetscCall(PetscTime(&start_time)); 
 
     // FD SNES Solver
@@ -229,7 +229,7 @@ PetscErrorCode Stokes_RT_PIC(void *ctx)
 
     PetscCall(VecDestroy(&x));
     PetscCall(PetscTime(&end_time)); 
-    PetscPrintf(PETSC_COMM_WORLD,"# Timestep runtime: %g (sec) \n\n", end_time - start_time);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Timestep runtime: %g (sec) \n\n", end_time - start_time));
   }
 
   // Destroy objects
@@ -543,8 +543,8 @@ PetscErrorCode Stokes_RT_PhaseField(void *ctx)
 
   // Time loop 
   for (istep=1; istep<usr->par->nt; istep++) {
-    PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
-    PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# TIMESTEP %d: \n",istep));
     PetscCall(PetscTime(&start_time)); 
 
     // FD SNES Solver
@@ -601,7 +601,7 @@ PetscErrorCode Stokes_RT_PhaseField(void *ctx)
       PetscScalar hk1norm, hk2norm;
       PetscCall(VecNorm(hk1, NORM_1, &hk1norm));
       PetscCall(VecNorm(hk2, NORM_1, &hk2norm));
-      PetscPrintf(PETSC_COMM_WORLD, "hk1norm=%g, hk2norm=%g \n", hk1norm, hk2norm);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD, "hk1norm=%g, hk2norm=%g \n", hk1norm, hk2norm));
       
       // destroy vectors after use
       PetscCall(VecDestroy(&f_bk));
@@ -625,7 +625,7 @@ PetscErrorCode Stokes_RT_PhaseField(void *ctx)
 
     PetscCall(VecDestroy(&x));
     PetscCall(PetscTime(&end_time)); 
-    PetscPrintf(PETSC_COMM_WORLD,"# Timestep runtime: %g (sec) \n\n", end_time - start_time);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Timestep runtime: %g (sec) \n\n", end_time - start_time));
   }
 
   // Destroy objects
@@ -743,7 +743,7 @@ PetscErrorCode FormCoefficient_PhaseField(FDPDE fd, DM dm, Vec x, DM dmcoeff, Ve
         point.i = i; point.j = j; point.loc = ELEMENT; point.c = 1;
         PetscCall(DMStagGetLocationSlot(dmcoeff, point.loc, point.c, &idx)); 
         c[j][i][idx] = eta;
-        //PetscPrintf(PETSC_COMM_WORLD, "A (center) = %g \n", c[j][i][idx]); 
+        //PetscCall(PetscPrintf(PETSC_COMM_WORLD, "A (center) = %g \n", c[j][i][idx])); 
       }
 
       { // A = eta (corner, c=0)
@@ -1369,24 +1369,24 @@ PetscErrorCode InputPrintData(UsrData *usr)
   PetscCall(PetscOptionsGetAll(NULL, &opts)); 
 
   // Print header and petsc options
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# Test_stokes_rt_compare_pic_phasefield: %s \n",&(date[0]));
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# Test_stokes_rt_compare_pic_phasefield: %s \n",&(date[0])));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# PETSc options: %s \n",opts));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Input file info
   if (usr->par->fname_in[0] == '\0') { // string is empty
-    PetscPrintf(usr->comm,"# Input options file: NONE \n");
+    PetscCall(PetscPrintf(usr->comm,"# Input options file: NONE \n"));
   }
   else {
-    PetscPrintf(usr->comm,"# Input options file: %s \n",usr->par->fname_in);
+    PetscCall(PetscPrintf(usr->comm,"# Input options file: %s \n",usr->par->fname_in));
   }
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Print usr bag
   PetscCall(PetscBagView(usr->bag,PETSC_VIEWER_STDOUT_WORLD)); 
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Free memory
   PetscCall(PetscFree(opts)); 
@@ -1438,8 +1438,8 @@ int main (int argc,char **argv)
 
   // End time
   PetscCall(PetscTime(&end_time)); 
-  PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time);
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
   
   // Finalize main
   PetscCall(PetscFinalize());

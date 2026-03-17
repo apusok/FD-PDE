@@ -132,7 +132,7 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
 
   // Time loop
   while (istep < tstep) {
-    PetscPrintf(PETSC_COMM_WORLD,"# Timestep %d out of %d: time %1.4f\n\n",istep,tstep,usr->par->t);
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Timestep %d out of %d: time %1.4f\n\n",istep,tstep,usr->par->t));
 
     // update vector dfx and dfz
     PetscCall(UpdateGrad(dmf, fprev, usr)); 
@@ -186,7 +186,7 @@ PetscErrorCode Numerical_solution(void *ctx,PetscInt ts_scheme)
       PetscScalar hk1norm, hk2norm;
       PetscCall(VecNorm(hk1, NORM_1, &hk1norm));
       PetscCall(VecNorm(hk2, NORM_1, &hk2norm));
-      PetscPrintf(PETSC_COMM_WORLD, "hk1norm=%g, hk2norm=%g \n", hk1norm, hk2norm);
+      PetscCall(PetscPrintf(PETSC_COMM_WORLD, "hk1norm=%g, hk2norm=%g \n", hk1norm, hk2norm));
       
       // destroy vectors after use
       PetscCall(VecDestroy(&f_bk));
@@ -273,8 +273,8 @@ int main (int argc,char **argv)
 
   // End time
   PetscCall(PetscTime(&end_time)); 
-  PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time);
-  PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# Total runtime: %g (sec) \n", end_time - start_time));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD,"# --------------------------------------- #\n"));
   
   // Finalize main
   PetscCall(PetscFinalize());
@@ -369,24 +369,24 @@ PetscErrorCode InputPrintData(UsrData *usr)
   PetscCall(PetscOptionsGetAll(NULL, &opts)); 
 
   // Print header and petsc options
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# Test_advdiff_advtime: %s \n",&(date[0]));
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
-  PetscPrintf(usr->comm,"# PETSc options: %s \n",opts);
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# Test_advdiff_advtime: %s \n",&(date[0])));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
+  PetscCall(PetscPrintf(usr->comm,"# PETSc options: %s \n",opts));
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Input file info
   if (usr->par->fname_in[0] == '\0') { // string is empty
-    PetscPrintf(usr->comm,"# Input options file: NONE \n");
+    PetscCall(PetscPrintf(usr->comm,"# Input options file: NONE \n"));
   }
   else {
-    PetscPrintf(usr->comm,"# Input options file: %s \n",usr->par->fname_in);
+    PetscCall(PetscPrintf(usr->comm,"# Input options file: %s \n",usr->par->fname_in));
   }
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Print usr bag
   PetscCall(PetscBagView(usr->bag,PETSC_VIEWER_STDOUT_WORLD)); 
-  PetscPrintf(usr->comm,"# --------------------------------------- #\n");
+  PetscCall(PetscPrintf(usr->comm,"# --------------------------------------- #\n"));
 
   // Free memory
   PetscCall(PetscFree(opts)); 
