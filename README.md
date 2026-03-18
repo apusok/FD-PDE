@@ -14,7 +14,7 @@ The FD-PDE Framework was created within the **RIFT-O-MAT** (Magma-Assisted Tecto
 ## Publications using the FD-PDE framework
 - Pusok, A. E., Li, Y., Davis, T., May, D. A. and Katz, R. F. (2025). Inefficient melt transport across a weakened lithosphere led to anomalous rift architecture in the Turkana Depression. GRL, 52:1-12, doi: [10.1029/2025GL115228](https://doi.org/10.1029/2025GL115228)
 
-- Li. Y., Davis, T., Pusok, A.E., Katz, R.F. (2025). Models of buoyancy-driven dykes using continuum plasticity and fracture mechanics: a comparison. GMD, EGUsphere, doi: [10.5194/egusphere-2024-3504](https://egusphere.copernicus.org/preprints/2024/egusphere-2024-3504/).
+- Li. Y., Davis, T., Pusok, A.E., Katz, R.F. (2025). Models of buoyancy-driven dykes using continuum plasticity and fracture mechanics: a comparison. Geosci. Model Dev., 18:6219–6238, doi: [10.5194/gmd-18-6219-2025](https://doi.org/10.5194/gmd-18-6219-2025).
 
 - Li, Y., Pusok, A. E., Davis, T., May, D. and Katz, R. F. (2023). Continuum approximation of dyking with a theory for poro-viscoelastic–viscoplastic deformation. Geophys. J. Int., 234(3):2007–2031, doi: [10.1093/gji/ggad173](http://doi.org/10.1093/gji/ggad173).
 
